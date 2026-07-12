@@ -1,0 +1,79 @@
+"use client";
+
+import Image from "next/image";
+import { Search } from "lucide-react";
+import { motion } from "framer-motion";
+import { Container } from "@/components/ui/Container";
+import { Button } from "@/components/ui/Button";
+import { fadeUp, staggerContainer } from "@/lib/motion";
+
+export function Hero() {
+  return (
+    <section>
+      {/* Fixed backdrop: the photo stays pinned to the viewport while the page scrolls over it */}
+      <div className="fixed inset-x-0 top-0 -z-10 h-screen">
+        <Image
+          src="/images/under-hero-photo.webp"
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
+        />
+        <div className="absolute inset-0 bg-slate-900/55" />
+      </div>
+
+      <Container className="py-14 sm:py-20 lg:py-24">
+        <motion.div
+          variants={staggerContainer}
+          initial="hidden"
+          animate="visible"
+          className="max-w-2xl"
+        >
+          <motion.p
+            variants={fadeUp}
+            className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700"
+          >
+            AYPROM — гидрооборудование для спецтехники
+          </motion.p>
+          <motion.h1
+            variants={fadeUp}
+            className="mt-4 text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl"
+          >
+            Каталог гидрооборудования и запчастей для спецтехники
+          </motion.h1>
+          <motion.p variants={fadeUp} className="mt-4 max-w-xl text-base text-slate-200 sm:text-lg">
+            Подберите нужную деталь по типу оборудования, марке техники, названию или артикулу.
+          </motion.p>
+
+          <motion.form
+            variants={fadeUp}
+            action="/catalog"
+            method="GET"
+            className="mt-8 flex w-full max-w-lg items-center gap-2 rounded-lg border border-slate-300 bg-card p-1.5 shadow-sm focus-within:border-ring focus-within:ring-1 focus-within:ring-ring"
+          >
+            <Search className="ml-2 h-5 w-5 shrink-0 text-slate-400" />
+            <input
+              type="text"
+              name="q"
+              placeholder="Например: гидроцилиндр HOWO"
+              className="h-10 w-full border-0 bg-transparent text-sm text-foreground outline-none placeholder:text-slate-400"
+            />
+            <Button type="submit" size="sm" className="shrink-0">
+              Найти
+            </Button>
+          </motion.form>
+
+          <motion.div variants={fadeUp} className="mt-6 flex flex-wrap gap-3">
+            <Button href="/catalog" size="lg">
+              Перейти в каталог
+            </Button>
+            <Button href="/#brands" variant="secondary" size="lg">
+              Марки техники
+            </Button>
+          </motion.div>
+        </motion.div>
+      </Container>
+    </section>
+  );
+}
