@@ -6,8 +6,11 @@ import { motion } from "framer-motion";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { fadeUp, staggerContainer } from "@/lib/motion";
+import { useHashNavClick } from "@/lib/use-hash-nav-click";
 
 export function Hero() {
+  const handleHashClick = useHashNavClick();
+
   return (
     <section>
       {/* Fixed backdrop: the photo stays pinned to the viewport while the page scrolls over it */}
@@ -68,7 +71,12 @@ export function Hero() {
             <Button href="/catalog" size="lg">
               Перейти в каталог
             </Button>
-            <Button href="/#brands" variant="secondary" size="lg">
+            <Button
+              href="/#brands"
+              variant="secondary"
+              size="lg"
+              onClick={(event) => handleHashClick("/#brands", event)}
+            >
               Марки техники
             </Button>
           </motion.div>

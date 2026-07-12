@@ -10,12 +10,14 @@ import { Button } from "@/components/ui/Button";
 import { NavDropdown } from "@/components/layout/NavDropdown";
 import { mainNav, type NavItem } from "@/lib/navigation";
 import { useScroll } from "@/lib/use-scroll";
+import { useHashNavClick } from "@/lib/use-hash-nav-click";
 import { cn } from "@/lib/utils";
 
 export function Header() {
   const [open, setOpen] = useState(false);
   const scrolled = useScroll(10);
   const pathname = usePathname();
+  const handleHashClick = useHashNavClick();
   // On the homepage the header floats transparently over the fixed hero photo until scroll
   const overPhoto = pathname === "/" && !scrolled && !open;
 
@@ -57,6 +59,7 @@ export function Header() {
               <Link
                 key={item.label}
                 href={item.href}
+                onClick={(event) => handleHashClick(item.href, event)}
                 className={cn(
                   "rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   overPhoto
@@ -109,7 +112,12 @@ export function Header() {
           >
             <Container className="flex flex-col gap-1 py-4">
               {mainNav.map((item) => (
-                <MobileNavItem key={item.label} item={item} onNavigate={() => setOpen(false)} />
+                <MobileNavItem
+                  key={item.label}
+                  item={item}
+                  onNavigate={() => setOpen(false)}
+                  handleHashClick={handleHashClick}
+                />
               ))}
               <Button href="/catalog" className="mt-2 w-full" onClick={() => setOpen(false)}>
                 Все товары
@@ -122,14 +130,25 @@ export function Header() {
   );
 }
 
-function MobileNavItem({ item, onNavigate }: { item: NavItem; onNavigate: () => void }) {
+function MobileNavItem({
+  item,
+  onNavigate,
+  handleHashClick,
+}: {
+  item: NavItem;
+  onNavigate: () => void;
+  handleHashClick: (href: string, event: React.MouseEvent) => void;
+}) {
   const [expanded, setExpanded] = useState(false);
 
   if (!item.dropdown) {
     return (
       <Link
         href={item.href}
-        onClick={onNavigate}
+        onClick={(event) => {
+          handleHashClick(item.href, event);
+          onNavigate();
+        }}
         className="rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-muted hover:text-primary"
       >
         {item.label}
@@ -142,7 +161,10 @@ function MobileNavItem({ item, onNavigate }: { item: NavItem; onNavigate: () => 
       <div className="flex items-center">
         <Link
           href={item.href}
-          onClick={onNavigate}
+          onClick={(event) => {
+            handleHashClick(item.href, event);
+            onNavigate();
+          }}
           className="flex-1 rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-muted hover:text-primary"
         >
           {item.label}

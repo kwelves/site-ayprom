@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
+import { useHashNavClick } from "@/lib/use-hash-nav-click";
 import { cn } from "@/lib/utils";
 import type { NavDropdownItem } from "@/lib/navigation";
 
@@ -19,6 +20,7 @@ export function NavDropdown({ label, href, items, light }: NavDropdownProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const twoColumn = items.length > 4;
+  const handleHashClick = useHashNavClick();
 
   return (
     <div
@@ -35,6 +37,7 @@ export function NavDropdown({ label, href, items, light }: NavDropdownProps) {
     >
       <Link
         href={href}
+        onClick={(event) => handleHashClick(href, event)}
         className={cn(
           "flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium transition-colors",
           light

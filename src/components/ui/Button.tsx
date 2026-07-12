@@ -31,7 +31,7 @@ interface ButtonProps extends VariantProps<typeof buttonStyles> {
   className?: string;
   href?: string;
   type?: "button" | "submit";
-  onClick?: () => void;
+  onClick?: (event: React.MouseEvent) => void;
 }
 
 export function Button({ href, type = "button", variant, size, className, children, onClick }: ButtonProps) {

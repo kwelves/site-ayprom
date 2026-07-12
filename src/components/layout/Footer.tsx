@@ -1,10 +1,15 @@
+"use client";
+
 import Link from "next/link";
 import { AtSign, Mail, MapPin, Truck } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { Reveal } from "@/components/motion/Reveal";
 import { mainNav } from "@/lib/navigation";
+import { useHashNavClick } from "@/lib/use-hash-nav-click";
 
 export function Footer() {
+  const handleHashClick = useHashNavClick();
+
   return (
     <footer id="contacts" className="scroll-mt-16 bg-slate-900 text-slate-300">
       <Reveal>
@@ -29,7 +34,11 @@ export function Footer() {
             <ul className="mt-4 flex flex-col gap-2">
               {mainNav.map((link) => (
                 <li key={link.href}>
-                  <Link href={link.href} className="text-sm text-slate-300 transition-colors hover:text-blue-400">
+                  <Link
+                    href={link.href}
+                    onClick={(event) => handleHashClick(link.href, event)}
+                    className="text-sm text-slate-300 transition-colors hover:text-blue-400"
+                  >
                     {link.label}
                   </Link>
                 </li>
