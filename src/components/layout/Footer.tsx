@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Clock, Mail, MapPin, Phone, Truck } from "lucide-react";
+import { AtSign, Mail, MapPin, Truck } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { Reveal } from "@/components/motion/Reveal";
 import { mainNav } from "@/lib/navigation";
@@ -42,13 +42,7 @@ export function Footer() {
             <ul className="mt-4 flex flex-col gap-3 text-sm text-slate-300">
               <li className="flex items-start gap-3">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-blue-400" />
-                <span>г. Бишкек, ул. Промышленная, 12</span>
-              </li>
-              <li className="flex items-center gap-3">
-                <Phone className="h-4 w-4 shrink-0 text-blue-400" />
-                <a href="tel:+996500123456" className="hover:text-blue-400">
-                  +996 500 12 34 56
-                </a>
+                <span>Кыргызстан, г. Бишкек, ул. Ден Сяопина, 457/1</span>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="h-4 w-4 shrink-0 text-blue-400" />
@@ -57,8 +51,28 @@ export function Footer() {
                 </a>
               </li>
               <li className="flex items-center gap-3">
-                <Clock className="h-4 w-4 shrink-0 text-blue-400" />
-                <span>Пн–Сб: 9:00–18:00</span>
+                <AtSign className="h-4 w-4 shrink-0 text-blue-400" />
+                <span className="flex items-center gap-2">
+                  <a
+                    href="https://instagram.com/ayprom.kg"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-blue-400"
+                  >
+                    Instagram
+                  </a>
+                  <span aria-hidden="true" className="text-slate-600">
+                    ·
+                  </span>
+                  <a
+                    href="https://tiktok.com/@ayprom.kg"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-blue-400"
+                  >
+                    TikTok
+                  </a>
+                </span>
               </li>
             </ul>
           </div>
