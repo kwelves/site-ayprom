@@ -1,12 +1,13 @@
-import { LayoutGrid, Truck, type LucideIcon } from "lucide-react";
+import { LayoutGrid, Truck } from "lucide-react";
 import { categories } from "@/data/categories";
 import { categoryIconMap } from "@/lib/category-icons";
+import type { IconComponent } from "@/types/catalog";
 
 export interface NavDropdownItem {
   label: string;
   description: string;
   href: string;
-  icon: LucideIcon;
+  icon: IconComponent;
 }
 
 export interface NavItem {

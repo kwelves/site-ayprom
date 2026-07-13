@@ -1,12 +1,8 @@
-export type CategoryIcon =
-  | "gear-pump"
-  | "piston-pump"
-  | "pto"
-  | "valve"
-  | "pneumatic"
-  | "tank-cooling"
-  | "fitting"
-  | "accessory";
+import type { ComponentType, SVGProps } from "react";
+
+export type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
+
+export type CategoryIcon = "hydraulic-pump" | "pto" | "pto-shaft" | "tank";
 
 export interface Category {
   slug: string;

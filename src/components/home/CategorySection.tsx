@@ -16,7 +16,7 @@ export function CategorySection() {
             description="Выберите категорию, чтобы быстро найти нужные детали."
           />
         </Reveal>
-        <StaggerGroup className="mt-8 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
+        <StaggerGroup className="mt-8 grid grid-cols-2 gap-5 lg:grid-cols-4">
           {categories.map((category) => (
             <StaggerItem key={category.slug}>
               <CategoryCard category={category} />
