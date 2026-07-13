@@ -48,17 +48,19 @@ export function AboutPreview() {
             description="Мы специализируемся на гидрооборудовании и запчастях для грузовой и специальной техники и собираем каталог, чтобы клиентам было проще подобрать нужную позицию по бренду, категории или названию."
           />
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          <div className="mt-6 flex flex-col divide-y divide-border sm:grid sm:grid-cols-3 sm:gap-3 sm:divide-y-0">
             {values.map(({ icon: Icon, title, description }) => (
               <div
                 key={title}
-                className="rounded-xl border border-border bg-card p-4 transition-colors hover:border-blue-200 hover:bg-accent/40"
+                className="flex items-start gap-3 py-3 first:pt-0 sm:block sm:rounded-xl sm:border sm:border-border sm:bg-card sm:p-4 sm:py-4 sm:transition-colors sm:hover:border-blue-200 sm:hover:bg-accent/40"
               >
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
                   <Icon className="h-4 w-4" />
                 </span>
-                <p className="mt-3 text-sm font-semibold text-card-foreground">{title}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+                <div className="sm:mt-3">
+                  <p className="text-sm font-semibold text-card-foreground">{title}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+                </div>
               </div>
             ))}
           </div>

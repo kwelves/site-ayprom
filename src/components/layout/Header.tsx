@@ -82,7 +82,7 @@ export function Header() {
         <button
           type="button"
           className={cn(
-            "inline-flex items-center justify-center rounded-md p-2 transition-colors md:hidden",
+            "inline-flex h-11 w-11 items-center justify-center rounded-md transition-colors md:hidden",
             overPhoto ? "text-white" : "text-slate-700"
           )}
           onClick={() => setOpen((value) => !value)}
@@ -172,7 +172,7 @@ function MobileNavItem({
         <button
           type="button"
           onClick={() => setExpanded((value) => !value)}
-          className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-primary"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-primary"
           aria-expanded={expanded}
           aria-label={`Показать подраздел «${item.label}»`}
         >

@@ -14,7 +14,7 @@ export function Hero() {
   return (
     <section>
       {/* Fixed backdrop: the photo stays pinned to the viewport while the page scrolls over it */}
-      <div className="fixed inset-x-0 top-0 -z-10 h-screen">
+      <div className="fixed inset-x-0 top-0 -z-10 h-dvh">
         <Image
           src="/images/under-hero-photo.webp"
           alt=""
@@ -62,7 +62,7 @@ export function Hero() {
               placeholder="Например: гидроцилиндр HOWO"
               className="h-10 w-full border-0 bg-transparent text-sm text-foreground outline-none placeholder:text-slate-400"
             />
-            <Button type="submit" size="sm" className="shrink-0">
+            <Button type="submit" className="shrink-0">
               Найти
             </Button>
           </motion.form>

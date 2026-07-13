@@ -31,13 +31,13 @@ export function Footer() {
 
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Навигация</p>
-            <ul className="mt-4 flex flex-col gap-2">
+            <ul className="mt-2 flex flex-col">
               {mainNav.map((link) => (
                 <li key={link.href}>
                   <Link
                     href={link.href}
                     onClick={(event) => handleHashClick(link.href, event)}
-                    className="text-sm text-slate-300 transition-colors hover:text-blue-400"
+                    className="block py-2 text-sm text-slate-300 transition-colors hover:text-blue-400"
                   >
                     {link.label}
                   </Link>
@@ -55,7 +55,7 @@ export function Footer() {
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="h-4 w-4 shrink-0 text-blue-400" />
-                <a href="mailto:info@ayprom.kg" className="hover:text-blue-400">
+                <a href="mailto:info@ayprom.kg" className="py-1.5 hover:text-blue-400">
                   info@ayprom.kg
                 </a>
               </li>
@@ -66,7 +66,7 @@ export function Footer() {
                     href="https://instagram.com/ayprom.kg"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="hover:text-blue-400"
+                    className="py-1.5 hover:text-blue-400"
                   >
                     Instagram
                   </a>
@@ -77,7 +77,7 @@ export function Footer() {
                     href="https://tiktok.com/@ayprom.kg"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="hover:text-blue-400"
+                    className="py-1.5 hover:text-blue-400"
                   >
                     TikTok
                   </a>
