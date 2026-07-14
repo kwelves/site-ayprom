@@ -13,7 +13,7 @@ export const categories: Category[] = [
     name: "Коробки отбора мощности",
     description: "КОМ для навесного и гидравлического оборудования спецтехники",
     icon: "pto",
-    image: "/catalog-cards/2-pto.png",
+    image: "/catalog-cards/2-pto.jpg",
   },
   {
     slug: "pto-shafts",
