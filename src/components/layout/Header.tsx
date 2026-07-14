@@ -31,7 +31,14 @@ export function Header() {
       )}
     >
       <Container className="flex h-16 items-center justify-between">
-        <Link href="/" className="flex items-center gap-2" onClick={() => setOpen(false)}>
+        <Link
+          href="/"
+          className="flex items-center gap-2"
+          onClick={(event) => {
+            handleHashClick("/", event);
+            setOpen(false);
+          }}
+        >
           <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
             <Truck className="h-5 w-5" />
           </span>

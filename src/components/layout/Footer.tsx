@@ -15,7 +15,7 @@ export function Footer() {
       <Reveal>
         <Container className="grid gap-10 py-12 sm:grid-cols-2 lg:grid-cols-3 lg:py-16">
           <div>
-            <Link href="/" className="flex items-center gap-2">
+            <Link href="/" className="flex items-center gap-2" onClick={(event) => handleHashClick("/", event)}>
               <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
                 <Truck className="h-5 w-5" />
               </span>
