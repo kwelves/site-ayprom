@@ -4,8 +4,12 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/motion/Reveal";
 import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
 import { CategoryCard } from "@/components/home/CategoryCard";
+import { BrandCard } from "@/components/home/BrandCard";
 import { categories } from "@/data/categories";
 import { subcategoriesByCategory } from "@/data/subcategories";
+import { brandsByCategory, categoryCardLogoScale } from "@/data/category-brands";
+import { getCategoryGridSizing } from "@/lib/category-grid";
+import { cn } from "@/lib/utils";
 
 interface CategoryPageProps {
   params: Promise<{ slug: string }>;
@@ -30,6 +34,36 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   }
 
   const subcategories = subcategoriesByCategory[category.slug];
+  const categoryBrands = brandsByCategory[category.slug];
+
+  if (categoryBrands) {
+    // Matches CategorySection's homepage grid exactly (same columns, gap, and
+    // default CategoryCard/BrandCard sizing) so brand cards are pixel-for-pixel
+    // the same size as the homepage catalog cards at every breakpoint.
+    return (
+      <>
+        <Reveal>
+          <SectionHeading
+            className="mx-auto max-w-2xl text-center"
+            title={category.name}
+            description="Выберите бренд, чтобы быстро найти нужные детали."
+          />
+        </Reveal>
+        <StaggerGroup className="mt-10 grid grid-cols-2 gap-5 lg:grid-cols-4">
+          {categoryBrands.map((brand) => (
+            <StaggerItem key={brand.slug}>
+              <BrandCard
+                href={`/catalog/category/${category.slug}/brand/${brand.slug}`}
+                brand={brand}
+                logoScale={categoryCardLogoScale[brand.slug]}
+                imageClassName={brand.slug === "renault-trucks" ? undefined : "p-8"}
+              />
+            </StaggerItem>
+          ))}
+        </StaggerGroup>
+      </>
+    );
+  }
 
   if (!subcategories) {
     return (
@@ -45,6 +79,8 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     );
   }
 
+  const sizing = getCategoryGridSizing(subcategories.length);
+
   return (
     <>
       <Reveal>
@@ -54,15 +90,21 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
           description="Выберите подкатегорию, чтобы быстро найти нужные детали."
         />
       </Reveal>
-      <StaggerGroup className="mt-10 grid grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+      <StaggerGroup
+        className={cn(
+          "mt-10 flex flex-wrap justify-center gap-4 sm:gap-6 lg:gap-8",
+          sizing.narrowContainer && "mx-auto max-w-3xl"
+        )}
+      >
         {subcategories.map((sub) => (
-          <StaggerItem key={sub.slug}>
+          <StaggerItem key={sub.slug} className={sizing.itemClassName}>
             <CategoryCard
               href="/catalog"
               image={sub.image}
               name={sub.name}
               sizes="(max-width: 1023px) 30vw, 380px"
-              nameClassName="text-base font-medium"
+              imageClassName={sizing.imageClassName}
+              nameClassName={sizing.nameClassName}
             />
           </StaggerItem>
         ))}

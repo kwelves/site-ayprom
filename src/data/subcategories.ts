@@ -22,4 +22,16 @@ export const subcategoriesByCategory: Record<string, Subcategory[]> = {
       image: "/category-hydraulic-pumps/3-inline-piston-pumps.jpg",
     },
   ],
+  tanks: [
+    {
+      slug: "side-tanks",
+      name: "Боковые",
+      image: "/categoty-hydro-tanks/1-side-tanks.jpg",
+    },
+    {
+      slug: "behind-cab-tanks",
+      name: "За кабину",
+      image: "/categoty-hydro-tanks/2-behind-cab-tanks.jpg",
+    },
+  ],
 };

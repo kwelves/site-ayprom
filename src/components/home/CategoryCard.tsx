@@ -14,6 +14,7 @@ interface CategoryCardProps {
   name: string;
   sizes?: string;
   nameClassName?: string;
+  imageClassName?: string;
 }
 
 export function CategoryCard({
@@ -22,6 +23,7 @@ export function CategoryCard({
   name,
   sizes = "(max-width: 639px) 45vw, (max-width: 1023px) 30vw, 320px",
   nameClassName,
+  imageClassName,
 }: CategoryCardProps) {
   const shouldReduceMotion = useReducedMotion();
 
@@ -36,7 +38,7 @@ export function CategoryCard({
       {/* Extra internal padding keeps the product smaller within the frame so the
           card reads airier now that it's just a photo + caption. */}
       <div className="relative aspect-4/3 w-full shrink-0 bg-muted/40">
-        <Image src={image} alt={name} fill sizes={sizes} className="object-contain p-5" />
+        <Image src={image} alt={name} fill sizes={sizes} className={cn("object-contain p-5", imageClassName)} />
       </div>
 
       <div className="px-4 py-3.5 text-center">
