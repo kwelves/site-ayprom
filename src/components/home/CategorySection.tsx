@@ -19,7 +19,11 @@ export function CategorySection() {
         <StaggerGroup className="mt-8 grid grid-cols-2 gap-5 lg:grid-cols-4">
           {categories.map((category) => (
             <StaggerItem key={category.slug}>
-              <CategoryCard category={category} />
+              <CategoryCard
+                href={`/catalog/category/${category.slug}`}
+                image={category.image}
+                name={category.name}
+              />
             </StaggerItem>
           ))}
         </StaggerGroup>

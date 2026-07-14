@@ -22,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru" className={`${geistSans.variable} h-full scroll-smooth antialiased`}>
+    <html lang="ru" className={`${geistSans.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col bg-background text-foreground">
         <ScrollToHash />
         <Header />
