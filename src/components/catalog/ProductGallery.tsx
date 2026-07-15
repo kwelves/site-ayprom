@@ -33,11 +33,13 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
     setIndex([wrapped, nextIndex > index ? 1 : -1]);
   };
 
-  // drag="x" + dragConstraints of 0 gives a rubber-band swipe: Framer Motion
-  // locks onto whichever axis the gesture actually moves in, so a mostly-
-  // vertical touch is left alone for the browser's normal page scroll.
-  // touch-pan-y reinforces that at the CSS level (only vertical panning is
-  // reserved for native scrolling on this element).
+  // drag="x" is used purely for gesture detection, not visual movement:
+  // dragConstraints + dragElastic={0} keep the element rigidly in place (no
+  // finger-following wobble) — it behaves like pressing the arrow button,
+  // just triggered by a swipe instead of a click. Framer Motion still locks
+  // onto whichever axis the gesture actually moves in, so a mostly-vertical
+  // touch is left alone for the browser's normal page scroll (reinforced by
+  // touch-pan-y at the CSS level).
   const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     if (info.offset.x < -SWIPE_THRESHOLD) {
       goTo(index + 1);
@@ -52,7 +54,7 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
         className="relative aspect-4/3 w-full touch-pan-y overflow-hidden rounded-xl border border-border bg-muted/40"
         drag={hasMultiple && isTouchDevice ? "x" : false}
         dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={0.15}
+        dragElastic={0}
         onDragEnd={handleDragEnd}
       >
         <AnimatePresence initial={false} custom={direction} mode="wait">

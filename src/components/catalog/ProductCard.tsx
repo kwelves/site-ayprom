@@ -53,9 +53,13 @@ export function ProductCard({ product, href }: { product: Product; href: string 
     goTo(nextIndex);
   };
 
-  // drag="x" only locks the horizontal axis — a mostly-vertical touch is left
-  // for the page's normal scroll (reinforced by touch-pan-y below), so
-  // swiping photos on mobile doesn't fight scrolling the grid.
+  // drag="x" is used purely for gesture detection, not visual movement:
+  // dragConstraints + dragElastic={0} keep the card/arrows rigidly in place
+  // (no finger-following wobble) — a swipe behaves like pressing the arrow
+  // button, it just triggers goTo() from a different input. Framer Motion
+  // still locks onto whichever axis the gesture moves in, so a mostly-
+  // vertical touch is left for the page's normal scroll (reinforced by
+  // touch-pan-y below).
   const handleDragStart = () => {
     didDragRef.current = true;
   };
@@ -86,7 +90,7 @@ export function ProductCard({ product, href }: { product: Product; href: string 
         className="relative z-10 aspect-4/3 w-full shrink-0 touch-pan-y overflow-hidden bg-muted/40"
         drag={hasMultiple && isTouchDevice ? "x" : false}
         dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={0.15}
+        dragElastic={0}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         onTap={(event) => {
