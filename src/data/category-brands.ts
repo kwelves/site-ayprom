@@ -25,11 +25,18 @@ export const brandsByCategory: Record<string, Brand[]> = {
 
 // Brand.logoScale is tuned for the small homepage badge (BrandSection) — this
 // card's box is a much bigger 2:1 frame, so the same factor can look very
-// different here. Only brands that actually need a different value in this
-// card are listed; everything else falls back to brand.logoScale.
+// different here. All 8 logos happen to be height-bound at this box's aspect
+// ratio (2:1 is wide enough that even the widest logo, MAZ, doesn't hit the
+// width first), so one uniform scale works for all of them — 1.15 is the
+// practical safe ceiling before the tallest ones start touching the card's
+// own edge (bigger risks visible clipping or bleeding into the name below).
 export const categoryCardLogoScale: Partial<Record<string, number>> = {
-  daf: 1.3,
-  kamaz: 1.3,
+  daf: 1.15,
+  man: 0.95,
+  scania: 0.95,
+  maz: 0.95,
+  kamaz: 1.15,
   "renault-trucks": 1.3,
-  "mercedes-benz": 1.3,
+  "mercedes-benz": 1.15,
+  volvo: 1.15,
 };

@@ -92,7 +92,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
       <StaggerGroup
         className={cn(
           "mt-10 flex flex-wrap justify-center gap-4 sm:gap-6 lg:gap-8",
-          sizing.narrowContainer && "mx-auto max-w-3xl"
+          sizing.containerClassName
         )}
       >
         {subcategories.map((sub) => (
