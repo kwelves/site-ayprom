@@ -98,7 +98,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         {subcategories.map((sub) => (
           <StaggerItem key={sub.slug} className={sizing.itemClassName}>
             <CategoryCard
-              href="/catalog"
+              href={`/catalog/category/${category.slug}/subcategory/${sub.slug}`}
               image={sub.image}
               name={sub.name}
               sizes="(max-width: 1023px) 30vw, 380px"
