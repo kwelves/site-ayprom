@@ -1,14 +1,15 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { Reveal } from "@/components/motion/Reveal";
-import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
-import { ProductCard } from "@/components/catalog/ProductCard";
+import { ProductSearchForm } from "@/components/catalog/ProductSearchForm";
+import { ProductGridWithSearch } from "@/components/catalog/ProductGridWithSearch";
 import { brands } from "@/data/brands";
 import { products } from "@/data/products";
 import { getProductHref } from "@/lib/product-href";
 
 interface BrandPageProps {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ q?: string }>;
 }
 
 export function generateStaticParams() {
@@ -21,8 +22,9 @@ export async function generateMetadata({ params }: BrandPageProps): Promise<Meta
   return { title: brand ? `${brand.name} — AYPROM` : "Каталог — AYPROM" };
 }
 
-export default async function BrandPage({ params }: BrandPageProps) {
+export default async function BrandPage({ params, searchParams }: BrandPageProps) {
   const { slug } = await params;
+  const { q } = await searchParams;
   const brand = brands.find((item) => item.slug === slug);
 
   if (!brand) {
@@ -52,19 +54,21 @@ export default async function BrandPage({ params }: BrandPageProps) {
         </div>
       </Reveal>
 
-      {brandProducts.length > 0 ? (
-        <StaggerGroup className="mt-10 grid grid-cols-2 gap-5 lg:grid-cols-4">
-          {brandProducts.map((product) => (
-            <StaggerItem key={product.slug}>
-              <ProductCard product={product} href={getProductHref(product)} />
-            </StaggerItem>
-          ))}
-        </StaggerGroup>
-      ) : (
-        <p className="mt-10 text-center text-slate-600">
-          Для бренда «{brand.name}» пока нет товаров. Скоро они здесь появятся.
-        </p>
-      )}
+      <div className="mt-6">
+        <ProductSearchForm
+          action={`/catalog/brand/${slug}`}
+          defaultValue={q}
+          placeholder={`Поиск по «${brand.name}»`}
+        />
+      </div>
+
+      <ProductGridWithSearch
+        products={brandProducts}
+        query={q}
+        scopeLabel={`для бренда «${brand.name}»`}
+        href={getProductHref}
+        emptyLabel={`Для бренда «${brand.name}» пока нет товаров. Скоро они здесь появятся.`}
+      />
     </>
   );
 }

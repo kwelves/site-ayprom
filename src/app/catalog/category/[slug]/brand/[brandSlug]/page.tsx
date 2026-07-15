@@ -2,14 +2,15 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/motion/Reveal";
-import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
-import { ProductCard } from "@/components/catalog/ProductCard";
+import { ProductSearchForm } from "@/components/catalog/ProductSearchForm";
+import { ProductGridWithSearch } from "@/components/catalog/ProductGridWithSearch";
 import { categories } from "@/data/categories";
 import { brandsByCategory } from "@/data/category-brands";
 import { products } from "@/data/products";
 
 interface BrandInCategoryPageProps {
   params: Promise<{ slug: string; brandSlug: string }>;
+  searchParams: Promise<{ q?: string }>;
 }
 
 export function generateStaticParams() {
@@ -25,8 +26,9 @@ export async function generateMetadata({ params }: BrandInCategoryPageProps): Pr
   return { title: category && brand ? `${category.name} — ${brand.name} — AYPROM` : "Каталог — AYPROM" };
 }
 
-export default async function BrandInCategoryPage({ params }: BrandInCategoryPageProps) {
+export default async function BrandInCategoryPage({ params, searchParams }: BrandInCategoryPageProps) {
   const { slug, brandSlug } = await params;
+  const { q } = await searchParams;
   const category = categories.find((item) => item.slug === slug);
   const brand = brandsByCategory[slug]?.find((item) => item.slug === brandSlug);
 
@@ -44,22 +46,21 @@ export default async function BrandInCategoryPage({ params }: BrandInCategoryPag
         <SectionHeading className="mx-auto max-w-2xl text-center" eyebrow={category.name} title={brand.name} />
       </Reveal>
 
-      {brandProducts.length > 0 ? (
-        <StaggerGroup className="mt-10 grid grid-cols-2 gap-5 lg:grid-cols-4">
-          {brandProducts.map((product) => (
-            <StaggerItem key={product.slug}>
-              <ProductCard
-                product={product}
-                href={`/catalog/category/${slug}/brand/${brandSlug}/${product.slug}`}
-              />
-            </StaggerItem>
-          ))}
-        </StaggerGroup>
-      ) : (
-        <p className="mt-10 text-center text-slate-600">
-          Для этого бренда пока нет товаров. Скоро они здесь появятся.
-        </p>
-      )}
+      <div className="mt-6">
+        <ProductSearchForm
+          action={`/catalog/category/${slug}/brand/${brandSlug}`}
+          defaultValue={q}
+          placeholder={`Поиск по «${brand.name}»`}
+        />
+      </div>
+
+      <ProductGridWithSearch
+        products={brandProducts}
+        query={q}
+        scopeLabel={`для бренда «${brand.name}»`}
+        href={(product) => `/catalog/category/${slug}/brand/${brandSlug}/${product.slug}`}
+        emptyLabel="Для этого бренда пока нет товаров. Скоро они здесь появятся."
+      />
     </>
   );
 }

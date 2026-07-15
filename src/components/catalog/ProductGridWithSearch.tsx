@@ -1,0 +1,80 @@
+import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
+import { ProductCard } from "@/components/catalog/ProductCard";
+import { searchProducts } from "@/lib/search-products";
+import { getProductHref } from "@/lib/product-href";
+import { products as allProducts } from "@/data/products";
+import type { Product } from "@/types/catalog";
+
+interface ProductGridWithSearchProps {
+  /** The current page's own product scope (e.g. one subcategory's products). */
+  products: Product[];
+  /** The `q` search param, if present. */
+  query?: string;
+  /** Used in "nothing found" copy, e.g. `в подкатегории «Шестерённые насосы»`. */
+  scopeLabel: string;
+  /** Link for a result within the current scope. */
+  href: (product: Product) => string;
+  /** Shown when there's no query and the scope itself has no products yet. */
+  emptyLabel: string;
+}
+
+const gridClassName = "mt-6 grid grid-cols-2 gap-5 lg:grid-cols-4";
+
+// Search is scoped to the current page first; only falls back to a global
+// search (across every category/brand) when the scoped search comes up
+// empty — narrowing what browsing already narrowed, not replacing it.
+export function ProductGridWithSearch({ products, query, scopeLabel, href, emptyLabel }: ProductGridWithSearchProps) {
+  if (!query) {
+    return products.length > 0 ? (
+      <StaggerGroup className={gridClassName}>
+        {products.map((product) => (
+          <StaggerItem key={product.slug}>
+            <ProductCard product={product} href={href(product)} />
+          </StaggerItem>
+        ))}
+      </StaggerGroup>
+    ) : (
+      <p className="mt-6 text-center text-slate-600">{emptyLabel}</p>
+    );
+  }
+
+  const scopedResults = searchProducts(products, query);
+
+  if (scopedResults.length > 0) {
+    return (
+      <StaggerGroup className={gridClassName}>
+        {scopedResults.map((product) => (
+          <StaggerItem key={product.slug}>
+            <ProductCard product={product} href={href(product)} />
+          </StaggerItem>
+        ))}
+      </StaggerGroup>
+    );
+  }
+
+  const globalResults = searchProducts(allProducts, query);
+
+  return (
+    <div>
+      <p className="mt-6 text-center text-slate-600">
+        По запросу «{query}» {scopeLabel} ничего не найдено.
+      </p>
+
+      {globalResults.length > 0 && (
+        <>
+          <div className="mx-auto mt-8 max-w-2xl border-t border-border" />
+          <p className="mt-8 text-center text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Возможно, вы имеете в виду
+          </p>
+          <StaggerGroup className={gridClassName}>
+            {globalResults.map((product) => (
+              <StaggerItem key={product.slug}>
+                <ProductCard product={product} href={getProductHref(product)} />
+              </StaggerItem>
+            ))}
+          </StaggerGroup>
+        </>
+      )}
+    </div>
+  );
+}

@@ -9,7 +9,7 @@ export default function CategoryLayout({ children }: { children: ReactNode }) {
   return (
     <Container className="pt-6 pb-16 sm:pt-8 sm:pb-20 lg:pt-10 lg:pb-24">
       <BackButton />
-      <div className="mt-[15px]">{children}</div>
+      <div className="mt-[8px]">{children}</div>
     </Container>
   );
 }
