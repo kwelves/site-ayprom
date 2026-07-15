@@ -8,7 +8,7 @@ export const subcategoriesByCategory: Record<string, Subcategory[]> = {
   "hydraulic-pumps": [
     {
       slug: "gear-pumps",
-      name: "Шестеренчатые насосы",
+      name: "Шестерённые насосы",
       image: "/category-hydraulic-pumps/1-gear-pumps.jpg",
     },
     {

@@ -56,7 +56,6 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
                 href={`/catalog/category/${category.slug}/brand/${brand.slug}`}
                 brand={brand}
                 logoScale={categoryCardLogoScale[brand.slug]}
-                imageClassName={brand.slug === "renault-trucks" ? undefined : "p-8"}
               />
             </StaggerItem>
           ))}

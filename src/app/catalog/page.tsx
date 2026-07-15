@@ -13,7 +13,7 @@ export default function CatalogPage() {
         <p className="text-sm font-semibold uppercase tracking-wide text-primary">Каталог</p>
         <h1 className="mt-3 text-2xl font-bold text-foreground sm:text-3xl">Раздел в разработке</h1>
         <p className="mt-3 text-slate-600">
-          Полный каталог с фильтрами, поиском и пагинацией появится на следующем этапе разработки.
+          Полный каталог с поиском и пагинацией появится на следующем этапе разработки.
         </p>
       </Reveal>
     </Container>

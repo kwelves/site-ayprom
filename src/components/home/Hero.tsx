@@ -46,7 +46,7 @@ export function Hero() {
             Каталог гидрооборудования и запчастей для спецтехники
           </motion.h1>
           <motion.p variants={fadeUp} className="mt-4 max-w-xl text-base text-slate-200 sm:text-lg">
-            Подберите нужную деталь по типу оборудования, марке техники, названию или артикулу.
+            Подберите нужную деталь по типу оборудования, марке техники, названию.
           </motion.p>
 
           <motion.form

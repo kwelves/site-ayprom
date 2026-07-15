@@ -6,6 +6,8 @@ Always follow `PROJECT_BRIEF.md`.
 
 Important rules:
 
+- Не запускай превью без разрешения или пока я прямо об этом не попрошу
+- Не запускай Claude Browser без разрешения или пока я прямо об этом не попрошу
 - Do not make the homepage long.
 - Keep the homepage compact and focused on catalog navigation.
 - Use blue and white as the main color palette.
@@ -21,9 +23,10 @@ Important rules:
 - Use reusable components.
 - Keep components small and readable.
 - Make the site responsive for mobile, tablet, and desktop.
-- Optimize for future catalog size of 10,000 to 40,000 products.
+- Optimize for future catalog size of 5,000 to 9,000 products.
 - Never load all products on the frontend in future implementation.
-- Catalog pages should be designed with backend pagination and filtering in mind.
+- Catalog pages should be designed with backend pagination and search in mind (no separate filter feature — search is the only way to narrow down products).
+- No price field anywhere in the catalog (not an ecommerce store).
 
 When creating code:
 - Explain shortly what you changed.

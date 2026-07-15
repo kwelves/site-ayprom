@@ -24,10 +24,12 @@ export const brandsByCategory: Record<string, Brand[]> = {
 };
 
 // Brand.logoScale is tuned for the small homepage badge (BrandSection) — this
-// card's box is a much bigger aspect-4/3 frame, so the same factor can
-// overflow it. Only brands that actually need a different value here are
-// listed; everything else falls back to brand.logoScale.
+// card's box is a much bigger 2:1 frame, so the same factor can look very
+// different here. Only brands that actually need a different value in this
+// card are listed; everything else falls back to brand.logoScale.
 export const categoryCardLogoScale: Partial<Record<string, number>> = {
-  "renault-trucks": 1,
-  "mercedes-benz": 1.15,
+  daf: 1.3,
+  kamaz: 1.3,
+  "renault-trucks": 1.3,
+  "mercedes-benz": 1.3,
 };

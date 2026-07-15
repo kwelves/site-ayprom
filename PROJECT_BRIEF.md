@@ -8,7 +8,9 @@ This is not an ecommerce store. There is no cart, online payment, or checkout in
 
 ## Goal
 
-The website should let users open the site, quickly understand what the company offers, browse categories, search products, filter products, open product pages, and view product information.
+The website should let users open the site, quickly understand what the company offers, browse categories, search products, open product pages, and view product information.
+
+There is no separate filter feature. Search (see "Search" section) is the only way to narrow down products in the first version.
 
 ## Audience
 
@@ -164,14 +166,13 @@ Required admin pages later:
 
 ## Catalog requirements
 
-The catalog must support from 10,000 to 40,000 products in the future.
+The catalog must support from 5,000 to 9,000 products in the future.
 
 Do not load all products on the frontend.
 
 Use:
 - server-side pagination
-- backend filtering
-- backend search
+- backend search (see "Search" section — no separate filter feature)
 - optimized images
 - product import from CSV/Excel in the admin panel later
 
@@ -182,10 +183,11 @@ Product card should show:
 - Image
 - Product name
 - Short description
-- Approximate price
 - Category
 - Brand
 - Details button
+
+No price in the first version — this is not an ecommerce store, and pricing is not part of the catalog's job.
 
 No availability status in the first version.
 
@@ -197,12 +199,13 @@ Product page should show:
 
 - Image gallery
 - Product title
-- Approximate price
 - Description
 - Characteristics
 - Category
 - Compatible brands
 - Similar products
+
+No price shown anywhere in the first version (see "Product card").
 
 ## Admin panel
 
@@ -221,13 +224,15 @@ Admin panel should eventually allow:
 
 ## Search
 
-First version:
-- normal search by name, article, brand, category
+There is no separate filter feature (see "Goal" and "Catalog requirements"). Search is the only way to narrow down products, so it needs to cover more ground than a typical v1 search.
+
+First version — plain (non-AI) search, but across more fields than just the basics:
+- name, article, brand, category
+- product characteristics/attribute values (see "Product page")
 
 Later version:
-- smart search
 - typo tolerance
-- possible AI search
+- possible AI/semantic search
 
 Do not implement AI search in the first version.
 

@@ -13,16 +13,20 @@ interface BrandCardProps {
   brand: Brand;
   nameClassName?: string;
   imageClassName?: string;
-  /** Overrides brand.logoScale for this card's aspect-4/3 box. brand.logoScale
+  /** Overrides brand.logoScale for this card's photo box. brand.logoScale
    * is tuned for the small homepage badge (BrandSection) — the same factor
    * can overflow this much bigger box, so callers can pass a box-appropriate
    * value here instead of touching the shared brand data. */
   logoScale?: number;
 }
 
-// Mirrors CategoryCard's frame/hover/typography exactly, but renders the logo
-// with a plain <img> instead of next/image — next/image blocks local SVGs
-// without images.dangerouslyAllowSVG, and brand logos are SVGs.
+// Mirrors CategoryCard's frame/hover/typography, but renders the logo with a
+// plain <img> instead of next/image — next/image blocks local SVGs without
+// images.dangerouslyAllowSVG, and brand logos are SVGs. Uses a wider aspect
+// ratio than CategoryCard's product photos (2:1 vs 4:3) and more internal
+// padding — a flat logo mark reads visually "bigger" than a detailed product
+// photo at the same pixel size, so it needs a shorter box and more breathing
+// room to feel as contained as the catalog cards.
 export function BrandCard({ href, brand, nameClassName, imageClassName, logoScale }: BrandCardProps) {
   const shouldReduceMotion = useReducedMotion();
   const scale = logoScale ?? brand.logoScale;
@@ -35,16 +39,16 @@ export function BrandCard({ href, brand, nameClassName, imageClassName, logoScal
       whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
       transition={springSnappy}
     >
-      <div className="relative aspect-4/3 w-full shrink-0 bg-muted/40">
+      <div className="relative aspect-2/1 w-full shrink-0 bg-muted/40">
         {/* Absolute + inset-0 (mirroring next/image's `fill`) instead of a flex
             box with max-h/max-w — a flex child's min-height:auto lets portrait
             or square logos (e.g. KAMAZ, DAF, Mercedes-Benz, Volvo) blow out the
-            aspect-4/3 box; absolute positioning can't be pushed by content. */}
+            fixed-aspect box; absolute positioning can't be pushed by content. */}
         {/* eslint-disable-next-line @next/next/no-img-element -- static local SVGs are already optimal; next/image blocks local SVGs without dangerouslyAllowSVG */}
         <img
           src={brand.logo}
           alt={`Логотип ${brand.name}`}
-          className={cn("absolute inset-0 h-full w-full object-contain p-7", imageClassName)}
+          className={cn("absolute inset-0 h-full w-full object-contain p-9", imageClassName)}
           style={scale ? { transform: `scale(${scale})` } : undefined}
         />
       </div>
