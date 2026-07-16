@@ -8,6 +8,7 @@ import { AnimatePresence, motion, type PanInfo } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsTouchDevice } from "@/lib/use-is-touch-device";
+import { brands } from "@/data/brands";
 import type { Product } from "@/types/catalog";
 
 const slideVariants = {
@@ -37,6 +38,11 @@ export function ProductCard({ product, href }: { product: Product; href: string 
   const [[index, direction], setIndex] = useState<[number, number]>([0, 0]);
   const hasMultiple = product.images.length > 1;
   const isTouchDevice = useIsTouchDevice();
+  // At most one "from"-relation brand is expected in practice right now
+  // (ZF) — if a product ever lists more than one, the first is shown.
+  const manufacturerBrand = brands.find(
+    (brand) => brand.relation === "from" && product.compatibleBrands.includes(brand.slug)
+  );
   // Framer Motion can still fire onTap right after a drag release when drag
   // and tap gestures share the same element — this flag lets onTap tell a
   // real tap apart from "finger lifted at the end of a swipe".
@@ -95,7 +101,7 @@ export function ProductCard({ product, href }: { product: Product; href: string 
         onDragEnd={handleDragEnd}
         onTap={(event) => {
           if (didDragRef.current) return;
-          if ((event.target as HTMLElement).closest("button")) return;
+          if ((event.target as HTMLElement).closest("button, a")) return;
           router.push(href);
         }}
       >
@@ -140,6 +146,22 @@ export function ProductCard({ product, href }: { product: Product; href: string 
               <ChevronRight className="h-4 w-4" />
             </button>
           </>
+        )}
+
+        {manufacturerBrand && (
+          <Link
+            href={`/catalog/brand/${manufacturerBrand.slug}`}
+            aria-label={`Производитель: ${manufacturerBrand.name}`}
+            className="absolute bottom-2 right-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-card/90 p-1 shadow-sm backdrop-blur-sm transition-transform hover:scale-110"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element -- static local SVGs are already optimal; next/image blocks local SVGs without dangerouslyAllowSVG */}
+            <img
+              src={manufacturerBrand.logo}
+              alt=""
+              className="max-h-full max-w-full object-contain"
+              style={manufacturerBrand.logoScale ? { transform: `scale(${manufacturerBrand.logoScale})` } : undefined}
+            />
+          </Link>
         )}
       </motion.div>
 

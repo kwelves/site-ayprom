@@ -25,10 +25,10 @@ const testCompatibleBrandSlugs = [
   "renault-trucks",
 ];
 
-// Half the test products also fit a second, non-primary brand — this is
-// what exercises the "Совместимо с" tier on that second brand's page
-// (mainBrand stays the first/primary brand above). undefined = single-brand
-// product, same as before.
+// Half the test products also fit a second brand (some pairs land on ZF, the
+// only "from"-relation brand right now, to exercise the "От бренда" section
+// on the product page and the manufacturer badge on the card). undefined =
+// single-brand product.
 const testSecondaryBrandSlugs: (string | undefined)[] = [
   "man",
   undefined,
@@ -44,35 +44,16 @@ const testSecondaryBrandSlugs: (string | undefined)[] = [
   undefined,
 ];
 
-// Left undefined on a third of the products on purpose, to keep verifying
-// the manufacturer block hides cleanly when the field isn't filled in yet.
-const testManufacturers: (string | undefined)[] = [
-  "Bosch Rexroth",
-  "Parker Hannifin",
-  undefined,
-  "Casappa",
-  "Bondioli & Pavesi",
-  undefined,
-  "Bosch Rexroth",
-  "Parker Hannifin",
-  undefined,
-  "Casappa",
-  "Bondioli & Pavesi",
-  undefined,
-];
-
 export const products: Product[] = Array.from({ length: 12 }, (_, i) => {
   const model = 110 + i;
-  const mainBrand = testCompatibleBrandSlugs[i];
-  const secondaryBrand = testSecondaryBrandSlugs[i];
+  const primaryBrandSlug = testCompatibleBrandSlugs[i];
+  const secondaryBrandSlug = testSecondaryBrandSlugs[i];
   return {
     slug: `ay-gp${model}`,
     name: `Шестерённый насос AY-GP${model}`,
     category: "hydraulic-pumps",
     subcategory: "gear-pumps",
-    compatibleBrands: secondaryBrand ? [mainBrand, secondaryBrand] : [mainBrand],
-    mainBrand,
-    manufacturer: testManufacturers[i],
+    compatibleBrands: secondaryBrandSlug ? [primaryBrandSlug, secondaryBrandSlug] : [primaryBrandSlug],
     images: Array(5).fill("/category-hydraulic-pumps/1-gear-pumps.jpg"),
     shortDescription: "Шестерённый гидравлический насос для навесного оборудования спецтехники.",
   };

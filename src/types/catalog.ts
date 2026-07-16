@@ -26,6 +26,10 @@ export interface Brand {
   /** Visual scale correction for logos whose source SVG has extra baked-in
    * padding (or very little), so all cards read as equally "full". Default 1. */
   logoScale?: number;
+  /** "for" — a machinery/truck brand a product fits (DAF, MAN...). "from" —
+   * a manufacturer of the product itself (ZF...). Every brand is exactly one
+   * or the other; a product's compatibleBrands can mix both kinds. */
+  relation: "for" | "from";
 }
 
 export interface ProductCharacteristic {
@@ -46,16 +50,6 @@ export interface Product {
    * category type; can be empty — a product with no brands yet just doesn't
    * show up on any brand page, which is a normal "not filled in" state. */
   compatibleBrands: string[];
-  /** Which of compatibleBrands is the primary one, for tiering on brand pages
-   * ("Для DAF" vs "Совместимо с DAF"). Not enforced by the type — same soft
-   * pairing convention as category/subcategory: whoever enters the data is
-   * responsible for keeping it inside compatibleBrands. */
-  mainBrand?: string;
-  /** Who actually manufactures this part (e.g. "Bosch Rexroth", "ZF") — a
-   * different concept from compatibleBrands (truck/machinery brands it
-   * fits). Free text, not a brands.ts slug: manufacturers and machinery
-   * brands are separate sets that only sometimes overlap. */
-  manufacturer?: string;
   /** At least one required — images[0] is the cover shown in product cards. */
   images: string[];
   /** Required so the product card never renders without any text. */
