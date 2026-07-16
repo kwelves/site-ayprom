@@ -46,6 +46,7 @@ export default async function SubcategoryProductsPage({ params, searchParams }: 
           className="mx-auto max-w-2xl text-center"
           eyebrow={category.name}
           title={subcategory.name}
+          description={subcategory.intro}
         />
       </Reveal>
 

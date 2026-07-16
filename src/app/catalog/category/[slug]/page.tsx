@@ -46,7 +46,11 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
           <SectionHeading
             className="mx-auto max-w-2xl text-center"
             title={category.name}
-            description="Выберите бренд, чтобы быстро найти нужные детали."
+            description={
+              category.intro
+                ? `${category.intro} Выберите бренд, чтобы быстро найти нужные детали.`
+                : "Выберите бренд, чтобы быстро найти нужные детали."
+            }
           />
         </Reveal>
         <StaggerGroup className="mt-10 grid grid-cols-2 gap-5 lg:grid-cols-4">

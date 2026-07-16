@@ -10,6 +10,12 @@ export interface Category {
   description: string;
   icon: CategoryIcon;
   image: string;
+  /** Short (2-3 sentence) explainer of what this product type is — shown on
+   * the category's brand-selection page (categories that split by brand,
+   * e.g. pto/pto-shafts) since that explanation doesn't vary by brand.
+   * Categories that split by subcategory instead carry this on
+   * Subcategory.intro, since the explanation there does vary. Optional. */
+  intro?: string;
 }
 
 export interface Brand {
