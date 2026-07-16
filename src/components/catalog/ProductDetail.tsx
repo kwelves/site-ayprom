@@ -70,6 +70,13 @@ export function ProductDetail({ product }: { product: Product }) {
               </div>
             </div>
           )}
+
+          {product.manufacturer && (
+            <div className="mt-6">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Производитель</h2>
+              <p className="mt-3 text-sm text-card-foreground">{product.manufacturer}</p>
+            </div>
+          )}
         </div>
       </Reveal>
     </div>

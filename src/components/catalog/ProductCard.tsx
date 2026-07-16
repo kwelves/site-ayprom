@@ -87,7 +87,7 @@ export function ProductCard({ product, href }: { product: Product; href: string 
       />
 
       <motion.div
-        className="relative z-10 aspect-4/3 w-full shrink-0 touch-pan-y overflow-hidden bg-muted/40"
+        className="relative z-10 aspect-square w-full shrink-0 touch-pan-y overflow-hidden bg-muted/40"
         drag={hasMultiple && isTouchDevice ? "x" : false}
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={0}
@@ -145,6 +145,7 @@ export function ProductCard({ product, href }: { product: Product; href: string 
 
       <div className="flex flex-1 flex-col px-4 pt-4 pb-5">
         <span className="text-sm font-semibold text-card-foreground">{product.name}</span>
+        {product.article && <span className="mt-0.5 text-xs text-muted-foreground">Артикул: {product.article}</span>}
         <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
           {product.shortDescription}
         </p>

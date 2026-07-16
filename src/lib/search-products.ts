@@ -1,6 +1,7 @@
 import { categories } from "@/data/categories";
 import { subcategoriesByCategory } from "@/data/subcategories";
 import { brands } from "@/data/brands";
+import { brandAliases } from "@/data/brand-aliases";
 import type { Product } from "@/types/catalog";
 
 // Plain (non-AI) search across name, article, category, subcategory,
@@ -33,6 +34,10 @@ function buildSearchText(product: Product): string {
     const brand = brands.find((item) => item.slug === brandSlug);
     if (brand) {
       parts.push(brand.name);
+    }
+    const aliases = brandAliases[brandSlug];
+    if (aliases) {
+      parts.push(...aliases);
     }
   }
 

@@ -49,8 +49,11 @@ export default async function BrandPage({ params, searchParams }: BrandPageProps
               style={brand.logoScale ? { transform: `scale(${brand.logoScale})` } : undefined}
             />
           </span>
-          <h1 className="mt-3 text-2xl font-bold text-foreground sm:text-3xl">{brand.name}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">{brand.country}</p>
+          {/* Visually hidden — the logo above already identifies the brand
+              on screen, but the page still needs a real text heading for
+              SEO and screen readers. */}
+          <h1 className="sr-only">{brand.name}</h1>
+          <p className="mt-3 text-sm text-muted-foreground">{brand.country}</p>
         </div>
       </Reveal>
 
@@ -68,6 +71,7 @@ export default async function BrandPage({ params, searchParams }: BrandPageProps
         scopeLabel={`для бренда «${brand.name}»`}
         href={getProductHref}
         emptyLabel={`Для бренда «${brand.name}» пока нет товаров. Скоро они здесь появятся.`}
+        brandTier={{ slug: brand.slug, name: brand.name }}
       />
     </>
   );
