@@ -1,12 +1,22 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { Search } from "lucide-react";
 import { motion } from "framer-motion";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { fadeUp, staggerContainer } from "@/lib/motion";
 import { useHashNavClick } from "@/lib/use-hash-nav-click";
+
+// Placeholder navigation — links into the regular catalog search rather than
+// a real "vehicle type" filter, since that's a whole new catalog dimension
+// (new Product field, new pages, tagging every product) not built yet.
+const vehicleTypeLinks = [
+  { label: "Самосвал", href: "/catalog?q=самосвал" },
+  { label: "Кран-Манипулятор", href: "/catalog?q=кран-манипулятор" },
+  { label: "Тягач", href: "/catalog?q=тягач" },
+];
 
 export function Hero() {
   const handleHashClick = useHashNavClick();
@@ -33,21 +43,27 @@ export function Hero() {
           animate="visible"
           className="max-w-2xl"
         >
-          <motion.p
-            variants={fadeUp}
-            className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700"
-          >
-            AYPROM — гидрооборудование для спецтехники
-          </motion.p>
           <motion.h1
             variants={fadeUp}
-            className="mt-4 text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl"
+            className="text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl"
           >
-            Каталог гидрооборудования и запчастей для спецтехники
+            Каталог гидрооборудования и запчастей
+            <br />
+            для спецтехники
           </motion.h1>
-          <motion.p variants={fadeUp} className="mt-4 max-w-xl text-base text-slate-200 sm:text-lg">
-            Подберите нужную деталь по типу оборудования, марке техники, названию.
-          </motion.p>
+          <motion.div
+            variants={fadeUp}
+            className="mt-4 flex flex-wrap items-center gap-2 text-lg text-slate-200 sm:text-xl"
+          >
+            {vehicleTypeLinks.map((item, i) => (
+              <span key={item.label} className="flex items-center gap-2">
+                {i > 0 && <span className="text-slate-400">/</span>}
+                <Link href={item.href} className="transition-colors hover:text-white">
+                  {item.label}
+                </Link>
+              </span>
+            ))}
+          </motion.div>
 
           <motion.form
             variants={fadeUp}
