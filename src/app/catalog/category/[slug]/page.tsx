@@ -43,15 +43,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     return (
       <>
         <Reveal>
-          <SectionHeading
-            className="mx-auto max-w-2xl text-center"
-            title={category.name}
-            description={
-              category.intro
-                ? `${category.intro} Выберите бренд, чтобы быстро найти нужные детали.`
-                : "Выберите бренд, чтобы быстро найти нужные детали."
-            }
-          />
+          <SectionHeading className="mx-auto max-w-2xl text-center" title={category.name} />
         </Reveal>
         <StaggerGroup className="mt-10 grid grid-cols-2 gap-5 lg:grid-cols-4">
           {categoryBrands.map((brand) => (
@@ -64,6 +56,13 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
             </StaggerItem>
           ))}
         </StaggerGroup>
+        <Reveal>
+          <p className="mx-auto mt-14 max-w-2xl text-center text-slate-600">
+            {category.intro
+              ? `${category.intro} Выберите бренд, чтобы быстро найти нужные детали.`
+              : "Выберите бренд, чтобы быстро найти нужные детали."}
+          </p>
+        </Reveal>
       </>
     );
   }
@@ -87,11 +86,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   return (
     <>
       <Reveal>
-        <SectionHeading
-          className="mx-auto max-w-2xl text-center"
-          title={category.name}
-          description="Выберите подкатегорию, чтобы быстро найти нужные детали."
-        />
+        <SectionHeading className="mx-auto max-w-2xl text-center" title={category.name} />
       </Reveal>
       <StaggerGroup
         className={cn(
@@ -112,6 +107,11 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
           </StaggerItem>
         ))}
       </StaggerGroup>
+      <Reveal>
+        <p className="mx-auto mt-10 max-w-2xl text-center text-slate-600">
+          Выберите подкатегорию, чтобы быстро найти нужные детали.
+        </p>
+      </Reveal>
     </>
   );
 }

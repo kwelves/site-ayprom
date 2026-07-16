@@ -22,7 +22,7 @@ function resolveCrumbs(pathname: string): Crumb[] {
   const segments = pathname.split("/").filter(Boolean);
   if (segments[0] !== "catalog") return [];
 
-  const crumbs: Crumb[] = [{ label: "Каталог", href: "/catalog" }];
+  const crumbs: Crumb[] = [];
 
   if (segments[1] === "category" && segments[2]) {
     const categorySlug = segments[2];
