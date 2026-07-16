@@ -3,6 +3,7 @@ import { Geist } from "next/font/google";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { ScrollToHash } from "@/components/layout/ScrollToHash";
+import { ResetScrollOnNavigate } from "@/components/layout/ResetScrollOnNavigate";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -25,6 +26,7 @@ export default function RootLayout({
     <html lang="ru" className={`${geistSans.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col bg-background text-foreground">
         <ScrollToHash />
+        <ResetScrollOnNavigate />
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
