@@ -42,12 +42,7 @@ export default async function SubcategoryProductsPage({ params, searchParams }: 
   return (
     <>
       <Reveal>
-        <SectionHeading
-          className="mx-auto max-w-2xl text-center"
-          eyebrow={category.name}
-          title={subcategory.name}
-          description={subcategory.intro}
-        />
+        <SectionHeading className="mx-auto max-w-2xl text-center" title={subcategory.name} />
       </Reveal>
 
       <div className="mt-6">
@@ -65,6 +60,12 @@ export default async function SubcategoryProductsPage({ params, searchParams }: 
         href={(product) => `/catalog/category/${slug}/subcategory/${subSlug}/${product.slug}`}
         emptyLabel="В этой подкатегории пока нет товаров. Скоро они здесь появятся."
       />
+
+      {subcategory.intro && (
+        <Reveal>
+          <p className="mx-auto mt-14 max-w-2xl text-center text-slate-600">{subcategory.intro}</p>
+        </Reveal>
+      )}
     </>
   );
 }
