@@ -53,15 +53,12 @@ export function Hero() {
           </motion.h1>
           <motion.div
             variants={fadeUp}
-            className="mt-6 flex flex-wrap items-center gap-2 text-lg text-slate-200 sm:text-xl"
+            className="mt-6 flex flex-wrap items-center gap-2 text-lg text-slate-200"
           >
             {vehicleTypeLinks.map((item, i) => (
               <span key={item.label} className="flex items-center gap-2">
                 {i > 0 && <span className="text-slate-400">/</span>}
-                <Link
-                  href={item.href}
-                  className="transition-colors duration-200 hover:text-primary hover:drop-shadow-[0_0_8px_var(--color-primary)]"
-                >
+                <Link href={item.href} className="transition-colors hover:text-primary">
                   {item.label}
                 </Link>
               </span>

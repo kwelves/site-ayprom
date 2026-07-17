@@ -23,7 +23,7 @@ Important rules:
 - Use reusable components.
 - Keep components small and readable.
 - Make the site responsive for mobile, tablet, and desktop.
-- Optimize for future catalog size of 5,000 to 9,000 products.
+- Optimize for future catalog size of 5,000 products.
 - Never load all products on the frontend in future implementation.
 - Catalog pages should be designed with backend pagination and search in mind (no separate filter feature — search is the only way to narrow down products).
 - No price field anywhere in the catalog (not an ecommerce store).
