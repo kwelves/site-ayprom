@@ -12,6 +12,7 @@ const comAndShaftBrandSlugs = [
   "renault-trucks",
   "mercedes-benz",
   "volvo",
+  "zf",
 ];
 
 const comAndShaftBrands: Brand[] = comAndShaftBrandSlugs
