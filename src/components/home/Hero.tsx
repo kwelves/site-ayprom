@@ -22,8 +22,16 @@ export function Hero() {
   const handleHashClick = useHashNavClick();
   const sectionRef = useRef<HTMLElement>(null);
 
+  // Not a plain scrollIntoView({block: "start"}) — that aligns the next
+  // section's top edge with the very top of the viewport, but the sticky
+  // Header (h-16 = 64px) then sits on top of that edge and overlaps into
+  // the section, eating its top spacing. Offsetting by the header's height
+  // keeps the header's bottom edge flush with the section's top instead.
   const scrollToNextSection = () => {
-    sectionRef.current?.nextElementSibling?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const target = sectionRef.current?.nextElementSibling;
+    if (!target) return;
+    const top = target.getBoundingClientRect().top + window.scrollY - 64;
+    window.scrollTo({ top, behavior: "smooth" });
   };
 
   return (
@@ -54,13 +62,13 @@ export function Hero() {
         >
           <motion.h1
             variants={fadeUp}
-            className="text-balance text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl"
+            className="text-shadow-md text-balance text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl"
           >
             Каталог гидрооборудования и запчастей для спецтехники
           </motion.h1>
           <motion.div
             variants={fadeUp}
-            className="mt-6 flex flex-wrap items-center gap-2 text-xl font-medium text-slate-200"
+            className="mt-6 flex flex-wrap items-center gap-2 text-shadow-sm text-xl font-medium text-slate-200"
           >
             {vehicleTypeLinks.map((item, i) => (
               <span key={item.label} className="flex items-center gap-2">
