@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
+import { useRef } from "react";
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { Search, ChevronDown } from "lucide-react";
 import { motion } from "framer-motion";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
@@ -20,18 +20,23 @@ const vehicleTypeLinks = [
 
 export function Hero() {
   const handleHashClick = useHashNavClick();
+  const sectionRef = useRef<HTMLElement>(null);
+
+  const scrollToNextSection = () => {
+    sectionRef.current?.nextElementSibling?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   return (
-    <section>
+    <section ref={sectionRef} className="relative flex min-h-[calc(100dvh-4rem)] items-center">
       {/* Fixed backdrop: the photo stays pinned to the viewport while the page scrolls over it */}
       <div className="fixed inset-x-0 top-0 -z-10 h-dvh">
-        <Image
-          src="/images/under-hero-photo.webp"
-          alt=""
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover"
+        <video
+          src="/videos/hero-background.mp4"
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="h-full w-full object-cover"
         />
         <div className="absolute inset-0 bg-slate-900/55" />
       </div>
@@ -98,6 +103,17 @@ export function Hero() {
           </motion.div>
         </motion.div>
       </Container>
+
+      <motion.button
+        type="button"
+        onClick={scrollToNextSection}
+        aria-label="Прокрутить вниз"
+        className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/80 transition-colors hover:text-white"
+        animate={{ y: [0, 8, 0] }}
+        transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+      >
+        <ChevronDown className="h-8 w-8" />
+      </motion.button>
     </section>
   );
 }
