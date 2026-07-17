@@ -25,7 +25,7 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
   return (
     <Container className="pt-6 pb-16 sm:pt-8 sm:pb-20 lg:pt-10 lg:pb-24">
       <BackButton />
-      <div className="mt-[8px]">
+      <div className="mt-14">
         <Reveal>
           <SectionHeading
             className="mx-auto max-w-2xl text-center"

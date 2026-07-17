@@ -1,8 +1,6 @@
 import Link from "next/link";
 import { Reveal } from "@/components/motion/Reveal";
 import { ProductGallery } from "@/components/catalog/ProductGallery";
-import { categories } from "@/data/categories";
-import { subcategoriesByCategory } from "@/data/subcategories";
 import { brands } from "@/data/brands";
 import type { Product } from "@/types/catalog";
 
@@ -11,11 +9,11 @@ import type { Product } from "@/types/catalog";
 // navigation route reached it. Every optional block (description,
 // characteristics, compatible brands) is omitted entirely when its data is
 // missing, so a partially-filled product never renders empty sections.
+//
+// No category/subcategory breadcrumb-style eyebrow here — the page's real
+// Breadcrumb (in the shared layout) already shows that path, so repeating
+// it here would just be duplicate noise above the title.
 export function ProductDetail({ product }: { product: Product }) {
-  const category = categories.find((item) => item.slug === product.category);
-  const subcategory = product.subcategory
-    ? subcategoriesByCategory[product.category]?.find((item) => item.slug === product.subcategory)
-    : undefined;
   const compatibleBrands = product.compatibleBrands
     .map((brandSlug) => brands.find((brand) => brand.slug === brandSlug))
     .filter((brand): brand is NonNullable<typeof brand> => Boolean(brand));
@@ -26,8 +24,6 @@ export function ProductDetail({ product }: { product: Product }) {
   // answered, reusing the existing scoped search instead of a new filter.
   const fromBrandQuery = forBrands[0]?.name;
 
-  const breadcrumb = [category?.name, subcategory?.name].filter(Boolean).join(" / ");
-
   return (
     <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
       <Reveal>
@@ -36,10 +32,7 @@ export function ProductDetail({ product }: { product: Product }) {
 
       <Reveal>
         <div>
-          {breadcrumb && (
-            <p className="text-sm font-semibold uppercase tracking-wide text-primary">{breadcrumb}</p>
-          )}
-          <h1 className="mt-3 text-2xl font-bold text-foreground sm:text-3xl">{product.name}</h1>
+          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">{product.name}</h1>
           <p className="mt-3 text-slate-600">{product.shortDescription}</p>
 
           {product.description && <p className="mt-6 text-sm leading-relaxed text-slate-600">{product.description}</p>}

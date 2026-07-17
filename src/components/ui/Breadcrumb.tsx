@@ -67,13 +67,13 @@ export function Breadcrumb() {
   return (
     <nav aria-label="Хлебные крошки" className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm">
       <Link href="/" aria-label="Главная" className="text-slate-500 transition-colors hover:text-primary">
-        <Home className="h-4 w-4" />
+        <Home className="h-5 w-5" />
       </Link>
       {crumbs.map((crumb, i) => {
         const isLast = i === crumbs.length - 1;
         return (
           <span key={`${crumb.label}-${i}`} className="flex items-center gap-x-1.5">
-            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-500" />
             {crumb.href && !isLast ? (
               <Link href={crumb.href} className="text-slate-500 transition-colors hover:text-primary">
                 {crumb.label}
