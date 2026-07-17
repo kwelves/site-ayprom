@@ -27,8 +27,8 @@ export function Hero() {
   };
 
   return (
-    <section ref={sectionRef} className="relative flex min-h-[calc(100dvh-4rem)] items-center">
-      {/* Fixed backdrop: the photo stays pinned to the viewport while the page scrolls over it */}
+    <section ref={sectionRef} className="relative flex min-h-[calc(100dvh-4rem)] items-end">
+      {/* Fixed backdrop: the video stays pinned to the viewport while the page scrolls over it */}
       <div className="fixed inset-x-0 top-0 -z-10 h-dvh">
         <video
           src="/videos/hero-background.mp4"
@@ -38,10 +38,14 @@ export function Hero() {
           playsInline
           className="h-full w-full object-cover"
         />
-        <div className="absolute inset-0 bg-slate-900/55" />
+        {/* Directional gradient instead of a flat overlay: the top of the video
+            stays bright (sky, the truck itself), darkening only toward the
+            bottom where the text sits — guarantees contrast there regardless
+            of what's in that part of the frame, without dimming the whole shot. */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/35 to-transparent" />
       </div>
 
-      <Container className="py-14 sm:py-20 lg:py-24">
+      <Container className="pb-24 sm:pb-28 lg:pb-32">
         <motion.div
           variants={staggerContainer}
           initial="hidden"
@@ -50,15 +54,13 @@ export function Hero() {
         >
           <motion.h1
             variants={fadeUp}
-            className="text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl"
+            className="text-balance text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl"
           >
-            Каталог гидрооборудования и запчастей
-            <br />
-            для спецтехники
+            Каталог гидрооборудования и запчастей для спецтехники
           </motion.h1>
           <motion.div
             variants={fadeUp}
-            className="mt-6 flex flex-wrap items-center gap-2 text-lg text-slate-200"
+            className="mt-6 flex flex-wrap items-center gap-2 text-xl font-medium text-slate-200"
           >
             {vehicleTypeLinks.map((item, i) => (
               <span key={item.label} className="flex items-center gap-2">
@@ -81,9 +83,9 @@ export function Hero() {
               type="text"
               name="q"
               placeholder="Например: гидроцилиндр HOWO"
-              className="h-10 w-full border-0 bg-transparent text-sm text-foreground outline-none placeholder:text-slate-400"
+              className="h-10 w-full border-0 bg-transparent text-base text-foreground outline-none placeholder:text-slate-400"
             />
-            <Button type="submit" className="shrink-0">
+            <Button type="submit" size="lg" className="shrink-0">
               Найти
             </Button>
           </motion.form>
@@ -108,7 +110,7 @@ export function Hero() {
         type="button"
         onClick={scrollToNextSection}
         aria-label="Прокрутить вниз"
-        className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/80 transition-colors hover:text-white"
+        className="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full text-white/80 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
         animate={{ y: [0, 8, 0] }}
         transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
       >
