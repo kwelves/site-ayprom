@@ -34,12 +34,6 @@ function BrandGrid({ brands }: { brands: Brand[] }) {
 
 export async function BrandSection() {
   const brands = await getBrands();
-  const forBrands = brands.filter((brand) => brand.relation === "for");
-  const fromBrands = brands.filter((brand) => brand.relation === "from");
-  // Only split into labeled groups when there's something on both sides to
-  // contrast — a lone group (e.g. no "от" brands yet) just renders as one
-  // plain grid, same convention as the product-page brand split.
-  const showSplit = forBrands.length > 0 && fromBrands.length > 0;
 
   return (
     <section id="brands" className="scroll-mt-16 bg-muted py-14 sm:py-16">
@@ -52,21 +46,7 @@ export async function BrandSection() {
           />
         </Reveal>
 
-        {showSplit ? (
-          <>
-            <p className="mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Для бренда
-            </p>
-            <BrandGrid brands={forBrands} />
-
-            <p className="mt-10 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              От бренда
-            </p>
-            <BrandGrid brands={fromBrands} />
-          </>
-        ) : (
-          <BrandGrid brands={brands} />
-        )}
+        <BrandGrid brands={brands} />
       </Container>
     </section>
   );

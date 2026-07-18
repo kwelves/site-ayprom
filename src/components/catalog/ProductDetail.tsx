@@ -18,12 +18,6 @@ export async function ProductDetail({ product }: { product: Product }) {
   const compatibleBrands = product.compatibleBrands
     .map((brandSlug) => brands.find((brand) => brand.slug === brandSlug))
     .filter((brand): brand is NonNullable<typeof brand> => Boolean(brand));
-  const forBrands = compatibleBrands.filter((brand) => brand.relation === "for");
-  const fromBrands = compatibleBrands.filter((brand) => brand.relation === "from");
-  // "От бренда" links pre-fill the manufacturer's own search with the first
-  // "for" brand's name — that's how "what else does ZF make for MAN" is
-  // answered, reusing the existing scoped search instead of a new filter.
-  const fromBrandQuery = forBrands[0]?.name;
 
   return (
     <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
@@ -54,35 +48,16 @@ export async function ProductDetail({ product }: { product: Product }) {
             </div>
           )}
 
-          {forBrands.length > 0 && (
+          {compatibleBrands.length > 0 && (
             <div className="mt-6">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Для бренда</h2>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Совместимые бренды
+              </h2>
               <div className="mt-3 flex flex-wrap gap-2">
-                {forBrands.map((brand) => (
+                {compatibleBrands.map((brand) => (
                   <Link
                     key={brand.slug}
                     href={`/catalog/brand/${brand.slug}`}
-                    className="rounded-full border border-border bg-card px-3 py-1 text-sm text-card-foreground transition-colors hover:border-blue-300"
-                  >
-                    {brand.name}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {fromBrands.length > 0 && (
-            <div className="mt-6">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">От бренда</h2>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {fromBrands.map((brand) => (
-                  <Link
-                    key={brand.slug}
-                    href={
-                      fromBrandQuery
-                        ? `/catalog/brand/${brand.slug}?q=${encodeURIComponent(fromBrandQuery)}`
-                        : `/catalog/brand/${brand.slug}`
-                    }
                     className="rounded-full border border-border bg-card px-3 py-1 text-sm text-card-foreground transition-colors hover:border-blue-300"
                   >
                     {brand.name}

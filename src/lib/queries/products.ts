@@ -6,7 +6,7 @@ const PRODUCT_SELECT = `
   subcategories(slug),
   product_images(url, "order"),
   product_characteristics(attribute, value, "order"),
-  product_brands(brands(slug, name, country, logo, logo_scale, relation))
+  product_brands(brands(slug, name, country, logo, logo_scale))
 `;
 
 interface ProductRow {

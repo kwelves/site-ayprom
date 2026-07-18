@@ -8,7 +8,7 @@ import { BrandCard } from "@/components/home/BrandCard";
 import { getCategory } from "@/lib/queries/categories";
 import { getSubcategories } from "@/lib/queries/subcategories";
 import { getCategoryBrands } from "@/lib/queries/category-brands";
-import { getCategoryGridSizing } from "@/lib/category-grid";
+import { getCategoryGridSizing, getCardGridSizing } from "@/lib/category-grid";
 import { cn } from "@/lib/utils";
 import type { Brand } from "@/types/catalog";
 
@@ -23,10 +23,11 @@ function BrandCardGrid({
   categorySlug: string;
   className: string;
 }) {
+  const sizing = getCardGridSizing(brands.length);
   return (
-    <StaggerGroup className={className}>
+    <StaggerGroup className={cn("flex flex-wrap justify-center gap-5", className, sizing.containerClassName)}>
       {brands.map((brand) => (
-        <StaggerItem key={brand.slug}>
+        <StaggerItem key={brand.slug} className={sizing.itemClassName}>
           <BrandCard href={`/catalog/category/${categorySlug}/brand/${brand.slug}`} brand={brand} />
         </StaggerItem>
       ))}
@@ -54,13 +55,6 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
   if (category.type === "brand") {
     const categoryBrands = await getCategoryBrands(category.slug);
-    const forBrands = categoryBrands.filter((brand) => brand.relation === "for");
-    const fromBrands = categoryBrands.filter((brand) => brand.relation === "from");
-    // Same convention as the homepage brand section and the product-page
-    // brand split: only label the two groups when both actually have
-    // entries — right now every pto/pto-shafts brand is "for"-type, so this
-    // renders as a single plain grid until a "от" brand joins that list.
-    const showSplit = forBrands.length > 0 && fromBrands.length > 0;
 
     // Matches CategorySection's homepage grid exactly (same columns, gap, and
     // default CategoryCard/BrandCard sizing) so brand cards are pixel-for-pixel
@@ -71,33 +65,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
           <SectionHeading className="mx-auto max-w-2xl text-center" title={category.name} />
         </Reveal>
 
-        {showSplit ? (
-          <>
-            <p className="mt-10 text-center text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Для бренда
-            </p>
-            <BrandCardGrid
-              brands={forBrands}
-              categorySlug={category.slug}
-              className="mt-4 grid grid-cols-2 gap-5 lg:grid-cols-4"
-            />
-
-            <p className="mt-10 text-center text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              От бренда
-            </p>
-            <BrandCardGrid
-              brands={fromBrands}
-              categorySlug={category.slug}
-              className="mt-4 grid grid-cols-2 gap-5 lg:grid-cols-4"
-            />
-          </>
-        ) : (
-          <BrandCardGrid
-            brands={categoryBrands}
-            categorySlug={category.slug}
-            className="mt-10 grid grid-cols-2 gap-5 lg:grid-cols-4"
-          />
-        )}
+        <BrandCardGrid brands={categoryBrands} categorySlug={category.slug} className="mt-10" />
 
         <Reveal>
           <p className="mx-auto mt-14 max-w-2xl text-center text-slate-600">

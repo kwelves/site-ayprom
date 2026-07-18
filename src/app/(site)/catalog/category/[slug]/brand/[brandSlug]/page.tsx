@@ -58,22 +58,16 @@ export default async function BrandInCategoryPage({ params, searchParams }: Bran
         <ProductSearchForm
           action={`/catalog/category/${slug}/brand/${brandSlug}`}
           defaultValue={q}
-          placeholder={
-            brand.relation === "from" ? `Поиск по товарам от «${brand.name}»` : `Поиск по «${brand.name}»`
-          }
+          placeholder={`Поиск по «${brand.name}»`}
         />
       </div>
 
       <ProductGridWithSearch
         products={brandProducts}
         query={q}
-        scopeLabel={brand.relation === "from" ? `от бренда «${brand.name}»` : `для бренда «${brand.name}»`}
+        scopeLabel={`для бренда «${brand.name}»`}
         href={(product) => `/catalog/category/${slug}/brand/${brandSlug}/${product.slug}`}
-        emptyLabel={
-          brand.relation === "from"
-            ? "От этого бренда пока нет товаров. Скоро они здесь появятся."
-            : "Для этого бренда пока нет товаров. Скоро они здесь появятся."
-        }
+        emptyLabel="Для этого бренда пока нет товаров. Скоро они здесь появятся."
       />
     </>
   );

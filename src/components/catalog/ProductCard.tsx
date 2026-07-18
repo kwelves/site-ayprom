@@ -8,7 +8,7 @@ import { AnimatePresence, motion, type PanInfo } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsTouchDevice } from "@/lib/use-is-touch-device";
-import type { Brand, Product } from "@/types/catalog";
+import type { Product } from "@/types/catalog";
 
 const slideVariants = {
   enter: (direction: number) => ({ x: direction > 0 ? 24 : -24, opacity: 0 }),
@@ -32,18 +32,7 @@ const SWIPE_THRESHOLD = 40;
 // "stretched link"); the photo area sits visually on top of it (own z-index,
 // since it needs to capture the swipe) and re-implements "tap to open" itself
 // via onTap, ignoring taps that land on the arrow buttons.
-export function ProductCard({
-  product,
-  href,
-  manufacturerBrand,
-}: {
-  product: Product;
-  href: string;
-  /** Resolved by the (server-side) caller — at most one "from"-relation
-   * brand is expected in practice right now (ZF); if a product ever lists
-   * more than one, the caller picks the first. */
-  manufacturerBrand?: Brand;
-}) {
+export function ProductCard({ product, href }: { product: Product; href: string }) {
   const router = useRouter();
   const [[index, direction], setIndex] = useState<[number, number]>([0, 0]);
   const hasMultiple = product.images.length > 1;
@@ -151,22 +140,6 @@ export function ProductCard({
               <ChevronRight className="h-4 w-4" />
             </button>
           </>
-        )}
-
-        {manufacturerBrand && (
-          <Link
-            href={`/catalog/brand/${manufacturerBrand.slug}`}
-            aria-label={`Производитель: ${manufacturerBrand.name}`}
-            className="absolute bottom-2 right-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-card/90 p-1 shadow-sm backdrop-blur-sm transition-transform hover:scale-110"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element -- static local SVGs are already optimal; next/image blocks local SVGs without dangerouslyAllowSVG */}
-            <img
-              src={manufacturerBrand.logo}
-              alt=""
-              className="max-h-full max-w-full object-contain"
-              style={manufacturerBrand.logoScale ? { transform: `scale(${manufacturerBrand.logoScale})` } : undefined}
-            />
-          </Link>
         )}
       </motion.div>
 

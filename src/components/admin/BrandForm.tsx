@@ -7,7 +7,6 @@ import { slugify } from "@/lib/admin/slugify";
 import { BackLink } from "@/components/admin/ui/BackLink";
 import { FormField } from "@/components/admin/ui/FormField";
 import { Input } from "@/components/admin/ui/Input";
-import { Select } from "@/components/admin/ui/Select";
 import type { AdminBrand } from "@/lib/admin/queries";
 
 interface BrandFormProps {
@@ -87,17 +86,6 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
 
         <FormField label="Страна" htmlFor="country">
           <Input id="country" name="country" required defaultValue={brand?.country} />
-        </FormField>
-
-        <FormField
-          label="Тип"
-          htmlFor="relation"
-          description="«Для бренда» — марка техники, под которую подходит запчасть. «От бренда» — производитель самой запчасти."
-        >
-          <Select id="relation" name="relation" defaultValue={brand?.relation ?? "for"}>
-            <option value="for">Для бренда</option>
-            <option value="from">От бренда</option>
-          </Select>
         </FormField>
 
         <FormField

@@ -50,8 +50,6 @@ export function ProductForm({ mode, product, categories, subcategories, brands }
 
   const selectedCategory = categories.find((c) => c.slug === categorySlug);
   const categorySubcategories = subcategories.filter((s) => s.categorySlug === categorySlug);
-  const forBrands = brands.filter((b) => b.relation === "for");
-  const fromBrands = brands.filter((b) => b.relation === "from");
 
   function handleNameChange(value: string) {
     setName(value);
@@ -201,42 +199,19 @@ export function ProductForm({ mode, product, categories, subcategories, brands }
           </FormField>
         )}
 
-        <FormField label="Совместимые бренды" htmlFor="compatibleBrands-for">
-          <div className="space-y-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Для бренда</p>
-              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {forBrands.map((brand) => (
-                  <Checkbox
-                    key={brand.slug}
-                    id={`brand-${brand.slug}`}
-                    name="compatibleBrands"
-                    value={brand.slug}
-                    label={brand.name}
-                    checked={selectedBrands.has(brand.slug)}
-                    onChange={() => toggleBrand(brand.slug)}
-                  />
-                ))}
-              </div>
-            </div>
-            {fromBrands.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">От бренда</p>
-                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {fromBrands.map((brand) => (
-                    <Checkbox
-                      key={brand.slug}
-                      id={`brand-${brand.slug}`}
-                      name="compatibleBrands"
-                      value={brand.slug}
-                      label={brand.name}
-                      checked={selectedBrands.has(brand.slug)}
-                      onChange={() => toggleBrand(brand.slug)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
+        <FormField label="Совместимые бренды" htmlFor="compatibleBrands-list">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {brands.map((brand) => (
+              <Checkbox
+                key={brand.slug}
+                id={`brand-${brand.slug}`}
+                name="compatibleBrands"
+                value={brand.slug}
+                label={brand.name}
+                checked={selectedBrands.has(brand.slug)}
+                onChange={() => toggleBrand(brand.slug)}
+              />
+            ))}
           </div>
         </FormField>
 

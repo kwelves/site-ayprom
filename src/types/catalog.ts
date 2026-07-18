@@ -42,10 +42,6 @@ export interface Brand {
   /** Visual scale correction for logos whose source SVG has extra baked-in
    * padding (or very little), so all cards read as equally "full". Default 1. */
   logoScale?: number;
-  /** "for" — a machinery/truck brand a product fits (DAF, MAN...). "from" —
-   * a manufacturer of the product itself (ZF...). Every brand is exactly one
-   * or the other; a product's compatibleBrands can mix both kinds. */
-  relation: "for" | "from";
 }
 
 export interface ProductCharacteristic {

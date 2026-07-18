@@ -5,7 +5,6 @@ import Link from "next/link";
 import { SortableList } from "@/components/admin/SortableList";
 import { reorderBrands, deleteBrand } from "@/lib/admin/actions";
 import { describeBrandUsage } from "@/lib/admin/queries";
-import { cn } from "@/lib/utils";
 import type { AdminBrand } from "@/lib/admin/queries";
 
 export function BrandsList({ brands: initialBrands }: { brands: AdminBrand[] }) {
@@ -49,14 +48,6 @@ export function BrandsList({ brands: initialBrands }: { brands: AdminBrand[] }) 
             <p className="truncate text-sm font-medium text-card-foreground">{brand.name}</p>
             <p className="text-xs text-muted-foreground">{brand.country}</p>
           </div>
-          <span
-            className={cn(
-              "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
-              brand.relation === "from" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-700"
-            )}
-          >
-            {brand.relation === "from" ? "От бренда" : "Для бренда"}
-          </span>
           {(brand.productCount > 0 || brand.categoryCount > 0) && (
             <span className="shrink-0 text-xs text-muted-foreground">
               {brand.productCount} тов. / {brand.categoryCount} кат.

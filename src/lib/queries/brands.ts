@@ -7,7 +7,6 @@ interface BrandRow {
   country: string;
   logo: string;
   logo_scale: number | null;
-  relation: "for" | "from";
 }
 
 function mapBrand(row: BrandRow): Brand {
@@ -17,7 +16,6 @@ function mapBrand(row: BrandRow): Brand {
     country: row.country,
     logo: row.logo,
     logoScale: row.logo_scale ?? undefined,
-    relation: row.relation,
   };
 }
 

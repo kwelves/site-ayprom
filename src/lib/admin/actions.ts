@@ -11,6 +11,7 @@ import {
 } from "@/lib/admin/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { slugify } from "@/lib/admin/slugify";
+import type { CategoryIcon } from "@/types/catalog";
 
 export async function login(formData: FormData): Promise<void> {
   const password = formData.get("password");
@@ -123,7 +124,7 @@ async function resolveSubcategoryId(
 
 async function generateUniqueSlug(
   supabase: ReturnType<typeof createAdminClient>,
-  table: "products" | "brands",
+  table: "products" | "brands" | "categories",
   seed: string,
   fallback: string
 ): Promise<string> {
@@ -361,7 +362,6 @@ interface BrandFormFields {
   name: string;
   slugSeed: string;
   country: string;
-  relation: "for" | "from";
   logoScale: number | null;
 }
 
@@ -369,7 +369,6 @@ function parseBrandFormData(formData: FormData): BrandFormFields {
   const name = String(formData.get("name") ?? "").trim();
   const slugSeed = String(formData.get("slug") ?? "").trim() || name;
   const country = String(formData.get("country") ?? "").trim();
-  const relation = formData.get("relation") === "from" ? "from" : "for";
   const logoScaleRaw = String(formData.get("logoScale") ?? "").trim();
   const parsedLogoScale = logoScaleRaw ? Number(logoScaleRaw) : null;
 
@@ -377,7 +376,7 @@ function parseBrandFormData(formData: FormData): BrandFormFields {
     throw new Error("Заполните обязательные поля: название, страна.");
   }
 
-  return { name, slugSeed, country, relation, logoScale: Number.isFinite(parsedLogoScale) ? parsedLogoScale : null };
+  return { name, slugSeed, country, logoScale: Number.isFinite(parsedLogoScale) ? parsedLogoScale : null };
 }
 
 async function uploadBrandLogo(
@@ -423,7 +422,6 @@ export async function createBrand(formData: FormData): Promise<void> {
     country: fields.country,
     logo: logoUrl,
     logo_scale: fields.logoScale,
-    relation: fields.relation,
     order: nextOrder,
   });
   if (error) throw error;
@@ -445,7 +443,7 @@ export async function updateBrand(slug: string, formData: FormData): Promise<voi
 
   const { error } = await supabase
     .from("brands")
-    .update({ name: fields.name, country: fields.country, relation: fields.relation, logo_scale: fields.logoScale })
+    .update({ name: fields.name, country: fields.country, logo_scale: fields.logoScale })
     .eq("slug", slug);
   if (error) throw error;
 
@@ -499,4 +497,386 @@ export async function reorderBrands(orderedSlugs: string[]): Promise<void> {
   const supabase = createAdminClient();
   await Promise.all(orderedSlugs.map((slug, index) => supabase.from("brands").update({ order: index }).eq("slug", slug)));
   revalidatePath("/admin/brands");
+}
+
+const CATEGORY_ICONS: CategoryIcon[] = ["hydraulic-pump", "pto", "pto-shaft", "tank"];
+
+interface CategoryFormFields {
+  name: string;
+  slugSeed: string;
+  description: string;
+  icon: CategoryIcon;
+  type: "subcategory" | "brand";
+  intro: string | null;
+}
+
+function parseCategoryFormData(formData: FormData): CategoryFormFields {
+  const name = String(formData.get("name") ?? "").trim();
+  const slugSeed = String(formData.get("slug") ?? "").trim() || name;
+  const description = String(formData.get("description") ?? "").trim();
+  const iconRaw = String(formData.get("icon") ?? "");
+  const icon = CATEGORY_ICONS.includes(iconRaw as CategoryIcon) ? (iconRaw as CategoryIcon) : CATEGORY_ICONS[0];
+  const type = formData.get("type") === "brand" ? "brand" : "subcategory";
+  const intro = String(formData.get("intro") ?? "").trim() || null;
+
+  if (!name || !description) {
+    throw new Error("Заполните обязательные поля: название, описание.");
+  }
+
+  return { name, slugSeed, description, icon, type, intro };
+}
+
+async function uploadCategoryImage(
+  supabase: ReturnType<typeof createAdminClient>,
+  pathPrefix: string,
+  file: File
+): Promise<string> {
+  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const path = `${pathPrefix}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from("category-images").upload(path, file);
+  if (error) throw error;
+  const { data } = supabase.storage.from("category-images").getPublicUrl(path);
+  return data.publicUrl;
+}
+
+// `type` is required on create only — like brand.logo, the site can't
+// render a category without it. It's deliberately absent from
+// updateCategory below: changing it on an existing category would orphan
+// whichever child rows (subcategories vs. category_brands) belong to the
+// type it's leaving.
+export async function createCategory(formData: FormData): Promise<void> {
+  await requireAdminSession();
+  const fields = parseCategoryFormData(formData);
+  const file = formData.get("image");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("Изображение обязательно.");
+  }
+
+  const supabase = createAdminClient();
+  const slug = await generateUniqueSlug(supabase, "categories", fields.slugSeed, "category");
+  const imageUrl = await uploadCategoryImage(supabase, slug, file);
+
+  const { data: maxOrderRow } = await supabase
+    .from("categories")
+    .select("order")
+    .order("order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextOrder = (maxOrderRow?.order ?? -1) + 1;
+
+  const { error } = await supabase.from("categories").insert({
+    slug,
+    name: fields.name,
+    description: fields.description,
+    icon: fields.icon,
+    image: imageUrl,
+    intro: fields.intro,
+    type: fields.type,
+    order: nextOrder,
+  });
+  if (error) throw error;
+
+  revalidatePath("/admin/categories");
+  redirect(`/admin/categories/${slug}/edit`);
+}
+
+// Text fields only, same reasoning as updateBrand — image replacement is
+// its own immediate action (replaceCategoryImage) so the result can be
+// pushed straight into CategoryForm's local state. `type` is never updated
+// here (see createCategory's comment) and neither is `slug` (locked after
+// create, same as products/brands, to avoid breaking existing links).
+export async function updateCategory(slug: string, formData: FormData): Promise<void> {
+  await requireAdminSession();
+  const fields = parseCategoryFormData(formData);
+  const supabase = createAdminClient();
+
+  const { error } = await supabase
+    .from("categories")
+    .update({ name: fields.name, description: fields.description, icon: fields.icon, intro: fields.intro })
+    .eq("slug", slug);
+  if (error) throw error;
+
+  revalidatePath("/admin/categories");
+  revalidatePath(`/admin/categories/${slug}/edit`);
+}
+
+export async function replaceCategoryImage(slug: string, formData: FormData): Promise<string | null> {
+  await requireAdminSession();
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) return null;
+
+  const supabase = createAdminClient();
+  const { data: existing } = await supabase.from("categories").select("image").eq("slug", slug).maybeSingle();
+
+  const newImageUrl = await uploadCategoryImage(supabase, slug, file);
+
+  const { error } = await supabase.from("categories").update({ image: newImageUrl }).eq("slug", slug);
+  if (error) throw error;
+
+  if (existing?.image) {
+    const oldPath = extractStoragePath(existing.image, "category-images");
+    if (oldPath) await supabase.storage.from("category-images").remove([oldPath]);
+  }
+
+  revalidatePath("/admin/categories");
+  return newImageUrl;
+}
+
+export async function deleteCategory(slug: string): Promise<void> {
+  await requireAdminSession();
+  const supabase = createAdminClient();
+
+  const { data: files } = await supabase.storage.from("category-images").list(slug);
+  if (files && files.length > 0) {
+    await supabase.storage.from("category-images").remove(files.map((file) => `${slug}/${file.name}`));
+  }
+
+  // Subcategory images live in their own sub-{id} folders, not nested under
+  // this category's — the DB cascade below clears subcategory rows but
+  // wouldn't reach their Storage files, so remove those folders first.
+  const { data: subcategories } = await supabase.from("subcategories").select("id").eq("category_slug", slug);
+  for (const sub of subcategories ?? []) {
+    const { data: subFiles } = await supabase.storage.from("category-images").list(`sub-${sub.id}`);
+    if (subFiles && subFiles.length > 0) {
+      await supabase.storage.from("category-images").remove(subFiles.map((file) => `sub-${sub.id}/${file.name}`));
+    }
+  }
+
+  // Cascades clean up subcategories/category_brands; products.category_slug
+  // has no cascade, so this throws (FK violation) if any product still
+  // references this category — CategoriesList checks productCount before
+  // calling this to avoid surfacing that raw error.
+  const { error } = await supabase.from("categories").delete().eq("slug", slug);
+  if (error) throw error;
+
+  revalidatePath("/admin/categories");
+  redirect("/admin/categories");
+}
+
+export async function reorderCategories(orderedSlugs: string[]): Promise<void> {
+  await requireAdminSession();
+  const supabase = createAdminClient();
+  await Promise.all(
+    orderedSlugs.map((slug, index) => supabase.from("categories").update({ order: index }).eq("slug", slug))
+  );
+  revalidatePath("/admin/categories");
+}
+
+interface SubcategoryFormFields {
+  name: string;
+  slugSeed: string;
+  intro: string | null;
+}
+
+function parseSubcategoryFormData(formData: FormData): SubcategoryFormFields {
+  const name = String(formData.get("name") ?? "").trim();
+  const slugSeed = String(formData.get("slug") ?? "").trim() || name;
+  const intro = String(formData.get("intro") ?? "").trim() || null;
+
+  if (!name) {
+    throw new Error("Заполните обязательное поле: название.");
+  }
+
+  return { name, slugSeed, intro };
+}
+
+// Subcategory slugs are only unique within their category (unique(category_slug, slug)
+// in the schema, not a standalone primary key like products/brands/categories), so
+// this checks scoped to categorySlug instead of reusing generateUniqueSlug.
+async function generateUniqueSubcategorySlug(
+  supabase: ReturnType<typeof createAdminClient>,
+  categorySlug: string,
+  seed: string
+): Promise<string> {
+  const base = slugify(seed) || "subcategory";
+  let candidate = base;
+  let suffix = 2;
+  for (;;) {
+    const { data } = await supabase
+      .from("subcategories")
+      .select("slug")
+      .eq("category_slug", categorySlug)
+      .eq("slug", candidate)
+      .maybeSingle();
+    if (!data) return candidate;
+    candidate = `${base}-${suffix}`;
+    suffix += 1;
+  }
+}
+
+// The id is generated here (not left to the DB default) so the Storage path
+// for the required image upload can be built before the row exists — same
+// reasoning as brands, just one step earlier since subcategories don't use
+// their slug as the Storage folder name (slugs collide across categories).
+export async function createSubcategory(categorySlug: string, formData: FormData): Promise<void> {
+  await requireAdminSession();
+  const fields = parseSubcategoryFormData(formData);
+  const file = formData.get("image");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("Изображение обязательно.");
+  }
+
+  const supabase = createAdminClient();
+  const slug = await generateUniqueSubcategorySlug(supabase, categorySlug, fields.slugSeed);
+  const id = crypto.randomUUID();
+  const imageUrl = await uploadCategoryImage(supabase, `sub-${id}`, file);
+
+  const { data: maxOrderRow } = await supabase
+    .from("subcategories")
+    .select("order")
+    .eq("category_slug", categorySlug)
+    .order("order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextOrder = (maxOrderRow?.order ?? -1) + 1;
+
+  const { error } = await supabase.from("subcategories").insert({
+    id,
+    category_slug: categorySlug,
+    slug,
+    name: fields.name,
+    image: imageUrl,
+    intro: fields.intro,
+    order: nextOrder,
+  });
+  if (error) throw error;
+
+  revalidatePath(`/admin/categories/${categorySlug}/subcategories`);
+  redirect(`/admin/categories/${categorySlug}/subcategories/${slug}/edit`);
+}
+
+export async function updateSubcategory(categorySlug: string, subSlug: string, formData: FormData): Promise<void> {
+  await requireAdminSession();
+  const fields = parseSubcategoryFormData(formData);
+  const supabase = createAdminClient();
+
+  const { error } = await supabase
+    .from("subcategories")
+    .update({ name: fields.name, intro: fields.intro })
+    .eq("category_slug", categorySlug)
+    .eq("slug", subSlug);
+  if (error) throw error;
+
+  revalidatePath(`/admin/categories/${categorySlug}/subcategories`);
+  revalidatePath(`/admin/categories/${categorySlug}/subcategories/${subSlug}/edit`);
+}
+
+export async function replaceSubcategoryImage(subcategoryId: string, formData: FormData): Promise<string | null> {
+  await requireAdminSession();
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) return null;
+
+  const supabase = createAdminClient();
+  const { data: existing } = await supabase
+    .from("subcategories")
+    .select("image, category_slug")
+    .eq("id", subcategoryId)
+    .maybeSingle();
+  if (!existing) return null;
+
+  const newImageUrl = await uploadCategoryImage(supabase, `sub-${subcategoryId}`, file);
+
+  const { error } = await supabase.from("subcategories").update({ image: newImageUrl }).eq("id", subcategoryId);
+  if (error) throw error;
+
+  if (existing.image) {
+    const oldPath = extractStoragePath(existing.image, "category-images");
+    if (oldPath) await supabase.storage.from("category-images").remove([oldPath]);
+  }
+
+  revalidatePath(`/admin/categories/${existing.category_slug}/subcategories`);
+  return newImageUrl;
+}
+
+export async function deleteSubcategory(subcategoryId: string): Promise<void> {
+  await requireAdminSession();
+  const supabase = createAdminClient();
+
+  const { data: existing } = await supabase
+    .from("subcategories")
+    .select("category_slug")
+    .eq("id", subcategoryId)
+    .maybeSingle();
+  if (!existing) return;
+
+  const { data: files } = await supabase.storage.from("category-images").list(`sub-${subcategoryId}`);
+  if (files && files.length > 0) {
+    await supabase.storage.from("category-images").remove(files.map((file) => `sub-${subcategoryId}/${file.name}`));
+  }
+
+  // products.subcategory_id has no cascade, so this throws (FK violation) if
+  // any product still references it — SubcategoriesList checks productCount
+  // before calling this to avoid surfacing that raw error.
+  const { error } = await supabase.from("subcategories").delete().eq("id", subcategoryId);
+  if (error) throw error;
+
+  revalidatePath(`/admin/categories/${existing.category_slug}/subcategories`);
+  redirect(`/admin/categories/${existing.category_slug}/subcategories`);
+}
+
+export async function reorderSubcategories(categorySlug: string, orderedIds: string[]): Promise<void> {
+  await requireAdminSession();
+  const supabase = createAdminClient();
+  await Promise.all(orderedIds.map((id, index) => supabase.from("subcategories").update({ order: index }).eq("id", id)));
+  revalidatePath(`/admin/categories/${categorySlug}/subcategories`);
+}
+
+export async function addCategoryBrand(categorySlug: string, brandSlug: string): Promise<void> {
+  await requireAdminSession();
+  const supabase = createAdminClient();
+
+  const { data: maxOrderRow } = await supabase
+    .from("category_brands")
+    .select("order")
+    .eq("category_slug", categorySlug)
+    .order("order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextOrder = (maxOrderRow?.order ?? -1) + 1;
+
+  const { error } = await supabase
+    .from("category_brands")
+    .insert({ category_slug: categorySlug, brand_slug: brandSlug, order: nextOrder });
+  if (error) throw error;
+
+  revalidatePath(`/admin/categories/${categorySlug}/category-brands`);
+}
+
+export async function removeCategoryBrand(categorySlug: string, brandSlug: string): Promise<void> {
+  await requireAdminSession();
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("category_brands")
+    .delete()
+    .eq("category_slug", categorySlug)
+    .eq("brand_slug", brandSlug);
+  if (error) throw error;
+  revalidatePath(`/admin/categories/${categorySlug}/category-brands`);
+}
+
+export async function updateCategoryBrandOverride(
+  categorySlug: string,
+  brandSlug: string,
+  logoScaleOverride: number | null
+): Promise<void> {
+  await requireAdminSession();
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("category_brands")
+    .update({ logo_scale_override: logoScaleOverride })
+    .eq("category_slug", categorySlug)
+    .eq("brand_slug", brandSlug);
+  if (error) throw error;
+  revalidatePath(`/admin/categories/${categorySlug}/category-brands`);
+}
+
+export async function reorderCategoryBrands(categorySlug: string, orderedBrandSlugs: string[]): Promise<void> {
+  await requireAdminSession();
+  const supabase = createAdminClient();
+  await Promise.all(
+    orderedBrandSlugs.map((brandSlug, index) =>
+      supabase.from("category_brands").update({ order: index }).eq("category_slug", categorySlug).eq("brand_slug", brandSlug)
+    )
+  );
+  revalidatePath(`/admin/categories/${categorySlug}/category-brands`);
 }

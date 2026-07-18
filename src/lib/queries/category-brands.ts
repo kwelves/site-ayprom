@@ -9,7 +9,6 @@ interface CategoryBrandRow {
     country: string;
     logo: string;
     logo_scale: number | null;
-    relation: "for" | "from";
   };
 }
 
@@ -31,7 +30,6 @@ export async function getCategoryBrands(categorySlug: string): Promise<Brand[]> 
     country: row.brands.country,
     logo: row.brands.logo,
     logoScale: row.logo_scale_override ?? row.brands.logo_scale ?? undefined,
-    relation: row.brands.relation,
   }));
 }
 

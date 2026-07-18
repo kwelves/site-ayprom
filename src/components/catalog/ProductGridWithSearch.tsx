@@ -3,9 +3,8 @@ import { ProductCard } from "@/components/catalog/ProductCard";
 import { searchProducts } from "@/lib/search-products";
 import { getProductHref } from "@/lib/product-href";
 import { getProducts } from "@/lib/queries/products";
-import { getBrands } from "@/lib/queries/brands";
 import { getCategoryBrandSlugs } from "@/lib/queries/category-brands";
-import type { Brand, Product } from "@/types/catalog";
+import type { Product } from "@/types/catalog";
 
 interface ProductGridWithSearchProps {
   /** The current page's own product scope (e.g. one subcategory's products). */
@@ -22,28 +21,12 @@ interface ProductGridWithSearchProps {
 
 const gridClassName = "mt-6 grid grid-cols-2 gap-5 lg:grid-cols-4";
 
-function findManufacturerBrand(product: Product, brands: Brand[]): Brand | undefined {
-  return brands.find((brand) => brand.relation === "from" && product.compatibleBrands.includes(brand.slug));
-}
-
-function ProductGrid({
-  products,
-  hrefFor,
-  brands,
-}: {
-  products: Product[];
-  hrefFor: (product: Product) => string;
-  brands: Brand[];
-}) {
+function ProductGrid({ products, hrefFor }: { products: Product[]; hrefFor: (product: Product) => string }) {
   return (
     <StaggerGroup className={gridClassName}>
       {products.map((product) => (
         <StaggerItem key={product.slug}>
-          <ProductCard
-            product={product}
-            href={hrefFor(product)}
-            manufacturerBrand={findManufacturerBrand(product, brands)}
-          />
+          <ProductCard product={product} href={hrefFor(product)} />
         </StaggerItem>
       ))}
     </StaggerGroup>
@@ -60,11 +43,9 @@ export async function ProductGridWithSearch({
   href,
   emptyLabel,
 }: ProductGridWithSearchProps) {
-  const brands = await getBrands();
-
   if (!query) {
     return products.length > 0 ? (
-      <ProductGrid products={products} hrefFor={href} brands={brands} />
+      <ProductGrid products={products} hrefFor={href} />
     ) : (
       <p className="mt-6 text-center text-slate-600">{emptyLabel}</p>
     );
@@ -73,7 +54,7 @@ export async function ProductGridWithSearch({
   const scopedResults = await searchProducts(products, query);
 
   if (scopedResults.length > 0) {
-    return <ProductGrid products={scopedResults} hrefFor={href} brands={brands} />;
+    return <ProductGrid products={scopedResults} hrefFor={href} />;
   }
 
   const [allProducts, categoryBrandSlugs] = await Promise.all([getProducts(), getCategoryBrandSlugs()]);
@@ -91,11 +72,7 @@ export async function ProductGridWithSearch({
           <p className="mt-8 text-center text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             Возможно, вы имеете в виду
           </p>
-          <ProductGrid
-            products={globalResults}
-            hrefFor={(product) => getProductHref(product, categoryBrandSlugs)}
-            brands={brands}
-          />
+          <ProductGrid products={globalResults} hrefFor={(product) => getProductHref(product, categoryBrandSlugs)} />
         </>
       )}
     </div>

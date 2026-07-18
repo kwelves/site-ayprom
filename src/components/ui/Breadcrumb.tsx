@@ -80,8 +80,38 @@ async function resolveCrumbs(pathname: string): Promise<Crumb[]> {
       }
     }
   } else if (segments[1] === "brand" && segments[2]) {
-    const { data: brand } = await supabase.from("brands").select("name").eq("slug", segments[2]).maybeSingle();
-    if (brand) crumbs.push({ label: brand.name });
+    const brandSlug = segments[2];
+    const { data: brand } = await supabase.from("brands").select("name").eq("slug", brandSlug).maybeSingle();
+    if (!brand) return crumbs;
+    crumbs.push({ label: brand.name, href: `/catalog/brand/${brandSlug}` });
+
+    if (segments[3] === "category" && segments[4]) {
+      const categorySlug = segments[4];
+      const { data: category } = await supabase
+        .from("categories")
+        .select("name")
+        .eq("slug", categorySlug)
+        .maybeSingle();
+      if (category) {
+        crumbs.push({ label: category.name, href: `/catalog/brand/${brandSlug}/category/${categorySlug}` });
+
+        if (segments[5] === "subcategory" && segments[6]) {
+          const subSlug = segments[6];
+          const { data: subcategory } = await supabase
+            .from("subcategories")
+            .select("name")
+            .eq("category_slug", categorySlug)
+            .eq("slug", subSlug)
+            .maybeSingle();
+          if (subcategory) {
+            crumbs.push({
+              label: subcategory.name,
+              href: `/catalog/brand/${brandSlug}/category/${categorySlug}/subcategory/${subSlug}`,
+            });
+          }
+        }
+      }
+    }
   }
 
   return crumbs;
