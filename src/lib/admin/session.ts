@@ -4,7 +4,7 @@
 // Crypto is the one API both support.
 
 export const SESSION_COOKIE_NAME = "admin_session";
-export const SESSION_DURATION_SECONDS = 60 * 60 * 24 * 30; // 30 days
+export const SESSION_DURATION_SECONDS = 60 * 60 * 24; // 1 day
 
 function bufferToBase64Url(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);

@@ -121,12 +121,17 @@ async function resolveSubcategoryId(
   return data?.id ?? null;
 }
 
-async function generateUniqueSlug(supabase: ReturnType<typeof createAdminClient>, name: string): Promise<string> {
-  const base = slugify(name) || "product";
+async function generateUniqueSlug(
+  supabase: ReturnType<typeof createAdminClient>,
+  table: "products" | "brands",
+  seed: string,
+  fallback: string
+): Promise<string> {
+  const base = slugify(seed) || fallback;
   let candidate = base;
   let suffix = 2;
   for (;;) {
-    const { data } = await supabase.from("products").select("slug").eq("slug", candidate).maybeSingle();
+    const { data } = await supabase.from(table).select("slug").eq("slug", candidate).maybeSingle();
     if (!data) return candidate;
     candidate = `${base}-${suffix}`;
     suffix += 1;
@@ -138,7 +143,7 @@ export async function createProduct(formData: FormData): Promise<void> {
   const fields = parseProductFormData(formData);
   const supabase = createAdminClient();
 
-  const slug = await generateUniqueSlug(supabase, fields.slugSeed);
+  const slug = await generateUniqueSlug(supabase, "products", fields.slugSeed, "product");
   const subcategoryId = await resolveSubcategoryId(supabase, fields.categorySlug, fields.subcategorySlug);
 
   const { data: maxOrderRow } = await supabase
@@ -316,8 +321,8 @@ export async function uploadProductImage(productId: string, formData: FormData):
   return inserted;
 }
 
-function extractStoragePath(publicUrl: string): string | null {
-  const marker = "/product-images/";
+function extractStoragePath(publicUrl: string, bucket: string): string | null {
+  const marker = `/${bucket}/`;
   const index = publicUrl.indexOf(marker);
   return index === -1 ? null : publicUrl.slice(index + marker.length);
 }
@@ -334,7 +339,7 @@ export async function deleteProductImage(imageId: string): Promise<void> {
   if (findError) throw findError;
   if (!image) return;
 
-  const storagePath = extractStoragePath(image.url);
+  const storagePath = extractStoragePath(image.url, "product-images");
   if (storagePath) {
     await supabase.storage.from("product-images").remove([storagePath]);
   }
@@ -350,4 +355,148 @@ export async function reorderProductImages(productSlug: string, orderedImageIds:
   const supabase = createAdminClient();
   await Promise.all(orderedImageIds.map((id, index) => supabase.from("product_images").update({ order: index }).eq("id", id)));
   revalidatePath(`/admin/products/${productSlug}/edit`);
+}
+
+interface BrandFormFields {
+  name: string;
+  slugSeed: string;
+  country: string;
+  relation: "for" | "from";
+  logoScale: number | null;
+}
+
+function parseBrandFormData(formData: FormData): BrandFormFields {
+  const name = String(formData.get("name") ?? "").trim();
+  const slugSeed = String(formData.get("slug") ?? "").trim() || name;
+  const country = String(formData.get("country") ?? "").trim();
+  const relation = formData.get("relation") === "from" ? "from" : "for";
+  const logoScaleRaw = String(formData.get("logoScale") ?? "").trim();
+  const parsedLogoScale = logoScaleRaw ? Number(logoScaleRaw) : null;
+
+  if (!name || !country) {
+    throw new Error("Заполните обязательные поля: название, страна.");
+  }
+
+  return { name, slugSeed, country, relation, logoScale: Number.isFinite(parsedLogoScale) ? parsedLogoScale : null };
+}
+
+async function uploadBrandLogo(
+  supabase: ReturnType<typeof createAdminClient>,
+  brandSlug: string,
+  file: File
+): Promise<string> {
+  const ext = file.name.split(".").pop()?.toLowerCase() || "svg";
+  const path = `${brandSlug}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from("brand-logos").upload(path, file);
+  if (error) throw error;
+  const { data } = supabase.storage.from("brand-logos").getPublicUrl(path);
+  return data.publicUrl;
+}
+
+// The logo is required on create (Brand.logo is non-optional — every card
+// on the site renders it unconditionally), so unlike products it has to be
+// uploaded within the same submission as the rest of the row instead of
+// after the fact.
+export async function createBrand(formData: FormData): Promise<void> {
+  await requireAdminSession();
+  const fields = parseBrandFormData(formData);
+  const file = formData.get("logo");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("Логотип обязателен.");
+  }
+
+  const supabase = createAdminClient();
+  const slug = await generateUniqueSlug(supabase, "brands", fields.slugSeed, "brand");
+  const logoUrl = await uploadBrandLogo(supabase, slug, file);
+
+  const { data: maxOrderRow } = await supabase
+    .from("brands")
+    .select("order")
+    .order("order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextOrder = (maxOrderRow?.order ?? -1) + 1;
+
+  const { error } = await supabase.from("brands").insert({
+    slug,
+    name: fields.name,
+    country: fields.country,
+    logo: logoUrl,
+    logo_scale: fields.logoScale,
+    relation: fields.relation,
+    order: nextOrder,
+  });
+  if (error) throw error;
+
+  revalidatePath("/admin/brands");
+  redirect("/admin/brands");
+}
+
+// Text fields only — logo replacement is a separate immediate action
+// (replaceBrandLogo) so its result can be pushed straight into BrandForm's
+// local state, the same fix applied to product photo uploads (see
+// uploadProductImage's comment): a `<form action>` Server Action's return
+// value isn't visible to the component without useActionState, and this
+// form doesn't need that complexity for its own text fields.
+export async function updateBrand(slug: string, formData: FormData): Promise<void> {
+  await requireAdminSession();
+  const fields = parseBrandFormData(formData);
+  const supabase = createAdminClient();
+
+  const { error } = await supabase
+    .from("brands")
+    .update({ name: fields.name, country: fields.country, relation: fields.relation, logo_scale: fields.logoScale })
+    .eq("slug", slug);
+  if (error) throw error;
+
+  revalidatePath("/admin/brands");
+  revalidatePath(`/admin/brands/${slug}/edit`);
+}
+
+export async function replaceBrandLogo(slug: string, formData: FormData): Promise<string | null> {
+  await requireAdminSession();
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) return null;
+
+  const supabase = createAdminClient();
+  const { data: existing } = await supabase.from("brands").select("logo").eq("slug", slug).maybeSingle();
+
+  const newLogoUrl = await uploadBrandLogo(supabase, slug, file);
+
+  const { error } = await supabase.from("brands").update({ logo: newLogoUrl }).eq("slug", slug);
+  if (error) throw error;
+
+  if (existing?.logo) {
+    const oldPath = extractStoragePath(existing.logo, "brand-logos");
+    if (oldPath) await supabase.storage.from("brand-logos").remove([oldPath]);
+  }
+
+  revalidatePath("/admin/brands");
+  return newLogoUrl;
+}
+
+export async function deleteBrand(slug: string): Promise<void> {
+  await requireAdminSession();
+  const supabase = createAdminClient();
+
+  const { data: brand } = await supabase.from("brands").select("logo").eq("slug", slug).maybeSingle();
+  if (brand?.logo) {
+    const path = extractStoragePath(brand.logo, "brand-logos");
+    if (path) await supabase.storage.from("brand-logos").remove([path]);
+  }
+
+  // Cascades clean up product_brands/category_brands associations — the
+  // BrandsList UI warns with usage counts before calling this.
+  const { error } = await supabase.from("brands").delete().eq("slug", slug);
+  if (error) throw error;
+
+  revalidatePath("/admin/brands");
+  redirect("/admin/brands");
+}
+
+export async function reorderBrands(orderedSlugs: string[]): Promise<void> {
+  await requireAdminSession();
+  const supabase = createAdminClient();
+  await Promise.all(orderedSlugs.map((slug, index) => supabase.from("brands").update({ order: index }).eq("slug", slug)));
+  revalidatePath("/admin/brands");
 }

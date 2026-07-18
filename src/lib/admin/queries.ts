@@ -111,3 +111,98 @@ export async function getAdminProduct(slug: string): Promise<AdminProduct | null
     characteristics: [...row.product_characteristics].sort((a, b) => a.order - b.order),
   };
 }
+
+export interface AdminBrand {
+  slug: string;
+  name: string;
+  country: string;
+  logo: string;
+  logoScale?: number;
+  relation: "for" | "from";
+  order: number;
+  /** How many products/brand-type categories reference this brand — shown
+   * as a delete-confirmation warning, since removing a widely-used brand
+   * silently cascades those associations away. */
+  productCount: number;
+  categoryCount: number;
+}
+
+interface BrandRow {
+  slug: string;
+  name: string;
+  country: string;
+  logo: string;
+  logo_scale: number | null;
+  relation: "for" | "from";
+  order: number;
+}
+
+async function getBrandUsageCounts(
+  supabase: ReturnType<typeof createAdminClient>
+): Promise<{ productCounts: Map<string, number>; categoryCounts: Map<string, number> }> {
+  const [{ data: productBrands, error: pbError }, { data: categoryBrands, error: cbError }] = await Promise.all([
+    supabase.from("product_brands").select("brand_slug"),
+    supabase.from("category_brands").select("brand_slug"),
+  ]);
+  if (pbError) throw pbError;
+  if (cbError) throw cbError;
+
+  const productCounts = new Map<string, number>();
+  for (const row of productBrands as { brand_slug: string }[]) {
+    productCounts.set(row.brand_slug, (productCounts.get(row.brand_slug) ?? 0) + 1);
+  }
+  const categoryCounts = new Map<string, number>();
+  for (const row of categoryBrands as { brand_slug: string }[]) {
+    categoryCounts.set(row.brand_slug, (categoryCounts.get(row.brand_slug) ?? 0) + 1);
+  }
+  return { productCounts, categoryCounts };
+}
+
+function mapBrand(
+  row: BrandRow,
+  productCounts: Map<string, number>,
+  categoryCounts: Map<string, number>
+): AdminBrand {
+  return {
+    slug: row.slug,
+    name: row.name,
+    country: row.country,
+    logo: row.logo,
+    logoScale: row.logo_scale ?? undefined,
+    relation: row.relation,
+    order: row.order,
+    productCount: productCounts.get(row.slug) ?? 0,
+    categoryCount: categoryCounts.get(row.slug) ?? 0,
+  };
+}
+
+export async function getAdminBrands(): Promise<AdminBrand[]> {
+  const supabase = createAdminClient();
+  const [{ data, error }, { productCounts, categoryCounts }] = await Promise.all([
+    supabase.from("brands").select("*").order("order"),
+    getBrandUsageCounts(supabase),
+  ]);
+  if (error) throw error;
+
+  return (data as BrandRow[]).map((row) => mapBrand(row, productCounts, categoryCounts));
+}
+
+// Shared by BrandsList and BrandForm's delete buttons — deleting a brand
+// cascades away its product_brands/category_brands rows silently, so both
+// confirmation dialogs need to say what's actually at stake.
+export function describeBrandUsage(brand: AdminBrand): string {
+  const parts: string[] = [];
+  if (brand.productCount > 0) parts.push(`${brand.productCount} товар(ах)`);
+  if (brand.categoryCount > 0) parts.push(`${brand.categoryCount} категории(ях)`);
+  return parts.length > 0 ? ` Бренд используется в ${parts.join(" и ")} — эти связи тоже исчезнут.` : "";
+}
+
+export async function getAdminBrand(slug: string): Promise<AdminBrand | null> {
+  const supabase = createAdminClient();
+  const [{ data, error }, { productCounts, categoryCounts }] = await Promise.all([
+    supabase.from("brands").select("*").eq("slug", slug).maybeSingle(),
+    getBrandUsageCounts(supabase),
+  ]);
+  if (error) throw error;
+  return data ? mapBrand(data as BrandRow, productCounts, categoryCounts) : null;
+}

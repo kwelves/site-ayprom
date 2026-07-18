@@ -15,6 +15,9 @@ export default function ProtectedAdminLayout({ children }: Readonly<{ children: 
             <Link href="/admin/products" className="text-slate-600 transition-colors hover:text-primary">
               Товары
             </Link>
+            <Link href="/admin/brands" className="text-slate-600 transition-colors hover:text-primary">
+              Бренды
+            </Link>
             <form action={logout}>
               <button
                 type="submit"
