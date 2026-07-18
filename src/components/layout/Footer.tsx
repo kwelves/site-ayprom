@@ -4,11 +4,13 @@ import Link from "next/link";
 import { AtSign, Mail, MapPin, Truck } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { Reveal } from "@/components/motion/Reveal";
-import { mainNav } from "@/lib/navigation";
+import { buildMainNav } from "@/lib/navigation";
 import { useHashNavClick } from "@/lib/use-hash-nav-click";
+import type { Category } from "@/types/catalog";
 
-export function Footer() {
+export function Footer({ categories }: { categories: Category[] }) {
   const handleHashClick = useHashNavClick();
+  const mainNav = buildMainNav(categories);
 
   return (
     <footer id="contacts" className="scroll-mt-16 bg-slate-900 text-slate-300">

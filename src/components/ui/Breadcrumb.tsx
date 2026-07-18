@@ -1,13 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, ChevronRight } from "lucide-react";
-import { categories } from "@/data/categories";
-import { subcategoriesByCategory } from "@/data/subcategories";
-import { brands } from "@/data/brands";
-import { brandsByCategory } from "@/data/category-brands";
-import { products } from "@/data/products";
+import { createClient } from "@/lib/supabase/client";
 
 interface Crumb {
   label: string;
@@ -17,41 +14,73 @@ interface Crumb {
 // Reads the current path rather than taking props, so a single instance in
 // the shared category/brand layouts covers every nested route (category,
 // subcategory, brand-in-category, and their product pages) without each
-// page having to compute and pass its own trail down.
-function resolveCrumbs(pathname: string): Crumb[] {
+// page having to compute and pass its own trail down. Runs client-side
+// (RLS already allows anonymous reads) since it's the one place that needs
+// to react to path changes rather than fetch once per server render.
+async function resolveCrumbs(pathname: string): Promise<Crumb[]> {
   const segments = pathname.split("/").filter(Boolean);
   if (segments[0] !== "catalog") return [];
 
+  const supabase = createClient();
   const crumbs: Crumb[] = [];
 
   if (segments[1] === "category" && segments[2]) {
     const categorySlug = segments[2];
-    const category = categories.find((item) => item.slug === categorySlug);
+    const { data: category } = await supabase
+      .from("categories")
+      .select("name")
+      .eq("slug", categorySlug)
+      .maybeSingle();
     if (!category) return crumbs;
     crumbs.push({ label: category.name, href: `/catalog/category/${categorySlug}` });
 
     if (segments[3] === "subcategory" && segments[4]) {
       const subSlug = segments[4];
-      const subcategory = subcategoriesByCategory[categorySlug]?.find((item) => item.slug === subSlug);
+      const { data: subcategory } = await supabase
+        .from("subcategories")
+        .select("name")
+        .eq("category_slug", categorySlug)
+        .eq("slug", subSlug)
+        .maybeSingle();
       if (subcategory) {
         crumbs.push({
           label: subcategory.name,
           href: `/catalog/category/${categorySlug}/subcategory/${subSlug}`,
         });
-        const product = segments[5] ? products.find((item) => item.slug === segments[5]) : undefined;
-        if (product) crumbs.push({ label: product.name });
+        if (segments[5]) {
+          const { data: product } = await supabase
+            .from("products")
+            .select("name")
+            .eq("slug", segments[5])
+            .maybeSingle();
+          if (product) crumbs.push({ label: product.name });
+        }
       }
     } else if (segments[3] === "brand" && segments[4]) {
       const brandSlug = segments[4];
-      const brand = brandsByCategory[categorySlug]?.find((item) => item.slug === brandSlug);
-      if (brand) {
-        crumbs.push({ label: brand.name, href: `/catalog/category/${categorySlug}/brand/${brandSlug}` });
-        const product = segments[5] ? products.find((item) => item.slug === segments[5]) : undefined;
-        if (product) crumbs.push({ label: product.name });
+      const { data: categoryBrand } = await supabase
+        .from("category_brands")
+        .select("brands(name)")
+        .eq("category_slug", categorySlug)
+        .eq("brand_slug", brandSlug)
+        .maybeSingle<{ brands: { name: string } }>();
+      if (categoryBrand) {
+        crumbs.push({
+          label: categoryBrand.brands.name,
+          href: `/catalog/category/${categorySlug}/brand/${brandSlug}`,
+        });
+        if (segments[5]) {
+          const { data: product } = await supabase
+            .from("products")
+            .select("name")
+            .eq("slug", segments[5])
+            .maybeSingle();
+          if (product) crumbs.push({ label: product.name });
+        }
       }
     }
   } else if (segments[1] === "brand" && segments[2]) {
-    const brand = brands.find((item) => item.slug === segments[2]);
+    const { data: brand } = await supabase.from("brands").select("name").eq("slug", segments[2]).maybeSingle();
     if (brand) crumbs.push({ label: brand.name });
   }
 
@@ -60,7 +89,17 @@ function resolveCrumbs(pathname: string): Crumb[] {
 
 export function Breadcrumb() {
   const pathname = usePathname();
-  const crumbs = resolveCrumbs(pathname);
+  const [crumbs, setCrumbs] = useState<Crumb[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    resolveCrumbs(pathname).then((result) => {
+      if (!cancelled) setCrumbs(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
 
   if (crumbs.length === 0) return null;
 

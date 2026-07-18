@@ -3,29 +3,28 @@ import type { Metadata } from "next";
 import { Reveal } from "@/components/motion/Reveal";
 import { ProductSearchForm } from "@/components/catalog/ProductSearchForm";
 import { ProductGridWithSearch } from "@/components/catalog/ProductGridWithSearch";
-import { brands } from "@/data/brands";
-import { products } from "@/data/products";
+import { getBrand } from "@/lib/queries/brands";
+import { getProducts } from "@/lib/queries/products";
+import { getCategoryBrandSlugs } from "@/lib/queries/category-brands";
 import { getProductHref } from "@/lib/product-href";
+
+export const revalidate = 0;
 
 interface BrandPageProps {
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ q?: string }>;
 }
 
-export function generateStaticParams() {
-  return brands.map((brand) => ({ slug: brand.slug }));
-}
-
 export async function generateMetadata({ params }: BrandPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const brand = brands.find((item) => item.slug === slug);
+  const brand = await getBrand(slug);
   return { title: brand ? `${brand.name} — AYPROM` : "Каталог — AYPROM" };
 }
 
 export default async function BrandPage({ params, searchParams }: BrandPageProps) {
   const { slug } = await params;
   const { q } = await searchParams;
-  const brand = brands.find((item) => item.slug === slug);
+  const brand = await getBrand(slug);
 
   if (!brand) {
     notFound();
@@ -34,7 +33,10 @@ export default async function BrandPage({ params, searchParams }: BrandPageProps
   // Every category (not just the brand-type ones) can carry compatibleBrands
   // — this page is the brand-wide view across all of them, unlike
   // /catalog/category/[slug]/brand/[brandSlug] which stays inside one category.
-  const brandProducts = products.filter((product) => product.compatibleBrands.includes(slug));
+  const [brandProducts, categoryBrandSlugs] = await Promise.all([
+    getProducts({ brandSlug: slug }),
+    getCategoryBrandSlugs(),
+  ]);
 
   return (
     <>
@@ -71,7 +73,7 @@ export default async function BrandPage({ params, searchParams }: BrandPageProps
         products={brandProducts}
         query={q}
         scopeLabel={brand.relation === "from" ? `от бренда «${brand.name}»` : `для бренда «${brand.name}»`}
-        href={getProductHref}
+        href={(product) => getProductHref(product, categoryBrandSlugs)}
         emptyLabel={
           brand.relation === "from"
             ? `От бренда «${brand.name}» пока нет товаров. Скоро они здесь появятся.`

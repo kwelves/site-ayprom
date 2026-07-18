@@ -16,6 +16,22 @@ export interface Category {
    * Categories that split by subcategory instead carry this on
    * Subcategory.intro, since the explanation there does vary. Optional. */
   intro?: string;
+  /** Whether this category's products are browsed by subcategory
+   * (hydraulic-pumps/tanks) or by brand (pto/pto-shafts) — an explicit,
+   * database-enforced column now, replacing the old convention of inferring
+   * it from which lookup table had an entry for the category's slug. */
+  type: "subcategory" | "brand";
+}
+
+export interface Subcategory {
+  slug: string;
+  name: string;
+  image: string;
+  /** Short (2-3 sentence) explainer shown at the top of the subcategory's
+   * product-grid page — what this specific product type is and when it's
+   * used, not marketing copy. Optional so a new subcategory can ship without
+   * it and just omit the paragraph. */
+  intro?: string;
 }
 
 export interface Brand {

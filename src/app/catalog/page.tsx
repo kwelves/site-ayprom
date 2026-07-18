@@ -5,12 +5,15 @@ import { BackButton } from "@/components/ui/BackButton";
 import { Reveal } from "@/components/motion/Reveal";
 import { ProductSearchForm } from "@/components/catalog/ProductSearchForm";
 import { ProductGridWithSearch } from "@/components/catalog/ProductGridWithSearch";
-import { products } from "@/data/products";
+import { getProducts } from "@/lib/queries/products";
+import { getCategoryBrandSlugs } from "@/lib/queries/category-brands";
 import { getProductHref } from "@/lib/product-href";
 
 export const metadata: Metadata = {
   title: "Каталог — AYPROM",
 };
+
+export const revalidate = 0;
 
 interface CatalogPageProps {
   searchParams: Promise<{ q?: string }>;
@@ -21,6 +24,7 @@ interface CatalogPageProps {
 // a layout at this level would wrap those too and duplicate the button.
 export default async function CatalogPage({ searchParams }: CatalogPageProps) {
   const { q } = await searchParams;
+  const [products, categoryBrandSlugs] = await Promise.all([getProducts(), getCategoryBrandSlugs()]);
 
   return (
     <Container className="pt-6 pb-16 sm:pt-8 sm:pb-20 lg:pt-10 lg:pb-24">
@@ -47,7 +51,7 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
           products={products}
           query={q}
           scopeLabel="в каталоге"
-          href={getProductHref}
+          href={(product) => getProductHref(product, categoryBrandSlugs)}
           emptyLabel="Каталог пока пуст. Скоро здесь появятся товары."
         />
       </div>

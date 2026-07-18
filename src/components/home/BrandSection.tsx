@@ -3,7 +3,7 @@ import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/motion/Reveal";
 import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
-import { brands } from "@/data/brands";
+import { getBrands } from "@/lib/queries/brands";
 import type { Brand } from "@/types/catalog";
 
 function BrandGrid({ brands }: { brands: Brand[] }) {
@@ -32,7 +32,8 @@ function BrandGrid({ brands }: { brands: Brand[] }) {
   );
 }
 
-export function BrandSection() {
+export async function BrandSection() {
+  const brands = await getBrands();
   const forBrands = brands.filter((brand) => brand.relation === "for");
   const fromBrands = brands.filter((brand) => brand.relation === "from");
   // Only split into labeled groups when there's something on both sides to

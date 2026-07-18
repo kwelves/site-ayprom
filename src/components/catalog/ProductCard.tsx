@@ -8,8 +8,7 @@ import { AnimatePresence, motion, type PanInfo } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsTouchDevice } from "@/lib/use-is-touch-device";
-import { brands } from "@/data/brands";
-import type { Product } from "@/types/catalog";
+import type { Brand, Product } from "@/types/catalog";
 
 const slideVariants = {
   enter: (direction: number) => ({ x: direction > 0 ? 24 : -24, opacity: 0 }),
@@ -33,16 +32,22 @@ const SWIPE_THRESHOLD = 40;
 // "stretched link"); the photo area sits visually on top of it (own z-index,
 // since it needs to capture the swipe) and re-implements "tap to open" itself
 // via onTap, ignoring taps that land on the arrow buttons.
-export function ProductCard({ product, href }: { product: Product; href: string }) {
+export function ProductCard({
+  product,
+  href,
+  manufacturerBrand,
+}: {
+  product: Product;
+  href: string;
+  /** Resolved by the (server-side) caller — at most one "from"-relation
+   * brand is expected in practice right now (ZF); if a product ever lists
+   * more than one, the caller picks the first. */
+  manufacturerBrand?: Brand;
+}) {
   const router = useRouter();
   const [[index, direction], setIndex] = useState<[number, number]>([0, 0]);
   const hasMultiple = product.images.length > 1;
   const isTouchDevice = useIsTouchDevice();
-  // At most one "from"-relation brand is expected in practice right now
-  // (ZF) — if a product ever lists more than one, the first is shown.
-  const manufacturerBrand = brands.find(
-    (brand) => brand.relation === "from" && product.compatibleBrands.includes(brand.slug)
-  );
   // Framer Motion can still fire onTap right after a drag release when drag
   // and tap gestures share the same element — this flag lets onTap tell a
   // real tap apart from "finger lifted at the end of a swipe".

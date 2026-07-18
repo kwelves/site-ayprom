@@ -5,12 +5,14 @@ import { Reveal } from "@/components/motion/Reveal";
 import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
 import { CategoryCard } from "@/components/home/CategoryCard";
 import { BrandCard } from "@/components/home/BrandCard";
-import { categories } from "@/data/categories";
-import { subcategoriesByCategory } from "@/data/subcategories";
-import { brandsByCategory, categoryCardLogoScale } from "@/data/category-brands";
+import { getCategory } from "@/lib/queries/categories";
+import { getSubcategories } from "@/lib/queries/subcategories";
+import { getCategoryBrands } from "@/lib/queries/category-brands";
 import { getCategoryGridSizing } from "@/lib/category-grid";
 import { cn } from "@/lib/utils";
 import type { Brand } from "@/types/catalog";
+
+export const revalidate = 0;
 
 function BrandCardGrid({
   brands,
@@ -25,11 +27,7 @@ function BrandCardGrid({
     <StaggerGroup className={className}>
       {brands.map((brand) => (
         <StaggerItem key={brand.slug}>
-          <BrandCard
-            href={`/catalog/category/${categorySlug}/brand/${brand.slug}`}
-            brand={brand}
-            logoScale={categoryCardLogoScale[brand.slug]}
-          />
+          <BrandCard href={`/catalog/category/${categorySlug}/brand/${brand.slug}`} brand={brand} />
         </StaggerItem>
       ))}
     </StaggerGroup>
@@ -40,28 +38,22 @@ interface CategoryPageProps {
   params: Promise<{ slug: string }>;
 }
 
-export function generateStaticParams() {
-  return categories.map((category) => ({ slug: category.slug }));
-}
-
 export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const category = categories.find((item) => item.slug === slug);
+  const category = await getCategory(slug);
   return { title: category ? `${category.name} — AYPROM` : "Каталог — AYPROM" };
 }
 
 export default async function CategoryPage({ params }: CategoryPageProps) {
   const { slug } = await params;
-  const category = categories.find((item) => item.slug === slug);
+  const category = await getCategory(slug);
 
   if (!category) {
     notFound();
   }
 
-  const subcategories = subcategoriesByCategory[category.slug];
-  const categoryBrands = brandsByCategory[category.slug];
-
-  if (categoryBrands) {
+  if (category.type === "brand") {
+    const categoryBrands = await getCategoryBrands(category.slug);
     const forBrands = categoryBrands.filter((brand) => brand.relation === "for");
     const fromBrands = categoryBrands.filter((brand) => brand.relation === "from");
     // Same convention as the homepage brand section and the product-page
@@ -118,7 +110,9 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     );
   }
 
-  if (!subcategories) {
+  const subcategories = await getSubcategories(category.slug);
+
+  if (subcategories.length === 0) {
     return (
       <Reveal>
         <div className="text-center">

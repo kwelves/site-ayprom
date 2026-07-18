@@ -8,16 +8,18 @@ import { ChevronDown, Menu, Truck, X } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { NavDropdown } from "@/components/layout/NavDropdown";
-import { mainNav, type NavItem } from "@/lib/navigation";
+import { buildMainNav, type NavItem } from "@/lib/navigation";
 import { useScroll } from "@/lib/use-scroll";
 import { useHashNavClick } from "@/lib/use-hash-nav-click";
 import { cn } from "@/lib/utils";
+import type { Category } from "@/types/catalog";
 
-export function Header() {
+export function Header({ categories }: { categories: Category[] }) {
   const [open, setOpen] = useState(false);
   const scrolled = useScroll(10);
   const pathname = usePathname();
   const handleHashClick = useHashNavClick();
+  const mainNav = buildMainNav(categories);
   // On the homepage the header floats transparently over the fixed hero photo until scroll
   const overPhoto = pathname === "/" && !scrolled && !open;
 

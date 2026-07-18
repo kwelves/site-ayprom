@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Reveal } from "@/components/motion/Reveal";
 import { ProductGallery } from "@/components/catalog/ProductGallery";
-import { brands } from "@/data/brands";
+import { getBrands } from "@/lib/queries/brands";
 import type { Product } from "@/types/catalog";
 
 // Shared product-detail render, used by both the subcategory-path and the
@@ -13,7 +13,8 @@ import type { Product } from "@/types/catalog";
 // No category/subcategory breadcrumb-style eyebrow here — the page's real
 // Breadcrumb (in the shared layout) already shows that path, so repeating
 // it here would just be duplicate noise above the title.
-export function ProductDetail({ product }: { product: Product }) {
+export async function ProductDetail({ product }: { product: Product }) {
+  const brands = await getBrands();
   const compatibleBrands = product.compatibleBrands
     .map((brandSlug) => brands.find((brand) => brand.slug === brandSlug))
     .filter((brand): brand is NonNullable<typeof brand> => Boolean(brand));

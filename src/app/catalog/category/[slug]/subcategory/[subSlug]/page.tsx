@@ -4,40 +4,32 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/motion/Reveal";
 import { ProductSearchForm } from "@/components/catalog/ProductSearchForm";
 import { ProductGridWithSearch } from "@/components/catalog/ProductGridWithSearch";
-import { categories } from "@/data/categories";
-import { subcategoriesByCategory } from "@/data/subcategories";
-import { products } from "@/data/products";
+import { getSubcategory } from "@/lib/queries/subcategories";
+import { getProducts } from "@/lib/queries/products";
+
+export const revalidate = 0;
 
 interface SubcategoryPageProps {
   params: Promise<{ slug: string; subSlug: string }>;
   searchParams: Promise<{ q?: string }>;
 }
 
-export function generateStaticParams() {
-  return Object.entries(subcategoriesByCategory).flatMap(([categorySlug, subs]) =>
-    subs.map((sub) => ({ slug: categorySlug, subSlug: sub.slug }))
-  );
-}
-
 export async function generateMetadata({ params }: SubcategoryPageProps): Promise<Metadata> {
   const { slug, subSlug } = await params;
-  const sub = subcategoriesByCategory[slug]?.find((item) => item.slug === subSlug);
+  const sub = await getSubcategory(slug, subSlug);
   return { title: sub ? `${sub.name} — AYPROM` : "Каталог — AYPROM" };
 }
 
 export default async function SubcategoryProductsPage({ params, searchParams }: SubcategoryPageProps) {
   const { slug, subSlug } = await params;
   const { q } = await searchParams;
-  const category = categories.find((item) => item.slug === slug);
-  const subcategory = subcategoriesByCategory[slug]?.find((item) => item.slug === subSlug);
+  const subcategory = await getSubcategory(slug, subSlug);
 
-  if (!category || !subcategory) {
+  if (!subcategory) {
     notFound();
   }
 
-  const subcategoryProducts = products.filter(
-    (product) => product.category === slug && product.subcategory === subSlug
-  );
+  const subcategoryProducts = await getProducts({ categorySlug: slug, subcategorySlug: subSlug });
 
   return (
     <>
