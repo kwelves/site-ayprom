@@ -5,7 +5,7 @@ import { Footer } from "@/components/layout/Footer";
 import { ScrollToHash } from "@/components/layout/ScrollToHash";
 import { ResetScrollOnNavigate } from "@/components/layout/ResetScrollOnNavigate";
 import { getCategories } from "@/lib/queries/categories";
-import "./globals.css";
+import "../globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

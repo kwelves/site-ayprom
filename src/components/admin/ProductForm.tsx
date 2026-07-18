@@ -1,0 +1,350 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import {
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  uploadProductImage,
+  deleteProductImage,
+  reorderProductImages,
+} from "@/lib/admin/actions";
+import { slugify } from "@/lib/admin/slugify";
+import { FormField } from "@/components/admin/ui/FormField";
+import { Input } from "@/components/admin/ui/Input";
+import { Textarea } from "@/components/admin/ui/Textarea";
+import { Select } from "@/components/admin/ui/Select";
+import { Checkbox } from "@/components/admin/ui/Checkbox";
+import { SortableList } from "@/components/admin/SortableList";
+import type { Category, Subcategory, Brand } from "@/types/catalog";
+import type { AdminProduct } from "@/lib/admin/queries";
+
+interface ProductFormProps {
+  mode: "create" | "edit";
+  product?: AdminProduct;
+  categories: Category[];
+  subcategories: (Subcategory & { categorySlug: string })[];
+  brands: Brand[];
+}
+
+interface CharacteristicRow {
+  key: string;
+  attribute: string;
+  value: string;
+}
+
+export function ProductForm({ mode, product, categories, subcategories, brands }: ProductFormProps) {
+  const [name, setName] = useState(product?.name ?? "");
+  const [slug, setSlug] = useState(product?.slug ?? "");
+  const [slugTouched, setSlugTouched] = useState(false);
+  const [categorySlug, setCategorySlug] = useState(product?.category ?? categories[0]?.slug ?? "");
+  const [subcategorySlug, setSubcategorySlug] = useState(product?.subcategory ?? "");
+  const [selectedBrands, setSelectedBrands] = useState<Set<string>>(new Set(product?.compatibleBrands ?? []));
+  const [characteristics, setCharacteristics] = useState<CharacteristicRow[]>(
+    (product?.characteristics ?? []).map((c) => ({ key: c.id, attribute: c.attribute, value: c.value }))
+  );
+  const [images, setImages] = useState(product?.images ?? []);
+  const [isUploading, setIsUploading] = useState(false);
+  const [, startTransition] = useTransition();
+
+  const selectedCategory = categories.find((c) => c.slug === categorySlug);
+  const categorySubcategories = subcategories.filter((s) => s.categorySlug === categorySlug);
+  const forBrands = brands.filter((b) => b.relation === "for");
+  const fromBrands = brands.filter((b) => b.relation === "from");
+
+  function handleNameChange(value: string) {
+    setName(value);
+    if (mode === "create" && !slugTouched) {
+      setSlug(slugify(value));
+    }
+  }
+
+  function handleCategoryChange(value: string) {
+    setCategorySlug(value);
+    setSubcategorySlug("");
+  }
+
+  function toggleBrand(brandSlug: string) {
+    setSelectedBrands((prev) => {
+      const next = new Set(prev);
+      if (next.has(brandSlug)) next.delete(brandSlug);
+      else next.add(brandSlug);
+      return next;
+    });
+  }
+
+  function addCharacteristic() {
+    setCharacteristics((prev) => [...prev, { key: crypto.randomUUID(), attribute: "", value: "" }]);
+  }
+
+  function updateCharacteristic(key: string, field: "attribute" | "value", value: string) {
+    setCharacteristics((prev) => prev.map((c) => (c.key === key ? { ...c, [field]: value } : c)));
+  }
+
+  function removeCharacteristic(key: string) {
+    setCharacteristics((prev) => prev.filter((c) => c.key !== key));
+  }
+
+  async function handleImageUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = event.target.files;
+    if (!files || files.length === 0 || !product) return;
+
+    setIsUploading(true);
+    for (const file of Array.from(files)) {
+      const formData = new FormData();
+      formData.set("file", file);
+      const uploaded = await uploadProductImage(product.id, formData);
+      if (uploaded) {
+        setImages((prev) => [...prev, uploaded]);
+      }
+    }
+    setIsUploading(false);
+    event.target.value = "";
+  }
+
+  function handleImageDelete(imageId: string) {
+    setImages((prev) => prev.filter((img) => img.id !== imageId));
+    startTransition(() => {
+      deleteProductImage(imageId);
+    });
+  }
+
+  function handleImageReorder(newImages: typeof images) {
+    setImages(newImages);
+    if (!product) return;
+    startTransition(() => {
+      reorderProductImages(product.slug, newImages.map((img) => img.id));
+    });
+  }
+
+  function handleDeleteProduct() {
+    if (!product) return;
+    if (!confirm(`Удалить товар «${product.name}»? Это действие необратимо.`)) return;
+    startTransition(() => {
+      deleteProduct(product.slug);
+    });
+  }
+
+  const action = mode === "create" ? createProduct : updateProduct.bind(null, product!.slug);
+
+  return (
+    <form action={action} className="max-w-3xl space-y-6">
+      <h1 className="text-xl font-semibold text-foreground">
+        {mode === "create" ? "Новый товар" : `Редактировать: ${product?.name}`}
+      </h1>
+
+      <FormField label="Название" htmlFor="name">
+        <Input
+          id="name"
+          name="name"
+          required
+          value={name}
+          onChange={(e) => handleNameChange(e.target.value)}
+        />
+      </FormField>
+
+      {mode === "create" ? (
+        <FormField label="Адрес (slug)" htmlFor="slug" description="Заполняется автоматически из названия, можно изменить.">
+          <Input
+            id="slug"
+            name="slug"
+            value={slug}
+            onChange={(e) => {
+              setSlug(e.target.value);
+              setSlugTouched(true);
+            }}
+          />
+        </FormField>
+      ) : (
+        <FormField label="Адрес (slug)" htmlFor="slug-display" description="Нельзя изменить — используется в ссылках на товар.">
+          <Input id="slug-display" value={product?.slug ?? ""} disabled />
+        </FormField>
+      )}
+
+      <FormField label="Категория" htmlFor="categorySlug">
+        <Select id="categorySlug" name="categorySlug" required value={categorySlug} onChange={(e) => handleCategoryChange(e.target.value)}>
+          {categories.map((category) => (
+            <option key={category.slug} value={category.slug}>
+              {category.name}
+            </option>
+          ))}
+        </Select>
+      </FormField>
+
+      {selectedCategory?.type === "subcategory" && (
+        <FormField label="Подкатегория" htmlFor="subcategorySlug">
+          <Select
+            id="subcategorySlug"
+            name="subcategorySlug"
+            value={subcategorySlug}
+            onChange={(e) => setSubcategorySlug(e.target.value)}
+          >
+            <option value="">Без подкатегории</option>
+            {categorySubcategories.map((sub) => (
+              <option key={sub.slug} value={sub.slug}>
+                {sub.name}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+      )}
+
+      <FormField label="Совместимые бренды" htmlFor="compatibleBrands-for">
+        <div className="space-y-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Для бренда</p>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {forBrands.map((brand) => (
+                <Checkbox
+                  key={brand.slug}
+                  id={`brand-${brand.slug}`}
+                  name="compatibleBrands"
+                  value={brand.slug}
+                  label={brand.name}
+                  checked={selectedBrands.has(brand.slug)}
+                  onChange={() => toggleBrand(brand.slug)}
+                />
+              ))}
+            </div>
+          </div>
+          {fromBrands.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">От бренда</p>
+              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {fromBrands.map((brand) => (
+                  <Checkbox
+                    key={brand.slug}
+                    id={`brand-${brand.slug}`}
+                    name="compatibleBrands"
+                    value={brand.slug}
+                    label={brand.name}
+                    checked={selectedBrands.has(brand.slug)}
+                    onChange={() => toggleBrand(brand.slug)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </FormField>
+
+      <FormField label="Краткое описание" htmlFor="shortDescription" description="Показывается в карточке товара.">
+        <Textarea id="shortDescription" name="shortDescription" required rows={2} defaultValue={product?.shortDescription} />
+      </FormField>
+
+      <FormField label="Полное описание" htmlFor="description">
+        <Textarea id="description" name="description" rows={5} defaultValue={product?.description} />
+      </FormField>
+
+      <FormField label="Артикул" htmlFor="article">
+        <Input id="article" name="article" defaultValue={product?.article} />
+      </FormField>
+
+      <Checkbox
+        id="published"
+        name="published"
+        label="Опубликован (виден на сайте)"
+        defaultChecked={product?.published ?? true}
+      />
+
+      <div>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Характеристики</h2>
+        {characteristics.length > 0 && (
+          <SortableList
+            className="mt-3"
+            items={characteristics}
+            getId={(c) => c.key}
+            onReorder={setCharacteristics}
+            renderItem={(c) => (
+              <div className="flex items-center gap-2">
+                <Input
+                  name="characteristicAttribute"
+                  placeholder="Атрибут"
+                  value={c.attribute}
+                  onChange={(e) => updateCharacteristic(c.key, "attribute", e.target.value)}
+                  className="flex-1"
+                />
+                <Input
+                  name="characteristicValue"
+                  placeholder="Значение"
+                  value={c.value}
+                  onChange={(e) => updateCharacteristic(c.key, "value", e.target.value)}
+                  className="flex-1"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeCharacteristic(c.key)}
+                  className="shrink-0 text-sm text-red-600 hover:underline"
+                >
+                  Удалить
+                </button>
+              </div>
+            )}
+          />
+        )}
+        <button
+          type="button"
+          onClick={addCharacteristic}
+          className="mt-3 text-sm text-primary hover:underline"
+        >
+          + Добавить характеристику
+        </button>
+      </div>
+
+      {mode === "edit" && product ? (
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Фотографии</h2>
+          {images.length > 0 && (
+            <SortableList
+              className="mt-3"
+              items={images}
+              getId={(img) => img.id}
+              onReorder={handleImageReorder}
+              renderItem={(img) => (
+                <div className="flex items-center gap-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- Supabase Storage is an external host, simpler than configuring next/image remotePatterns for an internal tool */}
+                  <img src={img.url} alt="" className="h-12 w-12 rounded-md bg-muted/40 object-contain" />
+                  <span className="flex-1 truncate text-xs text-muted-foreground">{img.url}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleImageDelete(img.id)}
+                    className="shrink-0 text-sm text-red-600 hover:underline"
+                  >
+                    Удалить
+                  </button>
+                </div>
+              )}
+            />
+          )}
+          <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-300 px-4 py-2 text-sm text-slate-600 transition-colors hover:border-primary hover:text-primary">
+            {isUploading ? "Загрузка..." : "Загрузить фото"}
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handleImageUpload}
+              disabled={isUploading}
+            />
+          </label>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">Фото можно будет добавить после создания товара.</p>
+      )}
+
+      <div className="flex items-center gap-4 border-t border-border pt-6">
+        <button
+          type="submit"
+          className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-blue-700"
+        >
+          {mode === "create" ? "Создать товар" : "Сохранить"}
+        </button>
+        {mode === "edit" && (
+          <button type="button" onClick={handleDeleteProduct} className="text-sm text-red-600 hover:underline">
+            Удалить товар
+          </button>
+        )}
+      </div>
+    </form>
+  );
+}
