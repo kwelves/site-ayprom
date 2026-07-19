@@ -46,3 +46,5 @@ next-env.d.ts
 
 # graphify output (regenerated via /graphify)
 /graphify-out/
+
+.vercel

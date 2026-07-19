@@ -249,20 +249,32 @@ interface CategoryRow {
   order: number;
 }
 
-async function getCategoryUsageCounts(supabase: ReturnType<typeof createAdminClient>): Promise<{
+// categorySlug narrows all three scans to one category — used by
+// getAdminCategory, which otherwise paid for 3 full-table scans just to
+// count usage for a single row (getAdminCategories legitimately needs the
+// unfiltered counts, since it computes them for every category at once).
+async function getCategoryUsageCounts(
+  supabase: ReturnType<typeof createAdminClient>,
+  categorySlug?: string
+): Promise<{
   subcategoryCounts: Map<string, number>;
   categoryBrandCounts: Map<string, number>;
   productCounts: Map<string, number>;
 }> {
+  let subQuery = supabase.from("subcategories").select("category_slug");
+  let cbQuery = supabase.from("category_brands").select("category_slug");
+  let prodQuery = supabase.from("products").select("category_slug");
+  if (categorySlug) {
+    subQuery = subQuery.eq("category_slug", categorySlug);
+    cbQuery = cbQuery.eq("category_slug", categorySlug);
+    prodQuery = prodQuery.eq("category_slug", categorySlug);
+  }
+
   const [
     { data: subcategories, error: subError },
     { data: categoryBrands, error: cbError },
     { data: products, error: prodError },
-  ] = await Promise.all([
-    supabase.from("subcategories").select("category_slug"),
-    supabase.from("category_brands").select("category_slug"),
-    supabase.from("products").select("category_slug"),
-  ]);
+  ] = await Promise.all([subQuery, cbQuery, prodQuery]);
   if (subError) throw subError;
   if (cbError) throw cbError;
   if (prodError) throw prodError;
@@ -315,7 +327,7 @@ export async function getAdminCategory(slug: string): Promise<AdminCategory | nu
   const supabase = createAdminClient();
   const [{ data, error }, counts] = await Promise.all([
     supabase.from("categories").select("*").eq("slug", slug).maybeSingle(),
-    getCategoryUsageCounts(supabase),
+    getCategoryUsageCounts(supabase, slug),
   ]);
   if (error) throw error;
   return data ? mapCategory(data as CategoryRow, counts) : null;

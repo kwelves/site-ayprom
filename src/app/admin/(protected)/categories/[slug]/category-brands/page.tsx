@@ -17,12 +17,14 @@ export async function generateMetadata({ params }: CategoryBrandsPageProps): Pro
 
 export default async function CategoryBrandsPage({ params }: CategoryBrandsPageProps) {
   const { slug } = await params;
-  const category = await getAdminCategory(slug);
+  const [category, attachedBrands, allBrands] = await Promise.all([
+    getAdminCategory(slug),
+    getAdminCategoryBrands(slug),
+    getAdminBrands(),
+  ]);
   if (!category) {
     notFound();
   }
-
-  const [attachedBrands, allBrands] = await Promise.all([getAdminCategoryBrands(slug), getAdminBrands()]);
 
   return (
     <div className="max-w-2xl">

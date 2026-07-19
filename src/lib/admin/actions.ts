@@ -122,6 +122,23 @@ async function resolveSubcategoryId(
   return data?.id ?? null;
 }
 
+// Shared by every create action's "append at the end" ordering: the next
+// row's order is one past the current max (or 0 for the first row).
+// `filters` scopes the max lookup to tables where order is per-parent
+// (subcategories, category_brands) rather than global.
+async function getNextOrder(
+  supabase: ReturnType<typeof createAdminClient>,
+  table: "products" | "brands" | "categories" | "subcategories" | "category_brands" | "product_images",
+  filters?: Record<string, string>
+): Promise<number> {
+  let query = supabase.from(table).select("order").order("order", { ascending: false }).limit(1);
+  for (const [column, value] of Object.entries(filters ?? {})) {
+    query = query.eq(column, value);
+  }
+  const { data } = await query.maybeSingle();
+  return (data?.order ?? -1) + 1;
+}
+
 async function generateUniqueSlug(
   supabase: ReturnType<typeof createAdminClient>,
   table: "products" | "brands" | "categories",
@@ -146,14 +163,7 @@ export async function createProduct(formData: FormData): Promise<void> {
 
   const slug = await generateUniqueSlug(supabase, "products", fields.slugSeed, "product");
   const subcategoryId = await resolveSubcategoryId(supabase, fields.categorySlug, fields.subcategorySlug);
-
-  const { data: maxOrderRow } = await supabase
-    .from("products")
-    .select("order")
-    .order("order", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const nextOrder = (maxOrderRow?.order ?? -1) + 1;
+  const nextOrder = await getNextOrder(supabase, "products");
 
   const { data: product, error } = await supabase
     .from("products")
@@ -301,15 +311,7 @@ export async function uploadProductImage(productId: string, formData: FormData):
   if (uploadError) throw uploadError;
 
   const { data: publicUrlData } = supabase.storage.from("product-images").getPublicUrl(path);
-
-  const { data: maxOrderRow } = await supabase
-    .from("product_images")
-    .select("order")
-    .eq("product_id", productId)
-    .order("order", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const nextOrder = (maxOrderRow?.order ?? -1) + 1;
+  const nextOrder = await getNextOrder(supabase, "product_images", { product_id: productId });
 
   const { data: inserted, error: insertError } = await supabase
     .from("product_images")
@@ -407,14 +409,7 @@ export async function createBrand(formData: FormData): Promise<void> {
   const supabase = createAdminClient();
   const slug = await generateUniqueSlug(supabase, "brands", fields.slugSeed, "brand");
   const logoUrl = await uploadBrandLogo(supabase, slug, file);
-
-  const { data: maxOrderRow } = await supabase
-    .from("brands")
-    .select("order")
-    .order("order", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const nextOrder = (maxOrderRow?.order ?? -1) + 1;
+  const nextOrder = await getNextOrder(supabase, "brands");
 
   const { error } = await supabase.from("brands").insert({
     slug,
@@ -555,14 +550,7 @@ export async function createCategory(formData: FormData): Promise<void> {
   const supabase = createAdminClient();
   const slug = await generateUniqueSlug(supabase, "categories", fields.slugSeed, "category");
   const imageUrl = await uploadCategoryImage(supabase, slug, file);
-
-  const { data: maxOrderRow } = await supabase
-    .from("categories")
-    .select("order")
-    .order("order", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const nextOrder = (maxOrderRow?.order ?? -1) + 1;
+  const nextOrder = await getNextOrder(supabase, "categories");
 
   const { error } = await supabase.from("categories").insert({
     slug,
@@ -720,15 +708,7 @@ export async function createSubcategory(categorySlug: string, formData: FormData
   const slug = await generateUniqueSubcategorySlug(supabase, categorySlug, fields.slugSeed);
   const id = crypto.randomUUID();
   const imageUrl = await uploadCategoryImage(supabase, `sub-${id}`, file);
-
-  const { data: maxOrderRow } = await supabase
-    .from("subcategories")
-    .select("order")
-    .eq("category_slug", categorySlug)
-    .order("order", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const nextOrder = (maxOrderRow?.order ?? -1) + 1;
+  const nextOrder = await getNextOrder(supabase, "subcategories", { category_slug: categorySlug });
 
   const { error } = await supabase.from("subcategories").insert({
     id,
@@ -824,15 +804,7 @@ export async function reorderSubcategories(categorySlug: string, orderedIds: str
 export async function addCategoryBrand(categorySlug: string, brandSlug: string): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
-
-  const { data: maxOrderRow } = await supabase
-    .from("category_brands")
-    .select("order")
-    .eq("category_slug", categorySlug)
-    .order("order", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const nextOrder = (maxOrderRow?.order ?? -1) + 1;
+  const nextOrder = await getNextOrder(supabase, "category_brands", { category_slug: categorySlug });
 
   const { error } = await supabase
     .from("category_brands")

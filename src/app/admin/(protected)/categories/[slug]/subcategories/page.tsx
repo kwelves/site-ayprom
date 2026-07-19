@@ -18,12 +18,10 @@ export async function generateMetadata({ params }: SubcategoriesPageProps): Prom
 
 export default async function AdminSubcategoriesPage({ params }: SubcategoriesPageProps) {
   const { slug } = await params;
-  const category = await getAdminCategory(slug);
+  const [category, subcategories] = await Promise.all([getAdminCategory(slug), getAdminSubcategories(slug)]);
   if (!category) {
     notFound();
   }
-
-  const subcategories = await getAdminSubcategories(slug);
 
   return (
     <div>
