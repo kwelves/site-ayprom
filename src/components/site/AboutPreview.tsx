@@ -1,4 +1,4 @@
-import { Cog, MapPin, Phone, ShieldCheck, SlidersHorizontal, Truck, type LucideIcon } from "lucide-react";
+import { MapPin, Package, Phone, ShieldCheck, SlidersHorizontal, Truck, type LucideIcon } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 
@@ -10,7 +10,7 @@ interface ValueCard {
 
 const values: ValueCard[] = [
   {
-    icon: Cog,
+    icon: Package,
     title: "Деталь или полный комплект",
     description: "КОМ, гидронасосы, гидромоторы, гидроцилиндры — по отдельности или сразу готовым комплектом.",
   },
@@ -97,10 +97,14 @@ export function AboutPreview() {
             </div>
           </div>
 
-          <div className="flex flex-col divide-y divide-blue-100">
+          <div className="flex flex-1 flex-col justify-center divide-y divide-blue-100">
             {infoRows.map(({ icon: Icon, label, value, href }) => {
-              const row = (
-                <div className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+              // The row itself must be the direct child of the divide-y list
+              // (not wrapped in an extra element) — first:/last: below compile
+              // to :first-child/:last-child, which only match against this
+              // row's actual position among its siblings here.
+              const content = (
+                <>
                   <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                   <div>
                     <p className="text-xs text-muted-foreground">{label}</p>
@@ -108,15 +112,17 @@ export function AboutPreview() {
                       {value}
                     </p>
                   </div>
-                </div>
+                </>
               );
 
               return href ? (
-                <a key={label} href={href} className="group">
-                  {row}
+                <a key={label} href={href} className="group flex items-start gap-3 py-4 first:pt-0 last:pb-0">
+                  {content}
                 </a>
               ) : (
-                <div key={label}>{row}</div>
+                <div key={label} className="flex items-start gap-3 py-4 first:pt-0 last:pb-0">
+                  {content}
+                </div>
               );
             })}
           </div>
