@@ -1,4 +1,4 @@
-import { Eye, LayoutGrid, Package, SlidersHorizontal, type LucideIcon } from "lucide-react";
+import { Cog, MapPin, Phone, ShieldCheck, SlidersHorizontal, Truck, type LucideIcon } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 
@@ -10,31 +10,51 @@ interface ValueCard {
 
 const values: ValueCard[] = [
   {
-    icon: LayoutGrid,
-    title: "Каталог по категориям",
-    description: "Товары разделены по типам деталей и брендам техники.",
+    icon: Cog,
+    title: "Гидравлика и комплекты",
+    description: "КОМ, гидронасосы, гидромоторы, гидроцилиндры и готовые комплекты гидравлики.",
   },
   {
     icon: SlidersHorizontal,
-    title: "Удобный подбор",
-    description: "Поиск помогает быстро найти нужную позицию по названию, бренду или категории.",
+    title: "Подбор под технику",
+    description: "Помогаем подобрать совместимые комплектующие под конкретную модель техники.",
   },
   {
-    icon: Eye,
-    title: "Визуальная подача",
-    description: "Фото и описание помогают оценить товар до обращения.",
+    icon: Truck,
+    title: "Наличие и доставка",
+    description: "Поставка из наличия и под заказ, отгрузка по Кыргызстану и в страны СНГ.",
   },
 ];
 
-interface Stat {
-  value: string;
+interface InfoRow {
+  icon: LucideIcon;
   label: string;
+  value: string;
+  href?: string;
 }
 
-const stats: Stat[] = [
-  { value: "9k+", label: "позиций в перспективе" },
-  { value: "2 типа поиска", label: "по бренду и категории" },
-  { value: "24/7", label: "доступ к каталогу" },
+const infoRows: InfoRow[] = [
+  {
+    icon: MapPin,
+    label: "Адрес",
+    value: "г. Бишкек, пр. Дэн Сяопина, 457/1",
+  },
+  {
+    icon: Truck,
+    label: "География поставок",
+    value: "Кыргызстан и страны СНГ",
+  },
+  {
+    icon: ShieldCheck,
+    label: "Гарантия",
+    value: "12 месяцев на комплекты",
+  },
+  {
+    icon: Phone,
+    label: "Телефон",
+    value: "+996 500 461 155",
+    href: "tel:+996500461155",
+  },
 ];
 
 export function AboutPreview() {
@@ -44,8 +64,8 @@ export function AboutPreview() {
         <div>
           <SectionHeading
             eyebrow="О компании"
-            title="AYPROM — гидрооборудование для спецтехники"
-            description="Мы специализируемся на гидрооборудовании и запчастях для грузовой и специальной техники. Собираем каталог, чтобы вам было проще найти нужную деталь — по бренду, категории или названию."
+            title="AYPROM — гидравлика для тягачей, самосвалов и спецтехники"
+            description="Специализируемся на гидравлических комплектующих для грузовой и специальной техники: коробки отбора мощности, гидронасосы, гидромоторы, гидроцилиндры и готовые комплекты гидравлики. Подбираем решение под вашу технику и работаем как из наличия, так и под заказ."
           />
 
           <div className="mt-6 flex flex-col divide-y divide-border sm:grid sm:grid-cols-3 sm:gap-3 sm:divide-y-0">
@@ -66,18 +86,39 @@ export function AboutPreview() {
           </div>
         </div>
 
-        <div className="flex flex-col justify-between gap-6 rounded-2xl border border-blue-100 bg-accent/50 p-6">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <Package className="h-5 w-5" />
-          </span>
+        <div className="flex flex-col gap-5 rounded-2xl border border-blue-100 bg-accent/50 p-6">
+          <div className="flex items-center gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+              <MapPin className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-card-foreground">AYPROM</p>
+              <p className="text-xs text-muted-foreground">Бишкек, Кыргызстан</p>
+            </div>
+          </div>
 
-          <div className="grid grid-cols-3 gap-3 lg:grid-cols-1">
-            {stats.map(({ value, label }) => (
-              <div key={label}>
-                <p className="text-lg font-bold text-card-foreground sm:text-xl">{value}</p>
-                <p className="text-xs text-muted-foreground">{label}</p>
-              </div>
-            ))}
+          <div className="flex flex-col divide-y divide-blue-100">
+            {infoRows.map(({ icon: Icon, label, value, href }) => {
+              const row = (
+                <div className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+                  <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">{label}</p>
+                    <p className="text-sm font-medium text-card-foreground transition-colors group-hover:text-primary">
+                      {value}
+                    </p>
+                  </div>
+                </div>
+              );
+
+              return href ? (
+                <a key={label} href={href} className="group">
+                  {row}
+                </a>
+              ) : (
+                <div key={label}>{row}</div>
+              );
+            })}
           </div>
         </div>
       </Container>

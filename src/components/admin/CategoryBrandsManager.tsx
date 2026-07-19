@@ -101,7 +101,7 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
               <button
                 type="button"
                 onClick={() => handleRemove(brand)}
-                className="shrink-0 text-sm text-red-600 hover:underline"
+                className="shrink-0 rounded-md border border-red-200 px-3 py-1 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
               >
                 Убрать
               </button>

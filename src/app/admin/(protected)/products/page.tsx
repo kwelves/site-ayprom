@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { getAdminProducts } from "@/lib/admin/queries";
+import { getAdminProducts, getAdminCategories } from "@/lib/admin/queries";
 import { ProductsList } from "@/components/admin/ProductsList";
+import { ProductsFilterBar } from "@/components/admin/ProductsFilterBar";
 
 export const metadata: Metadata = {
   title: "Товары — Админка AYPROM",
@@ -9,8 +10,18 @@ export const metadata: Metadata = {
 
 export const revalidate = 0;
 
-export default async function AdminProductsPage() {
-  const products = await getAdminProducts();
+interface AdminProductsPageProps {
+  searchParams: Promise<{ q?: string; category?: string }>;
+}
+
+export default async function AdminProductsPage({ searchParams }: AdminProductsPageProps) {
+  const { q, category } = await searchParams;
+  const isFiltered = Boolean(q?.trim() || category);
+
+  const [products, categories] = await Promise.all([
+    getAdminProducts({ q, categorySlug: category }),
+    getAdminCategories(),
+  ]);
 
   return (
     <div>
@@ -24,10 +35,20 @@ export default async function AdminProductsPage() {
         </Link>
       </div>
 
+      <ProductsFilterBar categories={categories.map((c) => ({ slug: c.slug, name: c.name }))} />
+
+      {isFiltered && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          При активном поиске или фильтре перетаскивание для сортировки недоступно — измените порядок в полном списке.
+        </p>
+      )}
+
       {products.length === 0 ? (
-        <p className="mt-8 text-sm text-muted-foreground">Товаров пока нет.</p>
+        <p className="mt-8 text-sm text-muted-foreground">
+          {isFiltered ? "Ничего не найдено." : "Товаров пока нет."}
+        </p>
       ) : (
-        <ProductsList products={products} />
+        <ProductsList key={`${q ?? ""}:${category ?? ""}`} products={products} sortable={!isFiltered} />
       )}
     </div>
   );

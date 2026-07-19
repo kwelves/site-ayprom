@@ -21,15 +21,34 @@ interface AdminProductListRow {
   product_images: { url: string; order: number }[];
 }
 
+export interface AdminProductFilters {
+  q?: string;
+  categorySlug?: string;
+}
+
 // Every product regardless of `published` status — unlike the public
 // getProducts(), this reads via the service-role client so drafts are
 // visible to the admin.
-export async function getAdminProducts(): Promise<AdminProductListItem[]> {
+export async function getAdminProducts(filters: AdminProductFilters = {}): Promise<AdminProductListItem[]> {
   const supabase = createAdminClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("products")
     .select("id, slug, name, published, order, categories(name), product_images(url, order)")
     .order("order");
+
+  if (filters.categorySlug) {
+    query = query.eq("category_slug", filters.categorySlug);
+  }
+  if (filters.q?.trim()) {
+    // PostgREST's or() parses commas/parens as filter syntax — strip them so a
+    // search term can't break out of the ilike pair or inject extra filters.
+    const term = filters.q.trim().replace(/[%,()]/g, "");
+    if (term) {
+      query = query.or(`name.ilike.%${term}%,article.ilike.%${term}%`);
+    }
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
 
   return (data as unknown as AdminProductListRow[]).map((row) => ({

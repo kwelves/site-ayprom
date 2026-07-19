@@ -34,7 +34,7 @@ export function BrandsList({ brands: initialBrands }: { brands: AdminBrand[] }) 
       getId={(brand) => brand.slug}
       onReorder={handleReorder}
       renderItem={(brand) => (
-        <div className="flex items-center gap-3">
+        <div className="flex items-start gap-3">
           <div className="flex h-12 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/40">
             {/* eslint-disable-next-line @next/next/no-img-element -- brand logos are SVGs, possibly hosted on Supabase Storage (external host) */}
             <img
@@ -45,24 +45,29 @@ export function BrandsList({ brands: initialBrands }: { brands: AdminBrand[] }) 
             />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-card-foreground">{brand.name}</p>
-            <p className="text-xs text-muted-foreground">{brand.country}</p>
+            <p className="text-sm font-medium text-card-foreground">{brand.name}</p>
+            {(brand.productCount > 0 || brand.categoryCount > 0) && (
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {brand.productCount} тов. / {brand.categoryCount} кат.
+              </p>
+            )}
+            <p className="mt-0.5 text-xs text-muted-foreground">{brand.country}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <Link
+                href={`/admin/brands/${brand.slug}/edit`}
+                className="rounded-md border border-border px-3 py-1 text-sm font-medium text-primary transition-colors hover:border-blue-200 hover:bg-accent"
+              >
+                Редактировать
+              </Link>
+              <button
+                type="button"
+                onClick={() => handleDelete(brand)}
+                className="rounded-md border border-red-200 px-3 py-1 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+              >
+                Удалить
+              </button>
+            </div>
           </div>
-          {(brand.productCount > 0 || brand.categoryCount > 0) && (
-            <span className="shrink-0 text-xs text-muted-foreground">
-              {brand.productCount} тов. / {brand.categoryCount} кат.
-            </span>
-          )}
-          <Link href={`/admin/brands/${brand.slug}/edit`} className="shrink-0 text-sm text-primary hover:underline">
-            Редактировать
-          </Link>
-          <button
-            type="button"
-            onClick={() => handleDelete(brand)}
-            className="shrink-0 text-sm text-red-600 hover:underline"
-          >
-            Удалить
-          </button>
         </div>
       )}
     />

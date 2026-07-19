@@ -13,6 +13,10 @@ interface SortableListProps<T> {
   onReorder: (newItems: T[]) => void;
   renderItem: (item: T) => React.ReactNode;
   className?: string;
+  // When true, always render the static (non-draggable) list below instead of
+  // mounting DndContext — for filtered/searched views where the visible
+  // subset's order doesn't correspond to the full list's real order.
+  disabled?: boolean;
 }
 
 // Generic drag-and-drop reorderable list (@dnd-kit) — reused for the
@@ -26,12 +30,12 @@ interface SortableListProps<T> {
 // server-rendered HTML and the client's first render. Skipping SSR for the
 // DnD wrapper avoids the mismatch outright; the plain, non-draggable list
 // shown before mount is a fine first paint for an auth-gated admin page.
-export function SortableList<T>({ items, getId, onReorder, renderItem, className }: SortableListProps<T>) {
+export function SortableList<T>({ items, getId, onReorder, renderItem, className, disabled }: SortableListProps<T>) {
   const [mounted, setMounted] = useState(false);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate hasMounted flip to skip SSR for DndContext (see comment above); there's no external state to synchronize, just "is this the client yet".
   useEffect(() => setMounted(true), []);
 
-  if (!mounted) {
+  if (!mounted || disabled) {
     return (
       <div className={cn("flex flex-col gap-2", className)}>
         {items.map((item) => (
