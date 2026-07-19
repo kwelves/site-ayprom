@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { ScrollToHash } from "@/components/layout/ScrollToHash";
@@ -33,6 +34,7 @@ export default async function RootLayout({
         <Header categories={categories} />
         <main className="flex-1">{children}</main>
         <Footer categories={categories} />
+        <SpeedInsights />
       </body>
     </html>
   );
