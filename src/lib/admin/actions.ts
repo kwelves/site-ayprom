@@ -56,6 +56,7 @@ interface ProductFormFields {
   categorySlug: string;
   subcategorySlug: string | null;
   compatibleBrands: string[];
+  vehicleTypes: string[];
   shortDescription: string;
   description: string | null;
   article: string | null;
@@ -78,6 +79,7 @@ function parseProductFormData(formData: FormData): ProductFormFields {
   const categorySlug = String(formData.get("categorySlug") ?? "").trim();
   const subcategorySlug = String(formData.get("subcategorySlug") ?? "").trim() || null;
   const compatibleBrands = formData.getAll("compatibleBrands").map(String);
+  const vehicleTypes = formData.getAll("vehicleTypes").map(String);
   const shortDescription = String(formData.get("shortDescription") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim() || null;
   const article = String(formData.get("article") ?? "").trim() || null;
@@ -98,6 +100,7 @@ function parseProductFormData(formData: FormData): ProductFormFields {
     categorySlug,
     subcategorySlug,
     compatibleBrands,
+    vehicleTypes,
     shortDescription,
     description,
     article,
@@ -128,7 +131,14 @@ async function resolveSubcategoryId(
 // (subcategories, category_brands) rather than global.
 async function getNextOrder(
   supabase: ReturnType<typeof createAdminClient>,
-  table: "products" | "brands" | "categories" | "subcategories" | "category_brands" | "product_images",
+  table:
+    | "products"
+    | "brands"
+    | "categories"
+    | "subcategories"
+    | "category_brands"
+    | "product_images"
+    | "vehicle_types",
   filters?: Record<string, string>
 ): Promise<number> {
   let query = supabase.from(table).select("order").order("order", { ascending: false }).limit(1);
@@ -151,7 +161,7 @@ function revalidatePublicSite(): void {
 
 async function generateUniqueSlug(
   supabase: ReturnType<typeof createAdminClient>,
-  table: "products" | "brands" | "categories",
+  table: "products" | "brands" | "categories" | "vehicle_types",
   seed: string,
   fallback: string
 ): Promise<string> {
@@ -204,6 +214,13 @@ export async function createProduct(formData: FormData): Promise<void> {
       .from("product_brands")
       .insert(fields.compatibleBrands.map((brandSlug) => ({ product_id: product.id, brand_slug: brandSlug })));
     if (brandError) throw brandError;
+  }
+
+  if (fields.vehicleTypes.length > 0) {
+    const { error: vehicleTypeError } = await supabase
+      .from("product_vehicle_types")
+      .insert(fields.vehicleTypes.map((vehicleTypeSlug) => ({ product_id: product.id, vehicle_type_slug: vehicleTypeSlug })));
+    if (vehicleTypeError) throw vehicleTypeError;
   }
 
   revalidatePath("/admin/products");
@@ -259,6 +276,18 @@ export async function updateProduct(slug: string, formData: FormData): Promise<v
       .from("product_brands")
       .insert(fields.compatibleBrands.map((brandSlug) => ({ product_id: existing.id, brand_slug: brandSlug })));
     if (brandError) throw brandError;
+  }
+
+  const { error: deleteVehicleTypeError } = await supabase
+    .from("product_vehicle_types")
+    .delete()
+    .eq("product_id", existing.id);
+  if (deleteVehicleTypeError) throw deleteVehicleTypeError;
+  if (fields.vehicleTypes.length > 0) {
+    const { error: vehicleTypeError } = await supabase
+      .from("product_vehicle_types")
+      .insert(fields.vehicleTypes.map((vehicleTypeSlug) => ({ product_id: existing.id, vehicle_type_slug: vehicleTypeSlug })));
+    if (vehicleTypeError) throw vehicleTypeError;
   }
 
   revalidatePath(`/admin/products/${slug}/edit`);
@@ -886,5 +915,80 @@ export async function reorderCategoryBrands(categorySlug: string, orderedBrandSl
     )
   );
   revalidatePath(`/admin/categories/${categorySlug}/category-brands`);
+  revalidatePublicSite();
+}
+
+interface VehicleTypeFormFields {
+  name: string;
+  slugSeed: string;
+}
+
+function parseVehicleTypeFormData(formData: FormData): VehicleTypeFormFields {
+  const name = String(formData.get("name") ?? "").trim();
+  const slugSeed = String(formData.get("slug") ?? "").trim() || name;
+
+  if (!name) {
+    throw new Error("Заполните обязательное поле: название.");
+  }
+
+  return { name, slugSeed };
+}
+
+// No logo/country, unlike brands — vehicle type is just a name/slug tag, so
+// create/update are plain-field actions with no Storage involved at all.
+export async function createVehicleType(formData: FormData): Promise<void> {
+  await requireAdminSession();
+  const fields = parseVehicleTypeFormData(formData);
+  const supabase = createAdminClient();
+
+  const slug = await generateUniqueSlug(supabase, "vehicle_types", fields.slugSeed, "vehicle-type");
+  const nextOrder = await getNextOrder(supabase, "vehicle_types");
+
+  const { error } = await supabase.from("vehicle_types").insert({
+    slug,
+    name: fields.name,
+    order: nextOrder,
+  });
+  if (error) throw error;
+
+  revalidatePath("/admin/vehicle-types");
+  revalidatePublicSite();
+  redirect("/admin/vehicle-types");
+}
+
+export async function updateVehicleType(slug: string, formData: FormData): Promise<void> {
+  await requireAdminSession();
+  const fields = parseVehicleTypeFormData(formData);
+  const supabase = createAdminClient();
+
+  const { error } = await supabase.from("vehicle_types").update({ name: fields.name }).eq("slug", slug);
+  if (error) throw error;
+
+  revalidatePath("/admin/vehicle-types");
+  revalidatePath(`/admin/vehicle-types/${slug}/edit`);
+  revalidatePublicSite();
+}
+
+export async function deleteVehicleType(slug: string): Promise<void> {
+  await requireAdminSession();
+  const supabase = createAdminClient();
+
+  // Cascades clean up product_vehicle_types associations — the
+  // VehicleTypesList UI warns with a usage count before calling this.
+  const { error } = await supabase.from("vehicle_types").delete().eq("slug", slug);
+  if (error) throw error;
+
+  revalidatePath("/admin/vehicle-types");
+  revalidatePublicSite();
+  redirect("/admin/vehicle-types");
+}
+
+export async function reorderVehicleTypes(orderedSlugs: string[]): Promise<void> {
+  await requireAdminSession();
+  const supabase = createAdminClient();
+  await Promise.all(
+    orderedSlugs.map((slug, index) => supabase.from("vehicle_types").update({ order: index }).eq("slug", slug))
+  );
+  revalidatePath("/admin/vehicle-types");
   revalidatePublicSite();
 }

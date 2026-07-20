@@ -49,6 +49,14 @@ export interface ProductCharacteristic {
   value: string;
 }
 
+/** Which kind of specialized machinery a product fits — dump truck, tractor
+ * unit, crane-manipulator, etc. Separate from Brand (a product can fit one
+ * vehicle type across many brands, or one brand across many vehicle types). */
+export interface VehicleType {
+  slug: string;
+  name: string;
+}
+
 export interface Product {
   slug: string;
   name: string;
@@ -62,6 +70,9 @@ export interface Product {
    * category type; can be empty — a product with no brands yet just doesn't
    * show up on any brand page, which is a normal "not filled in" state. */
   compatibleBrands: string[];
+  /** Vehicle type slugs this product fits (dump truck, tractor unit,
+   * crane-manipulator...). Same "can be empty" convention as compatibleBrands. */
+  vehicleTypes: string[];
   /** At least one required — images[0] is the cover shown in product cards. */
   images: string[];
   /** Required so the product card never renders without any text. */

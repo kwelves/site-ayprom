@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Reveal } from "@/components/motion/Reveal";
 import { ProductGallery } from "@/components/catalog/ProductGallery";
 import { getBrands } from "@/lib/queries/brands";
+import { getVehicleTypes } from "@/lib/queries/vehicle-types";
 import type { Product } from "@/types/catalog";
 
 // Shared product-detail render, used by both the subcategory-path and the
@@ -14,10 +15,13 @@ import type { Product } from "@/types/catalog";
 // Breadcrumb (in the shared layout) already shows that path, so repeating
 // it here would just be duplicate noise above the title.
 export async function ProductDetail({ product }: { product: Product }) {
-  const brands = await getBrands();
+  const [brands, vehicleTypes] = await Promise.all([getBrands(), getVehicleTypes()]);
   const compatibleBrands = product.compatibleBrands
     .map((brandSlug) => brands.find((brand) => brand.slug === brandSlug))
     .filter((brand): brand is NonNullable<typeof brand> => Boolean(brand));
+  const productVehicleTypes = product.vehicleTypes
+    .map((vehicleTypeSlug) => vehicleTypes.find((vehicleType) => vehicleType.slug === vehicleTypeSlug))
+    .filter((vehicleType): vehicleType is NonNullable<typeof vehicleType> => Boolean(vehicleType));
 
   return (
     <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
@@ -45,6 +49,22 @@ export async function ProductDetail({ product }: { product: Product }) {
                   </div>
                 ))}
               </dl>
+            </div>
+          )}
+
+          {productVehicleTypes.length > 0 && (
+            <div className="mt-6">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Подходит для</h2>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {productVehicleTypes.map((vehicleType) => (
+                  <span
+                    key={vehicleType.slug}
+                    className="rounded-full border border-border bg-card px-3 py-1 text-sm text-card-foreground"
+                  >
+                    {vehicleType.name}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
 

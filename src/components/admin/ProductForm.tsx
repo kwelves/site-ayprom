@@ -17,7 +17,7 @@ import { Textarea } from "@/components/admin/ui/Textarea";
 import { Select } from "@/components/admin/ui/Select";
 import { Checkbox } from "@/components/admin/ui/Checkbox";
 import { SortableList } from "@/components/admin/SortableList";
-import type { Category, Subcategory, Brand } from "@/types/catalog";
+import type { Category, Subcategory, Brand, VehicleType } from "@/types/catalog";
 import type { AdminProduct } from "@/lib/admin/queries";
 
 interface ProductFormProps {
@@ -26,6 +26,7 @@ interface ProductFormProps {
   categories: Category[];
   subcategories: (Subcategory & { categorySlug: string })[];
   brands: Brand[];
+  vehicleTypes: VehicleType[];
 }
 
 interface CharacteristicRow {
@@ -34,13 +35,16 @@ interface CharacteristicRow {
   value: string;
 }
 
-export function ProductForm({ mode, product, categories, subcategories, brands }: ProductFormProps) {
+export function ProductForm({ mode, product, categories, subcategories, brands, vehicleTypes }: ProductFormProps) {
   const [name, setName] = useState(product?.name ?? "");
   const [slug, setSlug] = useState(product?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(false);
   const [categorySlug, setCategorySlug] = useState(product?.category ?? categories[0]?.slug ?? "");
   const [subcategorySlug, setSubcategorySlug] = useState(product?.subcategory ?? "");
   const [selectedBrands, setSelectedBrands] = useState<Set<string>>(new Set(product?.compatibleBrands ?? []));
+  const [selectedVehicleTypes, setSelectedVehicleTypes] = useState<Set<string>>(
+    new Set(product?.vehicleTypes ?? [])
+  );
   const [characteristics, setCharacteristics] = useState<CharacteristicRow[]>(
     (product?.characteristics ?? []).map((c) => ({ key: c.id, attribute: c.attribute, value: c.value }))
   );
@@ -68,6 +72,15 @@ export function ProductForm({ mode, product, categories, subcategories, brands }
       const next = new Set(prev);
       if (next.has(brandSlug)) next.delete(brandSlug);
       else next.add(brandSlug);
+      return next;
+    });
+  }
+
+  function toggleVehicleType(vehicleTypeSlug: string) {
+    setSelectedVehicleTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(vehicleTypeSlug)) next.delete(vehicleTypeSlug);
+      else next.add(vehicleTypeSlug);
       return next;
     });
   }
@@ -210,6 +223,22 @@ export function ProductForm({ mode, product, categories, subcategories, brands }
                 label={brand.name}
                 checked={selectedBrands.has(brand.slug)}
                 onChange={() => toggleBrand(brand.slug)}
+              />
+            ))}
+          </div>
+        </FormField>
+
+        <FormField label="Тип спецтехники" htmlFor="vehicleTypes-list" description="На какую технику подходит товар.">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {vehicleTypes.map((vehicleType) => (
+              <Checkbox
+                key={vehicleType.slug}
+                id={`vehicle-type-${vehicleType.slug}`}
+                name="vehicleTypes"
+                value={vehicleType.slug}
+                label={vehicleType.name}
+                checked={selectedVehicleTypes.has(vehicleType.slug)}
+                onChange={() => toggleVehicleType(vehicleType.slug)}
               />
             ))}
           </div>

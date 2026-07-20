@@ -7,7 +7,8 @@ const PRODUCT_SELECT = `
   subcategories(slug),
   product_images(url, "order"),
   product_characteristics(attribute, value, "order"),
-  product_brands(brands(slug, name, country, logo, logo_scale))
+  product_brands(brands(slug, name, country, logo, logo_scale)),
+  product_vehicle_types(vehicle_type_slug)
 `;
 
 interface ProductRow {
@@ -21,6 +22,7 @@ interface ProductRow {
   product_images: { url: string; order: number }[];
   product_characteristics: { attribute: string; value: string; order: number }[];
   product_brands: { brands: { slug: string } }[];
+  product_vehicle_types: { vehicle_type_slug: string }[];
 }
 
 function mapProduct(row: ProductRow): Product {
@@ -30,6 +32,7 @@ function mapProduct(row: ProductRow): Product {
     category: row.category_slug,
     subcategory: row.subcategories?.slug,
     compatibleBrands: row.product_brands.map((pb) => pb.brands.slug),
+    vehicleTypes: row.product_vehicle_types.map((pvt) => pvt.vehicle_type_slug),
     images: [...row.product_images].sort((a, b) => a.order - b.order).map((img) => img.url),
     shortDescription: row.short_description,
     description: row.description ?? undefined,

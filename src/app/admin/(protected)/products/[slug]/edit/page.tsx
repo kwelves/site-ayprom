@@ -4,6 +4,7 @@ import { getAdminProduct } from "@/lib/admin/queries";
 import { getCategories } from "@/lib/queries/categories";
 import { getAllSubcategories } from "@/lib/queries/subcategories";
 import { getBrands } from "@/lib/queries/brands";
+import { getVehicleTypes } from "@/lib/queries/vehicle-types";
 import { ProductForm } from "@/components/admin/ProductForm";
 
 export const revalidate = 0;
@@ -19,11 +20,12 @@ export async function generateMetadata({ params }: EditProductPageProps): Promis
 
 export default async function EditProductPage({ params }: EditProductPageProps) {
   const { slug } = await params;
-  const [product, categories, subcategories, brands] = await Promise.all([
+  const [product, categories, subcategories, brands, vehicleTypes] = await Promise.all([
     getAdminProduct(slug),
     getCategories(),
     getAllSubcategories(),
     getBrands(),
+    getVehicleTypes(),
   ]);
 
   if (!product) {
@@ -31,6 +33,13 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
   }
 
   return (
-    <ProductForm mode="edit" product={product} categories={categories} subcategories={subcategories} brands={brands} />
+    <ProductForm
+      mode="edit"
+      product={product}
+      categories={categories}
+      subcategories={subcategories}
+      brands={brands}
+      vehicleTypes={vehicleTypes}
+    />
   );
 }

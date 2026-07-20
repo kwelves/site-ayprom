@@ -73,6 +73,7 @@ export interface AdminProduct {
   article?: string;
   published: boolean;
   compatibleBrands: string[];
+  vehicleTypes: string[];
   images: { id: string; url: string; order: number }[];
   characteristics: { id: string; attribute: string; value: string; order: number }[];
 }
@@ -82,7 +83,8 @@ const ADMIN_PRODUCT_SELECT = `
   subcategories(slug),
   product_images(id, url, "order"),
   product_characteristics(id, attribute, value, "order"),
-  product_brands(brand_slug)
+  product_brands(brand_slug),
+  product_vehicle_types(vehicle_type_slug)
 `;
 
 interface AdminProductRow {
@@ -98,6 +100,7 @@ interface AdminProductRow {
   product_images: { id: string; url: string; order: number }[];
   product_characteristics: { id: string; attribute: string; value: string; order: number }[];
   product_brands: { brand_slug: string }[];
+  product_vehicle_types: { vehicle_type_slug: string }[];
 }
 
 // Full detail for the edit form — same nested shape as the public
@@ -127,6 +130,7 @@ export async function getAdminProduct(slug: string): Promise<AdminProduct | null
     article: row.article ?? undefined,
     published: row.published,
     compatibleBrands: row.product_brands.map((pb) => pb.brand_slug),
+    vehicleTypes: row.product_vehicle_types.map((pvt) => pvt.vehicle_type_slug),
     images: [...row.product_images].sort((a, b) => a.order - b.order),
     characteristics: [...row.product_characteristics].sort((a, b) => a.order - b.order),
   };
@@ -429,4 +433,70 @@ export async function getAdminCategoryBrands(categorySlug: string): Promise<Admi
     logoScaleOverride: row.logo_scale_override ?? undefined,
     order: row.order,
   }));
+}
+
+export interface AdminVehicleType {
+  slug: string;
+  name: string;
+  order: number;
+  /** How many products reference this vehicle type — shown as a
+   * delete-confirmation warning, same reasoning as AdminBrand.productCount. */
+  productCount: number;
+}
+
+interface VehicleTypeRow {
+  slug: string;
+  name: string;
+  order: number;
+}
+
+async function getVehicleTypeUsageCounts(
+  supabase: ReturnType<typeof createAdminClient>
+): Promise<Map<string, number>> {
+  const { data, error } = await supabase.from("product_vehicle_types").select("vehicle_type_slug");
+  if (error) throw error;
+
+  const productCounts = new Map<string, number>();
+  for (const row of data as { vehicle_type_slug: string }[]) {
+    productCounts.set(row.vehicle_type_slug, (productCounts.get(row.vehicle_type_slug) ?? 0) + 1);
+  }
+  return productCounts;
+}
+
+function mapVehicleType(row: VehicleTypeRow, productCounts: Map<string, number>): AdminVehicleType {
+  return {
+    slug: row.slug,
+    name: row.name,
+    order: row.order,
+    productCount: productCounts.get(row.slug) ?? 0,
+  };
+}
+
+export async function getAdminVehicleTypes(): Promise<AdminVehicleType[]> {
+  const supabase = createAdminClient();
+  const [{ data, error }, productCounts] = await Promise.all([
+    supabase.from("vehicle_types").select("*").order("order"),
+    getVehicleTypeUsageCounts(supabase),
+  ]);
+  if (error) throw error;
+
+  return (data as VehicleTypeRow[]).map((row) => mapVehicleType(row, productCounts));
+}
+
+// Shared by VehicleTypesList and VehicleTypeForm's delete buttons — same
+// reasoning as describeBrandUsage.
+export function describeVehicleTypeUsage(vehicleType: AdminVehicleType): string {
+  return vehicleType.productCount > 0
+    ? ` Тип используется в ${vehicleType.productCount} товар(ах) — эта связь тоже исчезнет.`
+    : "";
+}
+
+export async function getAdminVehicleType(slug: string): Promise<AdminVehicleType | null> {
+  const supabase = createAdminClient();
+  const [{ data, error }, productCounts] = await Promise.all([
+    supabase.from("vehicle_types").select("*").eq("slug", slug).maybeSingle(),
+    getVehicleTypeUsageCounts(supabase),
+  ]);
+  if (error) throw error;
+  return data ? mapVehicleType(data as VehicleTypeRow, productCounts) : null;
 }

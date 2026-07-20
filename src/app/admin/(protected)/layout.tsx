@@ -18,6 +18,9 @@ export default function ProtectedAdminLayout({ children }: Readonly<{ children: 
             <Link href="/admin/brands" className="text-slate-600 transition-colors hover:text-primary">
               Бренды
             </Link>
+            <Link href="/admin/vehicle-types" className="text-slate-600 transition-colors hover:text-primary">
+              Типы техники
+            </Link>
             <Link href="/admin/categories" className="text-slate-600 transition-colors hover:text-primary">
               Категории
             </Link>
