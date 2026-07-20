@@ -49,24 +49,42 @@ interface ProductFilters {
   categorySlug?: string;
   subcategorySlug?: string;
   brandSlug?: string;
+  vehicleTypeSlug?: string;
 }
 
 export async function getProducts(filters: ProductFilters = {}): Promise<Product[]> {
   const supabase = await createClient();
 
-  // Filtering by brand needs a separate lookup first: PostgREST filters on an
-  // embedded one-to-many resource (product_brands) also trim that resource's
-  // returned rows to just the match, which would silently drop a product's
-  // other compatible brands from the result. Resolving the matching product
-  // slugs first keeps the main query's embeds unfiltered/complete.
+  // Filtering by brand or vehicle type needs a separate lookup first:
+  // PostgREST filters on an embedded one-to-many resource (product_brands /
+  // product_vehicle_types) also trim that resource's returned rows to just
+  // the match, which would silently drop a product's other compatible
+  // brands/vehicle types from the result. Resolving the matching product
+  // slugs first keeps the main query's embeds unfiltered/complete — and if
+  // both filters are given, intersect instead of letting one overwrite the
+  // other (no current caller combines them, but nothing should silently
+  // ignore one if that ever changes).
   let bySlugIn: string[] | undefined;
+
   if (filters.brandSlug) {
     const { data, error } = await supabase
       .from("product_brands")
       .select("products(slug)")
       .eq("brand_slug", filters.brandSlug);
     if (error) throw error;
-    bySlugIn = (data as unknown as { products: { slug: string } }[]).map((row) => row.products.slug);
+    const matchingSlugs = (data as unknown as { products: { slug: string } }[]).map((row) => row.products.slug);
+    bySlugIn = bySlugIn ? bySlugIn.filter((slug) => matchingSlugs.includes(slug)) : matchingSlugs;
+    if (bySlugIn.length === 0) return [];
+  }
+
+  if (filters.vehicleTypeSlug) {
+    const { data, error } = await supabase
+      .from("product_vehicle_types")
+      .select("products(slug)")
+      .eq("vehicle_type_slug", filters.vehicleTypeSlug);
+    if (error) throw error;
+    const matchingSlugs = (data as unknown as { products: { slug: string } }[]).map((row) => row.products.slug);
+    bySlugIn = bySlugIn ? bySlugIn.filter((slug) => matchingSlugs.includes(slug)) : matchingSlugs;
     if (bySlugIn.length === 0) return [];
   }
 

@@ -6,6 +6,7 @@ import { Footer } from "@/components/layout/Footer";
 import { ScrollToHash } from "@/components/layout/ScrollToHash";
 import { ResetScrollOnNavigate } from "@/components/layout/ResetScrollOnNavigate";
 import { getCategories } from "@/lib/queries/categories";
+import { getVehicleTypes } from "@/lib/queries/vehicle-types";
 import "../globals.css";
 
 const geistSans = Geist({
@@ -26,16 +27,16 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const categories = await getCategories();
+  const [categories, vehicleTypes] = await Promise.all([getCategories(), getVehicleTypes()]);
 
   return (
     <html lang="ru" className={`${geistSans.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col bg-background text-foreground">
         <ScrollToHash />
         <ResetScrollOnNavigate />
-        <Header categories={categories} />
+        <Header categories={categories} vehicleTypes={vehicleTypes} />
         <main className="flex-1">{children}</main>
-        <Footer categories={categories} />
+        <Footer categories={categories} vehicleTypes={vehicleTypes} />
         <SpeedInsights />
       </body>
     </html>

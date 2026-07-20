@@ -112,6 +112,16 @@ async function resolveCrumbs(pathname: string): Promise<Crumb[]> {
         }
       }
     }
+  } else if (segments[1] === "vehicle-type" && segments[2]) {
+    const vehicleTypeSlug = segments[2];
+    const { data: vehicleType } = await supabase
+      .from("vehicle_types")
+      .select("name")
+      .eq("slug", vehicleTypeSlug)
+      .maybeSingle();
+    if (vehicleType) {
+      crumbs.push({ label: vehicleType.name, href: `/catalog/vehicle-type/${vehicleTypeSlug}` });
+    }
   }
 
   return crumbs;

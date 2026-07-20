@@ -12,14 +12,14 @@ import { buildMainNav, type NavItem } from "@/lib/navigation";
 import { useScroll } from "@/lib/use-scroll";
 import { useHashNavClick } from "@/lib/use-hash-nav-click";
 import { cn } from "@/lib/utils";
-import type { Category } from "@/types/catalog";
+import type { Category, VehicleType } from "@/types/catalog";
 
-export function Header({ categories }: { categories: Category[] }) {
+export function Header({ categories, vehicleTypes }: { categories: Category[]; vehicleTypes: VehicleType[] }) {
   const [open, setOpen] = useState(false);
   const scrolled = useScroll(10);
   const pathname = usePathname();
   const handleHashClick = useHashNavClick();
-  const mainNav = buildMainNav(categories);
+  const mainNav = buildMainNav(categories, vehicleTypes);
   // On the homepage the header floats transparently over the fixed hero photo until scroll
   const overPhoto = pathname === "/" && !scrolled && !open;
 

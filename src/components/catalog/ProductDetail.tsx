@@ -57,12 +57,13 @@ export async function ProductDetail({ product }: { product: Product }) {
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Подходит для</h2>
               <div className="mt-3 flex flex-wrap gap-2">
                 {productVehicleTypes.map((vehicleType) => (
-                  <span
+                  <Link
                     key={vehicleType.slug}
-                    className="rounded-full border border-border bg-card px-3 py-1 text-sm text-card-foreground"
+                    href={`/catalog/vehicle-type/${vehicleType.slug}`}
+                    className="rounded-full border border-border bg-card px-3 py-1 text-sm text-card-foreground transition-colors hover:border-blue-300"
                   >
                     {vehicleType.name}
-                  </span>
+                  </Link>
                 ))}
               </div>
             </div>
