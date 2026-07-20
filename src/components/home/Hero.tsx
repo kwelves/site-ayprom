@@ -8,17 +8,9 @@ import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { fadeUp, staggerContainer } from "@/lib/motion";
 import { useHashNavClick } from "@/lib/use-hash-nav-click";
+import type { VehicleType } from "@/types/catalog";
 
-// Placeholder navigation — links into the regular catalog search rather than
-// a real "vehicle type" filter, since that's a whole new catalog dimension
-// (new Product field, new pages, tagging every product) not built yet.
-const vehicleTypeLinks = [
-  { label: "Самосвал", href: "/catalog?q=самосвал" },
-  { label: "Кран-Манипулятор", href: "/catalog?q=кран-манипулятор" },
-  { label: "Тягач", href: "/catalog?q=тягач" },
-];
-
-export function Hero() {
+export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
   const handleHashClick = useHashNavClick();
   const sectionRef = useRef<HTMLElement>(null);
 
@@ -66,19 +58,24 @@ export function Hero() {
           >
             Каталог гидрооборудования и запчастей для спецтехники
           </motion.h1>
-          <motion.div
-            variants={fadeUp}
-            className="mt-6 flex flex-wrap items-center gap-2 text-shadow-sm text-xl font-medium text-slate-200"
-          >
-            {vehicleTypeLinks.map((item, i) => (
-              <span key={item.label} className="flex items-center gap-2">
-                {i > 0 && <span className="text-slate-400">/</span>}
-                <Link href={item.href} className="transition-colors hover:text-primary">
-                  {item.label}
-                </Link>
-              </span>
-            ))}
-          </motion.div>
+          {vehicleTypes.length > 0 && (
+            <motion.div
+              variants={fadeUp}
+              className="mt-6 flex flex-wrap items-center gap-2 text-shadow-sm text-xl font-medium text-slate-200"
+            >
+              {vehicleTypes.map((vehicleType, i) => (
+                <span key={vehicleType.slug} className="flex items-center gap-2">
+                  {i > 0 && <span className="text-slate-400">/</span>}
+                  <Link
+                    href={`/catalog/vehicle-type/${vehicleType.slug}`}
+                    className="transition-colors hover:text-primary"
+                  >
+                    {vehicleType.name}
+                  </Link>
+                </span>
+              ))}
+            </motion.div>
+          )}
 
           <motion.form
             variants={fadeUp}
