@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { MapPin, Package, Phone, ShieldCheck, SlidersHorizontal, Truck, type LucideIcon } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
@@ -84,6 +85,13 @@ export function AboutPreview() {
               </div>
             ))}
           </div>
+
+          <Link
+            href="/about"
+            className="mt-6 inline-block text-sm font-medium text-primary hover:underline"
+          >
+            Подробнее о компании →
+          </Link>
         </div>
 
         <div className="flex flex-col gap-5 rounded-2xl border border-blue-100 bg-accent/50 p-6">

@@ -85,6 +85,11 @@ export function Footer({ categories }: { categories: Category[] }) {
                   </a>
                 </span>
               </li>
+              <li>
+                <Link href="/contacts" className="py-1.5 text-blue-400 hover:underline">
+                  Все контакты и телефоны →
+                </Link>
+              </li>
             </ul>
           </div>
         </Container>
