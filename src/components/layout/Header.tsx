@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -20,8 +20,22 @@ export function Header({ categories, vehicleTypes }: { categories: Category[]; v
   const pathname = usePathname();
   const handleHashClick = useHashNavClick();
   const mainNav = buildMainNav(categories, vehicleTypes);
+
+  // usePathname() doesn't reliably resolve the real per-route path when this
+  // Client Component is server-rendered as part of the shared (site) layout
+  // during static generation/ISR (verified: the homepage's prerendered HTML
+  // got the same "not home" class as an actual inner page) — it only
+  // becomes trustworthy once the client router has taken over. Gating on
+  // `mounted` means the very first paint always uses the safe "not home"
+  // (opaque) styling and flips to the correct transparent-over-hero state a
+  // tick later, instead of getting stuck on a wrong opaque header until some
+  // unrelated interaction (e.g. scrolling) forces a re-render.
+  const [mounted, setMounted] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate hasMounted flip, same idiom as SortableList's — there's no external state to sync, just "is the client router ready yet".
+  useEffect(() => setMounted(true), []);
+
   // On the homepage the header floats transparently over the fixed hero photo until scroll
-  const overPhoto = pathname === "/" && !scrolled && !open;
+  const overPhoto = mounted && pathname === "/" && !scrolled && !open;
 
   return (
     <header
