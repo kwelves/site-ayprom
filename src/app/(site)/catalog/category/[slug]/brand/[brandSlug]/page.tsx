@@ -7,7 +7,7 @@ import { getCategory } from "@/lib/queries/categories";
 import { getCategoryBrands } from "@/lib/queries/category-brands";
 import { getProducts } from "@/lib/queries/products";
 
-export const revalidate = 0;
+export const revalidate = 60;
 
 interface BrandInCategoryPageProps {
   params: Promise<{ slug: string; brandSlug: string }>;

@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   title: "Каталог — AYPROM",
 };
 
-export const revalidate = 0;
+export const revalidate = 60;
 
 interface CatalogPageProps {
   searchParams: Promise<{ q?: string }>;

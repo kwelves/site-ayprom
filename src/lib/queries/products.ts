@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type { Product } from "@/types/catalog";
 
@@ -97,7 +98,10 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Product
   return rows.map(mapProduct);
 }
 
-export async function getProduct(slug: string): Promise<Product | null> {
+// Wrapped in cache() so generateMetadata and the page body — which both
+// call this with the same slug — share one Supabase request per render
+// instead of two.
+export const getProduct = cache(async (slug: string): Promise<Product | null> => {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("products")
@@ -108,4 +112,4 @@ export async function getProduct(slug: string): Promise<Product | null> {
     .maybeSingle();
   if (error) throw error;
   return data ? mapProduct(data as unknown as ProductRow) : null;
-}
+});

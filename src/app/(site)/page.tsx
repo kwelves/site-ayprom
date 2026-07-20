@@ -4,6 +4,8 @@ import { BrandSection } from "@/components/home/BrandSection";
 import { AboutPreview } from "@/components/site/AboutPreview";
 import { PartnersSection } from "@/components/home/PartnersSection";
 
+export const revalidate = 60;
+
 export default function Home() {
   return (
     <>

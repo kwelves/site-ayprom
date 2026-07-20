@@ -10,7 +10,16 @@ import { getBrandSubcategories } from "@/lib/queries/subcategories";
 import { getCategoryGridSizing } from "@/lib/category-grid";
 import { cn } from "@/lib/utils";
 
-export const revalidate = 0;
+export const revalidate = 60;
+
+// A dynamic segment without generateStaticParams renders fully dynamic on
+// every request regardless of `revalidate`. Brand×category combinations
+// aren't worth enumerating up front — an empty list still makes the route
+// ISR-eligible: each combination is rendered on its first visit and then
+// cached for `revalidate` seconds.
+export async function generateStaticParams() {
+  return [];
+}
 
 interface BrandCategoryPageProps {
   params: Promise<{ slug: string; categorySlug: string }>;

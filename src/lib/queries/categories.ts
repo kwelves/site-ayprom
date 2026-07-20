@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type { Category } from "@/types/catalog";
 
@@ -30,12 +31,15 @@ export async function getCategories(): Promise<Category[]> {
   return (data as CategoryRow[]).map(mapCategory);
 }
 
-export async function getCategory(slug: string): Promise<Category | null> {
+// Wrapped in cache() so generateMetadata and the page body — which both
+// call this with the same slug — share one Supabase request per render
+// instead of two.
+export const getCategory = cache(async (slug: string): Promise<Category | null> => {
   const supabase = await createClient();
   const { data, error } = await supabase.from("categories").select("*").eq("slug", slug).maybeSingle();
   if (error) throw error;
   return data ? mapCategory(data as CategoryRow) : null;
-}
+});
 
 // Categories to offer as cards on the brand-first "pick a category" page
 // (/catalog/brand/[slug]). The source of truth differs by category type:

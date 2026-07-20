@@ -4,7 +4,16 @@ import { ProductDetail } from "@/components/catalog/ProductDetail";
 import { getCategoryBrands } from "@/lib/queries/category-brands";
 import { getProduct } from "@/lib/queries/products";
 
-export const revalidate = 0;
+export const revalidate = 60;
+
+// A dynamic segment without generateStaticParams renders fully dynamic on
+// every request regardless of `revalidate`. Not enumerating every product
+// here on purpose (catalog is scaling toward thousands of rows) — an empty
+// list still makes the route ISR-eligible: each product page is rendered on
+// its first visit and then cached for `revalidate` seconds.
+export async function generateStaticParams() {
+  return [];
+}
 
 interface ProductPageProps {
   params: Promise<{ slug: string; brandSlug: string; productSlug: string }>;

@@ -7,7 +7,7 @@ import { ProductGridWithSearch } from "@/components/catalog/ProductGridWithSearc
 import { getSubcategory } from "@/lib/queries/subcategories";
 import { getProducts } from "@/lib/queries/products";
 
-export const revalidate = 0;
+export const revalidate = 60;
 
 interface SubcategoryPageProps {
   params: Promise<{ slug: string; subSlug: string }>;

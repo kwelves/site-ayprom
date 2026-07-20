@@ -9,7 +9,7 @@ import { getCategory } from "@/lib/queries/categories";
 import { getSubcategory } from "@/lib/queries/subcategories";
 import { getProducts } from "@/lib/queries/products";
 
-export const revalidate = 0;
+export const revalidate = 60;
 
 interface BrandSubcategoryPageProps {
   params: Promise<{ slug: string; categorySlug: string; subSlug: string }>;

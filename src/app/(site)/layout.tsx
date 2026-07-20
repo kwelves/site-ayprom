@@ -19,6 +19,8 @@ export const metadata: Metadata = {
     "AYPROM: каталог гидрооборудования и запчастей для спецтехники и грузовой техники. Подбор по категории, марке техники, названию или артикулу.",
 };
 
+export const revalidate = 60;
+
 export default async function RootLayout({
   children,
 }: Readonly<{

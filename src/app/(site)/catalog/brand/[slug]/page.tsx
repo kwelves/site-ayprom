@@ -3,13 +3,19 @@ import type { Metadata } from "next";
 import { Reveal } from "@/components/motion/Reveal";
 import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
 import { CategoryCard } from "@/components/home/CategoryCard";
-import { getBrand } from "@/lib/queries/brands";
+import { getBrand, getBrands } from "@/lib/queries/brands";
 import { getBrandCategories } from "@/lib/queries/categories";
 import { getCardGridSizing } from "@/lib/category-grid";
 import { cn } from "@/lib/utils";
 import type { Brand } from "@/types/catalog";
 
-export const revalidate = 0;
+export const revalidate = 60;
+
+// See catalog/category/[slug]'s generateStaticParams comment — same reasoning.
+export async function generateStaticParams() {
+  const brands = await getBrands();
+  return brands.map((brand) => ({ slug: brand.slug }));
+}
 
 interface BrandPageProps {
   params: Promise<{ slug: string }>;

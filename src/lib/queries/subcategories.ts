@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type { Subcategory } from "@/types/catalog";
 
@@ -28,7 +29,10 @@ export async function getSubcategories(categorySlug: string): Promise<Subcategor
   return (data as SubcategoryRow[]).map(mapSubcategory);
 }
 
-export async function getSubcategory(categorySlug: string, subSlug: string): Promise<Subcategory | null> {
+// Wrapped in cache() so generateMetadata and the page body — which both
+// call this with the same slugs — share one Supabase request per render
+// instead of two.
+export const getSubcategory = cache(async (categorySlug: string, subSlug: string): Promise<Subcategory | null> => {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("subcategories")
@@ -38,7 +42,7 @@ export async function getSubcategory(categorySlug: string, subSlug: string): Pro
     .maybeSingle();
   if (error) throw error;
   return data ? mapSubcategory(data as SubcategoryRow) : null;
-}
+});
 
 // Subcategories to offer as cards on the brand-first "pick a subcategory"
 // page (/catalog/brand/[slug]/category/[categorySlug]) — no gating table

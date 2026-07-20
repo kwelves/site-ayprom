@@ -5,14 +5,23 @@ import { Reveal } from "@/components/motion/Reveal";
 import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
 import { CategoryCard } from "@/components/home/CategoryCard";
 import { BrandCard } from "@/components/home/BrandCard";
-import { getCategory } from "@/lib/queries/categories";
+import { getCategory, getCategories } from "@/lib/queries/categories";
 import { getSubcategories } from "@/lib/queries/subcategories";
 import { getCategoryBrands } from "@/lib/queries/category-brands";
 import { getCategoryGridSizing, getCardGridSizing } from "@/lib/category-grid";
 import { cn } from "@/lib/utils";
 import type { Brand } from "@/types/catalog";
 
-export const revalidate = 0;
+export const revalidate = 60;
+
+// A dynamic segment without generateStaticParams renders fully dynamic on
+// every request regardless of `revalidate` — categories are few and known,
+// so prerender all of them at build time instead of paying a cold-render
+// cost on every visitor's first hit.
+export async function generateStaticParams() {
+  const categories = await getCategories();
+  return categories.map((category) => ({ slug: category.slug }));
+}
 
 function BrandCardGrid({
   brands,

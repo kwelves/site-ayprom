@@ -139,6 +139,16 @@ async function getNextOrder(
   return (data?.order ?? -1) + 1;
 }
 
+// Every admin mutation eventually surfaces somewhere on the public catalog
+// (a product/category/brand page, or just the homepage nav) — those pages
+// are now ISR-cached (see the `revalidate` exports under src/app/(site)),
+// so an edit has to explicitly bust that cache too, not just the admin's
+// own pages. "layout" + "/" covers every route under the public root
+// layout without having to enumerate each affected URL.
+function revalidatePublicSite(): void {
+  revalidatePath("/", "layout");
+}
+
 async function generateUniqueSlug(
   supabase: ReturnType<typeof createAdminClient>,
   table: "products" | "brands" | "categories",
@@ -197,6 +207,7 @@ export async function createProduct(formData: FormData): Promise<void> {
   }
 
   revalidatePath("/admin/products");
+  revalidatePublicSite();
   redirect(`/admin/products/${slug}/edit`);
 }
 
@@ -252,6 +263,7 @@ export async function updateProduct(slug: string, formData: FormData): Promise<v
 
   revalidatePath(`/admin/products/${slug}/edit`);
   revalidatePath("/admin/products");
+  revalidatePublicSite();
 }
 
 export async function deleteProduct(slug: string): Promise<void> {
@@ -270,6 +282,7 @@ export async function deleteProduct(slug: string): Promise<void> {
   const { error } = await supabase.from("products").delete().eq("slug", slug);
   if (error) throw error;
   revalidatePath("/admin/products");
+  revalidatePublicSite();
   redirect("/admin/products");
 }
 
@@ -278,6 +291,7 @@ export async function reorderProducts(orderedSlugs: string[]): Promise<void> {
   const supabase = createAdminClient();
   await Promise.all(orderedSlugs.map((slug, index) => supabase.from("products").update({ order: index }).eq("slug", slug)));
   revalidatePath("/admin/products");
+  revalidatePublicSite();
 }
 
 interface UploadedImage {
@@ -321,6 +335,7 @@ export async function uploadProductImage(productId: string, formData: FormData):
   if (insertError) throw insertError;
 
   revalidatePath("/admin/products");
+  revalidatePublicSite();
   return inserted;
 }
 
@@ -351,6 +366,7 @@ export async function deleteProductImage(imageId: string): Promise<void> {
   if (deleteError) throw deleteError;
 
   revalidatePath(`/admin/products/${image.products.slug}/edit`);
+  revalidatePublicSite();
 }
 
 export async function reorderProductImages(productSlug: string, orderedImageIds: string[]): Promise<void> {
@@ -358,6 +374,7 @@ export async function reorderProductImages(productSlug: string, orderedImageIds:
   const supabase = createAdminClient();
   await Promise.all(orderedImageIds.map((id, index) => supabase.from("product_images").update({ order: index }).eq("id", id)));
   revalidatePath(`/admin/products/${productSlug}/edit`);
+  revalidatePublicSite();
 }
 
 interface BrandFormFields {
@@ -422,6 +439,7 @@ export async function createBrand(formData: FormData): Promise<void> {
   if (error) throw error;
 
   revalidatePath("/admin/brands");
+  revalidatePublicSite();
   redirect("/admin/brands");
 }
 
@@ -444,6 +462,7 @@ export async function updateBrand(slug: string, formData: FormData): Promise<voi
 
   revalidatePath("/admin/brands");
   revalidatePath(`/admin/brands/${slug}/edit`);
+  revalidatePublicSite();
 }
 
 export async function replaceBrandLogo(slug: string, formData: FormData): Promise<string | null> {
@@ -465,6 +484,7 @@ export async function replaceBrandLogo(slug: string, formData: FormData): Promis
   }
 
   revalidatePath("/admin/brands");
+  revalidatePublicSite();
   return newLogoUrl;
 }
 
@@ -484,6 +504,7 @@ export async function deleteBrand(slug: string): Promise<void> {
   if (error) throw error;
 
   revalidatePath("/admin/brands");
+  revalidatePublicSite();
   redirect("/admin/brands");
 }
 
@@ -492,6 +513,7 @@ export async function reorderBrands(orderedSlugs: string[]): Promise<void> {
   const supabase = createAdminClient();
   await Promise.all(orderedSlugs.map((slug, index) => supabase.from("brands").update({ order: index }).eq("slug", slug)));
   revalidatePath("/admin/brands");
+  revalidatePublicSite();
 }
 
 const CATEGORY_ICONS: CategoryIcon[] = ["hydraulic-pump", "pto", "pto-shaft", "tank"];
@@ -565,6 +587,7 @@ export async function createCategory(formData: FormData): Promise<void> {
   if (error) throw error;
 
   revalidatePath("/admin/categories");
+  revalidatePublicSite();
   redirect(`/admin/categories/${slug}/edit`);
 }
 
@@ -586,6 +609,7 @@ export async function updateCategory(slug: string, formData: FormData): Promise<
 
   revalidatePath("/admin/categories");
   revalidatePath(`/admin/categories/${slug}/edit`);
+  revalidatePublicSite();
 }
 
 export async function replaceCategoryImage(slug: string, formData: FormData): Promise<string | null> {
@@ -607,6 +631,7 @@ export async function replaceCategoryImage(slug: string, formData: FormData): Pr
   }
 
   revalidatePath("/admin/categories");
+  revalidatePublicSite();
   return newImageUrl;
 }
 
@@ -638,6 +663,7 @@ export async function deleteCategory(slug: string): Promise<void> {
   if (error) throw error;
 
   revalidatePath("/admin/categories");
+  revalidatePublicSite();
   redirect("/admin/categories");
 }
 
@@ -648,6 +674,7 @@ export async function reorderCategories(orderedSlugs: string[]): Promise<void> {
     orderedSlugs.map((slug, index) => supabase.from("categories").update({ order: index }).eq("slug", slug))
   );
   revalidatePath("/admin/categories");
+  revalidatePublicSite();
 }
 
 interface SubcategoryFormFields {
@@ -722,6 +749,7 @@ export async function createSubcategory(categorySlug: string, formData: FormData
   if (error) throw error;
 
   revalidatePath(`/admin/categories/${categorySlug}/subcategories`);
+  revalidatePublicSite();
   redirect(`/admin/categories/${categorySlug}/subcategories/${slug}/edit`);
 }
 
@@ -739,6 +767,7 @@ export async function updateSubcategory(categorySlug: string, subSlug: string, f
 
   revalidatePath(`/admin/categories/${categorySlug}/subcategories`);
   revalidatePath(`/admin/categories/${categorySlug}/subcategories/${subSlug}/edit`);
+  revalidatePublicSite();
 }
 
 export async function replaceSubcategoryImage(subcategoryId: string, formData: FormData): Promise<string | null> {
@@ -765,6 +794,7 @@ export async function replaceSubcategoryImage(subcategoryId: string, formData: F
   }
 
   revalidatePath(`/admin/categories/${existing.category_slug}/subcategories`);
+  revalidatePublicSite();
   return newImageUrl;
 }
 
@@ -791,6 +821,7 @@ export async function deleteSubcategory(subcategoryId: string): Promise<void> {
   if (error) throw error;
 
   revalidatePath(`/admin/categories/${existing.category_slug}/subcategories`);
+  revalidatePublicSite();
   redirect(`/admin/categories/${existing.category_slug}/subcategories`);
 }
 
@@ -799,6 +830,7 @@ export async function reorderSubcategories(categorySlug: string, orderedIds: str
   const supabase = createAdminClient();
   await Promise.all(orderedIds.map((id, index) => supabase.from("subcategories").update({ order: index }).eq("id", id)));
   revalidatePath(`/admin/categories/${categorySlug}/subcategories`);
+  revalidatePublicSite();
 }
 
 export async function addCategoryBrand(categorySlug: string, brandSlug: string): Promise<void> {
@@ -812,6 +844,7 @@ export async function addCategoryBrand(categorySlug: string, brandSlug: string):
   if (error) throw error;
 
   revalidatePath(`/admin/categories/${categorySlug}/category-brands`);
+  revalidatePublicSite();
 }
 
 export async function removeCategoryBrand(categorySlug: string, brandSlug: string): Promise<void> {
@@ -824,6 +857,7 @@ export async function removeCategoryBrand(categorySlug: string, brandSlug: strin
     .eq("brand_slug", brandSlug);
   if (error) throw error;
   revalidatePath(`/admin/categories/${categorySlug}/category-brands`);
+  revalidatePublicSite();
 }
 
 export async function updateCategoryBrandOverride(
@@ -840,6 +874,7 @@ export async function updateCategoryBrandOverride(
     .eq("brand_slug", brandSlug);
   if (error) throw error;
   revalidatePath(`/admin/categories/${categorySlug}/category-brands`);
+  revalidatePublicSite();
 }
 
 export async function reorderCategoryBrands(categorySlug: string, orderedBrandSlugs: string[]): Promise<void> {
@@ -851,4 +886,5 @@ export async function reorderCategoryBrands(categorySlug: string, orderedBrandSl
     )
   );
   revalidatePath(`/admin/categories/${categorySlug}/category-brands`);
+  revalidatePublicSite();
 }
