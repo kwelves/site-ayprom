@@ -9,7 +9,12 @@ export const metadata: Metadata = {
 
 export const revalidate = 0;
 
-export default async function AdminCategoriesPage() {
+interface AdminCategoriesPageProps {
+  searchParams: Promise<{ created?: string; updated?: string }>;
+}
+
+export default async function AdminCategoriesPage({ searchParams }: AdminCategoriesPageProps) {
+  const { created, updated } = await searchParams;
   const categories = await getAdminCategories();
 
   return (
@@ -27,7 +32,11 @@ export default async function AdminCategoriesPage() {
       {categories.length === 0 ? (
         <p className="mt-8 text-sm text-muted-foreground">Категорий пока нет.</p>
       ) : (
-        <CategoriesList categories={categories} />
+        <CategoriesList
+          categories={categories}
+          flashSlug={created ?? updated}
+          flashAction={created ? "created" : updated ? "updated" : undefined}
+        />
       )}
     </div>
   );

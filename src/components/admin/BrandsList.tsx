@@ -3,13 +3,26 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { SortableList } from "@/components/admin/SortableList";
+import { Toast } from "@/components/admin/ui/Toast";
 import { reorderBrands, deleteBrand } from "@/lib/admin/actions";
 import { describeBrandUsage } from "@/lib/admin/queries";
+import { useSaveFlowFlash } from "@/lib/admin/use-save-flow-flash";
 import type { AdminBrand } from "@/lib/admin/queries";
 
-export function BrandsList({ brands: initialBrands }: { brands: AdminBrand[] }) {
+interface BrandsListProps {
+  brands: AdminBrand[];
+  flashSlug?: string;
+  flashAction?: "created" | "updated";
+}
+
+export function BrandsList({ brands: initialBrands, flashSlug, flashAction }: BrandsListProps) {
   const [brands, setBrands] = useState(initialBrands);
   const [, startTransition] = useTransition();
+  const { toast, dismissToast, highlightedKey } = useSaveFlowFlash({
+    flashKey: flashSlug,
+    flashAction,
+    messages: { created: "Бренд успешно добавлен", updated: "Бренд успешно отредактирован" },
+  });
 
   function handleReorder(newBrands: AdminBrand[]) {
     setBrands(newBrands);
@@ -28,11 +41,13 @@ export function BrandsList({ brands: initialBrands }: { brands: AdminBrand[] }) 
   }
 
   return (
+    <>
     <SortableList
       className="mt-6"
       items={brands}
       getId={(brand) => brand.slug}
       onReorder={handleReorder}
+      highlightedKey={highlightedKey}
       renderItem={(brand) => (
         <div className="flex items-start gap-3">
           <div className="flex h-12 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/40">
@@ -71,5 +86,7 @@ export function BrandsList({ brands: initialBrands }: { brands: AdminBrand[] }) 
         </div>
       )}
     />
+    <Toast message={toast} onDismiss={dismissToast} />
+    </>
   );
 }

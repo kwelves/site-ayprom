@@ -3,14 +3,27 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { SortableList } from "@/components/admin/SortableList";
+import { Toast } from "@/components/admin/ui/Toast";
 import { reorderCategories, deleteCategory } from "@/lib/admin/actions";
 import { describeCategoryUsage } from "@/lib/admin/queries";
+import { useSaveFlowFlash } from "@/lib/admin/use-save-flow-flash";
 import { cn } from "@/lib/utils";
 import type { AdminCategory } from "@/lib/admin/queries";
 
-export function CategoriesList({ categories: initialCategories }: { categories: AdminCategory[] }) {
+interface CategoriesListProps {
+  categories: AdminCategory[];
+  flashSlug?: string;
+  flashAction?: "created" | "updated";
+}
+
+export function CategoriesList({ categories: initialCategories, flashSlug, flashAction }: CategoriesListProps) {
   const [categories, setCategories] = useState(initialCategories);
   const [, startTransition] = useTransition();
+  const { toast, dismissToast, highlightedKey } = useSaveFlowFlash({
+    flashKey: flashSlug,
+    flashAction,
+    messages: { created: "Категория успешно добавлена", updated: "Категория успешно отредактирована" },
+  });
 
   function handleReorder(newCategories: AdminCategory[]) {
     setCategories(newCategories);
@@ -37,11 +50,13 @@ export function CategoriesList({ categories: initialCategories }: { categories: 
   }
 
   return (
+    <>
     <SortableList
       className="mt-6"
       items={categories}
       getId={(category) => category.slug}
       onReorder={handleReorder}
+      highlightedKey={highlightedKey}
       renderItem={(category) => (
         <div className="flex items-start gap-3">
           <div className="flex h-12 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/40">
@@ -81,5 +96,7 @@ export function CategoriesList({ categories: initialCategories }: { categories: 
         </div>
       )}
     />
+    <Toast message={toast} onDismiss={dismissToast} />
+    </>
   );
 }

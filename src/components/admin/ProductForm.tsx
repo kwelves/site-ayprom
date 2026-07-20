@@ -10,6 +10,8 @@ import {
   reorderProductImages,
 } from "@/lib/admin/actions";
 import { slugify } from "@/lib/admin/slugify";
+import { compressImage } from "@/lib/admin/compress-image";
+import { SubmitButton } from "@/components/admin/ui/SubmitButton";
 import { BackLink } from "@/components/admin/ui/BackLink";
 import { FormField } from "@/components/admin/ui/FormField";
 import { Input } from "@/components/admin/ui/Input";
@@ -102,13 +104,18 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
     if (!files || files.length === 0 || !product) return;
 
     setIsUploading(true);
-    for (const file of Array.from(files)) {
-      const formData = new FormData();
-      formData.set("file", file);
-      const uploaded = await uploadProductImage(product.id, formData);
-      if (uploaded) {
-        setImages((prev) => [...prev, uploaded]);
-      }
+    const startOrder = images.length;
+    const uploads = await Promise.all(
+      Array.from(files).map(async (file, index) => {
+        const compressed = await compressImage(file);
+        const formData = new FormData();
+        formData.set("file", compressed);
+        return uploadProductImage(product.id, formData, startOrder + index);
+      })
+    );
+    const uploaded = uploads.filter((image): image is NonNullable<typeof image> => image !== null);
+    if (uploaded.length > 0) {
+      setImages((prev) => [...prev, ...uploaded]);
     }
     setIsUploading(false);
     event.target.value = "";
@@ -345,12 +352,9 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
         )}
 
         <div className="flex items-center gap-4 border-t border-border pt-6">
-          <button
-            type="submit"
-            className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-blue-700"
-          >
+          <SubmitButton pendingLabel={mode === "create" ? "Создание..." : "Сохранение..."}>
             {mode === "create" ? "Создать товар" : "Сохранить"}
-          </button>
+          </SubmitButton>
           {mode === "edit" && (
             <button type="button" onClick={handleDeleteProduct} className="text-sm text-red-600 hover:underline">
               Удалить товар

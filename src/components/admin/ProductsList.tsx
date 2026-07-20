@@ -3,18 +3,27 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { SortableList } from "@/components/admin/SortableList";
+import { Toast } from "@/components/admin/ui/Toast";
 import { reorderProducts, deleteProduct } from "@/lib/admin/actions";
+import { useSaveFlowFlash } from "@/lib/admin/use-save-flow-flash";
 import { cn } from "@/lib/utils";
 import type { AdminProductListItem } from "@/lib/admin/queries";
 
 interface ProductsListProps {
   products: AdminProductListItem[];
   sortable?: boolean;
+  flashSlug?: string;
+  flashAction?: "created" | "updated";
 }
 
-export function ProductsList({ products: initialProducts, sortable = true }: ProductsListProps) {
+export function ProductsList({ products: initialProducts, sortable = true, flashSlug, flashAction }: ProductsListProps) {
   const [products, setProducts] = useState(initialProducts);
   const [, startTransition] = useTransition();
+  const { toast, dismissToast, highlightedKey } = useSaveFlowFlash({
+    flashKey: flashSlug,
+    flashAction,
+    messages: { created: "Товар успешно добавлен", updated: "Товар успешно отредактирован" },
+  });
 
   function handleReorder(newProducts: AdminProductListItem[]) {
     setProducts(newProducts);
@@ -32,13 +41,15 @@ export function ProductsList({ products: initialProducts, sortable = true }: Pro
   }
 
   return (
-    <SortableList
-      className="mt-6"
-      items={products}
-      getId={(product) => product.slug}
-      onReorder={handleReorder}
-      disabled={!sortable}
-      renderItem={(product) => (
+    <>
+      <SortableList
+        className="mt-6"
+        items={products}
+        getId={(product) => product.slug}
+        onReorder={handleReorder}
+        disabled={!sortable}
+        highlightedKey={highlightedKey}
+        renderItem={(product) => (
         <div className="flex items-start gap-3">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/40">
             {product.coverImage && (
@@ -74,7 +85,9 @@ export function ProductsList({ products: initialProducts, sortable = true }: Pro
             </div>
           </div>
         </div>
-      )}
-    />
+        )}
+      />
+      <Toast message={toast} onDismiss={dismissToast} />
+    </>
   );
 }

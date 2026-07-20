@@ -4,13 +4,26 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Truck } from "lucide-react";
 import { SortableList } from "@/components/admin/SortableList";
+import { Toast } from "@/components/admin/ui/Toast";
 import { reorderVehicleTypes, deleteVehicleType } from "@/lib/admin/actions";
 import { describeVehicleTypeUsage } from "@/lib/admin/queries";
+import { useSaveFlowFlash } from "@/lib/admin/use-save-flow-flash";
 import type { AdminVehicleType } from "@/lib/admin/queries";
 
-export function VehicleTypesList({ vehicleTypes: initialVehicleTypes }: { vehicleTypes: AdminVehicleType[] }) {
+interface VehicleTypesListProps {
+  vehicleTypes: AdminVehicleType[];
+  flashSlug?: string;
+  flashAction?: "created" | "updated";
+}
+
+export function VehicleTypesList({ vehicleTypes: initialVehicleTypes, flashSlug, flashAction }: VehicleTypesListProps) {
   const [vehicleTypes, setVehicleTypes] = useState(initialVehicleTypes);
   const [, startTransition] = useTransition();
+  const { toast, dismissToast, highlightedKey } = useSaveFlowFlash({
+    flashKey: flashSlug,
+    flashAction,
+    messages: { created: "Тип техники успешно добавлен", updated: "Тип техники успешно отредактирован" },
+  });
 
   function handleReorder(newVehicleTypes: AdminVehicleType[]) {
     setVehicleTypes(newVehicleTypes);
@@ -35,11 +48,13 @@ export function VehicleTypesList({ vehicleTypes: initialVehicleTypes }: { vehicl
   }
 
   return (
+    <>
     <SortableList
       className="mt-6"
       items={vehicleTypes}
       getId={(vehicleType) => vehicleType.slug}
       onReorder={handleReorder}
+      highlightedKey={highlightedKey}
       renderItem={(vehicleType) => (
         <div className="flex items-start gap-3">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-accent text-accent-foreground">
@@ -69,5 +84,7 @@ export function VehicleTypesList({ vehicleTypes: initialVehicleTypes }: { vehicl
         </div>
       )}
     />
+    <Toast message={toast} onDismiss={dismissToast} />
+    </>
   );
 }

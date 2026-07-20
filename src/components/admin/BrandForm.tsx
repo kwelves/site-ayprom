@@ -4,7 +4,9 @@ import { useState } from "react";
 import { createBrand, updateBrand, deleteBrand, replaceBrandLogo } from "@/lib/admin/actions";
 import { describeBrandUsage } from "@/lib/admin/queries";
 import { slugify } from "@/lib/admin/slugify";
+import { compressImage, compressFileInput } from "@/lib/admin/compress-image";
 import { BackLink } from "@/components/admin/ui/BackLink";
+import { SubmitButton } from "@/components/admin/ui/SubmitButton";
 import { FormField } from "@/components/admin/ui/FormField";
 import { Input } from "@/components/admin/ui/Input";
 import type { AdminBrand } from "@/lib/admin/queries";
@@ -33,8 +35,9 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
     if (!file || !brand) return;
 
     setIsUploadingLogo(true);
+    const compressed = await compressImage(file);
     const formData = new FormData();
-    formData.set("file", file);
+    formData.set("file", compressed);
     const newUrl = await replaceBrandLogo(brand.slug, formData);
     if (newUrl) setLogo(newUrl);
     setIsUploadingLogo(false);
@@ -106,7 +109,17 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
           )}
           {mode === "create" ? (
             <div className="mt-3">
-              <input type="file" name="logo" accept="image/*" required className="text-sm" />
+              <input
+                type="file"
+                name="logo"
+                accept="image/*"
+                required
+                className="text-sm"
+                onChange={(e) => {
+                  const input = e.target;
+                  void compressFileInput(input);
+                }}
+              />
             </div>
           ) : (
             <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-300 px-4 py-2 text-sm text-slate-600 transition-colors hover:border-primary hover:text-primary">
@@ -123,12 +136,9 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
         </div>
 
         <div className="flex items-center gap-4 border-t border-border pt-6">
-          <button
-            type="submit"
-            className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-blue-700"
-          >
+          <SubmitButton pendingLabel={mode === "create" ? "Создание..." : "Сохранение..."}>
             {mode === "create" ? "Создать бренд" : "Сохранить"}
-          </button>
+          </SubmitButton>
           {mode === "edit" && (
             <button type="button" onClick={handleDeleteBrand} className="text-sm text-red-600 hover:underline">
               Удалить бренд

@@ -5,7 +5,9 @@ import Link from "next/link";
 import { createCategory, updateCategory, deleteCategory, replaceCategoryImage } from "@/lib/admin/actions";
 import { describeCategoryUsage } from "@/lib/admin/queries";
 import { slugify } from "@/lib/admin/slugify";
+import { compressImage, compressFileInput } from "@/lib/admin/compress-image";
 import { BackLink } from "@/components/admin/ui/BackLink";
+import { SubmitButton } from "@/components/admin/ui/SubmitButton";
 import { FormField } from "@/components/admin/ui/FormField";
 import { Input } from "@/components/admin/ui/Input";
 import { Textarea } from "@/components/admin/ui/Textarea";
@@ -44,8 +46,9 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
     if (!file || !category) return;
 
     setIsUploadingImage(true);
+    const compressed = await compressImage(file);
     const formData = new FormData();
-    formData.set("file", file);
+    formData.set("file", compressed);
     const newUrl = await replaceCategoryImage(category.slug, formData);
     if (newUrl) setImage(newUrl);
     setIsUploadingImage(false);
@@ -158,7 +161,17 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
           )}
           {mode === "create" ? (
             <div className="mt-3">
-              <input type="file" name="image" accept="image/*" required className="text-sm" />
+              <input
+                type="file"
+                name="image"
+                accept="image/*"
+                required
+                className="text-sm"
+                onChange={(e) => {
+                  const input = e.target;
+                  void compressFileInput(input);
+                }}
+              />
             </div>
           ) : (
             <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-300 px-4 py-2 text-sm text-slate-600 transition-colors hover:border-primary hover:text-primary">
@@ -195,12 +208,9 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
         )}
 
         <div className="flex items-center gap-4 border-t border-border pt-6">
-          <button
-            type="submit"
-            className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-blue-700"
-          >
+          <SubmitButton pendingLabel={mode === "create" ? "Создание..." : "Сохранение..."}>
             {mode === "create" ? "Создать категорию" : "Сохранить"}
-          </button>
+          </SubmitButton>
           {mode === "edit" && (
             <button type="button" onClick={handleDeleteCategory} className="text-sm text-red-600 hover:underline">
               Удалить категорию

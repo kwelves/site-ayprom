@@ -3,18 +3,29 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { SortableList } from "@/components/admin/SortableList";
+import { Toast } from "@/components/admin/ui/Toast";
 import { reorderSubcategories, deleteSubcategory } from "@/lib/admin/actions";
+import { useSaveFlowFlash } from "@/lib/admin/use-save-flow-flash";
 import type { AdminSubcategory } from "@/lib/admin/queries";
 
 export function SubcategoriesList({
   categorySlug,
   subcategories: initialSubcategories,
+  flashSlug,
+  flashAction,
 }: {
   categorySlug: string;
   subcategories: AdminSubcategory[];
+  flashSlug?: string;
+  flashAction?: "created" | "updated";
 }) {
   const [subcategories, setSubcategories] = useState(initialSubcategories);
   const [, startTransition] = useTransition();
+  const { toast, dismissToast, highlightedKey } = useSaveFlowFlash({
+    flashKey: flashSlug,
+    flashAction,
+    messages: { created: "Подкатегория успешно добавлена", updated: "Подкатегория успешно отредактирована" },
+  });
 
   function handleReorder(newSubcategories: AdminSubcategory[]) {
     setSubcategories(newSubcategories);
@@ -39,11 +50,14 @@ export function SubcategoriesList({
   }
 
   return (
+    <>
     <SortableList
       className="mt-6"
       items={subcategories}
       getId={(sub) => sub.id}
+      getFlashKey={(sub) => sub.slug}
       onReorder={handleReorder}
+      highlightedKey={highlightedKey}
       renderItem={(sub) => (
         <div className="flex items-start gap-3">
           <div className="flex h-12 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/40">
@@ -72,5 +86,7 @@ export function SubcategoriesList({
         </div>
       )}
     />
+    <Toast message={toast} onDismiss={dismissToast} />
+    </>
   );
 }

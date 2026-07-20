@@ -131,14 +131,7 @@ async function resolveSubcategoryId(
 // (subcategories, category_brands) rather than global.
 async function getNextOrder(
   supabase: ReturnType<typeof createAdminClient>,
-  table:
-    | "products"
-    | "brands"
-    | "categories"
-    | "subcategories"
-    | "category_brands"
-    | "product_images"
-    | "vehicle_types",
+  table: "products" | "brands" | "categories" | "subcategories" | "category_brands" | "vehicle_types",
   filters?: Record<string, string>
 ): Promise<number> {
   let query = supabase.from(table).select("order").order("order", { ascending: false }).limit(1);
@@ -181,9 +174,11 @@ export async function createProduct(formData: FormData): Promise<void> {
   const fields = parseProductFormData(formData);
   const supabase = createAdminClient();
 
-  const slug = await generateUniqueSlug(supabase, "products", fields.slugSeed, "product");
-  const subcategoryId = await resolveSubcategoryId(supabase, fields.categorySlug, fields.subcategorySlug);
-  const nextOrder = await getNextOrder(supabase, "products");
+  const [slug, subcategoryId, nextOrder] = await Promise.all([
+    generateUniqueSlug(supabase, "products", fields.slugSeed, "product"),
+    resolveSubcategoryId(supabase, fields.categorySlug, fields.subcategorySlug),
+    getNextOrder(supabase, "products"),
+  ]);
 
   const { data: product, error } = await supabase
     .from("products")
@@ -225,7 +220,7 @@ export async function createProduct(formData: FormData): Promise<void> {
 
   revalidatePath("/admin/products");
   revalidatePublicSite();
-  redirect(`/admin/products/${slug}/edit`);
+  redirect(`/admin/products?created=${encodeURIComponent(slug)}`);
 }
 
 export async function updateProduct(slug: string, formData: FormData): Promise<void> {
@@ -260,39 +255,48 @@ export async function updateProduct(slug: string, formData: FormData): Promise<v
 
   // Delete+insert instead of diffing — simpler and reliable at this data
   // volume, and both child tables only ever reflect the form's current state.
-  const { error: deleteCharError } = await supabase.from("product_characteristics").delete().eq("product_id", existing.id);
-  if (deleteCharError) throw deleteCharError;
-  if (fields.characteristics.length > 0) {
-    const { error: charError } = await supabase
-      .from("product_characteristics")
-      .insert(fields.characteristics.map((c, i) => ({ product_id: existing.id, attribute: c.attribute, value: c.value, order: i })));
-    if (charError) throw charError;
-  }
-
-  const { error: deleteBrandError } = await supabase.from("product_brands").delete().eq("product_id", existing.id);
-  if (deleteBrandError) throw deleteBrandError;
-  if (fields.compatibleBrands.length > 0) {
-    const { error: brandError } = await supabase
-      .from("product_brands")
-      .insert(fields.compatibleBrands.map((brandSlug) => ({ product_id: existing.id, brand_slug: brandSlug })));
-    if (brandError) throw brandError;
-  }
-
-  const { error: deleteVehicleTypeError } = await supabase
-    .from("product_vehicle_types")
-    .delete()
-    .eq("product_id", existing.id);
-  if (deleteVehicleTypeError) throw deleteVehicleTypeError;
-  if (fields.vehicleTypes.length > 0) {
-    const { error: vehicleTypeError } = await supabase
-      .from("product_vehicle_types")
-      .insert(fields.vehicleTypes.map((vehicleTypeSlug) => ({ product_id: existing.id, vehicle_type_slug: vehicleTypeSlug })));
-    if (vehicleTypeError) throw vehicleTypeError;
-  }
+  // The three pairs below touch separate child tables with no cross-dependency,
+  // so they run concurrently instead of one after another.
+  await Promise.all([
+    (async () => {
+      const { error: deleteCharError } = await supabase.from("product_characteristics").delete().eq("product_id", existing.id);
+      if (deleteCharError) throw deleteCharError;
+      if (fields.characteristics.length > 0) {
+        const { error: charError } = await supabase
+          .from("product_characteristics")
+          .insert(fields.characteristics.map((c, i) => ({ product_id: existing.id, attribute: c.attribute, value: c.value, order: i })));
+        if (charError) throw charError;
+      }
+    })(),
+    (async () => {
+      const { error: deleteBrandError } = await supabase.from("product_brands").delete().eq("product_id", existing.id);
+      if (deleteBrandError) throw deleteBrandError;
+      if (fields.compatibleBrands.length > 0) {
+        const { error: brandError } = await supabase
+          .from("product_brands")
+          .insert(fields.compatibleBrands.map((brandSlug) => ({ product_id: existing.id, brand_slug: brandSlug })));
+        if (brandError) throw brandError;
+      }
+    })(),
+    (async () => {
+      const { error: deleteVehicleTypeError } = await supabase
+        .from("product_vehicle_types")
+        .delete()
+        .eq("product_id", existing.id);
+      if (deleteVehicleTypeError) throw deleteVehicleTypeError;
+      if (fields.vehicleTypes.length > 0) {
+        const { error: vehicleTypeError } = await supabase
+          .from("product_vehicle_types")
+          .insert(fields.vehicleTypes.map((vehicleTypeSlug) => ({ product_id: existing.id, vehicle_type_slug: vehicleTypeSlug })));
+        if (vehicleTypeError) throw vehicleTypeError;
+      }
+    })(),
+  ]);
 
   revalidatePath(`/admin/products/${slug}/edit`);
   revalidatePath("/admin/products");
   revalidatePublicSite();
+  redirect(`/admin/products?updated=${encodeURIComponent(slug)}`);
 }
 
 export async function deleteProduct(slug: string): Promise<void> {
@@ -334,7 +338,18 @@ interface UploadedImage {
 // `product.images` only once, on mount (so an in-progress edit to other
 // fields isn't wiped out by a refetch); a refresh-driven prop update would
 // never reach it. The caller appends this return value to state itself.
-export async function uploadProductImage(productId: string, formData: FormData): Promise<UploadedImage | null> {
+//
+// `order` is passed in by the caller (instead of this action computing it
+// via getNextOrder) so that uploading several photos at once can run all of
+// them concurrently: if each call independently looked up "the current max
+// order," two uploads racing in parallel could both read the same max and
+// collide on the same order value. The caller already knows how many images
+// exist locally, so it can hand out distinct order values up front.
+export async function uploadProductImage(
+  productId: string,
+  formData: FormData,
+  order: number
+): Promise<UploadedImage | null> {
   await requireAdminSession();
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) return null;
@@ -354,11 +369,10 @@ export async function uploadProductImage(productId: string, formData: FormData):
   if (uploadError) throw uploadError;
 
   const { data: publicUrlData } = supabase.storage.from("product-images").getPublicUrl(path);
-  const nextOrder = await getNextOrder(supabase, "product_images", { product_id: productId });
 
   const { data: inserted, error: insertError } = await supabase
     .from("product_images")
-    .insert({ product_id: productId, url: publicUrlData.publicUrl, order: nextOrder })
+    .insert({ product_id: productId, url: publicUrlData.publicUrl, order })
     .select("id, url, order")
     .single();
   if (insertError) throw insertError;
@@ -454,8 +468,10 @@ export async function createBrand(formData: FormData): Promise<void> {
 
   const supabase = createAdminClient();
   const slug = await generateUniqueSlug(supabase, "brands", fields.slugSeed, "brand");
-  const logoUrl = await uploadBrandLogo(supabase, slug, file);
-  const nextOrder = await getNextOrder(supabase, "brands");
+  const [logoUrl, nextOrder] = await Promise.all([
+    uploadBrandLogo(supabase, slug, file),
+    getNextOrder(supabase, "brands"),
+  ]);
 
   const { error } = await supabase.from("brands").insert({
     slug,
@@ -469,7 +485,7 @@ export async function createBrand(formData: FormData): Promise<void> {
 
   revalidatePath("/admin/brands");
   revalidatePublicSite();
-  redirect("/admin/brands");
+  redirect(`/admin/brands?created=${encodeURIComponent(slug)}`);
 }
 
 // Text fields only — logo replacement is a separate immediate action
@@ -492,6 +508,7 @@ export async function updateBrand(slug: string, formData: FormData): Promise<voi
   revalidatePath("/admin/brands");
   revalidatePath(`/admin/brands/${slug}/edit`);
   revalidatePublicSite();
+  redirect(`/admin/brands?updated=${encodeURIComponent(slug)}`);
 }
 
 export async function replaceBrandLogo(slug: string, formData: FormData): Promise<string | null> {
@@ -500,9 +517,10 @@ export async function replaceBrandLogo(slug: string, formData: FormData): Promis
   if (!(file instanceof File) || file.size === 0) return null;
 
   const supabase = createAdminClient();
-  const { data: existing } = await supabase.from("brands").select("logo").eq("slug", slug).maybeSingle();
-
-  const newLogoUrl = await uploadBrandLogo(supabase, slug, file);
+  const [{ data: existing }, newLogoUrl] = await Promise.all([
+    supabase.from("brands").select("logo").eq("slug", slug).maybeSingle(),
+    uploadBrandLogo(supabase, slug, file),
+  ]);
 
   const { error } = await supabase.from("brands").update({ logo: newLogoUrl }).eq("slug", slug);
   if (error) throw error;
@@ -600,8 +618,10 @@ export async function createCategory(formData: FormData): Promise<void> {
 
   const supabase = createAdminClient();
   const slug = await generateUniqueSlug(supabase, "categories", fields.slugSeed, "category");
-  const imageUrl = await uploadCategoryImage(supabase, slug, file);
-  const nextOrder = await getNextOrder(supabase, "categories");
+  const [imageUrl, nextOrder] = await Promise.all([
+    uploadCategoryImage(supabase, slug, file),
+    getNextOrder(supabase, "categories"),
+  ]);
 
   const { error } = await supabase.from("categories").insert({
     slug,
@@ -617,7 +637,7 @@ export async function createCategory(formData: FormData): Promise<void> {
 
   revalidatePath("/admin/categories");
   revalidatePublicSite();
-  redirect(`/admin/categories/${slug}/edit`);
+  redirect(`/admin/categories?created=${encodeURIComponent(slug)}`);
 }
 
 // Text fields only, same reasoning as updateBrand — image replacement is
@@ -639,6 +659,7 @@ export async function updateCategory(slug: string, formData: FormData): Promise<
   revalidatePath("/admin/categories");
   revalidatePath(`/admin/categories/${slug}/edit`);
   revalidatePublicSite();
+  redirect(`/admin/categories?updated=${encodeURIComponent(slug)}`);
 }
 
 export async function replaceCategoryImage(slug: string, formData: FormData): Promise<string | null> {
@@ -647,9 +668,10 @@ export async function replaceCategoryImage(slug: string, formData: FormData): Pr
   if (!(file instanceof File) || file.size === 0) return null;
 
   const supabase = createAdminClient();
-  const { data: existing } = await supabase.from("categories").select("image").eq("slug", slug).maybeSingle();
-
-  const newImageUrl = await uploadCategoryImage(supabase, slug, file);
+  const [{ data: existing }, newImageUrl] = await Promise.all([
+    supabase.from("categories").select("image").eq("slug", slug).maybeSingle(),
+    uploadCategoryImage(supabase, slug, file),
+  ]);
 
   const { error } = await supabase.from("categories").update({ image: newImageUrl }).eq("slug", slug);
   if (error) throw error;
@@ -761,10 +783,12 @@ export async function createSubcategory(categorySlug: string, formData: FormData
   }
 
   const supabase = createAdminClient();
-  const slug = await generateUniqueSubcategorySlug(supabase, categorySlug, fields.slugSeed);
   const id = crypto.randomUUID();
-  const imageUrl = await uploadCategoryImage(supabase, `sub-${id}`, file);
-  const nextOrder = await getNextOrder(supabase, "subcategories", { category_slug: categorySlug });
+  const [slug, imageUrl, nextOrder] = await Promise.all([
+    generateUniqueSubcategorySlug(supabase, categorySlug, fields.slugSeed),
+    uploadCategoryImage(supabase, `sub-${id}`, file),
+    getNextOrder(supabase, "subcategories", { category_slug: categorySlug }),
+  ]);
 
   const { error } = await supabase.from("subcategories").insert({
     id,
@@ -779,7 +803,7 @@ export async function createSubcategory(categorySlug: string, formData: FormData
 
   revalidatePath(`/admin/categories/${categorySlug}/subcategories`);
   revalidatePublicSite();
-  redirect(`/admin/categories/${categorySlug}/subcategories/${slug}/edit`);
+  redirect(`/admin/categories/${categorySlug}/subcategories?created=${encodeURIComponent(slug)}`);
 }
 
 export async function updateSubcategory(categorySlug: string, subSlug: string, formData: FormData): Promise<void> {
@@ -797,6 +821,7 @@ export async function updateSubcategory(categorySlug: string, subSlug: string, f
   revalidatePath(`/admin/categories/${categorySlug}/subcategories`);
   revalidatePath(`/admin/categories/${categorySlug}/subcategories/${subSlug}/edit`);
   revalidatePublicSite();
+  redirect(`/admin/categories/${categorySlug}/subcategories?updated=${encodeURIComponent(subSlug)}`);
 }
 
 export async function replaceSubcategoryImage(subcategoryId: string, formData: FormData): Promise<string | null> {
@@ -941,8 +966,10 @@ export async function createVehicleType(formData: FormData): Promise<void> {
   const fields = parseVehicleTypeFormData(formData);
   const supabase = createAdminClient();
 
-  const slug = await generateUniqueSlug(supabase, "vehicle_types", fields.slugSeed, "vehicle-type");
-  const nextOrder = await getNextOrder(supabase, "vehicle_types");
+  const [slug, nextOrder] = await Promise.all([
+    generateUniqueSlug(supabase, "vehicle_types", fields.slugSeed, "vehicle-type"),
+    getNextOrder(supabase, "vehicle_types"),
+  ]);
 
   const { error } = await supabase.from("vehicle_types").insert({
     slug,
@@ -953,7 +980,7 @@ export async function createVehicleType(formData: FormData): Promise<void> {
 
   revalidatePath("/admin/vehicle-types");
   revalidatePublicSite();
-  redirect("/admin/vehicle-types");
+  redirect(`/admin/vehicle-types?created=${encodeURIComponent(slug)}`);
 }
 
 export async function updateVehicleType(slug: string, formData: FormData): Promise<void> {
@@ -967,6 +994,7 @@ export async function updateVehicleType(slug: string, formData: FormData): Promi
   revalidatePath("/admin/vehicle-types");
   revalidatePath(`/admin/vehicle-types/${slug}/edit`);
   revalidatePublicSite();
+  redirect(`/admin/vehicle-types?updated=${encodeURIComponent(slug)}`);
 }
 
 export async function deleteVehicleType(slug: string): Promise<void> {

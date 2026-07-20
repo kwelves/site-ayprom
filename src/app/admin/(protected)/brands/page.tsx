@@ -9,7 +9,12 @@ export const metadata: Metadata = {
 
 export const revalidate = 0;
 
-export default async function AdminBrandsPage() {
+interface AdminBrandsPageProps {
+  searchParams: Promise<{ created?: string; updated?: string }>;
+}
+
+export default async function AdminBrandsPage({ searchParams }: AdminBrandsPageProps) {
+  const { created, updated } = await searchParams;
   const brands = await getAdminBrands();
 
   return (
@@ -27,7 +32,11 @@ export default async function AdminBrandsPage() {
       {brands.length === 0 ? (
         <p className="mt-8 text-sm text-muted-foreground">Брендов пока нет.</p>
       ) : (
-        <BrandsList brands={brands} />
+        <BrandsList
+          brands={brands}
+          flashSlug={created ?? updated}
+          flashAction={created ? "created" : updated ? "updated" : undefined}
+        />
       )}
     </div>
   );

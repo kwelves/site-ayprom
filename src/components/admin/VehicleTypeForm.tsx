@@ -7,6 +7,7 @@ import { slugify } from "@/lib/admin/slugify";
 import { BackLink } from "@/components/admin/ui/BackLink";
 import { FormField } from "@/components/admin/ui/FormField";
 import { Input } from "@/components/admin/ui/Input";
+import { SubmitButton } from "@/components/admin/ui/SubmitButton";
 import type { AdminVehicleType } from "@/lib/admin/queries";
 
 interface VehicleTypeFormProps {
@@ -76,12 +77,9 @@ export function VehicleTypeForm({ mode, vehicleType }: VehicleTypeFormProps) {
         )}
 
         <div className="flex items-center gap-4 border-t border-border pt-6">
-          <button
-            type="submit"
-            className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-blue-700"
-          >
+          <SubmitButton pendingLabel={mode === "create" ? "Создание..." : "Сохранение..."}>
             {mode === "create" ? "Создать тип техники" : "Сохранить"}
-          </button>
+          </SubmitButton>
           {mode === "edit" && (
             <button type="button" onClick={handleDeleteVehicleType} className="text-sm text-red-600 hover:underline">
               Удалить тип техники

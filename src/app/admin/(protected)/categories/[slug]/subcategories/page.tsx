@@ -9,6 +9,7 @@ export const revalidate = 0;
 
 interface SubcategoriesPageProps {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ created?: string; updated?: string }>;
 }
 
 export async function generateMetadata({ params }: SubcategoriesPageProps): Promise<Metadata> {
@@ -16,8 +17,9 @@ export async function generateMetadata({ params }: SubcategoriesPageProps): Prom
   return { title: `Подкатегории «${slug}» — Админка AYPROM` };
 }
 
-export default async function AdminSubcategoriesPage({ params }: SubcategoriesPageProps) {
+export default async function AdminSubcategoriesPage({ params, searchParams }: SubcategoriesPageProps) {
   const { slug } = await params;
+  const { created, updated } = await searchParams;
   const [category, subcategories] = await Promise.all([getAdminCategory(slug), getAdminSubcategories(slug)]);
   if (!category) {
     notFound();
@@ -40,7 +42,12 @@ export default async function AdminSubcategoriesPage({ params }: SubcategoriesPa
       {subcategories.length === 0 ? (
         <p className="mt-8 text-sm text-muted-foreground">Подкатегорий пока нет.</p>
       ) : (
-        <SubcategoriesList categorySlug={slug} subcategories={subcategories} />
+        <SubcategoriesList
+          categorySlug={slug}
+          subcategories={subcategories}
+          flashSlug={created ?? updated}
+          flashAction={created ? "created" : updated ? "updated" : undefined}
+        />
       )}
     </div>
   );

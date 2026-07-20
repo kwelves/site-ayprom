@@ -11,11 +11,11 @@ export const metadata: Metadata = {
 export const revalidate = 0;
 
 interface AdminProductsPageProps {
-  searchParams: Promise<{ q?: string; category?: string }>;
+  searchParams: Promise<{ q?: string; category?: string; created?: string; updated?: string }>;
 }
 
 export default async function AdminProductsPage({ searchParams }: AdminProductsPageProps) {
-  const { q, category } = await searchParams;
+  const { q, category, created, updated } = await searchParams;
   const isFiltered = Boolean(q?.trim() || category);
 
   const [products, categories] = await Promise.all([
@@ -48,7 +48,13 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
           {isFiltered ? "Ничего не найдено." : "Товаров пока нет."}
         </p>
       ) : (
-        <ProductsList key={`${q ?? ""}:${category ?? ""}`} products={products} sortable={!isFiltered} />
+        <ProductsList
+          key={`${q ?? ""}:${category ?? ""}`}
+          products={products}
+          sortable={!isFiltered}
+          flashSlug={created ?? updated}
+          flashAction={created ? "created" : updated ? "updated" : undefined}
+        />
       )}
     </div>
   );
