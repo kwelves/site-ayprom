@@ -129,7 +129,7 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
         type="button"
         onClick={scrollToNextSection}
         aria-label="Прокрутить вниз"
-        className="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full text-white/80 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+        className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full p-2.5 text-white/80 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
         animate={{ y: [0, 8, 0] }}
         transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
       >

@@ -19,7 +19,7 @@ export function BackButton({ className }: BackButtonProps) {
       type="button"
       onClick={() => router.back()}
       className={cn(
-        "inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-primary",
+        "inline-flex items-center gap-1.5 py-3 text-sm font-medium text-slate-500 transition-colors hover:text-primary sm:py-0",
         className
       )}
     >

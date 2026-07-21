@@ -172,7 +172,7 @@ function MobileNavItem({
           handleHashClick(item.href, event);
           onNavigate();
         }}
-        className="rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-muted hover:text-primary"
+        className="rounded-md flex min-h-11 items-center px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-muted hover:text-primary"
       >
         {item.label}
       </Link>
@@ -188,7 +188,7 @@ function MobileNavItem({
             handleHashClick(item.href, event);
             onNavigate();
           }}
-          className="flex-1 rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-muted hover:text-primary"
+          className="flex-1 rounded-md flex min-h-11 items-center px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-muted hover:text-primary"
         >
           {item.label}
         </Link>

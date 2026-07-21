@@ -154,19 +154,26 @@ export function ProductCard({ product, href }: { product: Product; href: string 
       </div>
 
       {hasMultiple && (
-        <div className="relative z-10 flex items-center justify-center gap-1.5 pb-4">
+        <div className="relative z-10 flex items-center justify-center pb-4">
           {product.images.map((image, i) => (
+            // p-2 padding around the dot enlarges the actual tap target well
+            // past its 6px visual size, without making the indicator itself
+            // look oversized — the dot stays small, only the hit area grows.
             <button
               key={`${image.url}-${i}`}
               type="button"
               onClick={handleArrowClick(i)}
               aria-label={`Показать фото ${i + 1}`}
               aria-current={i === index}
-              className={cn(
-                "h-1.5 rounded-full transition-all",
-                i === index ? "w-4 bg-primary" : "w-1.5 bg-border hover:bg-blue-300"
-              )}
-            />
+              className="p-2"
+            >
+              <span
+                className={cn(
+                  "block h-1.5 rounded-full transition-all",
+                  i === index ? "w-4 bg-primary" : "w-1.5 bg-border hover:bg-blue-300"
+                )}
+              />
+            </button>
           ))}
         </div>
       )}

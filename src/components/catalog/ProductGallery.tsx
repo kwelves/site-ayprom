@@ -87,7 +87,7 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
               type="button"
               onClick={() => goTo(index - 1)}
               aria-label="Предыдущее фото"
-              className="absolute left-3 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              className="absolute left-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
@@ -95,7 +95,7 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
               type="button"
               onClick={() => goTo(index + 1)}
               aria-label="Следующее фото"
-              className="absolute right-3 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              className="absolute right-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             >
               <ChevronRight className="h-5 w-5" />
             </button>
@@ -104,19 +104,26 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
       </motion.div>
 
       {hasMultiple && (
-        <div className="mt-3 flex items-center justify-center gap-2">
+        <div className="mt-3 flex items-center justify-center">
           {images.map((image, i) => (
+            // p-2.5 padding around the dot enlarges the actual tap target well
+            // past its 8px visual size, without making the indicator itself
+            // look oversized — the dot stays small, only the hit area grows.
             <button
               key={`${image.url}-${i}`}
               type="button"
               onClick={() => goTo(i)}
               aria-label={`Показать фото ${i + 1}`}
               aria-current={i === index}
-              className={cn(
-                "h-2 rounded-full transition-all",
-                i === index ? "w-6 bg-primary" : "w-2 bg-border hover:bg-blue-300"
-              )}
-            />
+              className="p-2.5"
+            >
+              <span
+                className={cn(
+                  "block h-2 rounded-full transition-all",
+                  i === index ? "w-6 bg-primary" : "w-2 bg-border hover:bg-blue-300"
+                )}
+              />
+            </button>
           ))}
         </div>
       )}
