@@ -101,14 +101,22 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
             </Button>
           </motion.form>
 
-          <motion.div variants={fadeUp} className="mt-6 flex flex-wrap gap-3">
-            <Button href="/catalog" size="lg">
+          {/* flex-nowrap + shrinking padding/text (not flex-wrap) — on narrow
+              phones these two buttons should stay side by side and shrink
+              together rather than the second one dropping to its own line. */}
+          <motion.div variants={fadeUp} className="mt-6 flex flex-nowrap gap-2 sm:gap-3">
+            <Button
+              href="/catalog"
+              size="lg"
+              className="min-w-0 flex-1 px-3 text-sm whitespace-nowrap sm:flex-initial sm:px-6 sm:text-base"
+            >
               Перейти в каталог
             </Button>
             <Button
               href="/#brands"
               variant="secondary"
               size="lg"
+              className="min-w-0 flex-1 px-3 text-sm whitespace-nowrap sm:flex-initial sm:px-6 sm:text-base"
               onClick={(event) => handleHashClick("/#brands", event)}
             >
               Марки техники
