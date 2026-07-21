@@ -334,6 +334,19 @@ export async function deleteProduct(slug: string): Promise<void> {
   redirect("/admin/products");
 }
 
+// A quick from-the-list toggle for the products list's status pill — a
+// separate immediate action rather than routing through the full edit form,
+// same reasoning as reorderProducts/deleteProduct being their own actions.
+export async function toggleProductPublished(slug: string, published: boolean): Promise<void> {
+  await requireAdminSession();
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("products").update({ published }).eq("slug", slug);
+  if (error) throw error;
+  revalidatePath("/admin/products");
+  revalidatePath(`/admin/products/${slug}/edit`);
+  revalidatePublicSite();
+}
+
 export async function reorderProducts(orderedSlugs: string[]): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
@@ -346,6 +359,7 @@ interface UploadedImage {
   id: string;
   url: string;
   order: number;
+  scale: number | null;
 }
 
 // Shared by uploadProductImage (edit mode's immediate per-photo upload) and
@@ -369,7 +383,7 @@ async function insertProductImage(
   const { data: inserted, error: insertError } = await supabase
     .from("product_images")
     .insert({ product_id: productId, url: publicUrlData.publicUrl, order })
-    .select("id, url, order")
+    .select("id, url, order, scale")
     .single();
   if (insertError) throw insertError;
   return inserted;
@@ -446,6 +460,22 @@ export async function reorderProductImages(productSlug: string, orderedImageIds:
   await requireAdminSession();
   const supabase = createAdminClient();
   await Promise.all(orderedImageIds.map((id, index) => supabase.from("product_images").update({ order: index }).eq("id", id)));
+  revalidatePath(`/admin/products/${productSlug}/edit`);
+  revalidatePublicSite();
+}
+
+// Mirrors updateCategoryBrandOverride — same "per-row visual scale
+// correction, saved immediately on blur" pattern, just for a product's
+// photos instead of a category's attached brands.
+export async function updateProductImageScale(
+  productSlug: string,
+  imageId: string,
+  scale: number | null
+): Promise<void> {
+  await requireAdminSession();
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("product_images").update({ scale }).eq("id", imageId);
+  if (error) throw error;
   revalidatePath(`/admin/products/${productSlug}/edit`);
   revalidatePublicSite();
 }

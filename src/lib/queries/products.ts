@@ -5,7 +5,7 @@ import type { Product } from "@/types/catalog";
 const PRODUCT_SELECT = `
   slug, name, category_slug, short_description, description, article,
   subcategories(slug),
-  product_images(url, "order"),
+  product_images(url, "order", scale),
   product_characteristics(attribute, value, "order"),
   product_brands(brands(slug, name, country, logo, logo_scale)),
   product_vehicle_types(vehicle_type_slug)
@@ -19,7 +19,7 @@ interface ProductRow {
   description: string | null;
   article: string | null;
   subcategories: { slug: string } | null;
-  product_images: { url: string; order: number }[];
+  product_images: { url: string; order: number; scale: number | null }[];
   product_characteristics: { attribute: string; value: string; order: number }[];
   product_brands: { brands: { slug: string } }[];
   product_vehicle_types: { vehicle_type_slug: string }[];
@@ -33,7 +33,9 @@ function mapProduct(row: ProductRow): Product {
     subcategory: row.subcategories?.slug,
     compatibleBrands: row.product_brands.map((pb) => pb.brands.slug),
     vehicleTypes: row.product_vehicle_types.map((pvt) => pvt.vehicle_type_slug),
-    images: [...row.product_images].sort((a, b) => a.order - b.order).map((img) => img.url),
+    images: [...row.product_images]
+      .sort((a, b) => a.order - b.order)
+      .map((img) => ({ url: img.url, scale: img.scale ?? undefined })),
     shortDescription: row.short_description,
     description: row.description ?? undefined,
     characteristics: row.product_characteristics.length

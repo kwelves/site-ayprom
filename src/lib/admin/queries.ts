@@ -74,14 +74,14 @@ export interface AdminProduct {
   published: boolean;
   compatibleBrands: string[];
   vehicleTypes: string[];
-  images: { id: string; url: string; order: number }[];
+  images: { id: string; url: string; order: number; scale: number | null }[];
   characteristics: { id: string; attribute: string; value: string; order: number }[];
 }
 
 const ADMIN_PRODUCT_SELECT = `
   id, slug, name, category_slug, short_description, description, article, published,
   subcategories(slug),
-  product_images(id, url, "order"),
+  product_images(id, url, "order", scale),
   product_characteristics(id, attribute, value, "order"),
   product_brands(brand_slug),
   product_vehicle_types(vehicle_type_slug)
@@ -97,7 +97,7 @@ interface AdminProductRow {
   article: string | null;
   published: boolean;
   subcategories: { slug: string } | null;
-  product_images: { id: string; url: string; order: number }[];
+  product_images: { id: string; url: string; order: number; scale: number | null }[];
   product_characteristics: { id: string; attribute: string; value: string; order: number }[];
   product_brands: { brand_slug: string }[];
   product_vehicle_types: { vehicle_type_slug: string }[];

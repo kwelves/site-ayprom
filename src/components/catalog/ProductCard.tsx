@@ -111,11 +111,13 @@ export function ProductCard({ product, href }: { product: Product; href: string 
             className="absolute inset-0"
           >
             <Image
-              src={product.images[index]}
+              src={product.images[index].url}
               alt={product.name}
               fill
               sizes="(max-width: 639px) 45vw, (max-width: 1023px) 30vw, 320px"
+              quality={60}
               className="object-contain p-4"
+              style={product.images[index].scale ? { transform: `scale(${product.images[index].scale})` } : undefined}
               draggable={false}
             />
           </motion.div>
@@ -155,7 +157,7 @@ export function ProductCard({ product, href }: { product: Product; href: string 
         <div className="relative z-10 flex items-center justify-center gap-1.5 pb-4">
           {product.images.map((image, i) => (
             <button
-              key={`${image}-${i}`}
+              key={`${image.url}-${i}`}
               type="button"
               onClick={handleArrowClick(i)}
               aria-label={`Показать фото ${i + 1}`}

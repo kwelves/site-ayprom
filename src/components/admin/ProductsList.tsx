@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { AnimatePresence, motion } from "framer-motion";
 import { SortableList } from "@/components/admin/SortableList";
 import { Toast } from "@/components/admin/ui/Toast";
-import { reorderProducts, deleteProduct } from "@/lib/admin/actions";
+import { reorderProducts, deleteProduct, toggleProductPublished } from "@/lib/admin/actions";
 import { useSaveFlowFlash } from "@/lib/admin/use-save-flow-flash";
 import { cn } from "@/lib/utils";
 import type { AdminProductListItem } from "@/lib/admin/queries";
@@ -40,6 +41,13 @@ export function ProductsList({ products: initialProducts, sortable = true, flash
     });
   }
 
+  function handleTogglePublished(slug: string, nextPublished: boolean) {
+    setProducts((prev) => prev.map((p) => (p.slug === slug ? { ...p, published: nextPublished } : p)));
+    startTransition(() => {
+      toggleProductPublished(slug, nextPublished);
+    });
+  }
+
   return (
     <>
       <SortableList
@@ -61,14 +69,31 @@ export function ProductsList({ products: initialProducts, sortable = true, flash
             <p className="text-sm font-medium text-card-foreground">{product.name}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">{product.categoryName}</p>
             <div className="mt-2 flex flex-wrap items-center gap-3">
-              <span
+              <button
+                type="button"
+                onClick={() => handleTogglePublished(product.slug, !product.published)}
+                aria-pressed={product.published}
+                aria-label={`Переключить публикацию товара «${product.name}»`}
                 className={cn(
-                  "rounded-full px-2 py-0.5 text-xs font-medium",
-                  product.published ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
+                  "overflow-hidden rounded-full px-2 py-0.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+                  product.published
+                    ? "bg-green-100 text-green-700 hover:bg-green-200"
+                    : "bg-amber-100 text-amber-700 hover:bg-amber-200"
                 )}
               >
-                {product.published ? "Опубликован" : "Черновик"}
-              </span>
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.span
+                    key={product.published ? "published" : "draft"}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.15, ease: "easeOut" }}
+                    className="block"
+                  >
+                    {product.published ? "Опубликован" : "Черновик"}
+                  </motion.span>
+                </AnimatePresence>
+              </button>
               <Link
                 href={`/admin/products/${product.slug}/edit`}
                 className="rounded-md border border-border px-3 py-1 text-sm font-medium text-primary transition-colors hover:border-blue-200 hover:bg-accent"

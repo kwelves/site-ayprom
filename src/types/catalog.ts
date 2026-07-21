@@ -73,8 +73,11 @@ export interface Product {
   /** Vehicle type slugs this product fits (dump truck, tractor unit,
    * crane-manipulator...). Same "can be empty" convention as compatibleBrands. */
   vehicleTypes: string[];
-  /** At least one required — images[0] is the cover shown in product cards. */
-  images: string[];
+  /** At least one required — images[0] is the cover shown in product cards.
+   * `scale` mirrors Brand.logoScale — a per-photo visual correction for
+   * images with more/less baked-in padding than the rest, so the gallery
+   * reads as evenly "full" without cropping. */
+  images: { url: string; scale?: number }[];
   /** Required so the product card never renders without any text. */
   shortDescription: string;
   /** Optional — the product page simply omits this block when absent. */

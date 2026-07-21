@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { useIsTouchDevice } from "@/lib/use-is-touch-device";
 
 interface ProductGalleryProps {
-  images: string[];
+  images: { url: string; scale?: number }[];
   alt: string;
 }
 
@@ -69,11 +69,12 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
             className="absolute inset-0"
           >
             <Image
-              src={images[index]}
+              src={images[index].url}
               alt={alt}
               fill
               sizes="(max-width: 1023px) 100vw, 50vw"
               className="object-contain p-6"
+              style={images[index].scale ? { transform: `scale(${images[index].scale})` } : undefined}
               priority={index === 0}
               draggable={false}
             />
@@ -106,7 +107,7 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
         <div className="mt-3 flex items-center justify-center gap-2">
           {images.map((image, i) => (
             <button
-              key={`${image}-${i}`}
+              key={`${image.url}-${i}`}
               type="button"
               onClick={() => goTo(i)}
               aria-label={`Показать фото ${i + 1}`}

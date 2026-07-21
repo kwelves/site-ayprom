@@ -8,6 +8,7 @@ import {
   uploadProductImage,
   deleteProductImage,
   reorderProductImages,
+  updateProductImageScale,
 } from "@/lib/admin/actions";
 import { slugify } from "@/lib/admin/slugify";
 import { compressImage, compressFileListInput } from "@/lib/admin/compress-image";
@@ -134,6 +135,16 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
     if (!product) return;
     startTransition(() => {
       reorderProductImages(product.slug, newImages.map((img) => img.id));
+    });
+  }
+
+  function handleImageScaleBlur(imageId: string, rawValue: string) {
+    if (!product) return;
+    const parsed = rawValue.trim() ? Number(rawValue) : null;
+    const value = parsed !== null && Number.isFinite(parsed) ? parsed : null;
+    setImages((prev) => prev.map((img) => (img.id === imageId ? { ...img, scale: value } : img)));
+    startTransition(() => {
+      updateProductImageScale(product.slug, imageId, value);
     });
   }
 
@@ -325,6 +336,16 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
                     {/* eslint-disable-next-line @next/next/no-img-element -- Supabase Storage is an external host, simpler than configuring next/image remotePatterns for an internal tool */}
                     <img src={img.url} alt="" className="h-12 w-12 rounded-md bg-muted/40 object-contain" />
                     <span className="flex-1 truncate text-xs text-muted-foreground">{img.url}</span>
+                    <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
+                      Масштаб
+                      <Input
+                        type="number"
+                        step="0.05"
+                        defaultValue={img.scale ?? undefined}
+                        onBlur={(e) => handleImageScaleBlur(img.id, e.target.value)}
+                        className="w-20"
+                      />
+                    </label>
                     <button
                       type="button"
                       onClick={() => handleImageDelete(img.id)}
