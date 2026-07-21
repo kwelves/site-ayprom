@@ -13,7 +13,13 @@ export const metadata: Metadata = {
 interface ContactCard {
   icon: LucideIcon;
   label: string;
-  content: React.ReactNode;
+  // When set, the whole card becomes a single tappable <a> (phone/email —
+  // one clear action, and a full card is a much easier mobile tap target
+  // than a thin line of text). Cards with no single action, or more than
+  // one link (Соцсети), stay a plain <div> and use `content` instead.
+  href?: string;
+  value?: string;
+  content?: React.ReactNode;
 }
 
 const linkClassName = "text-card-foreground transition-colors hover:text-primary";
@@ -27,29 +33,20 @@ const contactCards: ContactCard[] = [
   {
     icon: Phone,
     label: "Телефон",
-    content: (
-      <a href="tel:+996500461155" className={linkClassName}>
-        +996 500 461 155
-      </a>
-    ),
+    href: "tel:+996500461155",
+    value: "+996 500 461 155",
   },
   {
     icon: Phone,
     label: "Доп. телефон",
-    content: (
-      <a href="tel:+996707170696" className={linkClassName}>
-        +996 707 17 06 96
-      </a>
-    ),
+    href: "tel:+996707170696",
+    value: "+996 707 17 06 96",
   },
   {
     icon: Mail,
     label: "Email",
-    content: (
-      <a href="mailto:info@ayprom.kg" className={linkClassName}>
-        info@ayprom.kg
-      </a>
-    ),
+    href: "mailto:info@ayprom.kg",
+    value: "info@ayprom.kg",
   },
   {
     icon: AtSign,
@@ -75,6 +72,18 @@ const contactCards: ContactCard[] = [
   },
 ];
 
+function ContactCardBody({ icon: Icon, label, children }: { icon: LucideIcon; label: string; children: React.ReactNode }) {
+  return (
+    <>
+      <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+        <Icon className="h-5 w-5" />
+      </span>
+      <p className="mt-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <div className="mt-1 text-sm font-medium text-card-foreground">{children}</div>
+    </>
+  );
+}
+
 export default function ContactsPage() {
   return (
     <Container className="py-16 sm:py-24">
@@ -88,15 +97,24 @@ export default function ContactsPage() {
       </Reveal>
 
       <StaggerGroup className="mx-auto mt-12 grid max-w-4xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {contactCards.map(({ icon: Icon, label, content }) => (
-          <StaggerItem key={label}>
-            <div className="h-full rounded-xl border border-border bg-card p-5">
-              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-accent-foreground">
-                <Icon className="h-5 w-5" />
-              </span>
-              <p className="mt-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-              <div className="mt-1 text-sm font-medium">{content}</div>
-            </div>
+        {contactCards.map((card) => (
+          <StaggerItem key={card.label}>
+            {card.href ? (
+              <a
+                href={card.href}
+                className="block h-full rounded-xl border border-border bg-card p-5 transition-colors hover:border-blue-300"
+              >
+                <ContactCardBody icon={card.icon} label={card.label}>
+                  {card.value}
+                </ContactCardBody>
+              </a>
+            ) : (
+              <div className="h-full rounded-xl border border-border bg-card p-5">
+                <ContactCardBody icon={card.icon} label={card.label}>
+                  {card.content}
+                </ContactCardBody>
+              </div>
+            )}
           </StaggerItem>
         ))}
       </StaggerGroup>
