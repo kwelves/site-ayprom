@@ -157,7 +157,7 @@ function SortableRow({
         {...attributes}
         {...listeners}
         aria-label="Перетащить для изменения порядка"
-        className="shrink-0 cursor-grab touch-none text-slate-400 transition-colors hover:text-slate-600 active:cursor-grabbing"
+        className="-m-2 shrink-0 cursor-grab touch-none p-2 text-slate-400 transition-colors hover:text-slate-600 active:cursor-grabbing"
       >
         <GripVertical className="h-4 w-4" />
       </button>

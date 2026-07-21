@@ -75,7 +75,7 @@ export function ProductsList({ products: initialProducts, sortable = true, flash
                 aria-pressed={product.published}
                 aria-label={`Переключить публикацию товара «${product.name}»`}
                 className={cn(
-                  "overflow-hidden rounded-full px-2 py-0.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+                  "overflow-hidden rounded-full px-2.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
                   product.published
                     ? "bg-green-100 text-green-700 hover:bg-green-200"
                     : "bg-amber-100 text-amber-700 hover:bg-amber-200"

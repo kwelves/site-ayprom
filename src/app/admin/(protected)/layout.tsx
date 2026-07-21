@@ -7,12 +7,16 @@ import { AdminNav } from "@/components/admin/AdminNav";
 export default function ProtectedAdminLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <>
+      {/* flex-wrap + min-h (not a fixed h-14) — the nav row didn't fit
+          logo + 4 links + logout on one line on narrow phones and had
+          nothing forcing it to wrap, so it just bled past its own
+          container's right edge instead of breaking onto a second line. */}
       <header className="border-b border-border bg-card">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+        <div className="mx-auto flex min-h-14 max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2">
           <Link href="/admin/products" className="text-sm font-semibold text-card-foreground">
             AYPROM — Админка
           </Link>
-          <nav className="flex items-center gap-4 text-sm">
+          <nav className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
             <AdminNav />
             <form action={logout}>
               <button

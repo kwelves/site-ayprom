@@ -26,7 +26,7 @@ export default async function AdminLoginPage({ searchParams }: LoginPageProps) {
             name="password"
             required
             autoFocus
-            className="mt-1.5 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="mt-1.5 block w-full rounded-md border border-slate-300 px-3 py-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:py-2"
           />
         </label>
 
@@ -34,14 +34,14 @@ export default async function AdminLoginPage({ searchParams }: LoginPageProps) {
 
         <button
           type="submit"
-          className="mt-6 w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          className="mt-6 w-full rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:py-2"
         >
           Войти
         </button>
 
         <Link
           href="/"
-          className="mt-4 flex items-center justify-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-primary"
+          className="mt-4 flex items-center justify-center gap-1.5 py-3 text-sm font-medium text-slate-500 transition-colors hover:text-primary sm:py-0"
         >
           <ArrowLeft className="h-4 w-4" />
           Вернуться на сайт
