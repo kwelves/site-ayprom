@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { logout } from "@/lib/admin/actions";
+import { AdminNav } from "@/components/admin/AdminNav";
 
 // Wraps every admin page except /admin/login — middleware already gates
 // access to this whole subtree, so no auth check here, just the nav chrome.
@@ -12,18 +13,7 @@ export default function ProtectedAdminLayout({ children }: Readonly<{ children: 
             AYPROM — Админка
           </Link>
           <nav className="flex items-center gap-4 text-sm">
-            <Link href="/admin/products" className="text-slate-600 transition-colors hover:text-primary">
-              Товары
-            </Link>
-            <Link href="/admin/brands" className="text-slate-600 transition-colors hover:text-primary">
-              Бренды
-            </Link>
-            <Link href="/admin/vehicle-types" className="text-slate-600 transition-colors hover:text-primary">
-              Типы техники
-            </Link>
-            <Link href="/admin/categories" className="text-slate-600 transition-colors hover:text-primary">
-              Категории
-            </Link>
+            <AdminNav />
             <form action={logout}>
               <button
                 type="submit"

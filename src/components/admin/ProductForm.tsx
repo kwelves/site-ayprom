@@ -10,7 +10,7 @@ import {
   reorderProductImages,
 } from "@/lib/admin/actions";
 import { slugify } from "@/lib/admin/slugify";
-import { compressImage } from "@/lib/admin/compress-image";
+import { compressImage, compressFileListInput } from "@/lib/admin/compress-image";
 import { SubmitButton } from "@/components/admin/ui/SubmitButton";
 import { BackLink } from "@/components/admin/ui/BackLink";
 import { FormField } from "@/components/admin/ui/FormField";
@@ -52,6 +52,7 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
   );
   const [images, setImages] = useState(product?.images ?? []);
   const [isUploading, setIsUploading] = useState(false);
+  const [pendingPhotoCount, setPendingPhotoCount] = useState(0);
   const [, startTransition] = useTransition();
 
   const selectedCategory = categories.find((c) => c.slug === categorySlug);
@@ -348,7 +349,25 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
             </label>
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground">Фото можно будет добавить после создания товара.</p>
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Фотографии</h2>
+            <p className="mt-1 text-xs text-muted-foreground">Необязательно — можно добавить сразу или позже, при редактировании.</p>
+            <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-300 px-4 py-2 text-sm text-slate-600 transition-colors hover:border-primary hover:text-primary">
+              {pendingPhotoCount > 0 ? `Выбрано фото: ${pendingPhotoCount}` : "Выбрать фото"}
+              <input
+                type="file"
+                name="photos"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={async (e) => {
+                  const input = e.target;
+                  await compressFileListInput(input);
+                  setPendingPhotoCount(input.files?.length ?? 0);
+                }}
+              />
+            </label>
+          </div>
         )}
 
         <div className="flex items-center gap-4 border-t border-border pt-6">

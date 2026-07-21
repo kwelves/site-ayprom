@@ -30,7 +30,7 @@ export async function login(formData: FormData): Promise<void> {
     maxAge: SESSION_DURATION_SECONDS,
   });
 
-  redirect("/admin/products");
+  redirect("/admin/welcome");
 }
 
 export async function logout(): Promise<void> {
@@ -197,26 +197,41 @@ export async function createProduct(formData: FormData): Promise<void> {
     .single();
   if (error) throw error;
 
-  if (fields.characteristics.length > 0) {
-    const { error: charError } = await supabase
-      .from("product_characteristics")
-      .insert(fields.characteristics.map((c, i) => ({ product_id: product.id, attribute: c.attribute, value: c.value, order: i })));
-    if (charError) throw charError;
-  }
+  // Photos can be attached right in the create form (an uncontrolled multi-file
+  // input, same submission as the rest of the row) now that the product row
+  // — and so its id/slug — exists. The four blocks below touch separate child
+  // tables with no cross-dependency, so they run concurrently.
+  const photos = formData.getAll("photos").filter((f): f is File => f instanceof File && f.size > 0);
 
-  if (fields.compatibleBrands.length > 0) {
-    const { error: brandError } = await supabase
-      .from("product_brands")
-      .insert(fields.compatibleBrands.map((brandSlug) => ({ product_id: product.id, brand_slug: brandSlug })));
-    if (brandError) throw brandError;
-  }
-
-  if (fields.vehicleTypes.length > 0) {
-    const { error: vehicleTypeError } = await supabase
-      .from("product_vehicle_types")
-      .insert(fields.vehicleTypes.map((vehicleTypeSlug) => ({ product_id: product.id, vehicle_type_slug: vehicleTypeSlug })));
-    if (vehicleTypeError) throw vehicleTypeError;
-  }
+  await Promise.all([
+    fields.characteristics.length > 0
+      ? supabase
+          .from("product_characteristics")
+          .insert(fields.characteristics.map((c, i) => ({ product_id: product.id, attribute: c.attribute, value: c.value, order: i })))
+          .then(({ error: charError }) => {
+            if (charError) throw charError;
+          })
+      : Promise.resolve(),
+    fields.compatibleBrands.length > 0
+      ? supabase
+          .from("product_brands")
+          .insert(fields.compatibleBrands.map((brandSlug) => ({ product_id: product.id, brand_slug: brandSlug })))
+          .then(({ error: brandError }) => {
+            if (brandError) throw brandError;
+          })
+      : Promise.resolve(),
+    fields.vehicleTypes.length > 0
+      ? supabase
+          .from("product_vehicle_types")
+          .insert(fields.vehicleTypes.map((vehicleTypeSlug) => ({ product_id: product.id, vehicle_type_slug: vehicleTypeSlug })))
+          .then(({ error: vehicleTypeError }) => {
+            if (vehicleTypeError) throw vehicleTypeError;
+          })
+      : Promise.resolve(),
+    photos.length > 0
+      ? Promise.all(photos.map((file, i) => insertProductImage(supabase, product.id, slug, file, i)))
+      : Promise.resolve(),
+  ]);
 
   revalidatePath("/admin/products");
   revalidatePublicSite();
@@ -333,6 +348,33 @@ interface UploadedImage {
   order: number;
 }
 
+// Shared by uploadProductImage (edit mode's immediate per-photo upload) and
+// createProduct (photos attached in the same submission as the rest of the
+// row) — both need "store the file under this product's slug, then record
+// the row," just triggered from different places.
+async function insertProductImage(
+  supabase: ReturnType<typeof createAdminClient>,
+  productId: string,
+  productSlug: string,
+  file: File,
+  order: number
+): Promise<UploadedImage> {
+  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const path = `${productSlug}/${crypto.randomUUID()}.${ext}`;
+  const { error: uploadError } = await supabase.storage.from("product-images").upload(path, file);
+  if (uploadError) throw uploadError;
+
+  const { data: publicUrlData } = supabase.storage.from("product-images").getPublicUrl(path);
+
+  const { data: inserted, error: insertError } = await supabase
+    .from("product_images")
+    .insert({ product_id: productId, url: publicUrlData.publicUrl, order })
+    .select("id, url, order")
+    .single();
+  if (insertError) throw insertError;
+  return inserted;
+}
+
 // Returns the inserted row directly rather than relying on revalidatePath +
 // router.refresh() — ProductForm's local `images` state is seeded from
 // `product.images` only once, on mount (so an in-progress edit to other
@@ -363,19 +405,7 @@ export async function uploadProductImage(
   if (productError) throw productError;
   if (!product) return null;
 
-  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-  const path = `${product.slug}/${crypto.randomUUID()}.${ext}`;
-  const { error: uploadError } = await supabase.storage.from("product-images").upload(path, file);
-  if (uploadError) throw uploadError;
-
-  const { data: publicUrlData } = supabase.storage.from("product-images").getPublicUrl(path);
-
-  const { data: inserted, error: insertError } = await supabase
-    .from("product_images")
-    .insert({ product_id: productId, url: publicUrlData.publicUrl, order })
-    .select("id, url, order")
-    .single();
-  if (insertError) throw insertError;
+  const inserted = await insertProductImage(supabase, productId, product.slug, file, order);
 
   revalidatePath("/admin/products");
   revalidatePublicSite();

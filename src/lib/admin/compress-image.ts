@@ -58,3 +58,16 @@ export async function compressFileInput(input: HTMLInputElement): Promise<void> 
   dataTransfer.items.add(compressed);
   input.files = dataTransfer.files;
 }
+
+// Same trick as compressFileInput, but for a `multiple` file input — used by
+// the product create form's photo picker, since photos there are attached to
+// the same submission as the rest of the row instead of uploaded separately.
+export async function compressFileListInput(input: HTMLInputElement): Promise<void> {
+  const files = input.files;
+  if (!files || files.length === 0) return;
+
+  const compressed = await Promise.all(Array.from(files).map(compressImage));
+  const dataTransfer = new DataTransfer();
+  for (const file of compressed) dataTransfer.items.add(file);
+  input.files = dataTransfer.files;
+}

@@ -5,11 +5,11 @@ import { usePathname, useRouter } from "next/navigation";
 
 // How long the highlight stays visible once applied — kept short, per the
 // brief on this: it's just a "yes, this is the one" flash, not a persistent marker.
-const HIGHLIGHT_DURATION_MS = 300;
+const HIGHLIGHT_DURATION_MS = 600;
 // Give scrollIntoView's smooth animation a moment to land before flashing,
 // so the highlight appears once the item is actually in view rather than
 // mid-scroll where the admin might miss it.
-const SCROLL_SETTLE_MS = 450;
+const SCROLL_SETTLE_MS = 400;
 
 interface UseSaveFlowFlashOptions {
   // Identifies which item to flash, and whether it was just created or

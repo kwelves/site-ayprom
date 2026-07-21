@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { login } from "@/lib/admin/actions";
 
 export const metadata: Metadata = {
@@ -36,6 +38,14 @@ export default async function AdminLoginPage({ searchParams }: LoginPageProps) {
         >
           Войти
         </button>
+
+        <Link
+          href="/"
+          className="mt-4 flex items-center justify-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-primary"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Вернуться на сайт
+        </Link>
       </form>
     </div>
   );
