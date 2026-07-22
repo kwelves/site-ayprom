@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { createSubcategory, updateSubcategory, deleteSubcategory, replaceSubcategoryImage } from "@/lib/admin/actions";
 import { slugify } from "@/lib/admin/slugify";
-import { compressImage, compressFileInput } from "@/lib/admin/compress-image";
+import { compressFileInput } from "@/lib/admin/compress-image";
+import { useImageReplace } from "@/lib/admin/use-image-replace";
 import { BackLink } from "@/components/admin/ui/BackLink";
 import { SubmitButton } from "@/components/admin/ui/SubmitButton";
 import { FormField } from "@/components/admin/ui/FormField";
@@ -23,27 +24,16 @@ export function SubcategoryForm({ mode, categorySlug, categoryName, subcategory 
   const [slug, setSlug] = useState(subcategory?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(false);
   const [image, setImage] = useState(subcategory?.image ?? "");
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const { isUploading: isUploadingImage, handleReplace: handleImageReplace } = useImageReplace(
+    (formData) => replaceSubcategoryImage(subcategory!.id, formData),
+    setImage
+  );
 
   function handleNameChange(value: string) {
     setName(value);
     if (mode === "create" && !slugTouched) {
       setSlug(slugify(value));
     }
-  }
-
-  async function handleImageReplace(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file || !subcategory) return;
-
-    setIsUploadingImage(true);
-    const compressed = await compressImage(file);
-    const formData = new FormData();
-    formData.set("file", compressed);
-    const newUrl = await replaceSubcategoryImage(subcategory.id, formData);
-    if (newUrl) setImage(newUrl);
-    setIsUploadingImage(false);
-    event.target.value = "";
   }
 
   function handleDeleteSubcategory() {

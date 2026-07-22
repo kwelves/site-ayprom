@@ -4,7 +4,8 @@ import { useState } from "react";
 import { createBrand, updateBrand, deleteBrand, replaceBrandLogo } from "@/lib/admin/actions";
 import { describeBrandUsage } from "@/lib/admin/queries";
 import { slugify } from "@/lib/admin/slugify";
-import { compressImage, compressFileInput } from "@/lib/admin/compress-image";
+import { compressFileInput } from "@/lib/admin/compress-image";
+import { useImageReplace } from "@/lib/admin/use-image-replace";
 import { BackLink } from "@/components/admin/ui/BackLink";
 import { SubmitButton } from "@/components/admin/ui/SubmitButton";
 import { FormField } from "@/components/admin/ui/FormField";
@@ -21,27 +22,16 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
   const [slug, setSlug] = useState(brand?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(false);
   const [logo, setLogo] = useState(brand?.logo ?? "");
-  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const { isUploading: isUploadingLogo, handleReplace: handleLogoReplace } = useImageReplace(
+    (formData) => replaceBrandLogo(brand!.slug, formData),
+    setLogo
+  );
 
   function handleNameChange(value: string) {
     setName(value);
     if (mode === "create" && !slugTouched) {
       setSlug(slugify(value));
     }
-  }
-
-  async function handleLogoReplace(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file || !brand) return;
-
-    setIsUploadingLogo(true);
-    const compressed = await compressImage(file);
-    const formData = new FormData();
-    formData.set("file", compressed);
-    const newUrl = await replaceBrandLogo(brand.slug, formData);
-    if (newUrl) setLogo(newUrl);
-    setIsUploadingLogo(false);
-    event.target.value = "";
   }
 
   function handleDeleteBrand() {

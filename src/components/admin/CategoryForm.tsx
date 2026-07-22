@@ -5,7 +5,8 @@ import Link from "next/link";
 import { createCategory, updateCategory, deleteCategory, replaceCategoryImage } from "@/lib/admin/actions";
 import { describeCategoryUsage } from "@/lib/admin/queries";
 import { slugify } from "@/lib/admin/slugify";
-import { compressImage, compressFileInput } from "@/lib/admin/compress-image";
+import { compressFileInput } from "@/lib/admin/compress-image";
+import { useImageReplace } from "@/lib/admin/use-image-replace";
 import { BackLink } from "@/components/admin/ui/BackLink";
 import { SubmitButton } from "@/components/admin/ui/SubmitButton";
 import { FormField } from "@/components/admin/ui/FormField";
@@ -32,27 +33,16 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
   const [slug, setSlug] = useState(category?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(false);
   const [image, setImage] = useState(category?.image ?? "");
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const { isUploading: isUploadingImage, handleReplace: handleImageReplace } = useImageReplace(
+    (formData) => replaceCategoryImage(category!.slug, formData),
+    setImage
+  );
 
   function handleNameChange(value: string) {
     setName(value);
     if (mode === "create" && !slugTouched) {
       setSlug(slugify(value));
     }
-  }
-
-  async function handleImageReplace(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file || !category) return;
-
-    setIsUploadingImage(true);
-    const compressed = await compressImage(file);
-    const formData = new FormData();
-    formData.set("file", compressed);
-    const newUrl = await replaceCategoryImage(category.slug, formData);
-    if (newUrl) setImage(newUrl);
-    setIsUploadingImage(false);
-    event.target.value = "";
   }
 
   function handleDeleteCategory() {
