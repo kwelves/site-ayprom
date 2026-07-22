@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import Link from "next/link";
 import { SortableList } from "@/components/admin/SortableList";
 import { Toast } from "@/components/admin/ui/Toast";
 import { reorderSubcategories, deleteSubcategory } from "@/lib/admin/actions";
-import { useSaveFlowFlash } from "@/lib/admin/use-save-flow-flash";
+import { useAdminList } from "@/lib/admin/use-admin-list";
 import type { AdminSubcategory } from "@/lib/admin/queries";
 
 export function SubcategoriesList({
@@ -19,20 +18,16 @@ export function SubcategoriesList({
   flashSlug?: string;
   flashAction?: "created" | "updated";
 }) {
-  const [subcategories, setSubcategories] = useState(initialSubcategories);
-  const [, startTransition] = useTransition();
-  const { toast, dismissToast, highlightedKey } = useSaveFlowFlash({
-    flashKey: flashSlug,
-    flashAction,
-    messages: { created: "Подкатегория успешно добавлена", updated: "Подкатегория успешно отредактирована" },
-  });
-
-  function handleReorder(newSubcategories: AdminSubcategory[]) {
-    setSubcategories(newSubcategories);
-    startTransition(() => {
-      reorderSubcategories(categorySlug, newSubcategories.map((sub) => sub.id));
+  const { items: subcategories, handleReorder, removeItem, toast, dismissToast, highlightedKey } =
+    useAdminList<AdminSubcategory>({
+      initial: initialSubcategories,
+      getId: (sub) => sub.id,
+      reorder: (ids) => reorderSubcategories(categorySlug, ids),
+      remove: deleteSubcategory,
+      messages: { created: "Подкатегория успешно добавлена", updated: "Подкатегория успешно отредактирована" },
+      flashSlug,
+      flashAction,
     });
-  }
 
   function handleDelete(subcategory: AdminSubcategory) {
     if (subcategory.productCount > 0) {
@@ -42,11 +37,7 @@ export function SubcategoriesList({
       return;
     }
     if (!confirm(`Удалить подкатегорию «${subcategory.name}»? Это действие необратимо.`)) return;
-
-    setSubcategories((prev) => prev.filter((s) => s.id !== subcategory.id));
-    startTransition(() => {
-      deleteSubcategory(subcategory.id);
-    });
+    removeItem(subcategory);
   }
 
   return (

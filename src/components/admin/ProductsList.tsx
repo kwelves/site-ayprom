@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { SortableList } from "@/components/admin/SortableList";
 import { Toast } from "@/components/admin/ui/Toast";
 import { reorderProducts, deleteProduct, toggleProductPublished } from "@/lib/admin/actions";
-import { useSaveFlowFlash } from "@/lib/admin/use-save-flow-flash";
+import { useAdminList } from "@/lib/admin/use-admin-list";
 import { cn } from "@/lib/utils";
 import type { AdminProductListItem } from "@/lib/admin/queries";
 
@@ -18,29 +17,25 @@ interface ProductsListProps {
 }
 
 export function ProductsList({ products: initialProducts, sortable = true, flashSlug, flashAction }: ProductsListProps) {
-  const [products, setProducts] = useState(initialProducts);
-  const [, startTransition] = useTransition();
-  const { toast, dismissToast, highlightedKey } = useSaveFlowFlash({
-    flashKey: flashSlug,
-    flashAction,
-    messages: { created: "Товар успешно добавлен", updated: "Товар успешно отредактирован" },
-  });
-
-  function handleReorder(newProducts: AdminProductListItem[]) {
-    setProducts(newProducts);
-    startTransition(() => {
-      reorderProducts(newProducts.map((p) => p.slug));
+  const { items: products, setItems: setProducts, startTransition, handleReorder, removeItem, toast, dismissToast, highlightedKey } =
+    useAdminList<AdminProductListItem>({
+      initial: initialProducts,
+      getId: (p) => p.slug,
+      reorder: reorderProducts,
+      remove: deleteProduct,
+      messages: { created: "Товар успешно добавлен", updated: "Товар успешно отредактирован" },
+      flashSlug,
+      flashAction,
     });
+
+  function handleDelete(product: AdminProductListItem) {
+    if (!confirm(`Удалить товар «${product.name}»? Это действие необратимо.`)) return;
+    removeItem(product);
   }
 
-  function handleDelete(slug: string, name: string) {
-    if (!confirm(`Удалить товар «${name}»? Это действие необратимо.`)) return;
-    setProducts((prev) => prev.filter((p) => p.slug !== slug));
-    startTransition(() => {
-      deleteProduct(slug);
-    });
-  }
-
+  // Publish toggle is products-only, so it stays here rather than in the shared
+  // hook — an optimistic in-place update (not a remove) built on the hook's
+  // exposed setItems / startTransition.
   function handleTogglePublished(slug: string, nextPublished: boolean) {
     setProducts((prev) => prev.map((p) => (p.slug === slug ? { ...p, published: nextPublished } : p)));
     startTransition(() => {
@@ -102,7 +97,7 @@ export function ProductsList({ products: initialProducts, sortable = true, flash
               </Link>
               <button
                 type="button"
-                onClick={() => handleDelete(product.slug, product.name)}
+                onClick={() => handleDelete(product)}
                 className="rounded-md border border-red-200 px-3 py-1 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
               >
                 Удалить

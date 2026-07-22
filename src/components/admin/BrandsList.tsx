@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import Link from "next/link";
 import { SortableList } from "@/components/admin/SortableList";
 import { Toast } from "@/components/admin/ui/Toast";
 import { reorderBrands, deleteBrand } from "@/lib/admin/actions";
 import { describeBrandUsage } from "@/lib/admin/queries";
-import { useSaveFlowFlash } from "@/lib/admin/use-save-flow-flash";
+import { useAdminList } from "@/lib/admin/use-admin-list";
 import type { AdminBrand } from "@/lib/admin/queries";
 
 interface BrandsListProps {
@@ -16,28 +15,19 @@ interface BrandsListProps {
 }
 
 export function BrandsList({ brands: initialBrands, flashSlug, flashAction }: BrandsListProps) {
-  const [brands, setBrands] = useState(initialBrands);
-  const [, startTransition] = useTransition();
-  const { toast, dismissToast, highlightedKey } = useSaveFlowFlash({
-    flashKey: flashSlug,
-    flashAction,
+  const { items: brands, handleReorder, removeItem, toast, dismissToast, highlightedKey } = useAdminList<AdminBrand>({
+    initial: initialBrands,
+    getId: (brand) => brand.slug,
+    reorder: reorderBrands,
+    remove: deleteBrand,
     messages: { created: "Бренд успешно добавлен", updated: "Бренд успешно отредактирован" },
+    flashSlug,
+    flashAction,
   });
-
-  function handleReorder(newBrands: AdminBrand[]) {
-    setBrands(newBrands);
-    startTransition(() => {
-      reorderBrands(newBrands.map((brand) => brand.slug));
-    });
-  }
 
   function handleDelete(brand: AdminBrand) {
     if (!confirm(`Удалить бренд «${brand.name}»?${describeBrandUsage(brand)} Это действие необратимо.`)) return;
-
-    setBrands((prev) => prev.filter((b) => b.slug !== brand.slug));
-    startTransition(() => {
-      deleteBrand(brand.slug);
-    });
+    removeItem(brand);
   }
 
   return (

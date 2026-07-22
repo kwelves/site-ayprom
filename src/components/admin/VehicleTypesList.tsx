@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Truck } from "lucide-react";
 import { SortableList } from "@/components/admin/SortableList";
 import { Toast } from "@/components/admin/ui/Toast";
 import { reorderVehicleTypes, deleteVehicleType } from "@/lib/admin/actions";
 import { describeVehicleTypeUsage } from "@/lib/admin/queries";
-import { useSaveFlowFlash } from "@/lib/admin/use-save-flow-flash";
+import { useAdminList } from "@/lib/admin/use-admin-list";
 import type { AdminVehicleType } from "@/lib/admin/queries";
 
 interface VehicleTypesListProps {
@@ -17,20 +16,16 @@ interface VehicleTypesListProps {
 }
 
 export function VehicleTypesList({ vehicleTypes: initialVehicleTypes, flashSlug, flashAction }: VehicleTypesListProps) {
-  const [vehicleTypes, setVehicleTypes] = useState(initialVehicleTypes);
-  const [, startTransition] = useTransition();
-  const { toast, dismissToast, highlightedKey } = useSaveFlowFlash({
-    flashKey: flashSlug,
-    flashAction,
-    messages: { created: "Тип техники успешно добавлен", updated: "Тип техники успешно отредактирован" },
-  });
-
-  function handleReorder(newVehicleTypes: AdminVehicleType[]) {
-    setVehicleTypes(newVehicleTypes);
-    startTransition(() => {
-      reorderVehicleTypes(newVehicleTypes.map((vehicleType) => vehicleType.slug));
+  const { items: vehicleTypes, handleReorder, removeItem, toast, dismissToast, highlightedKey } =
+    useAdminList<AdminVehicleType>({
+      initial: initialVehicleTypes,
+      getId: (vehicleType) => vehicleType.slug,
+      reorder: reorderVehicleTypes,
+      remove: deleteVehicleType,
+      messages: { created: "Тип техники успешно добавлен", updated: "Тип техники успешно отредактирован" },
+      flashSlug,
+      flashAction,
     });
-  }
 
   function handleDelete(vehicleType: AdminVehicleType) {
     if (
@@ -40,11 +35,7 @@ export function VehicleTypesList({ vehicleTypes: initialVehicleTypes, flashSlug,
     ) {
       return;
     }
-
-    setVehicleTypes((prev) => prev.filter((v) => v.slug !== vehicleType.slug));
-    startTransition(() => {
-      deleteVehicleType(vehicleType.slug);
-    });
+    removeItem(vehicleType);
   }
 
   return (

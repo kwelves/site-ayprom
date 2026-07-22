@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import Link from "next/link";
 import { SortableList } from "@/components/admin/SortableList";
 import { Toast } from "@/components/admin/ui/Toast";
 import { reorderCategories, deleteCategory } from "@/lib/admin/actions";
 import { describeCategoryUsage } from "@/lib/admin/queries";
-import { useSaveFlowFlash } from "@/lib/admin/use-save-flow-flash";
+import { useAdminList } from "@/lib/admin/use-admin-list";
 import { cn } from "@/lib/utils";
 import type { AdminCategory } from "@/lib/admin/queries";
 
@@ -17,20 +16,16 @@ interface CategoriesListProps {
 }
 
 export function CategoriesList({ categories: initialCategories, flashSlug, flashAction }: CategoriesListProps) {
-  const [categories, setCategories] = useState(initialCategories);
-  const [, startTransition] = useTransition();
-  const { toast, dismissToast, highlightedKey } = useSaveFlowFlash({
-    flashKey: flashSlug,
-    flashAction,
-    messages: { created: "Категория успешно добавлена", updated: "Категория успешно отредактирована" },
-  });
-
-  function handleReorder(newCategories: AdminCategory[]) {
-    setCategories(newCategories);
-    startTransition(() => {
-      reorderCategories(newCategories.map((category) => category.slug));
+  const { items: categories, handleReorder, removeItem, toast, dismissToast, highlightedKey } =
+    useAdminList<AdminCategory>({
+      initial: initialCategories,
+      getId: (category) => category.slug,
+      reorder: reorderCategories,
+      remove: deleteCategory,
+      messages: { created: "Категория успешно добавлена", updated: "Категория успешно отредактирована" },
+      flashSlug,
+      flashAction,
     });
-  }
 
   function handleDelete(category: AdminCategory) {
     if (category.productCount > 0) {
@@ -42,11 +37,7 @@ export function CategoriesList({ categories: initialCategories, flashSlug, flash
     if (!confirm(`Удалить категорию «${category.name}»?${describeCategoryUsage(category)} Это действие необратимо.`)) {
       return;
     }
-
-    setCategories((prev) => prev.filter((c) => c.slug !== category.slug));
-    startTransition(() => {
-      deleteCategory(category.slug);
-    });
+    removeItem(category);
   }
 
   return (
