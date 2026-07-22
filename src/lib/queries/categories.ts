@@ -24,12 +24,16 @@ function mapCategory(row: CategoryRow): Category {
   };
 }
 
-export async function getCategories(): Promise<Category[]> {
+// Wrapped in cache() so the per-request duplicate calls dedupe to one Supabase
+// round trip: the shared (site) layout fetches categories for Header/Footer nav,
+// and the same request's catalog category page fetches them again — two calls
+// collapse to one.
+export const getCategories = cache(async (): Promise<Category[]> => {
   const supabase = await createClient();
   const { data, error } = await supabase.from("categories").select("*").order("order");
   if (error) throw error;
   return (data as CategoryRow[]).map(mapCategory);
-}
+});
 
 // Wrapped in cache() so generateMetadata and the page body — which both
 // call this with the same slug — share one Supabase request per render

@@ -14,12 +14,16 @@ function mapVehicleType(row: VehicleTypeRow): VehicleType {
   };
 }
 
-export async function getVehicleTypes(): Promise<VehicleType[]> {
+// Wrapped in cache() so the per-request duplicate calls dedupe to one Supabase
+// round trip: the shared (site) layout fetches vehicle types for Header/Footer
+// nav, and the same request's page also fetches them (homepage Hero,
+// ProductDetail's "Подходит для" pills) — two calls collapse to one.
+export const getVehicleTypes = cache(async (): Promise<VehicleType[]> => {
   const supabase = await createClient();
   const { data, error } = await supabase.from("vehicle_types").select("slug, name").order("order");
   if (error) throw error;
   return (data as VehicleTypeRow[]).map(mapVehicleType);
-}
+});
 
 // Wrapped in cache() so generateMetadata and the page body — which both
 // call this with the same slug — share one Supabase request per render
