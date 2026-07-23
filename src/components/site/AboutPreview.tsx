@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { MapPin, Package, Phone, ShieldCheck, SlidersHorizontal, Truck, type LucideIcon } from "lucide-react";
 import { Container } from "@/components/ui/Container";
@@ -73,7 +74,7 @@ export function AboutPreview() {
             {values.map(({ icon: Icon, title, description }) => (
               <div
                 key={title}
-                className="flex items-start gap-3 py-3 first:pt-0 sm:block sm:rounded-xl sm:border sm:border-border sm:bg-card sm:p-4 sm:py-4 sm:transition-colors sm:hover:border-blue-200 sm:hover:bg-accent/40"
+                className="flex items-start gap-3 py-3 max-sm:first:pt-0 sm:block sm:rounded-xl sm:border sm:border-border sm:bg-card sm:p-4 sm:transition-colors sm:hover:border-blue-200 sm:hover:bg-accent/40"
               >
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
                   <Icon className="h-4 w-4" />
@@ -94,18 +95,23 @@ export function AboutPreview() {
           </Link>
         </div>
 
-        <div className="flex flex-col gap-5 rounded-2xl border border-blue-100 bg-accent/50 p-6">
-          <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <MapPin className="h-5 w-5" />
-            </span>
-            <div>
-              <p className="text-sm font-semibold text-card-foreground">AYPROM</p>
-              <p className="text-xs text-muted-foreground">Бишкек, Кыргызстан</p>
+        {/* relative so the samosval PNG can be overlaid on top of the contact
+            card (bleeding over its empty right side + slightly below), matching
+            the Tilda mockup — it's a decorative cutout laid over the block,
+            not a separate card. */}
+        <div className="relative">
+          <div className="flex h-full flex-col gap-5 rounded-2xl border border-blue-100 bg-accent/50 p-6">
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                <MapPin className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-card-foreground">AYPROM</p>
+                <p className="text-xs text-muted-foreground">Бишкек, Кыргызстан</p>
+              </div>
             </div>
-          </div>
 
-          <div className="flex flex-1 flex-col justify-center divide-y divide-blue-100">
+            <div className="flex flex-1 flex-col justify-center divide-y divide-blue-100">
             {infoRows.map(({ icon: Icon, label, value, href }) => {
               // The row itself must be the direct child of the divide-y list
               // (not wrapped in an extra element) — first:/last: below compile
@@ -133,7 +139,21 @@ export function AboutPreview() {
                 </div>
               );
             })}
+            </div>
           </div>
+
+          {/* Overlay only from lg up, where the two-column layout gives the
+              contact card an empty right side to lay the truck over. Below lg
+              the card is full-width and the truck would cover the text, so it's
+              hidden rather than shown as a separate block. */}
+          <Image
+            src="/about-samosval.png"
+            alt="Самосвал"
+            width={612}
+            height={408}
+            sizes="360px"
+            className="pointer-events-none absolute -bottom-5 right-0 z-10 hidden w-[72%] max-w-[360px] translate-x-[32%] drop-shadow-xl lg:block"
+          />
         </div>
       </Container>
     </section>
