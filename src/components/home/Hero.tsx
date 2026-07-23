@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Search, ChevronDown } from "lucide-react";
 import { motion } from "framer-motion";
@@ -13,6 +13,15 @@ import type { VehicleType } from "@/types/catalog";
 export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
   const handleHashClick = useHashNavClick();
   const sectionRef = useRef<HTMLElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoLoaded, setVideoLoaded] = useState(false);
+
+  // The video can reach readyState >= 3 (autoplay starts) before React
+  // hydrates and attaches onCanPlay, so that event fires on the bare DOM
+  // node and never reaches our handler — check on mount as a fallback.
+  useEffect(() => {
+    if ((videoRef.current?.readyState ?? 0) >= 3) setVideoLoaded(true);
+  }, []);
 
   // Not a plain scrollIntoView({block: "start"}) — that aligns the next
   // section's top edge with the very top of the viewport, but the sticky
@@ -29,14 +38,17 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
   return (
     <section ref={sectionRef} className="relative flex min-h-[calc(100dvh-4rem)] items-end">
       {/* Fixed backdrop: the video stays pinned to the viewport while the page scrolls over it */}
-      <div className="fixed inset-x-0 top-0 -z-10 h-dvh">
+      <div className="fixed inset-x-0 top-0 -z-10 h-dvh bg-slate-900">
         <video
+          ref={videoRef}
           src="/videos/hero-background.mp4"
           autoPlay
           muted
           loop
           playsInline
-          className="h-full w-full object-cover"
+          preload="auto"
+          onCanPlay={() => setVideoLoaded(true)}
+          className={`h-full w-full object-cover transition-opacity duration-1000 ${videoLoaded ? "opacity-100" : "opacity-0"}`}
         />
         {/* Directional gradient instead of a flat overlay: the top of the video
             stays bright (sky, the truck itself), darkening only toward the
