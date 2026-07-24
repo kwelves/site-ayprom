@@ -136,7 +136,7 @@ export async function VehicleShowcaseSection() {
   if (showcaseTypes.length === 0) return null;
 
   return (
-    <section id="vehicle-showcase" className="scroll-mt-16 py-14 sm:py-16">
+    <section id="vehicle-showcase" className="scroll-mt-16 bg-muted py-14 sm:py-16">
       <Container>
         <Reveal>
           <SectionHeading

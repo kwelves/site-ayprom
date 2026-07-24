@@ -53,10 +53,7 @@ export function buildMainNav(categories: Category[], vehicleTypes: VehicleType[]
     { label: "Главная", href: "/" },
     { label: "Каталог", href: "/#categories", dropdown: catalogDropdown },
     { label: "Бренды", href: "/#brands", dropdown: brandsDropdown },
-    // No homepage section for vehicle types yet, so the parent link goes to
-    // the general catalog instead of a "/#..." anchor — replace with an
-    // anchor once that section exists.
-    { label: "Спецтехника", href: "/catalog", dropdown: vehicleTypeDropdown },
+    { label: "Спецтехника", href: "/#vehicle-showcase", dropdown: vehicleTypeDropdown },
     { label: "О нас", href: "/#about" },
     { label: "Контакты", href: "/#contacts" },
   ];

@@ -61,7 +61,7 @@ const infoRows: InfoRow[] = [
 
 export function AboutPreview() {
   return (
-    <section id="about" className="scroll-mt-16 py-14 sm:py-16">
+    <section id="about" className="scroll-mt-16 bg-muted py-14 sm:py-16">
       <Container className="grid gap-8 lg:grid-cols-[1.2fr_1fr] lg:items-stretch">
         <div>
           <SectionHeading

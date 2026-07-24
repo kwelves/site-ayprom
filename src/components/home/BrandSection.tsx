@@ -36,7 +36,7 @@ export async function BrandSection() {
   const brands = await getBrands();
 
   return (
-    <section id="brands" className="scroll-mt-16 bg-muted py-14 sm:py-16">
+    <section id="brands" className="scroll-mt-16 py-14 sm:py-16">
       <Container>
         <Reveal>
           <SectionHeading

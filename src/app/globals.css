@@ -5,6 +5,25 @@
   --foreground: #0f172a;
 }
 
+@theme {
+  /*
+   * Overrides Tailwind's default blue-* palette with the brand blue sampled
+   * from the AYPROM logo (#3f48cc, pipetted from the logo PNG's background —
+   * see the "Опорный синий" checkpoint). blue-600 is the pipetted value
+   * itself; the rest of the scale keeps Tailwind's original lightness steps
+   * (relative to its own blue-600) so every bg-blue-50 / border-blue-300 /
+   * etc. usage across the site stays visually consistent, just re-hued.
+   */
+  --color-blue-50: #ebecfa;
+  --color-blue-100: #dbddf5;
+  --color-blue-200: #c5c8f0;
+  --color-blue-300: #a2a7e6;
+  --color-blue-400: #787fdb;
+  --color-blue-500: #5960d3;
+  --color-blue-600: #3f48cc;
+  --color-blue-700: #323bbe;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
