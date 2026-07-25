@@ -6,6 +6,7 @@ import { Toast } from "@/components/admin/ui/Toast";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import { reorderSubcategories, deleteSubcategory } from "@/lib/admin/actions";
 import { useAdminList } from "@/lib/admin/use-admin-list";
+import { formatRussianCount } from "@/lib/russian-plural";
 import type { AdminSubcategory } from "@/lib/admin/queries";
 
 export function SubcategoriesList({
@@ -33,7 +34,7 @@ export function SubcategoriesList({
   function handleDelete(subcategory: AdminSubcategory) {
     if (subcategory.productCount > 0) {
       alert(
-        `Нельзя удалить «${subcategory.name}» — в ней ${subcategory.productCount} товар(ов). Сначала перенесите или удалите их.`
+        `Нельзя удалить «${subcategory.name}» — в ней ${formatRussianCount(subcategory.productCount, ["товар", "товара", "товаров"])}. Сначала перенесите или удалите их.`
       );
       return;
     }

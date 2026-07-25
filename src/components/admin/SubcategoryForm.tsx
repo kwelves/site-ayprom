@@ -5,6 +5,7 @@ import { createSubcategory, updateSubcategory, deleteSubcategory, replaceSubcate
 import { slugify } from "@/lib/admin/slugify";
 import { compressFileInput } from "@/lib/admin/compress-image";
 import { useImageReplace } from "@/lib/admin/use-image-replace";
+import { formatRussianCount } from "@/lib/russian-plural";
 import { BackLink } from "@/components/admin/ui/BackLink";
 import { SubmitButton } from "@/components/admin/ui/SubmitButton";
 import { FormField } from "@/components/admin/ui/FormField";
@@ -40,7 +41,7 @@ export function SubcategoryForm({ mode, categorySlug, categoryName, subcategory 
     if (!subcategory) return;
     if (subcategory.productCount > 0) {
       alert(
-        `Нельзя удалить «${subcategory.name}» — в ней ${subcategory.productCount} товар(ов). Сначала перенесите или удалите их.`
+        `Нельзя удалить «${subcategory.name}» — в ней ${formatRussianCount(subcategory.productCount, ["товар", "товара", "товаров"])}. Сначала перенесите или удалите их.`
       );
       return;
     }

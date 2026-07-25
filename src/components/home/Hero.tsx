@@ -29,7 +29,8 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
   // Header (h-16 = 64px) then sits on top of that edge and overlaps into
   // the section, eating its top spacing. Offsetting by the header's height
   // keeps the header's bottom edge flush with the section's top instead.
-  const scrollToNextSection = () => {
+  const scrollToNextSection = (event?: React.MouseEvent) => {
+    event?.preventDefault();
     const target = sectionRef.current?.nextElementSibling;
     if (!target) return;
     const top = target.getBoundingClientRect().top + window.scrollY - 64;
@@ -135,9 +136,10 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
               together rather than the second one dropping to its own line. */}
           <motion.div variants={fadeUp} className="mt-6 flex flex-nowrap gap-2 sm:gap-3">
             <Button
-              href="/catalog"
+              href="/#categories"
               size="lg"
               className="min-w-0 flex-1 px-3 text-sm whitespace-nowrap sm:flex-initial sm:px-6 sm:text-base"
+              onClick={scrollToNextSection}
             >
               Перейти в каталог
             </Button>

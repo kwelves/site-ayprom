@@ -67,7 +67,7 @@ export default async function RootLayout({
               "@type": "PostalAddress",
               addressCountry: "KG",
               addressLocality: "Бишкек",
-              streetAddress: "ул. Ден Сяопина, 457/1",
+              streetAddress: "пр. Дэн Сяопина, 457/1",
             },
             sameAs: ["https://instagram.com/ayprom.kg", "https://tiktok.com/@ayprom.kg"],
           }}

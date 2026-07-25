@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { createCategory, updateCategory, deleteCategory, replaceCategoryImage } from "@/lib/admin/actions";
 import { describeCategoryUsage } from "@/lib/admin/usage-descriptions";
+import { formatRussianCount } from "@/lib/russian-plural";
 import { slugify } from "@/lib/admin/slugify";
 import { compressFileInput } from "@/lib/admin/compress-image";
 import { useImageReplace } from "@/lib/admin/use-image-replace";
@@ -49,7 +50,7 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
     if (!category) return;
     if (category.productCount > 0) {
       alert(
-        `Нельзя удалить «${category.name}» — в категории ${category.productCount} товар(ов). Сначала перенесите или удалите их.`
+        `Нельзя удалить «${category.name}» — в категории ${formatRussianCount(category.productCount, ["товар", "товара", "товаров"])}. Сначала перенесите или удалите их.`
       );
       return;
     }

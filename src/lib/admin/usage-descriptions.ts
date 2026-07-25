@@ -13,14 +13,19 @@
 // Types are imported with `import type`, which TypeScript erases — so this
 // module keeps no runtime dependency on queries.ts.
 import type { AdminBrand, AdminCategory, AdminVehicleType } from "@/lib/admin/queries";
+import { formatRussianCount } from "@/lib/russian-plural";
 
 // Shared by BrandsList and BrandForm's delete buttons — deleting a brand
 // cascades away its product_brands/category_brands rows silently, so both
 // confirmation dialogs need to say what's actually at stake.
 export function describeBrandUsage(brand: AdminBrand): string {
   const parts: string[] = [];
-  if (brand.productCount > 0) parts.push(`${brand.productCount} товар(ах)`);
-  if (brand.categoryCount > 0) parts.push(`${brand.categoryCount} категории(ях)`);
+  if (brand.productCount > 0) {
+    parts.push(formatRussianCount(brand.productCount, ["товаре", "товарах", "товарах"]));
+  }
+  if (brand.categoryCount > 0) {
+    parts.push(formatRussianCount(brand.categoryCount, ["категории", "категориях", "категориях"]));
+  }
   return parts.length > 0 ? ` Бренд используется в ${parts.join(" и ")} — эти связи тоже исчезнут.` : "";
 }
 
@@ -31,8 +36,18 @@ export function describeBrandUsage(brand: AdminBrand): string {
 // separately to block the attempt before it hits that error.
 export function describeCategoryUsage(category: AdminCategory): string {
   const parts: string[] = [];
-  if (category.subcategoryCount > 0) parts.push(`${category.subcategoryCount} подкатегори(ях)`);
-  if (category.categoryBrandCount > 0) parts.push(`${category.categoryBrandCount} привязанных бренд(ах)`);
+  if (category.subcategoryCount > 0) {
+    parts.push(formatRussianCount(category.subcategoryCount, ["подкатегория", "подкатегории", "подкатегорий"]));
+  }
+  if (category.categoryBrandCount > 0) {
+    parts.push(
+      formatRussianCount(category.categoryBrandCount, [
+        "привязанный бренд",
+        "привязанных бренда",
+        "привязанных брендов",
+      ])
+    );
+  }
   return parts.length > 0 ? ` В категории есть ${parts.join(" и ")} — они тоже удалятся.` : "";
 }
 
@@ -40,6 +55,6 @@ export function describeCategoryUsage(category: AdminCategory): string {
 // reasoning as describeBrandUsage.
 export function describeVehicleTypeUsage(vehicleType: AdminVehicleType): string {
   return vehicleType.productCount > 0
-    ? ` Тип используется в ${vehicleType.productCount} товар(ах) — эта связь тоже исчезнет.`
+    ? ` Тип используется в ${formatRussianCount(vehicleType.productCount, ["товаре", "товарах", "товарах"])} — эта связь тоже исчезнет.`
     : "";
 }

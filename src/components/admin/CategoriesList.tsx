@@ -6,6 +6,7 @@ import { Toast } from "@/components/admin/ui/Toast";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import { reorderCategories, deleteCategory } from "@/lib/admin/actions";
 import { describeCategoryUsage } from "@/lib/admin/usage-descriptions";
+import { formatRussianCount } from "@/lib/russian-plural";
 import { useAdminList } from "@/lib/admin/use-admin-list";
 import { cn } from "@/lib/utils";
 import type { AdminCategory } from "@/lib/admin/queries";
@@ -31,7 +32,7 @@ export function CategoriesList({ categories: initialCategories, flashSlug, flash
   function handleDelete(category: AdminCategory) {
     if (category.productCount > 0) {
       alert(
-        `Нельзя удалить «${category.name}» — в категории ${category.productCount} товар(ов). Сначала перенесите или удалите их.`
+        `Нельзя удалить «${category.name}» — в категории ${formatRussianCount(category.productCount, ["товар", "товара", "товаров"])}. Сначала перенесите или удалите их.`
       );
       return;
     }

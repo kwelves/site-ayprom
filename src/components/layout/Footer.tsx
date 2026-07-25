@@ -56,7 +56,7 @@ export function Footer({ categories, vehicleTypes }: { categories: Category[]; v
             <ul className="mt-4 flex flex-col gap-3 text-sm text-slate-300">
               <li className="flex items-start gap-3">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-blue-400" />
-                <span>Кыргызстан, г. Бишкек, ул. Ден Сяопина, 457/1</span>
+                <span>Кыргызстан, г. Бишкек, пр. Дэн Сяопина, 457/1</span>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="h-4 w-4 shrink-0 text-blue-400" />
