@@ -1,5 +1,17 @@
 # Project Brief
 
+## How to use this brief
+
+This brief is a living product direction, not a rigid implementation script. New client feedback, real catalog data, usability findings, and stronger design ideas may change the current direction.
+
+The fixed product constraints are:
+
+- the site is a catalog, not an ecommerce checkout
+- prices are not shown in the first version
+- catalog data and administrative access must remain secure
+
+Other sections describe the current direction. The designer or AI may challenge them, propose alternatives, and explain tradeoffs. When the desired result is unclear, present two or three viable options and recommend one before making a major directional change.
+
 ## Project type
 
 Website catalog with admin panel for spare parts and equipment for special machinery.
@@ -8,15 +20,17 @@ This is not an ecommerce store. There is no cart, online payment, or checkout in
 
 ## Goal
 
-The website should let users open the site, quickly understand what the company offers, browse categories, search products, open product pages, and view product information.
+The website should let customers quickly understand what the company offers, browse categories, search products, open product pages, and contact the company.
 
-There is no separate filter feature. Search (see "Search" section) is the only way to narrow down products in the first version.
+Search is the primary way to narrow down products. The current design does not require a conventional filter sidebar, but lightweight filter-like controls may be added when real data or customer behavior shows a clear need.
 
 ## Audience
 
-Private individuals and small companies who use, repair, rent, or maintain special machinery and trucks.
+The audience includes private owners, small and medium-sized companies, mechanics, drivers, operators, and other working people who use, repair, rent, or maintain special machinery and trucks.
 
-The audience processes information visually, so the interface must be simple, clear, visual, and easy to scan.
+For many customers, working machinery is the source of income that supports their family. They need to find the right part without wasting working time or decoding technical marketing language.
+
+The audience processes information visually, so the interface should be clear, practical, visual, and easy to scan.
 
 ## Visual style
 
@@ -32,16 +46,16 @@ The design should be pleasant, but not overloaded. The main goal is usability an
 
 ## Reference
 
-The client likes the general direction of this website:
+The client strongly likes how this website looks and considers it the main visual reference:
 https://hyva.com.ua/ru/
 
-Do not copy it directly. Use it only as a reference for structure, catalog logic, product/category presentation, and clean industrial style.
+Do not copy it directly. Study what the client likes about its visual hierarchy, catalog logic, product and category presentation, spacing, and industrial character. Propose ways to adapt those qualities to AYPROM.
 
 ## Main page structure
 
-The homepage must be short. Do not create a long landing page.
+The homepage should feel focused and reasonably compact, but it has no strict length limit. Add a section when it helps customers choose a product, trust the company, or contact it. Remove sections that repeat information or exist only to make the page longer.
 
-Homepage sections:
+The current homepage structure is:
 
 1. Header
 2. Hero section
@@ -142,6 +156,12 @@ Footer should include:
 
 Contacts must be easy to see.
 
+## WhatsApp contact badge
+
+The site should include a small circular WhatsApp badge fixed to the bottom-right corner. Clicking it should open the company chat directly.
+
+The badge should remain noticeable without covering content or competing with the main catalog actions. It needs an accessible label, a comfortable touch target, and spacing for mobile safe areas. On product pages, a later iteration may include the product name and article in the initial message.
+
 ## Pages
 
 Required public pages:
@@ -166,13 +186,15 @@ Required admin pages later:
 
 ## Catalog requirements
 
-The catalog must support from 5,000 to 9,000 products in the future.
+The catalog should support approximately 2,000 products.
 
 Do not load all products on the frontend.
 
+Backend pagination means the browser requests one page at a time, for example 24 products. The database returns only that page instead of sending the full catalog to the browser.
+
 Use:
-- server-side pagination
-- backend search (see "Search" section — no separate filter feature)
+- backend pagination
+- backend search as the primary narrowing tool
 - optimized images
 - product import from CSV/Excel in the admin panel later
 
@@ -190,8 +212,6 @@ Product card should show:
 No price in the first version — this is not an ecommerce store, and pricing is not part of the catalog's job.
 
 No availability status in the first version.
-
-No WhatsApp button in the first version.
 
 ## Product page
 
@@ -224,7 +244,9 @@ Admin panel should eventually allow:
 
 ## Search
 
-There is no separate filter feature (see "Goal" and "Catalog requirements"). Search is the only way to narrow down products, so it needs to cover more ground than a typical v1 search.
+Search is the primary way to narrow down products, so it needs to cover more ground than a typical first-version search.
+
+A conventional filter sidebar is not required. Small filter-like controls, suggestions, or shortcuts may be introduced later when they solve a verified customer problem and do not overload the interface.
 
 First version — plain (non-AI) search, but across more fields than just the basics:
 - name, article, brand, category
@@ -236,12 +258,17 @@ Later version:
 
 Do not implement AI search in the first version.
 
-## First development goal
+## Current development state
 
-Build the frontend structure first using mock data.
+The frontend structure has been approved and the project is connected to Supabase.
 
-Do not connect the database yet.
+Supabase is the source of truth for catalog data. Production pages must not fall back to hardcoded
+mock catalog data. Mock data and generated fixtures may be used only in isolated tests, local
+development, and performance checks.
 
-Create clean reusable components, mock product data, category data, and brand data.
+Database schema changes must be tracked as versioned SQL migrations in `supabase/migrations`,
+reviewed and tested locally before they are applied to a remote project. Public reads must use the
+publishable key and remain protected by RLS. Secret/service-role keys must be used only in
+server-side code.
 
-Use Next.js App Router, TypeScript, Tailwind CSS.
+Continue using Next.js App Router, TypeScript, Tailwind CSS, and clean reusable components.
