@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Truck } from "lucide-react";
 
 const REDIRECT_DELAY_MS = 1400;
 
@@ -24,9 +24,9 @@ export function WelcomeSplash() {
         initial={{ scale: 0.6, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
-        className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground"
+        className="flex h-16 w-16 items-center justify-center rounded-full bg-brand p-3"
       >
-        <Truck className="h-8 w-8" />
+        <Image src="/brand/ayprom-icon.png" alt="" width={335} height={272} className="h-full w-full object-contain" />
       </motion.span>
       <motion.div
         initial={{ y: 8, opacity: 0 }}

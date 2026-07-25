@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, Menu, Truck, X } from "lucide-react";
+import { ChevronDown, Menu, X } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { NavDropdown } from "@/components/layout/NavDropdown";
@@ -49,22 +50,23 @@ export function Header({ categories, vehicleTypes }: { categories: Category[]; v
       <Container className="flex h-16 items-center justify-between">
         <Link
           href="/"
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 rounded-lg bg-brand py-1.5 pl-1.5 pr-3"
           onClick={(event) => {
             handleHashClick("/", event);
             setOpen(false);
           }}
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <Truck className="h-5 w-5" />
-          </span>
-          <span
-            className={cn(
-              "text-lg font-bold leading-none transition-colors",
-              overPhoto ? "text-white" : "text-foreground"
-            )}
-          >
-            AY<span className={overPhoto ? "text-blue-300" : "text-primary"}>PROM</span>
+          <Image
+            src="/brand/ayprom-icon.png"
+            alt=""
+            width={335}
+            height={272}
+            className="h-7 w-auto shrink-0 object-contain"
+            priority
+          />
+          <span className="flex flex-col items-stretch">
+            <span className="text-base font-extrabold leading-none tracking-wide text-white">AYPROM</span>
+            <span aria-hidden="true" className="mt-1 h-0.5 w-full rounded-full bg-white" />
           </span>
         </Link>
 

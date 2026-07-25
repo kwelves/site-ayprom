@@ -7,21 +7,25 @@
 
 @theme {
   /*
-   * Overrides Tailwind's default blue-* palette with the brand blue sampled
-   * from the AYPROM logo (#3f48cc, pipetted from the logo PNG's background —
-   * see the "Опорный синий" checkpoint). blue-600 is the pipetted value
-   * itself; the rest of the scale keeps Tailwind's original lightness steps
-   * (relative to its own blue-600) so every bg-blue-50 / border-blue-300 /
-   * etc. usage across the site stays visually consistent, just re-hued.
+   * Overrides Tailwind's default blue-* palette, anchored on the AYPROM logo
+   * blue (#063c94) lightened 20% (client request) — blue-600 below is that
+   * exact result. It's still much darker than Tailwind's own blue-600 (L 36%
+   * vs 53%), so the light tints (50-500) are NOT scaled proportionally to
+   * it — that would crush them into unusable mid-tones. Instead they keep
+   * Tailwind's own absolute lightness targets (just re-hued to this blue),
+   * so bg-blue-50 etc. stay properly light/pastel; only 700 is derived from
+   * 600 (same darkening step Tailwind uses between its own 600 and 700) for
+   * a matching hover shade — it lands close to the original un-lightened
+   * brand blue, which works well as the hover-darken state.
    */
-  --color-blue-50: #ebecfa;
-  --color-blue-100: #dbddf5;
-  --color-blue-200: #c5c8f0;
-  --color-blue-300: #a2a7e6;
-  --color-blue-400: #787fdb;
-  --color-blue-500: #5960d3;
-  --color-blue-600: #3f48cc;
-  --color-blue-700: #323bbe;
+  --color-blue-50: #f0f5fe;
+  --color-blue-100: #dbe8fe;
+  --color-blue-200: #c1d7fc;
+  --color-blue-300: #95bcfb;
+  --color-blue-400: #619bf9;
+  --color-blue-500: #3a82f7;
+  --color-blue-600: #0748b2;
+  --color-blue-700: #063d98;
 }
 
 @theme inline {
@@ -53,6 +57,15 @@
 
   --color-card: var(--color-white);
   --color-card-foreground: var(--color-slate-900);
+
+  /*
+   * Fixed brand navy (#063c94) — the exact logo color the client gave us,
+   * kept separate from --color-primary/blue-600 on purpose: primary is a
+   * theme accent that can get tuned (e.g. lightened 20% on request), but the
+   * logo mark itself (Header pill, Footer/AboutPreview/WelcomeSplash badges)
+   * must always reproduce this exact code regardless of that tuning.
+   */
+  --color-brand: #063c94;
 }
 
 html {

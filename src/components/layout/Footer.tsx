@@ -1,7 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { AtSign, Mail, MapPin, Truck } from "lucide-react";
+import { AtSign, Mail, MapPin } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { Reveal } from "@/components/motion/Reveal";
 import { buildMainNav } from "@/lib/navigation";
@@ -18,8 +19,8 @@ export function Footer({ categories, vehicleTypes }: { categories: Category[]; v
         <Container className="grid gap-10 py-12 sm:grid-cols-2 lg:grid-cols-3 lg:py-16">
           <div>
             <Link href="/" className="flex items-center gap-2" onClick={(event) => handleHashClick("/", event)}>
-              <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                <Truck className="h-5 w-5" />
+              <span className="flex h-9 w-9 items-center justify-center rounded-md bg-brand p-1.5">
+                <Image src="/brand/ayprom-icon.png" alt="" width={335} height={272} className="h-full w-full object-contain" />
               </span>
               <span className="text-lg font-bold leading-none text-white">
                 AY<span className="text-blue-400">PROM</span>
