@@ -61,7 +61,7 @@ export function Header({ categories, vehicleTypes }: { categories: Category[]; v
             alt="AYPROM"
             width={378}
             height={90}
-            className="h-12 w-auto object-contain"
+            className="h-9 w-auto object-contain"
             preload
           />
         </Link>
