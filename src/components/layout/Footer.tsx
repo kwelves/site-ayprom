@@ -18,13 +18,14 @@ export function Footer({ categories, vehicleTypes }: { categories: Category[]; v
       <Reveal>
         <Container className="grid gap-10 py-12 sm:grid-cols-2 lg:grid-cols-3 lg:py-16">
           <div>
-            <Link href="/" className="flex items-center gap-2" onClick={(event) => handleHashClick("/", event)}>
-              <span className="flex h-9 w-9 items-center justify-center rounded-md bg-brand p-1.5">
-                <Image src="/brand/ayprom-icon.png" alt="" width={335} height={272} className="h-full w-full object-contain" />
-              </span>
-              <span className="text-lg font-bold leading-none text-white">
-                AY<span className="text-blue-400">PROM</span>
-              </span>
+            <Link href="/" className="inline-flex" onClick={(event) => handleHashClick("/", event)}>
+              <Image
+                src="/brand/ayprom-logo.png"
+                alt="AYPROM"
+                width={378}
+                height={90}
+                className="h-10 w-auto object-contain"
+              />
             </Link>
             <p className="mt-4 max-w-xs text-sm text-slate-400">
               Гидрооборудование и запчасти для спецтехники и грузовой техники: подбор по

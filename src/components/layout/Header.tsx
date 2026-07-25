@@ -50,24 +50,20 @@ export function Header({ categories, vehicleTypes }: { categories: Category[]; v
       <Container className="flex h-16 items-center justify-between">
         <Link
           href="/"
-          className="flex items-center gap-2 rounded-lg bg-brand py-1.5 pl-1.5 pr-3"
+          className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           onClick={(event) => {
             handleHashClick("/", event);
             setOpen(false);
           }}
         >
           <Image
-            src="/brand/ayprom-icon.png"
-            alt=""
-            width={335}
-            height={272}
-            className="h-7 w-auto shrink-0 object-contain"
-            priority
+            src="/brand/ayprom-logo.png"
+            alt="AYPROM"
+            width={378}
+            height={90}
+            className="h-12 w-auto object-contain"
+            preload
           />
-          <span className="flex flex-col items-stretch">
-            <span className="text-base font-extrabold leading-none tracking-wide text-white">AYPROM</span>
-            <span aria-hidden="true" className="mt-1 h-0.5 w-full rounded-full bg-white" />
-          </span>
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">
