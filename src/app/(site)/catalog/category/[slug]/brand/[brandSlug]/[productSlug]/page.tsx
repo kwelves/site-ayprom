@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ProductDetail } from "@/components/catalog/ProductDetail";
+import { StructuredData } from "@/components/seo/StructuredData";
 import { getCategoryBrands } from "@/lib/queries/category-brands";
 import { getProduct } from "@/lib/queries/products";
+import { buildProductStructuredData } from "@/lib/product-structured-data";
 
 export const revalidate = 60;
 
@@ -20,9 +22,22 @@ interface ProductPageProps {
 }
 
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
-  const { productSlug } = await params;
+  const { slug, brandSlug, productSlug } = await params;
   const product = await getProduct(productSlug);
-  return { title: product ? `${product.name} — AYPROM` : "Товар — AYPROM" };
+  const canonical = `/catalog/category/${slug}/brand/${brandSlug}/${productSlug}`;
+  return product
+    ? {
+        title: product.name,
+        description: product.description || product.shortDescription,
+        alternates: { canonical },
+        openGraph: {
+          type: "website",
+          title: product.name,
+          description: product.shortDescription,
+          images: product.images[0]?.url ? [{ url: product.images[0].url, alt: product.name }] : undefined,
+        },
+      }
+    : { title: "Товар", robots: { index: false } };
 }
 
 export default async function BrandProductPage({ params }: ProductPageProps) {
@@ -41,5 +56,11 @@ export default async function BrandProductPage({ params }: ProductPageProps) {
     notFound();
   }
 
-  return <ProductDetail product={product} />;
+  const canonicalPath = `/catalog/category/${slug}/brand/${brandSlug}/${productSlug}`;
+  return (
+    <>
+      <StructuredData data={buildProductStructuredData(product, canonicalPath)} />
+      <ProductDetail product={product} />
+    </>
+  );
 }

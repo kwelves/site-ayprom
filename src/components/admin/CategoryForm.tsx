@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createCategory, updateCategory, deleteCategory, replaceCategoryImage } from "@/lib/admin/actions";
-import { describeCategoryUsage } from "@/lib/admin/queries";
+import { describeCategoryUsage } from "@/lib/admin/usage-descriptions";
 import { slugify } from "@/lib/admin/slugify";
 import { compressFileInput } from "@/lib/admin/compress-image";
 import { useImageReplace } from "@/lib/admin/use-image-replace";
@@ -165,7 +165,7 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
             </div>
           ) : (
             <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-300 px-4 py-2 text-sm text-slate-600 transition-colors hover:border-primary hover:text-primary">
-              {isUploadingImage ? "Загрузка..." : "Заменить изображение"}
+              {isUploadingImage ? "Загрузка…" : "Заменить изображение"}
               <input
                 type="file"
                 accept="image/*"
@@ -198,7 +198,7 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
         )}
 
         <div className="flex items-center gap-4 border-t border-border pt-6">
-          <SubmitButton pendingLabel={mode === "create" ? "Создание..." : "Сохранение..."}>
+          <SubmitButton pendingLabel={mode === "create" ? "Создание…" : "Сохранение…"}>
             {mode === "create" ? "Создать категорию" : "Сохранить"}
           </SubmitButton>
           {mode === "edit" && (

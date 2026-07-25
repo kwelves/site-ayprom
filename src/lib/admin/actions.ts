@@ -10,13 +10,28 @@ import {
   SESSION_DURATION_SECONDS,
 } from "@/lib/admin/session";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireServerEnv } from "@/lib/env";
 import { slugify } from "@/lib/admin/slugify";
+import { constantTimePasswordEqual, registerLoginAttempt } from "@/lib/admin/login-rate-limit";
+import { MAX_PRODUCT_IMAGES, validateProductImage } from "@/lib/admin/image-validation";
 import type { CategoryIcon } from "@/types/catalog";
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
 
 export async function login(formData: FormData): Promise<void> {
   const password = formData.get("password");
+  const expectedPassword = requireServerEnv("ADMIN_PASSWORD");
 
-  if (typeof password !== "string" || password !== process.env.ADMIN_PASSWORD) {
+  const passwordIsValid =
+    typeof password === "string" && (await constantTimePasswordEqual(password, expectedPassword));
+  const retryAfter = await registerLoginAttempt(passwordIsValid);
+
+  if (retryAfter > 0) {
+    redirect(`/admin/login?error=rate&retry=${retryAfter}`);
+  }
+  if (!passwordIsValid) {
     redirect("/admin/login?error=1");
   }
 
@@ -122,7 +137,10 @@ async function resolveSubcategoryId(
     .eq("slug", subcategorySlug)
     .maybeSingle();
   if (error) throw error;
-  return data?.id ?? null;
+  if (!data) {
+    throw new Error("Выбранная подкатегория не принадлежит выбранной категории.");
+  }
+  return data.id;
 }
 
 // Shared by every create action's "append at the end" ordering: the next
@@ -138,7 +156,8 @@ async function getNextOrder(
   for (const [column, value] of Object.entries(filters ?? {})) {
     query = query.eq(column, value);
   }
-  const { data } = await query.maybeSingle();
+  const { data, error } = await query.maybeSingle();
+  if (error) throw error;
   return (data?.order ?? -1) + 1;
 }
 
@@ -162,7 +181,8 @@ async function generateUniqueSlug(
   let candidate = base;
   let suffix = 2;
   for (;;) {
-    const { data } = await supabase.from(table).select("slug").eq("slug", candidate).maybeSingle();
+    const { data, error } = await supabase.from(table).select("slug").eq("slug", candidate).maybeSingle();
+    if (error) throw error;
     if (!data) return candidate;
     candidate = `${base}-${suffix}`;
     suffix += 1;
@@ -173,6 +193,12 @@ export async function createProduct(formData: FormData): Promise<void> {
   await requireAdminSession();
   const fields = parseProductFormData(formData);
   const supabase = createAdminClient();
+  const photos = formData.getAll("photos").filter((file): file is File => file instanceof File && file.size > 0);
+
+  if (photos.length > MAX_PRODUCT_IMAGES) {
+    throw new Error(`Можно загрузить не более ${MAX_PRODUCT_IMAGES} фотографий товара.`);
+  }
+  await Promise.all(photos.map(validateProductImage));
 
   const [slug, subcategoryId, nextOrder] = await Promise.all([
     generateUniqueSlug(supabase, "products", fields.slugSeed, "product"),
@@ -201,9 +227,7 @@ export async function createProduct(formData: FormData): Promise<void> {
   // input, same submission as the rest of the row) now that the product row
   // — and so its id/slug — exists. The four blocks below touch separate child
   // tables with no cross-dependency, so they run concurrently.
-  const photos = formData.getAll("photos").filter((f): f is File => f instanceof File && f.size > 0);
-
-  await Promise.all([
+  const results = await Promise.allSettled([
     fields.characteristics.length > 0
       ? supabase
           .from("product_characteristics")
@@ -232,6 +256,28 @@ export async function createProduct(formData: FormData): Promise<void> {
       ? Promise.all(photos.map((file, i) => insertProductImage(supabase, product.id, slug, file, i)))
       : Promise.resolve(),
   ]);
+  const failedOperation = results.find((result) => result.status === "rejected");
+
+  if (failedOperation?.status === "rejected") {
+    const cleanupProblems: string[] = [];
+    const { error: rollbackError } = await supabase.from("products").delete().eq("id", product.id);
+    if (rollbackError) cleanupProblems.push(`не удалось удалить неполную запись: ${rollbackError.message}`);
+
+    const { data: files, error: listError } = await supabase.storage.from("product-images").list(slug);
+    if (listError) {
+      cleanupProblems.push(`не удалось проверить загруженные файлы: ${listError.message}`);
+    } else if (files.length > 0) {
+      const { error: removeError } = await supabase.storage
+        .from("product-images")
+        .remove(files.map((file) => `${slug}/${file.name}`));
+      if (removeError) cleanupProblems.push(`не удалось очистить файлы: ${removeError.message}`);
+    }
+
+    const cleanupSuffix = cleanupProblems.length > 0 ? ` Очистка: ${cleanupProblems.join("; ")}.` : "";
+    throw new Error(
+      `Товар не создан: ${getErrorMessage(failedOperation.reason, "ошибка сохранения связанных данных")}.${cleanupSuffix}`,
+    );
+  }
 
   revalidatePath("/admin/products");
   revalidatePublicSite();
@@ -318,17 +364,31 @@ export async function deleteProduct(slug: string): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
 
-  // Storage isn't covered by the DB cascade — every uploaded photo lives
-  // under a folder named after the product's slug, so listing and removing
-  // that folder cleans them up before the row (and its slug) disappears.
-  const { data: files } = await supabase.storage.from("product-images").list(slug);
-  if (files && files.length > 0) {
-    await supabase.storage.from("product-images").remove(files.map((file) => `${slug}/${file.name}`));
-  }
+  const { data: product, error: findError } = await supabase
+    .from("products")
+    .select("id, product_images(url)")
+    .eq("slug", slug)
+    .maybeSingle<{ id: string; product_images: { url: string }[] }>();
+  if (findError) throw findError;
+  if (!product) throw new Error("Товар не найден или уже удалён.");
 
-  // Cascades clean up product_images/product_characteristics/product_brands.
-  const { error } = await supabase.from("products").delete().eq("slug", slug);
-  if (error) throw error;
+  // Сначала подтверждаем удаление в БД. Storage не участвует в транзакции:
+  // если очистка файлов недоступна, товар всё равно не остаётся с битым фото.
+  const { error: deleteError } = await supabase.from("products").delete().eq("id", product.id);
+  if (deleteError) throw deleteError;
+
+  const storagePaths = product.product_images
+    .map((image) => extractStoragePath(image.url, "product-images"))
+    .filter((path): path is string => Boolean(path));
+  if (storagePaths.length > 0) {
+    const { error: removeError } = await supabase.storage.from("product-images").remove(storagePaths);
+    if (removeError) {
+      console.error("Не удалось очистить файлы удалённого товара", {
+        productSlug: slug,
+        message: removeError.message,
+      });
+    }
+  }
   revalidatePath("/admin/products");
   revalidatePublicSite();
   redirect("/admin/products");
@@ -350,7 +410,11 @@ export async function toggleProductPublished(slug: string, published: boolean): 
 export async function reorderProducts(orderedSlugs: string[]): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
-  await Promise.all(orderedSlugs.map((slug, index) => supabase.from("products").update({ order: index }).eq("slug", slug)));
+  const results = await Promise.all(
+    orderedSlugs.map((slug, index) => supabase.from("products").update({ order: index }).eq("slug", slug)),
+  );
+  const failed = results.find((result) => result.error);
+  if (failed?.error) throw failed.error;
   revalidatePath("/admin/products");
   revalidatePublicSite();
 }
@@ -373,9 +437,12 @@ async function insertProductImage(
   file: File,
   order: number
 ): Promise<UploadedImage> {
+  await validateProductImage(file);
   const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
   const path = `${productSlug}/${crypto.randomUUID()}.${ext}`;
-  const { error: uploadError } = await supabase.storage.from("product-images").upload(path, file);
+  const { error: uploadError } = await supabase.storage
+    .from("product-images")
+    .upload(path, file, { contentType: file.type });
   if (uploadError) throw uploadError;
 
   const { data: publicUrlData } = supabase.storage.from("product-images").getPublicUrl(path);
@@ -385,7 +452,17 @@ async function insertProductImage(
     .insert({ product_id: productId, url: publicUrlData.publicUrl, order })
     .select("id, url, order, scale")
     .single();
-  if (insertError) throw insertError;
+  if (insertError) {
+    const { error: cleanupError } = await supabase.storage.from("product-images").remove([path]);
+    if (cleanupError) {
+      console.error("Не удалось удалить orphan-файл фотографии", {
+        productSlug,
+        path,
+        message: cleanupError.message,
+      });
+    }
+    throw insertError;
+  }
   return inserted;
 }
 
@@ -409,15 +486,23 @@ export async function uploadProductImage(
   await requireAdminSession();
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) return null;
+  await validateProductImage(file);
 
   const supabase = createAdminClient();
-  const { data: product, error: productError } = await supabase
+  const [{ data: product, error: productError }, { count, error: countError }] = await Promise.all([
+    supabase
     .from("products")
     .select("slug")
     .eq("id", productId)
-    .maybeSingle();
+    .maybeSingle(),
+    supabase.from("product_images").select("id", { count: "exact", head: true }).eq("product_id", productId),
+  ]);
   if (productError) throw productError;
+  if (countError) throw countError;
   if (!product) return null;
+  if ((count ?? 0) >= MAX_PRODUCT_IMAGES) {
+    throw new Error(`У товара уже максимальное количество фотографий: ${MAX_PRODUCT_IMAGES}.`);
+  }
 
   const inserted = await insertProductImage(supabase, productId, product.slug, file, order);
 
@@ -444,13 +529,19 @@ export async function deleteProductImage(imageId: string): Promise<void> {
   if (findError) throw findError;
   if (!image) return;
 
-  const storagePath = extractStoragePath(image.url, "product-images");
-  if (storagePath) {
-    await supabase.storage.from("product-images").remove([storagePath]);
-  }
-
   const { error: deleteError } = await supabase.from("product_images").delete().eq("id", imageId);
   if (deleteError) throw deleteError;
+
+  const storagePath = extractStoragePath(image.url, "product-images");
+  if (storagePath) {
+    const { error: removeError } = await supabase.storage.from("product-images").remove([storagePath]);
+    if (removeError) {
+      console.error("Не удалось очистить файл удалённой фотографии", {
+        imageId,
+        message: removeError.message,
+      });
+    }
+  }
 
   revalidatePath(`/admin/products/${image.products.slug}/edit`);
   revalidatePublicSite();
@@ -459,7 +550,11 @@ export async function deleteProductImage(imageId: string): Promise<void> {
 export async function reorderProductImages(productSlug: string, orderedImageIds: string[]): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
-  await Promise.all(orderedImageIds.map((id, index) => supabase.from("product_images").update({ order: index }).eq("id", id)));
+  const results = await Promise.all(
+    orderedImageIds.map((id, index) => supabase.from("product_images").update({ order: index }).eq("id", id)),
+  );
+  const failed = results.find((result) => result.error);
+  if (failed?.error) throw failed.error;
   revalidatePath(`/admin/products/${productSlug}/edit`);
   revalidatePublicSite();
 }
@@ -618,7 +713,11 @@ export async function deleteBrand(slug: string): Promise<void> {
 export async function reorderBrands(orderedSlugs: string[]): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
-  await Promise.all(orderedSlugs.map((slug, index) => supabase.from("brands").update({ order: index }).eq("slug", slug)));
+  const results = await Promise.all(
+    orderedSlugs.map((slug, index) => supabase.from("brands").update({ order: index }).eq("slug", slug)),
+  );
+  const failed = results.find((result) => result.error);
+  if (failed?.error) throw failed.error;
   revalidatePath("/admin/brands");
   revalidatePublicSite();
 }
@@ -781,9 +880,11 @@ export async function deleteCategory(slug: string): Promise<void> {
 export async function reorderCategories(orderedSlugs: string[]): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
-  await Promise.all(
-    orderedSlugs.map((slug, index) => supabase.from("categories").update({ order: index }).eq("slug", slug))
+  const results = await Promise.all(
+    orderedSlugs.map((slug, index) => supabase.from("categories").update({ order: index }).eq("slug", slug)),
   );
+  const failed = results.find((result) => result.error);
+  if (failed?.error) throw failed.error;
   revalidatePath("/admin/categories");
   revalidatePublicSite();
 }
@@ -942,7 +1043,11 @@ export async function deleteSubcategory(subcategoryId: string): Promise<void> {
 export async function reorderSubcategories(categorySlug: string, orderedIds: string[]): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
-  await Promise.all(orderedIds.map((id, index) => supabase.from("subcategories").update({ order: index }).eq("id", id)));
+  const results = await Promise.all(
+    orderedIds.map((id, index) => supabase.from("subcategories").update({ order: index }).eq("id", id)),
+  );
+  const failed = results.find((result) => result.error);
+  if (failed?.error) throw failed.error;
   revalidatePath(`/admin/categories/${categorySlug}/subcategories`);
   revalidatePublicSite();
 }
@@ -994,11 +1099,13 @@ export async function updateCategoryBrandOverride(
 export async function reorderCategoryBrands(categorySlug: string, orderedBrandSlugs: string[]): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
-  await Promise.all(
+  const results = await Promise.all(
     orderedBrandSlugs.map((brandSlug, index) =>
       supabase.from("category_brands").update({ order: index }).eq("category_slug", categorySlug).eq("brand_slug", brandSlug)
     )
   );
+  const failed = results.find((result) => result.error);
+  if (failed?.error) throw failed.error;
   revalidatePath(`/admin/categories/${categorySlug}/category-brands`);
   revalidatePublicSite();
 }
@@ -1074,9 +1181,11 @@ export async function deleteVehicleType(slug: string): Promise<void> {
 export async function reorderVehicleTypes(orderedSlugs: string[]): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
-  await Promise.all(
-    orderedSlugs.map((slug, index) => supabase.from("vehicle_types").update({ order: index }).eq("slug", slug))
+  const results = await Promise.all(
+    orderedSlugs.map((slug, index) => supabase.from("vehicle_types").update({ order: index }).eq("slug", slug)),
   );
+  const failed = results.find((result) => result.error);
+  if (failed?.error) throw failed.error;
   revalidatePath("/admin/vehicle-types");
   revalidatePublicSite();
 }

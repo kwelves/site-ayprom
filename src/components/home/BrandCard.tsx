@@ -48,6 +48,8 @@ export function BrandCard({ href, brand, nameClassName, imageClassName, logoScal
         <img
           src={brand.logo}
           alt={`Логотип ${brand.name}`}
+          width={320}
+          height={160}
           className={cn("absolute inset-0 h-full w-full object-contain p-3", imageClassName)}
           style={scale ? { transform: `scale(${scale})` } : undefined}
         />

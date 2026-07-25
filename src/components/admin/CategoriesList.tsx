@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { SortableList } from "@/components/admin/SortableList";
 import { Toast } from "@/components/admin/ui/Toast";
+import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import { reorderCategories, deleteCategory } from "@/lib/admin/actions";
-import { describeCategoryUsage } from "@/lib/admin/queries";
+import { describeCategoryUsage } from "@/lib/admin/usage-descriptions";
 import { useAdminList } from "@/lib/admin/use-admin-list";
 import { cn } from "@/lib/utils";
 import type { AdminCategory } from "@/lib/admin/queries";
@@ -16,7 +17,7 @@ interface CategoriesListProps {
 }
 
 export function CategoriesList({ categories: initialCategories, flashSlug, flashAction }: CategoriesListProps) {
-  const { items: categories, handleReorder, removeItem, toast, dismissToast, highlightedKey } =
+  const { items: categories, handleReorder, removeItem, toast, dismissToast, highlightedKey, actionError, dismissActionError } =
     useAdminList<AdminCategory>({
       initial: initialCategories,
       getId: (category) => category.slug,
@@ -88,6 +89,7 @@ export function CategoriesList({ categories: initialCategories, flashSlug, flash
       )}
     />
     <Toast message={toast} onDismiss={dismissToast} />
+    <AdminActionFeedback message={actionError} onDismiss={dismissActionError} />
     </>
   );
 }

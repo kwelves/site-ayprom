@@ -20,6 +20,8 @@ function BrandGrid({ brands }: { brands: Brand[] }) {
               <img
                 src={brand.logo}
                 alt={`Логотип ${brand.name}`}
+                width={160}
+                height={48}
                 className="max-h-10 max-w-[80%] object-contain sm:max-h-12"
                 style={brand.logoScale ? { transform: `scale(${brand.logoScale})` } : undefined}
               />

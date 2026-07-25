@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  # Fails the build if a credential is committed. Runs first and independently
+  # of `verify`, so a leak is reported even when tests are broken.
+  secret-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # gitleaks needs history to scan past commits, not just the tip.
+          fetch-depth: 0
+
+      - name: Scan repository and history for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Throwaway values for the ephemeral local Supabase started below — these
+    # are NOT real credentials and must never be reused outside CI. Real
+    # secrets belong in repository secrets, never inline here.
+    env:
+      ADMIN_PASSWORD: ci-only-admin-password
+      ADMIN_SESSION_SECRET: ci-only-session-secret-with-at-least-32-bytes
+      NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3001
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v2
+        with:
+          version: 2.109.1
+          github-token: ${{ github.token }}
+
+      - name: Start local Supabase and apply migrations
+        run: supabase start
+
+      - name: Export local Supabase environment
+        run: |
+          supabase status -o env \
+            --override-name api.url=NEXT_PUBLIC_SUPABASE_URL \
+            --override-name auth.anon_key=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY \
+            --override-name auth.service_role_key=SUPABASE_SECRET_KEY \
+            >> "$GITHUB_ENV"
+
+      - name: Database integration and RLS tests
+        run: supabase test db
+
+      - name: Lint, types, and unit tests
+        run: npm run check
+
+      - name: Production build
+        run: npm run build

@@ -4,8 +4,9 @@ import Link from "next/link";
 import { Truck } from "lucide-react";
 import { SortableList } from "@/components/admin/SortableList";
 import { Toast } from "@/components/admin/ui/Toast";
+import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import { reorderVehicleTypes, deleteVehicleType } from "@/lib/admin/actions";
-import { describeVehicleTypeUsage } from "@/lib/admin/queries";
+import { describeVehicleTypeUsage } from "@/lib/admin/usage-descriptions";
 import { useAdminList } from "@/lib/admin/use-admin-list";
 import type { AdminVehicleType } from "@/lib/admin/queries";
 
@@ -16,7 +17,7 @@ interface VehicleTypesListProps {
 }
 
 export function VehicleTypesList({ vehicleTypes: initialVehicleTypes, flashSlug, flashAction }: VehicleTypesListProps) {
-  const { items: vehicleTypes, handleReorder, removeItem, toast, dismissToast, highlightedKey } =
+  const { items: vehicleTypes, handleReorder, removeItem, toast, dismissToast, highlightedKey, actionError, dismissActionError } =
     useAdminList<AdminVehicleType>({
       initial: initialVehicleTypes,
       getId: (vehicleType) => vehicleType.slug,
@@ -76,6 +77,7 @@ export function VehicleTypesList({ vehicleTypes: initialVehicleTypes, flashSlug,
       )}
     />
     <Toast message={toast} onDismiss={dismissToast} />
+    <AdminActionFeedback message={actionError} onDismiss={dismissActionError} />
     </>
   );
 }

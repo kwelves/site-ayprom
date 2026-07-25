@@ -24,7 +24,13 @@ interface BrandPageProps {
 export async function generateMetadata({ params }: BrandPageProps): Promise<Metadata> {
   const { slug } = await params;
   const brand = await getBrand(slug);
-  return { title: brand ? `${brand.name} — AYPROM` : "Каталог — AYPROM" };
+  return brand
+    ? {
+        title: brand.name,
+        description: `Каталог гидрооборудования и запчастей, совместимых с техникой ${brand.name}.`,
+        alternates: { canonical: `/catalog/brand/${slug}` },
+      }
+    : { title: "Каталог", robots: { index: false } };
 }
 
 function BrandHeader({ brand }: { brand: Brand }) {
@@ -36,6 +42,8 @@ function BrandHeader({ brand }: { brand: Brand }) {
           <img
             src={brand.logo}
             alt={`Логотип ${brand.name}`}
+            width={128}
+            height={64}
             className="max-h-full max-w-full object-contain"
             style={brand.logoScale ? { transform: `scale(${brand.logoScale})` } : undefined}
           />

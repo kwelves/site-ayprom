@@ -8,10 +8,10 @@ interface UseAdminListOptions<T> {
   getId: (item: T) => string;
   // Persist the new order (already-mapped ids are handed in). Bind any extra
   // args at the call site, e.g. reorderSubcategories.bind(null, categorySlug).
-  reorder: (ids: string[]) => void;
+  reorder: (ids: string[]) => Promise<void>;
   // Persist a deletion by id. Callers run their own confirm()/guard first and
   // only reach removeItem() when the delete is actually going ahead.
-  remove: (id: string) => void;
+  remove: (id: string) => Promise<void>;
   messages: { created: string; updated: string };
   flashSlug?: string;
   flashAction?: "created" | "updated";
@@ -34,19 +34,51 @@ export function useAdminList<T>({
   flashAction,
 }: UseAdminListOptions<T>) {
   const [items, setItems] = useState(initial);
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
+  const [actionError, setActionError] = useState<string | null>(null);
   const { toast, dismissToast, highlightedKey } = useSaveFlowFlash({ flashKey: flashSlug, flashAction, messages });
 
   function handleReorder(next: T[]) {
+    const previous = items;
     setItems(next);
-    startTransition(() => reorder(next.map(getId)));
+    setActionError(null);
+    startTransition(async () => {
+      try {
+        await reorder(next.map(getId));
+      } catch {
+        setItems(previous);
+        setActionError("Не удалось сохранить новый порядок. Список возвращён в прежнее состояние.");
+      }
+    });
   }
 
   function removeItem(item: T) {
     const id = getId(item);
+    const previous = items;
     setItems((prev) => prev.filter((i) => getId(i) !== id));
-    startTransition(() => remove(id));
+    setActionError(null);
+    startTransition(async () => {
+      try {
+        await remove(id);
+      } catch {
+        setItems(previous);
+        setActionError("Не удалось удалить запись. Она возвращена в список.");
+      }
+    });
   }
 
-  return { items, setItems, startTransition, handleReorder, removeItem, toast, dismissToast, highlightedKey };
+  return {
+    items,
+    setItems,
+    isPending,
+    startTransition,
+    handleReorder,
+    removeItem,
+    toast,
+    dismissToast,
+    highlightedKey,
+    actionError,
+    dismissActionError: () => setActionError(null),
+    reportActionError: setActionError,
+  };
 }

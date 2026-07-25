@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createBrand, updateBrand, deleteBrand, replaceBrandLogo } from "@/lib/admin/actions";
-import { describeBrandUsage } from "@/lib/admin/queries";
+import { describeBrandUsage } from "@/lib/admin/usage-descriptions";
 import { slugify } from "@/lib/admin/slugify";
 import { compressFileInput } from "@/lib/admin/compress-image";
 import { useImageReplace } from "@/lib/admin/use-image-replace";
@@ -113,7 +113,7 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
             </div>
           ) : (
             <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-300 px-4 py-2 text-sm text-slate-600 transition-colors hover:border-primary hover:text-primary">
-              {isUploadingLogo ? "Загрузка..." : "Заменить логотип"}
+              {isUploadingLogo ? "Загрузка…" : "Заменить логотип"}
               <input
                 type="file"
                 accept="image/*"
@@ -126,7 +126,7 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
         </div>
 
         <div className="flex items-center gap-4 border-t border-border pt-6">
-          <SubmitButton pendingLabel={mode === "create" ? "Создание..." : "Сохранение..."}>
+          <SubmitButton pendingLabel={mode === "create" ? "Создание…" : "Сохранение…"}>
             {mode === "create" ? "Создать бренд" : "Сохранить"}
           </SubmitButton>
           {mode === "edit" && (

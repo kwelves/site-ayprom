@@ -1,4 +1,5 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { requireServerEnv } from "@/lib/env";
 
 // Public/publishable key — same as the browser client. Every public page
 // reads through RLS as the anonymous role, which is exactly what we want:
@@ -11,5 +12,8 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 // it into per-request rendering, overriding any `revalidate` export. A
 // stateless client keeps these pages eligible for ISR.
 export async function createClient() {
-  return createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!);
+  return createSupabaseClient(
+    requireServerEnv("NEXT_PUBLIC_SUPABASE_URL"),
+    requireServerEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY")
+  );
 }

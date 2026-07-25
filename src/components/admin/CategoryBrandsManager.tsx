@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { SortableList } from "@/components/admin/SortableList";
 import { Input } from "@/components/admin/ui/Input";
 import { Select } from "@/components/admin/ui/Select";
+import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import {
   addCategoryBrand,
   removeCategoryBrand,
@@ -21,34 +22,56 @@ interface CategoryBrandsManagerProps {
 export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands }: CategoryBrandsManagerProps) {
   const [attached, setAttached] = useState(initialAttached);
   const [selectedBrandToAdd, setSelectedBrandToAdd] = useState("");
+  const [actionError, setActionError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
   const attachedSlugs = new Set(attached.map((brand) => brand.brandSlug));
   const available = allBrands.filter((brand) => !attachedSlugs.has(brand.slug));
 
   function handleReorder(newAttached: AdminCategoryBrand[]) {
+    const previous = attached;
     setAttached(newAttached);
-    startTransition(() => {
-      reorderCategoryBrands(categorySlug, newAttached.map((brand) => brand.brandSlug));
+    setActionError(null);
+    startTransition(async () => {
+      try {
+        await reorderCategoryBrands(categorySlug, newAttached.map((brand) => brand.brandSlug));
+      } catch {
+        setAttached(previous);
+        setActionError("Не удалось сохранить порядок брендов. Список возвращён в прежнее состояние.");
+      }
     });
   }
 
   function handleRemove(brand: AdminCategoryBrand) {
     if (!confirm(`Убрать бренд «${brand.brandName}» из этой категории?`)) return;
+    const previous = attached;
     setAttached((prev) => prev.filter((b) => b.brandSlug !== brand.brandSlug));
-    startTransition(() => {
-      removeCategoryBrand(categorySlug, brand.brandSlug);
+    setActionError(null);
+    startTransition(async () => {
+      try {
+        await removeCategoryBrand(categorySlug, brand.brandSlug);
+      } catch {
+        setAttached(previous);
+        setActionError("Не удалось убрать бренд. Связь восстановлена.");
+      }
     });
   }
 
   function handleOverrideBlur(brandSlug: string, rawValue: string) {
     const parsed = rawValue.trim() ? Number(rawValue) : null;
     const value = parsed !== null && Number.isFinite(parsed) ? parsed : null;
+    const previous = attached;
     setAttached((prev) =>
       prev.map((b) => (b.brandSlug === brandSlug ? { ...b, logoScaleOverride: value ?? undefined } : b))
     );
-    startTransition(() => {
-      updateCategoryBrandOverride(categorySlug, brandSlug, value);
+    setActionError(null);
+    startTransition(async () => {
+      try {
+        await updateCategoryBrandOverride(categorySlug, brandSlug, value);
+      } catch {
+        setAttached(previous);
+        setActionError("Не удалось сохранить масштаб логотипа. Значение восстановлено.");
+      }
     });
   }
 
@@ -56,6 +79,7 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
     const brand = allBrands.find((b) => b.slug === selectedBrandToAdd);
     if (!brand) return;
 
+    const previous = attached;
     setAttached((prev) => [
       ...prev,
       {
@@ -67,8 +91,15 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
       },
     ]);
     setSelectedBrandToAdd("");
-    startTransition(() => {
-      addCategoryBrand(categorySlug, brand.slug);
+    setActionError(null);
+    startTransition(async () => {
+      try {
+        await addCategoryBrand(categorySlug, brand.slug);
+      } catch {
+        setAttached(previous);
+        setSelectedBrandToAdd(brand.slug);
+        setActionError("Не удалось добавить бренд. Изменение отменено.");
+      }
     });
   }
 
@@ -93,7 +124,17 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
                 <Input
                   type="number"
                   step="0.05"
-                  defaultValue={brand.logoScaleOverride}
+                  value={brand.logoScaleOverride ?? ""}
+                  onChange={(event) => {
+                    const parsed = event.target.value.trim() ? Number(event.target.value) : null;
+                    setAttached((previous) =>
+                      previous.map((item) =>
+                        item.brandSlug === brand.brandSlug
+                          ? { ...item, logoScaleOverride: parsed !== null && Number.isFinite(parsed) ? parsed : undefined }
+                          : item,
+                      ),
+                    );
+                  }}
                   onBlur={(e) => handleOverrideBlur(brand.brandSlug, e.target.value)}
                   className="w-20"
                 />
@@ -119,7 +160,7 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
             onChange={(e) => setSelectedBrandToAdd(e.target.value)}
             className="max-w-xs"
           >
-            <option value="">Выберите бренд...</option>
+            <option value="">Выберите бренд…</option>
             {available.map((brand) => (
               <option key={brand.slug} value={brand.slug}>
                 {brand.name}
@@ -136,6 +177,7 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
           </button>
         </div>
       )}
+      <AdminActionFeedback message={actionError} onDismiss={() => setActionError(null)} />
     </div>
   );
 }

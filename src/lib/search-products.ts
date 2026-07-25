@@ -2,6 +2,7 @@ import { getCategories } from "@/lib/queries/categories";
 import { getAllSubcategories } from "@/lib/queries/subcategories";
 import { getBrands } from "@/lib/queries/brands";
 import { brandAliases } from "@/data/brand-aliases";
+import { normalizeSearchQuery } from "@/lib/normalize-search";
 import type { Category, Product, Subcategory, Brand } from "@/types/catalog";
 
 // Plain (non-AI) search across name, article, category, subcategory,
@@ -56,7 +57,7 @@ function buildSearchText(
 }
 
 export async function searchProducts(products: Product[], query: string): Promise<Product[]> {
-  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const words = normalizeSearchQuery(query).split(/\s+/).filter(Boolean);
   if (words.length === 0) return products;
 
   const [categories, subcategories, brands] = await Promise.all([

@@ -7,6 +7,9 @@ import { ScrollToHash } from "@/components/layout/ScrollToHash";
 import { ResetScrollOnNavigate } from "@/components/layout/ResetScrollOnNavigate";
 import { getCategories } from "@/lib/queries/categories";
 import { getVehicleTypes } from "@/lib/queries/vehicle-types";
+import { StructuredData } from "@/components/seo/StructuredData";
+import { MotionPreferences } from "@/components/motion/MotionPreferences";
+import { getSiteUrl } from "@/lib/site-url";
 import "../globals.css";
 
 const geistSans = Geist({
@@ -15,9 +18,23 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "AYPROM — гидрооборудование и запчасти для спецтехники",
+  metadataBase: new URL(getSiteUrl()),
+  title: {
+    default: "AYPROM — гидрооборудование и запчасти для спецтехники",
+    template: "%s — AYPROM",
+  },
   description:
     "AYPROM: каталог гидрооборудования и запчастей для спецтехники и грузовой техники. Подбор по категории, марке техники, названию или артикулу.",
+  openGraph: {
+    type: "website",
+    locale: "ru_KG",
+    siteName: "AYPROM",
+    title: "AYPROM — гидрооборудование и запчасти для спецтехники",
+    description:
+      "Каталог гидрооборудования и запчастей для грузовой и специальной техники в Бишкеке.",
+    images: [{ url: "/images/under-hero-photo.webp", alt: "Грузовая спецтехника AYPROM" }],
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export const revalidate = 60;
@@ -32,11 +49,35 @@ export default async function RootLayout({
   return (
     <html lang="ru" className={`${geistSans.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col bg-background text-foreground">
+        <a
+          href="#main-content"
+          className="fixed left-3 top-3 z-[100] -translate-y-24 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-lg transition-transform focus-visible:translate-y-0"
+        >
+          Перейти к содержимому
+        </a>
+        <MotionPreferences>
+        <StructuredData
+          data={{
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            name: "AYPROM",
+            url: getSiteUrl(),
+            email: "info@ayprom.kg",
+            address: {
+              "@type": "PostalAddress",
+              addressCountry: "KG",
+              addressLocality: "Бишкек",
+              streetAddress: "ул. Ден Сяопина, 457/1",
+            },
+            sameAs: ["https://instagram.com/ayprom.kg", "https://tiktok.com/@ayprom.kg"],
+          }}
+        />
         <ScrollToHash />
         <ResetScrollOnNavigate />
         <Header categories={categories} vehicleTypes={vehicleTypes} />
-        <main className="flex-1">{children}</main>
+        <main id="main-content" className="flex-1" tabIndex={-1}>{children}</main>
         <Footer categories={categories} vehicleTypes={vehicleTypes} />
+        </MotionPreferences>
         <SpeedInsights />
       </body>
     </html>

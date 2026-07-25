@@ -7,24 +7,31 @@ import { ProductGridWithSearch } from "@/components/catalog/ProductGridWithSearc
 import { getBrand } from "@/lib/queries/brands";
 import { getCategory } from "@/lib/queries/categories";
 import { getSubcategory } from "@/lib/queries/subcategories";
-import { getProducts } from "@/lib/queries/products";
+import { getProducts, parseCatalogPage } from "@/lib/queries/products";
 
 export const revalidate = 60;
 
 interface BrandSubcategoryPageProps {
   params: Promise<{ slug: string; categorySlug: string; subSlug: string }>;
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; page?: string }>;
 }
 
 export async function generateMetadata({ params }: BrandSubcategoryPageProps): Promise<Metadata> {
   const { slug, subSlug, categorySlug } = await params;
   const [brand, subcategory] = await Promise.all([getBrand(slug), getSubcategory(categorySlug, subSlug)]);
-  return { title: brand && subcategory ? `${subcategory.name} — ${brand.name} — AYPROM` : "Каталог — AYPROM" };
+  return brand && subcategory
+    ? {
+        title: `${subcategory.name} — ${brand.name}`,
+        description: `${subcategory.name}, совместимые с техникой ${brand.name}.`,
+        alternates: { canonical: `/catalog/brand/${slug}/category/${categorySlug}/subcategory/${subSlug}` },
+      }
+    : { title: "Каталог", robots: { index: false } };
 }
 
 export default async function BrandSubcategoryPage({ params, searchParams }: BrandSubcategoryPageProps) {
   const { slug, categorySlug, subSlug } = await params;
-  const { q } = await searchParams;
+  const { q, page: pageParam } = await searchParams;
+  const page = parseCatalogPage(pageParam);
   const [brand, category, subcategory] = await Promise.all([
     getBrand(slug),
     getCategory(categorySlug),
@@ -35,26 +42,42 @@ export default async function BrandSubcategoryPage({ params, searchParams }: Bra
     notFound();
   }
 
-  const products = await getProducts({ categorySlug, subcategorySlug: subSlug, brandSlug: slug });
+  const productPage = await getProducts({
+    categorySlug,
+    subcategorySlug: subSlug,
+    brandSlug: slug,
+    query: q,
+    page,
+  });
+  const action = `/catalog/brand/${slug}/category/${categorySlug}/subcategory/${subSlug}`;
 
   return (
     <>
       <Reveal>
-        <SectionHeading className="mx-auto max-w-2xl text-center" eyebrow={brand.name} title={subcategory.name} />
+        <SectionHeading
+          as="h1"
+          className="mx-auto max-w-2xl text-center"
+          eyebrow={brand.name}
+          title={subcategory.name}
+        />
       </Reveal>
 
       <div className="mt-6">
         <ProductSearchForm
-          action={`/catalog/brand/${slug}/category/${categorySlug}/subcategory/${subSlug}`}
+          action={action}
           defaultValue={q}
           placeholder={`Поиск по «${subcategory.name}» для «${brand.name}»`}
         />
       </div>
 
       <ProductGridWithSearch
-        products={products}
+        products={productPage.items}
+        total={productPage.total}
+        page={productPage.page}
+        totalPages={productPage.totalPages}
         query={q}
         scopeLabel={`для «${brand.name}» в разделе «${subcategory.name}»`}
+        action={action}
         href={(product) => `/catalog/category/${categorySlug}/subcategory/${subSlug}/${product.slug}`}
         emptyLabel={`Для «${brand.name}» пока нет товаров в разделе «${subcategory.name}». Скоро они здесь появятся.`}
       />

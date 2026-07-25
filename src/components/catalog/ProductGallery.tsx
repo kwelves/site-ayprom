@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { AnimatePresence, motion, type PanInfo } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsTouchDevice } from "@/lib/use-is-touch-device";
+import { ImageFallback } from "@/components/ui/ImageFallback";
 
 interface ProductGalleryProps {
   images: { url: string; scale?: number }[];
@@ -26,9 +26,11 @@ const SWIPE_THRESHOLD = 50;
 export function ProductGallery({ images, alt }: ProductGalleryProps) {
   const [[index, direction], setIndex] = useState<[number, number]>([0, 0]);
   const hasMultiple = images.length > 1;
+  const currentImage = images[index];
   const isTouchDevice = useIsTouchDevice();
 
   const goTo = (nextIndex: number) => {
+    if (images.length === 0) return;
     const wrapped = (nextIndex + images.length) % images.length;
     setIndex([wrapped, nextIndex > index ? 1 : -1]);
   };
@@ -59,7 +61,7 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
       >
         <AnimatePresence initial={false} custom={direction} mode="wait">
           <motion.div
-            key={index}
+            key={currentImage?.url ?? "image-fallback"}
             custom={direction}
             variants={slideVariants}
             initial="enter"
@@ -68,15 +70,13 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
             transition={{ duration: 0.25, ease: "easeInOut" }}
             className="absolute inset-0"
           >
-            <Image
-              src={images[index].url}
+            <ImageFallback
+              src={currentImage?.url}
               alt={alt}
-              fill
               sizes="(max-width: 1023px) 100vw, 50vw"
-              className="object-contain p-6"
-              style={images[index].scale ? { transform: `scale(${images[index].scale})` } : undefined}
+              className="p-6"
+              style={currentImage?.scale ? { transform: `scale(${currentImage.scale})` } : undefined}
               priority={index === 0}
-              draggable={false}
             />
           </motion.div>
         </AnimatePresence>
@@ -89,7 +89,7 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
               aria-label="Предыдущее фото"
               className="absolute left-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             >
-              <ChevronLeft className="h-5 w-5" />
+              <ChevronLeft aria-hidden="true" className="h-5 w-5" />
             </button>
             <button
               type="button"
@@ -97,7 +97,7 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
               aria-label="Следующее фото"
               className="absolute right-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             >
-              <ChevronRight className="h-5 w-5" />
+              <ChevronRight aria-hidden="true" className="h-5 w-5" />
             </button>
           </>
         )}
@@ -119,7 +119,7 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
             >
               <span
                 className={cn(
-                  "block h-2 rounded-full transition-all",
+                  "block h-2 rounded-full transition-[width,background-color]",
                   i === index ? "w-6 bg-primary" : "w-2 bg-border hover:bg-blue-300"
                 )}
               />

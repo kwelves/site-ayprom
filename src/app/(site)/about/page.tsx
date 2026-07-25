@@ -7,9 +7,10 @@ import { Reveal } from "@/components/motion/Reveal";
 import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
 
 export const metadata: Metadata = {
-  title: "О компании — AYPROM",
+  title: "О компании",
   description:
     "AYPROM — поставщик гидравлики для тягачей, самосвалов и спецтехники в Бишкеке: коробки отбора мощности, гидронасосы, гидромоторы, гидроцилиндры, готовые комплекты и монтаж.",
+  alternates: { canonical: "/about" },
 };
 
 interface ValueCard {
@@ -46,6 +47,7 @@ export default function AboutPage() {
     <Container className="py-16 sm:py-24">
       <Reveal>
         <SectionHeading
+          as="h1"
           className="mx-auto text-center"
           eyebrow="О компании"
           title="AYPROM — гидравлика для тягачей, самосвалов и спецтехники"

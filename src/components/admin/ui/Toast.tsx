@@ -17,13 +17,15 @@ export function Toast({ message, onDismiss }: { message: string | null; onDismis
     <AnimatePresence>
       {message && (
         <motion.div
+          role="status"
+          aria-live="polite"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 12 }}
           transition={{ duration: 0.2 }}
           className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 shadow-lg"
         >
-          <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
+          <CheckCircle2 aria-hidden="true" className="h-5 w-5 shrink-0 text-primary" />
           <p className="text-sm font-medium text-card-foreground">{message}</p>
           <button
             type="button"
@@ -31,7 +33,7 @@ export function Toast({ message, onDismiss }: { message: string | null; onDismis
             aria-label="Закрыть уведомление"
             className="ml-2 shrink-0 text-muted-foreground transition-colors hover:text-foreground"
           >
-            <X className="h-4 w-4" />
+            <X aria-hidden="true" className="h-4 w-4" />
           </button>
         </motion.div>
       )}

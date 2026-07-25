@@ -51,7 +51,13 @@ interface CategoryPageProps {
 export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
   const { slug } = await params;
   const category = await getCategory(slug);
-  return { title: category ? `${category.name} — AYPROM` : "Каталог — AYPROM" };
+  return category
+    ? {
+        title: category.name,
+        description: category.description,
+        alternates: { canonical: `/catalog/category/${slug}` },
+      }
+    : { title: "Каталог", robots: { index: false } };
 }
 
 export default async function CategoryPage({ params }: CategoryPageProps) {
@@ -71,7 +77,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     return (
       <>
         <Reveal>
-          <SectionHeading className="mx-auto max-w-2xl text-center" title={category.name} />
+          <SectionHeading as="h1" className="mx-auto max-w-2xl text-center" title={category.name} />
         </Reveal>
 
         <BrandCardGrid brands={categoryBrands} categorySlug={category.slug} className="mt-10" />
@@ -109,6 +115,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     <>
       <Reveal>
         <SectionHeading
+          as="h1"
           className="mx-auto max-w-2xl text-center"
           title={category.name}
           description="Выберите подкатегорию, чтобы быстро найти нужные детали."

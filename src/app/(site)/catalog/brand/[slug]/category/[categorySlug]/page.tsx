@@ -28,7 +28,12 @@ interface BrandCategoryPageProps {
 export async function generateMetadata({ params }: BrandCategoryPageProps): Promise<Metadata> {
   const { slug, categorySlug } = await params;
   const [brand, category] = await Promise.all([getBrand(slug), getCategory(categorySlug)]);
-  return { title: brand && category ? `${category.name} — ${brand.name} — AYPROM` : "Каталог — AYPROM" };
+  return brand && category
+    ? {
+        title: `${category.name} — ${brand.name}`,
+        alternates: { canonical: `/catalog/brand/${slug}/category/${categorySlug}` },
+      }
+    : { title: "Каталог", robots: { index: false } };
 }
 
 export default async function BrandCategoryPage({ params }: BrandCategoryPageProps) {
@@ -64,6 +69,7 @@ export default async function BrandCategoryPage({ params }: BrandCategoryPagePro
     <>
       <Reveal>
         <SectionHeading
+          as="h1"
           className="mx-auto max-w-2xl text-center"
           eyebrow={brand.name}
           title={category.name}

@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { SortableList } from "@/components/admin/SortableList";
 import { Toast } from "@/components/admin/ui/Toast";
+import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import { reorderBrands, deleteBrand } from "@/lib/admin/actions";
-import { describeBrandUsage } from "@/lib/admin/queries";
+import { describeBrandUsage } from "@/lib/admin/usage-descriptions";
 import { useAdminList } from "@/lib/admin/use-admin-list";
 import type { AdminBrand } from "@/lib/admin/queries";
 
@@ -15,7 +16,7 @@ interface BrandsListProps {
 }
 
 export function BrandsList({ brands: initialBrands, flashSlug, flashAction }: BrandsListProps) {
-  const { items: brands, handleReorder, removeItem, toast, dismissToast, highlightedKey } = useAdminList<AdminBrand>({
+  const { items: brands, handleReorder, removeItem, toast, dismissToast, highlightedKey, actionError, dismissActionError } = useAdminList<AdminBrand>({
     initial: initialBrands,
     getId: (brand) => brand.slug,
     reorder: reorderBrands,
@@ -77,6 +78,7 @@ export function BrandsList({ brands: initialBrands, flashSlug, flashAction }: Br
       )}
     />
     <Toast message={toast} onDismiss={dismissToast} />
+    <AdminActionFeedback message={actionError} onDismiss={dismissActionError} />
     </>
   );
 }

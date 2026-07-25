@@ -8,11 +8,13 @@ export const metadata: Metadata = {
 };
 
 interface LoginPageProps {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; retry?: string }>;
 }
 
 export default async function AdminLoginPage({ searchParams }: LoginPageProps) {
-  const { error } = await searchParams;
+  const { error, retry } = await searchParams;
+  const parsedRetry = Number(retry ?? 0);
+  const retryMinutes = Number.isFinite(parsedRetry) ? Math.max(1, Math.ceil(parsedRetry / 60)) : 15;
 
   return (
     <div className="flex min-h-full flex-1 items-center justify-center px-4">
@@ -25,12 +27,22 @@ export default async function AdminLoginPage({ searchParams }: LoginPageProps) {
             type="password"
             name="password"
             required
-            autoFocus
+            autoComplete="current-password"
             className="mt-1.5 block w-full rounded-md border border-slate-300 px-3 py-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:py-2"
           />
         </label>
 
-        {error && <p className="mt-3 text-sm text-red-600">Неверный пароль.</p>}
+        {error === "rate" ? (
+          <p className="mt-3 text-sm text-red-600" role="alert">
+            Слишком много попыток. Повторите вход примерно через {retryMinutes} мин.
+          </p>
+        ) : (
+          error && (
+            <p className="mt-3 text-sm text-red-600" role="alert">
+              Неверный пароль. Проверьте ввод и повторите попытку.
+            </p>
+          )
+        )}
 
         <button
           type="submit"
@@ -43,7 +55,7 @@ export default async function AdminLoginPage({ searchParams }: LoginPageProps) {
           href="/"
           className="mt-4 flex items-center justify-center gap-1.5 py-3 text-sm font-medium text-slate-500 transition-colors hover:text-primary sm:py-0"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft aria-hidden="true" className="h-4 w-4" />
           Вернуться на сайт
         </Link>
       </form>

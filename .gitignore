@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -43,6 +44,7 @@ next-env.d.ts
 # installed agent skills (regenerated via `npx skills add`, see skills-lock.json)
 /.agents/
 /.claude/skills/
+/.claude/settings.local.json
 
 # graphify output (regenerated via /graphify)
 /graphify-out/

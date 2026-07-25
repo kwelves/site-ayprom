@@ -5,25 +5,32 @@ import { ProductSearchForm } from "@/components/catalog/ProductSearchForm";
 import { ProductGridWithSearch } from "@/components/catalog/ProductGridWithSearch";
 import { getCategory } from "@/lib/queries/categories";
 import { getCategoryBrands } from "@/lib/queries/category-brands";
-import { getProducts } from "@/lib/queries/products";
+import { getProducts, parseCatalogPage } from "@/lib/queries/products";
 
 export const revalidate = 60;
 
 interface BrandInCategoryPageProps {
   params: Promise<{ slug: string; brandSlug: string }>;
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; page?: string }>;
 }
 
 export async function generateMetadata({ params }: BrandInCategoryPageProps): Promise<Metadata> {
   const { slug, brandSlug } = await params;
   const [category, categoryBrands] = await Promise.all([getCategory(slug), getCategoryBrands(slug)]);
   const brand = categoryBrands.find((item) => item.slug === brandSlug);
-  return { title: category && brand ? `${category.name} — ${brand.name} — AYPROM` : "Каталог — AYPROM" };
+  return category && brand
+    ? {
+        title: `${category.name} — ${brand.name}`,
+        description: `${category.name} для техники ${brand.name}.`,
+        alternates: { canonical: `/catalog/category/${slug}/brand/${brandSlug}` },
+      }
+    : { title: "Каталог", robots: { index: false } };
 }
 
 export default async function BrandInCategoryPage({ params, searchParams }: BrandInCategoryPageProps) {
   const { slug, brandSlug } = await params;
-  const { q } = await searchParams;
+  const { q, page: pageParam } = await searchParams;
+  const page = parseCatalogPage(pageParam);
   const [category, categoryBrands] = await Promise.all([getCategory(slug), getCategoryBrands(slug)]);
   const brand = categoryBrands.find((item) => item.slug === brandSlug);
 
@@ -31,7 +38,8 @@ export default async function BrandInCategoryPage({ params, searchParams }: Bran
     notFound();
   }
 
-  const brandProducts = await getProducts({ categorySlug: slug, brandSlug });
+  const productPage = await getProducts({ categorySlug: slug, brandSlug, query: q, page });
+  const action = `/catalog/category/${slug}/brand/${brandSlug}`;
 
   return (
     <>
@@ -43,6 +51,8 @@ export default async function BrandInCategoryPage({ params, searchParams }: Bran
             <img
               src={brand.logo}
               alt={`Логотип ${brand.name}`}
+              width={128}
+              height={64}
               className="max-h-full max-w-full object-contain"
               style={brand.logoScale ? { transform: `scale(${brand.logoScale})` } : undefined}
             />
@@ -50,22 +60,26 @@ export default async function BrandInCategoryPage({ params, searchParams }: Bran
           {/* Visually hidden — the logo above already identifies the brand
               on screen, but the page still needs a real text heading for
               SEO and screen readers. */}
-          <h2 className="sr-only">{brand.name}</h2>
+          <h1 className="sr-only">{brand.name}</h1>
         </div>
       </Reveal>
 
       <div className="mt-6">
         <ProductSearchForm
-          action={`/catalog/category/${slug}/brand/${brandSlug}`}
+          action={action}
           defaultValue={q}
           placeholder={`Поиск по «${brand.name}»`}
         />
       </div>
 
       <ProductGridWithSearch
-        products={brandProducts}
+        products={productPage.items}
+        total={productPage.total}
+        page={productPage.page}
+        totalPages={productPage.totalPages}
         query={q}
         scopeLabel={`для бренда «${brand.name}»`}
+        action={action}
         href={(product) => `/catalog/category/${slug}/brand/${brandSlug}/${product.slug}`}
         emptyLabel="Для этого бренда пока нет товаров. Скоро они здесь появятся."
       />

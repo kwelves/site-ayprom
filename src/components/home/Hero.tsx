@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Search, ChevronDown } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { fadeUp, staggerContainer } from "@/lib/motion";
@@ -15,13 +15,14 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
   const sectionRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoLoaded, setVideoLoaded] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
 
   // The video can reach readyState >= 3 (autoplay starts) before React
   // hydrates and attaches onCanPlay, so that event fires on the bare DOM
   // node and never reaches our handler — check on mount as a fallback.
   useEffect(() => {
-    if ((videoRef.current?.readyState ?? 0) >= 3) setVideoLoaded(true);
-  }, []);
+    if (!prefersReducedMotion && (videoRef.current?.readyState ?? 0) >= 3) setVideoLoaded(true);
+  }, [prefersReducedMotion]);
 
   // Not a plain scrollIntoView({block: "start"}) — that aligns the next
   // section's top edge with the very top of the viewport, but the sticky
@@ -32,24 +33,38 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
     const target = sectionRef.current?.nextElementSibling;
     if (!target) return;
     const top = target.getBoundingClientRect().top + window.scrollY - 64;
-    window.scrollTo({ top, behavior: "smooth" });
+    window.scrollTo({ top, behavior: prefersReducedMotion ? "auto" : "smooth" });
   };
 
   return (
     <section ref={sectionRef} className="relative flex min-h-[calc(100dvh-4rem)] items-end">
       {/* Fixed backdrop: the video stays pinned to the viewport while the page scrolls over it */}
       <div className="fixed inset-x-0 top-0 -z-10 h-dvh bg-slate-900">
-        <video
-          ref={videoRef}
-          src="/videos/hero-background.mp4"
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-          onCanPlay={() => setVideoLoaded(true)}
-          className={`h-full w-full object-cover transition-opacity duration-1000 ${videoLoaded ? "opacity-100" : "opacity-0"}`}
-        />
+        {prefersReducedMotion ? (
+          <div
+            className="h-full w-full bg-cover bg-center"
+            style={{ backgroundImage: "url('/images/under-hero-photo.webp')" }}
+          />
+        ) : (
+          <video
+            ref={videoRef}
+            poster="/images/under-hero-photo.webp"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            onCanPlay={() => setVideoLoaded(true)}
+            className={`h-full w-full object-cover transition-opacity duration-1000 ${videoLoaded ? "opacity-100" : "opacity-0"}`}
+          >
+            <source
+              src="/videos/hero-background-mobile.mp4"
+              type="video/mp4"
+              media="(max-width: 767px)"
+            />
+            <source src="/videos/hero-background-desktop.mp4" type="video/mp4" />
+          </video>
+        )}
         {/* Directional gradient instead of a flat overlay: the top of the video
             stays bright (sky, the truck itself), darkening only toward the
             bottom where the text sits — guarantees contrast there regardless
@@ -101,11 +116,13 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
             method="GET"
             className="mt-12 flex w-full max-w-lg items-center gap-2 rounded-lg border border-slate-300 bg-card p-1.5 shadow-sm focus-within:border-ring focus-within:ring-1 focus-within:ring-ring"
           >
-            <Search className="ml-2 h-5 w-5 shrink-0 text-slate-400" />
+            <Search aria-hidden="true" className="ml-2 h-5 w-5 shrink-0 text-slate-400" />
             <input
               type="text"
               name="q"
-              placeholder="Например: гидроцилиндр HOWO"
+              aria-label="Поиск по каталогу"
+              autoComplete="off"
+              placeholder="Например: гидроцилиндр HOWO…"
               className="h-10 w-full border-0 bg-transparent text-base text-foreground outline-none placeholder:text-slate-400"
             />
             <Button type="submit" size="lg" className="shrink-0">
@@ -142,10 +159,10 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
         onClick={scrollToNextSection}
         aria-label="Прокрутить вниз"
         className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full p-2.5 text-white/80 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
-        animate={{ y: [0, 8, 0] }}
-        transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+        animate={prefersReducedMotion ? undefined : { y: [0, 8, 0] }}
+        transition={prefersReducedMotion ? undefined : { duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
       >
-        <ChevronDown className="h-8 w-8" />
+        <ChevronDown aria-hidden="true" className="h-8 w-8" />
       </motion.button>
     </section>
   );

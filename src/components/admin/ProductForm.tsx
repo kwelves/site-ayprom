@@ -20,6 +20,7 @@ import { Textarea } from "@/components/admin/ui/Textarea";
 import { Select } from "@/components/admin/ui/Select";
 import { Checkbox } from "@/components/admin/ui/Checkbox";
 import { SortableList } from "@/components/admin/SortableList";
+import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import type { Category, Subcategory, Brand, VehicleType } from "@/types/catalog";
 import type { AdminProduct } from "@/lib/admin/queries";
 
@@ -54,6 +55,7 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
   const [images, setImages] = useState(product?.images ?? []);
   const [isUploading, setIsUploading] = useState(false);
   const [pendingPhotoCount, setPendingPhotoCount] = useState(0);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
   const selectedCategory = categories.find((c) => c.slug === categorySlug);
@@ -106,35 +108,55 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
     if (!files || files.length === 0 || !product) return;
 
     setIsUploading(true);
-    const startOrder = images.length;
-    const uploads = await Promise.all(
-      Array.from(files).map(async (file, index) => {
-        const compressed = await compressImage(file);
-        const formData = new FormData();
-        formData.set("file", compressed);
-        return uploadProductImage(product.id, formData, startOrder + index);
-      })
-    );
-    const uploaded = uploads.filter((image): image is NonNullable<typeof image> => image !== null);
-    if (uploaded.length > 0) {
-      setImages((prev) => [...prev, ...uploaded]);
+    setActionError(null);
+    try {
+      const startOrder = images.length;
+      const uploads = await Promise.all(
+        Array.from(files).map(async (file, index) => {
+          const compressed = await compressImage(file);
+          const formData = new FormData();
+          formData.set("file", compressed);
+          return uploadProductImage(product.id, formData, startOrder + index);
+        }),
+      );
+      const uploaded = uploads.filter((image): image is NonNullable<typeof image> => image !== null);
+      if (uploaded.length > 0) {
+        setImages((prev) => [...prev, ...uploaded]);
+      }
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Не удалось загрузить фотографии.");
+    } finally {
+      setIsUploading(false);
+      event.target.value = "";
     }
-    setIsUploading(false);
-    event.target.value = "";
   }
 
   function handleImageDelete(imageId: string) {
+    const previous = images;
     setImages((prev) => prev.filter((img) => img.id !== imageId));
-    startTransition(() => {
-      deleteProductImage(imageId);
+    setActionError(null);
+    startTransition(async () => {
+      try {
+        await deleteProductImage(imageId);
+      } catch {
+        setImages(previous);
+        setActionError("Не удалось удалить фотографию. Она возвращена в список.");
+      }
     });
   }
 
   function handleImageReorder(newImages: typeof images) {
+    const previous = images;
     setImages(newImages);
     if (!product) return;
-    startTransition(() => {
-      reorderProductImages(product.slug, newImages.map((img) => img.id));
+    setActionError(null);
+    startTransition(async () => {
+      try {
+        await reorderProductImages(product.slug, newImages.map((img) => img.id));
+      } catch {
+        setImages(previous);
+        setActionError("Не удалось сохранить порядок фотографий. Порядок восстановлен.");
+      }
     });
   }
 
@@ -142,9 +164,16 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
     if (!product) return;
     const parsed = rawValue.trim() ? Number(rawValue) : null;
     const value = parsed !== null && Number.isFinite(parsed) ? parsed : null;
+    const previous = images;
     setImages((prev) => prev.map((img) => (img.id === imageId ? { ...img, scale: value } : img)));
-    startTransition(() => {
-      updateProductImageScale(product.slug, imageId, value);
+    setActionError(null);
+    startTransition(async () => {
+      try {
+        await updateProductImageScale(product.slug, imageId, value);
+      } catch {
+        setImages(previous);
+        setActionError("Не удалось сохранить масштаб фотографии. Значение восстановлено.");
+      }
     });
   }
 
@@ -358,10 +387,10 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
               />
             )}
             <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-300 px-4 py-2 text-sm text-slate-600 transition-colors hover:border-primary hover:text-primary">
-              {isUploading ? "Загрузка..." : "Загрузить фото"}
+              {isUploading ? "Загрузка…" : "Загрузить фото"}
               <input
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp,image/avif"
                 multiple
                 className="hidden"
                 onChange={handleImageUpload}
@@ -372,13 +401,16 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
         ) : (
           <div>
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Фотографии</h2>
-            <p className="mt-1 text-xs text-muted-foreground">Необязательно — можно добавить сразу или позже, при редактировании.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Необязательно: товар без фото поддерживается и будет показан с нейтральной заглушкой. До 10 файлов JPEG,
+              PNG, WebP или AVIF, не более 8 МБ каждый.
+            </p>
             <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-300 px-4 py-2 text-sm text-slate-600 transition-colors hover:border-primary hover:text-primary">
               {pendingPhotoCount > 0 ? `Выбрано фото: ${pendingPhotoCount}` : "Выбрать фото"}
               <input
                 type="file"
                 name="photos"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp,image/avif"
                 multiple
                 className="hidden"
                 onChange={async (e) => {
@@ -392,7 +424,7 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
         )}
 
         <div className="flex items-center gap-4 border-t border-border pt-6">
-          <SubmitButton pendingLabel={mode === "create" ? "Создание..." : "Сохранение..."}>
+          <SubmitButton pendingLabel={mode === "create" ? "Создание…" : "Сохранение…"}>
             {mode === "create" ? "Создать товар" : "Сохранить"}
           </SubmitButton>
           {mode === "edit" && (
@@ -402,6 +434,7 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
           )}
         </div>
       </form>
+      <AdminActionFeedback message={actionError} onDismiss={() => setActionError(null)} />
     </div>
   );
 }

@@ -1,36 +1,145 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AYPROM — каталог гидрооборудования
 
-## Getting Started
+Русскоязычный сайт-каталог гидрооборудования и запчастей для грузовой и специальной техники. В проект входят публичный каталог с поиском и карточками товаров, а также защищённая административная панель для управления товарами, категориями, брендами и типами техники.
 
-First, run the development server:
+Это не интернет-магазин: в проекте нет цен, корзины, оплаты и checkout.
+
+## Требования
+
+- Node.js 24.17.0 — версия закреплена в `.nvmrc`;
+- npm 10 или новее;
+- доступ к проекту Supabase;
+- для локальной проверки полного цикла Supabase CLI и Docker-совместимый runtime.
+
+Next.js 16.2.11 требует Node.js не ниже 20.9. Репозиторий дополнительно ограничивает поддерживаемый диапазон в `package.json`.
+
+## Локальный запуск
 
 ```bash
+nvm use
+npm ci
+copy .env.example .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+На macOS/Linux вместо `copy`:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cp .env.example .env.local
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+После заполнения `.env.local` сайт доступен по адресу [http://localhost:3001](http://localhost:3001). Административная панель находится на `/admin`.
 
-## Learn More
+Не коммитьте `.env.local`: все `.env*`, кроме безопасного шаблона `.env.example`, исключены из Git.
 
-To learn more about Next.js, take a look at the following resources:
+## Переменные окружения
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Переменная | Где используется | Секрет |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | URL проекта Supabase, публичные и серверные запросы | нет |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | публичное чтение через RLS | нет |
+| `NEXT_PUBLIC_SITE_URL` | канонический origin сайта без завершающего `/` | нет |
+| `SUPABASE_SECRET_KEY` | административные Server Actions и проверка схемы | да |
+| `ADMIN_PASSWORD` | текущий общий пароль входа в админку | да |
+| `ADMIN_SESSION_SECRET` | HMAC-подпись административной cookie; используйте минимум 32 случайных байта | да |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+`SUPABASE_SECRET_KEY`, `ADMIN_PASSWORD` и `ADMIN_SESSION_SECRET` разрешено читать только серверному коду. Не добавляйте к ним префикс `NEXT_PUBLIC_`.
 
-## Deploy on Vercel
+## Команды
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm run dev          # development-сервер на порту 3001
+npm run lint         # ESLint
+npm run typecheck    # TypeScript без генерации файлов
+npm run test         # unit-тесты Vitest
+npm run check        # безопасная общая проверка: lint + typecheck + unit-тесты
+npm run build        # production-сборка
+npm run start        # запуск production-сборки
+npm run schema:check # read-only сверка миграций с удалённым Supabase
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`schema:check` не меняет БД. Команда сравнивает таблицы и колонки `public`, описанные в `supabase/migrations`, с OpenAPI-схемой PostgREST и проверяет наличие/публичность Storage buckets. Для неё нужен заполненный `.env.local` и сетевой доступ.
+
+## Архитектура
+
+```text
+src/
+├─ app/
+│  ├─ (site)/           публичные страницы и публичный layout
+│  └─ admin/            login и защищённые страницы админки
+├─ components/
+│  ├─ catalog/          карточки, поиск, галерея и страница товара
+│  ├─ admin/            формы, списки и drag-and-drop
+│  ├─ home/             секции главной
+│  └─ ui/               общие UI-компоненты
+├─ lib/
+│  ├─ queries/          публичные read-only запросы к Supabase
+│  ├─ admin/            административные запросы, Server Actions и сессия
+│  └─ supabase/         публичный read-only и серверный service-role клиенты
+├─ types/               доменные типы каталога
+└─ proxy.ts             защита административных маршрутов
+
+supabase/migrations/    последовательная SQL-схема, RLS, grants и Storage
+scripts/                безопасные диагностические команды
+public/                 статические изображения, логотипы и hero-видео
+```
+
+Публичные страницы — преимущественно async Server Components. Они читают данные publishable-ключом и ограничены RLS. Административные мутации выполняются Server Actions после обязательной проверки HMAC-сессии; только этот серверный слой импортирует service-role клиент.
+
+## Ротация секретов
+
+1. Создайте новый секрет в провайдере, не удаляя старый до успешного развёртывания.
+2. Обновите соответствующую переменную окружения во всех средах и выполните production-сборку.
+3. Проверьте вход, чтение каталога и одну обратимую административную операцию.
+4. Отзовите старый ключ у провайдера и повторите проверку.
+
+Смена `ADMIN_SESSION_SECRET` немедленно инвалидирует все административные cookie. При смене `SUPABASE_SECRET_KEY` сначала обновите deployment, затем отзовите прежний service-role/secret key в Supabase. Значения секретов нельзя помещать в issue, CI-логи или сообщения об ошибках.
+
+## Supabase и миграции
+
+Проект использует императивные SQL-миграции в `supabase/migrations`. Новые изменения схемы должны добавляться новой миграцией и проходить локальную проверку до применения на удалённом проекте.
+
+Безопасный цикл:
+
+```bash
+npx supabase --help
+npx supabase start
+npx supabase db reset
+npm run schema:check
+npx supabase db advisors --local
+```
+
+Не запускайте `supabase db reset --linked` для production: эта команда удаляет удалённые данные. Перед `db push` просмотрите миграцию и выполните `supabase db push --dry-run`.
+
+После применения миграций повторите `npm run schema:check`. Ненулевой код выхода означает, что приложение и удалённая схема ещё не синхронизированы; это нельзя игнорировать при релизе.
+
+Текущая схема содержит сущности категорий, подкатегорий, брендов, товаров, изображений, характеристик и типов техники. Публичные роли получают только чтение, а административная запись выполняется service role. Storage buckets `product-images`, `brand-logos` и `category-images` публичны только для выдачи изображений; загрузка и удаление выполняются сервером.
+
+## Performance budgets
+
+- LCP: не более 2,5 с на 75-м перцентиле мобильных визитов;
+- CLS: не более 0,1;
+- INP: не более 200 мс;
+- ответ каталога и поиска: p95 не более 1 с на наборе от 5 000 товаров;
+- одна страница каталога: не более 24 карточек и только одно изображение на карточку;
+- hero-видео: не более 2 МБ для mobile и 5 МБ для desktop.
+
+После релиза контролируйте Web Vitals через Vercel Speed Insights. Перед массовой загрузкой товаров отдельно прогоните нагрузочный сценарий на копии production-данных: локальные seed-данные не подтверждают бюджет для 5 000 товаров.
+
+## Проверка перед передачей изменений
+
+Минимум:
+
+```bash
+npm ci
+npm run check
+npm run build
+```
+
+Если менялись миграции или доступ к данным:
+
+```bash
+npm run schema:check
+```
+
+Подробный аудит исходного состояния и карта рисков находятся в `PROJECT_CONTEXT.md`; продуктовые ограничения — в `PROJECT_BRIEF.md`.

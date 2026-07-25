@@ -1,3 +1,9 @@
+// Server-only: every function here reads through the service-role client.
+// The delete-confirmation wording that Client Components need lives in
+// src/lib/admin/usage-descriptions.ts, so importing it can't pull this
+// module (and the service-role client with it) into the client bundle.
+import "server-only";
+
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { CategoryIcon } from "@/types/catalog";
 
@@ -208,16 +214,6 @@ export async function getAdminBrands(): Promise<AdminBrand[]> {
   return (data as BrandRow[]).map((row) => mapBrand(row, productCounts, categoryCounts));
 }
 
-// Shared by BrandsList and BrandForm's delete buttons — deleting a brand
-// cascades away its product_brands/category_brands rows silently, so both
-// confirmation dialogs need to say what's actually at stake.
-export function describeBrandUsage(brand: AdminBrand): string {
-  const parts: string[] = [];
-  if (brand.productCount > 0) parts.push(`${brand.productCount} товар(ах)`);
-  if (brand.categoryCount > 0) parts.push(`${brand.categoryCount} категории(ях)`);
-  return parts.length > 0 ? ` Бренд используется в ${parts.join(" и ")} — эти связи тоже исчезнут.` : "";
-}
-
 export async function getAdminBrand(slug: string): Promise<AdminBrand | null> {
   const supabase = createAdminClient();
   const [{ data, error }, { productCounts, categoryCounts }] = await Promise.all([
@@ -335,18 +331,6 @@ export async function getAdminCategory(slug: string): Promise<AdminCategory | nu
   ]);
   if (error) throw error;
   return data ? mapCategory(data as CategoryRow, counts) : null;
-}
-
-// Shared by CategoriesList and CategoryForm's delete buttons. Products are
-// deliberately not mentioned here — the DB's FK on products.category_slug
-// has no cascade, so deleting a category with products fails outright
-// rather than silently orphaning them; the caller checks productCount
-// separately to block the attempt before it hits that error.
-export function describeCategoryUsage(category: AdminCategory): string {
-  const parts: string[] = [];
-  if (category.subcategoryCount > 0) parts.push(`${category.subcategoryCount} подкатегори(ях)`);
-  if (category.categoryBrandCount > 0) parts.push(`${category.categoryBrandCount} привязанных бренд(ах)`);
-  return parts.length > 0 ? ` В категории есть ${parts.join(" и ")} — они тоже удалятся.` : "";
 }
 
 export interface AdminSubcategory {
@@ -481,14 +465,6 @@ export async function getAdminVehicleTypes(): Promise<AdminVehicleType[]> {
   if (error) throw error;
 
   return (data as VehicleTypeRow[]).map((row) => mapVehicleType(row, productCounts));
-}
-
-// Shared by VehicleTypesList and VehicleTypeForm's delete buttons — same
-// reasoning as describeBrandUsage.
-export function describeVehicleTypeUsage(vehicleType: AdminVehicleType): string {
-  return vehicleType.productCount > 0
-    ? ` Тип используется в ${vehicleType.productCount} товар(ах) — эта связь тоже исчезнет.`
-    : "";
 }
 
 export async function getAdminVehicleType(slug: string): Promise<AdminVehicleType | null> {

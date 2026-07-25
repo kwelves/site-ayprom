@@ -17,12 +17,14 @@ export function ProductSearchForm({ action, defaultValue, placeholder }: Product
       method="GET"
       className="mx-auto flex w-full max-w-lg items-center gap-2 rounded-lg border border-slate-300 bg-card p-1.5 shadow-sm focus-within:border-ring focus-within:ring-1 focus-within:ring-ring"
     >
-      <Search className="ml-2 h-5 w-5 shrink-0 text-slate-400" />
+      <Search aria-hidden="true" className="ml-2 h-5 w-5 shrink-0 text-slate-400" />
       <input
         type="text"
         name="q"
+        aria-label="Поиск по каталогу"
+        autoComplete="off"
         defaultValue={defaultValue}
-        placeholder={placeholder}
+        placeholder={`${placeholder}…`}
         className="h-10 w-full border-0 bg-transparent text-sm text-foreground outline-none placeholder:text-slate-400"
       />
       <Button type="submit" className="shrink-0">

@@ -1,4 +1,4 @@
-import type { Product } from "@/types/catalog";
+import type { ProductListItem } from "@/types/catalog";
 
 // A product's "real" URL depends on which kind of category it's in —
 // subcategory-type categories (hydraulic-pumps/tanks) nest products under
@@ -11,7 +11,7 @@ import type { Product } from "@/types/catalog";
 // of querying Supabase itself, so callers that already loop over many
 // products (search results, catalog listings) fetch that small lookup once
 // instead of once per product.
-export function getProductHref(product: Product, categoryBrandSlugs: Record<string, string[]>): string {
+export function getProductHref(product: ProductListItem, categoryBrandSlugs: Record<string, string[]>): string {
   if (product.subcategory) {
     return `/catalog/category/${product.category}/subcategory/${product.subcategory}/${product.slug}`;
   }

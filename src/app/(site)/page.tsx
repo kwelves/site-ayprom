@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Hero } from "@/components/home/Hero";
 import { CategorySection } from "@/components/home/CategorySection";
 import { VehicleShowcaseSection } from "@/components/home/VehicleShowcaseSection";
@@ -7,6 +8,9 @@ import { PartnersSection } from "@/components/home/PartnersSection";
 import { getVehicleTypes } from "@/lib/queries/vehicle-types";
 
 export const revalidate = 60;
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 export default async function Home() {
   const vehicleTypes = await getVehicleTypes();

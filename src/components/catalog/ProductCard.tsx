@@ -2,13 +2,13 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
 import { AnimatePresence, motion, type PanInfo } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsTouchDevice } from "@/lib/use-is-touch-device";
-import type { Product } from "@/types/catalog";
+import { ImageFallback } from "@/components/ui/ImageFallback";
+import type { ProductListItem } from "@/types/catalog";
 
 const slideVariants = {
   enter: (direction: number) => ({ x: direction > 0 ? 24 : -24, opacity: 0 }),
@@ -32,10 +32,11 @@ const SWIPE_THRESHOLD = 40;
 // "stretched link"); the photo area sits visually on top of it (own z-index,
 // since it needs to capture the swipe) and re-implements "tap to open" itself
 // via onTap, ignoring taps that land on the arrow buttons.
-export function ProductCard({ product, href }: { product: Product; href: string }) {
+export function ProductCard({ product, href }: { product: ProductListItem; href: string }) {
   const router = useRouter();
   const [[index, direction], setIndex] = useState<[number, number]>([0, 0]);
   const hasMultiple = product.images.length > 1;
+  const currentImage = product.images[index];
   const isTouchDevice = useIsTouchDevice();
   // Framer Motion can still fire onTap right after a drag release when drag
   // and tap gestures share the same element — this flag lets onTap tell a
@@ -43,6 +44,7 @@ export function ProductCard({ product, href }: { product: Product; href: string 
   const didDragRef = useRef(false);
 
   const goTo = (nextIndex: number) => {
+    if (product.images.length === 0) return;
     const wrapped = (nextIndex + product.images.length) % product.images.length;
     setIndex([wrapped, nextIndex > index ? 1 : -1]);
   };
@@ -101,7 +103,7 @@ export function ProductCard({ product, href }: { product: Product; href: string 
       >
         <AnimatePresence initial={false} custom={direction} mode="wait">
           <motion.div
-            key={index}
+            key={currentImage?.url ?? "image-fallback"}
             custom={direction}
             variants={slideVariants}
             initial="enter"
@@ -110,15 +112,13 @@ export function ProductCard({ product, href }: { product: Product; href: string 
             transition={{ duration: 0.2, ease: "easeInOut" }}
             className="absolute inset-0"
           >
-            <Image
-              src={product.images[index].url}
+            <ImageFallback
+              src={currentImage?.url}
               alt={product.name}
-              fill
               sizes="(max-width: 639px) 45vw, (max-width: 1023px) 30vw, 320px"
               quality={60}
-              className="object-contain p-4"
-              style={product.images[index].scale ? { transform: `scale(${product.images[index].scale})` } : undefined}
-              draggable={false}
+              className="p-4"
+              style={currentImage?.scale ? { transform: `scale(${currentImage.scale})` } : undefined}
             />
           </motion.div>
         </AnimatePresence>
@@ -131,7 +131,7 @@ export function ProductCard({ product, href }: { product: Product; href: string 
               aria-label="Предыдущее фото"
               className="absolute left-2 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-card/80 text-primary opacity-70 shadow-sm backdrop-blur-sm transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft aria-hidden="true" className="h-4 w-4" />
             </button>
             <button
               type="button"
@@ -139,7 +139,7 @@ export function ProductCard({ product, href }: { product: Product; href: string 
               aria-label="Следующее фото"
               className="absolute right-2 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-card/80 text-primary opacity-70 shadow-sm backdrop-blur-sm transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight aria-hidden="true" className="h-4 w-4" />
             </button>
           </>
         )}
@@ -169,7 +169,7 @@ export function ProductCard({ product, href }: { product: Product; href: string 
             >
               <span
                 className={cn(
-                  "block h-1.5 rounded-full transition-all",
+                  "block h-1.5 rounded-full transition-[width,background-color]",
                   i === index ? "w-4 bg-primary" : "w-1.5 bg-border hover:bg-blue-300"
                 )}
               />

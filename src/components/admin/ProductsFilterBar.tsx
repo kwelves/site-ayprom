@@ -44,12 +44,18 @@ export function ProductsFilterBar({ categories }: ProductsFilterBarProps) {
   return (
     <div className="mt-4 flex flex-col gap-3 sm:flex-row">
       <Input
+        type="search"
+        name="q"
+        aria-label="Поиск товаров"
+        autoComplete="off"
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        placeholder="Поиск по названию или артикулу..."
+        placeholder="Поиск по названию или артикулу…"
         className="sm:max-w-xs"
       />
       <Select
+        name="category"
+        aria-label="Фильтр по категории"
         defaultValue={searchParams.get("category") ?? ""}
         onChange={(e) => handleCategoryChange(e.target.value)}
         className="sm:max-w-xs"

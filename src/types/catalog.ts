@@ -57,7 +57,7 @@ export interface VehicleType {
   name: string;
 }
 
-export interface Product {
+export interface ProductListItem {
   slug: string;
   name: string;
   /** Category slug. */
@@ -70,19 +70,22 @@ export interface Product {
    * category type; can be empty — a product with no brands yet just doesn't
    * show up on any brand page, which is a normal "not filled in" state. */
   compatibleBrands: string[];
-  /** Vehicle type slugs this product fits (dump truck, tractor unit,
-   * crane-manipulator...). Same "can be empty" convention as compatibleBrands. */
-  vehicleTypes: string[];
-  /** At least one required — images[0] is the cover shown in product cards.
-   * `scale` mirrors Brand.logoScale — a per-photo visual correction for
-   * images with more/less baked-in padding than the rest, so the gallery
-   * reads as evenly "full" without cropping. */
+  /** Can be empty: the catalog officially supports products without photos
+   * and renders ImageFallback until an image is added. `scale` mirrors
+   * Brand.logoScale — a per-photo visual correction for images with
+   * more/less baked-in padding than the rest. */
   images: { url: string; scale?: number }[];
   /** Required so the product card never renders without any text. */
   shortDescription: string;
+  article?: string;
+}
+
+export interface Product extends ProductListItem {
+  /** Vehicle type slugs this product fits (dump truck, tractor unit,
+   * crane-manipulator...). Same "can be empty" convention as compatibleBrands. */
+  vehicleTypes: string[];
   /** Optional — the product page simply omits this block when absent. */
   description?: string;
   /** Ordered, free-text attribute/value pairs — no fixed per-category vocabulary. */
   characteristics?: ProductCharacteristic[];
-  article?: string;
 }

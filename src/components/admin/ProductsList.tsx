@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { SortableList } from "@/components/admin/SortableList";
 import { Toast } from "@/components/admin/ui/Toast";
+import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import { reorderProducts, deleteProduct, toggleProductPublished } from "@/lib/admin/actions";
 import { useAdminList } from "@/lib/admin/use-admin-list";
 import { cn } from "@/lib/utils";
@@ -17,7 +18,19 @@ interface ProductsListProps {
 }
 
 export function ProductsList({ products: initialProducts, sortable = true, flashSlug, flashAction }: ProductsListProps) {
-  const { items: products, setItems: setProducts, startTransition, handleReorder, removeItem, toast, dismissToast, highlightedKey } =
+  const {
+    items: products,
+    setItems: setProducts,
+    startTransition,
+    handleReorder,
+    removeItem,
+    toast,
+    dismissToast,
+    highlightedKey,
+    actionError,
+    dismissActionError,
+    reportActionError,
+  } =
     useAdminList<AdminProductListItem>({
       initial: initialProducts,
       getId: (p) => p.slug,
@@ -37,9 +50,16 @@ export function ProductsList({ products: initialProducts, sortable = true, flash
   // hook — an optimistic in-place update (not a remove) built on the hook's
   // exposed setItems / startTransition.
   function handleTogglePublished(slug: string, nextPublished: boolean) {
+    const previous = products;
     setProducts((prev) => prev.map((p) => (p.slug === slug ? { ...p, published: nextPublished } : p)));
-    startTransition(() => {
-      toggleProductPublished(slug, nextPublished);
+    dismissActionError();
+    startTransition(async () => {
+      try {
+        await toggleProductPublished(slug, nextPublished);
+      } catch {
+        setProducts(previous);
+        reportActionError("Не удалось изменить публикацию. Статус товара возвращён в прежнее состояние.");
+      }
     });
   }
 
@@ -108,6 +128,10 @@ export function ProductsList({ products: initialProducts, sortable = true, flash
         )}
       />
       <Toast message={toast} onDismiss={dismissToast} />
+      <AdminActionFeedback
+        message={actionError}
+        onDismiss={dismissActionError}
+      />
     </>
   );
 }

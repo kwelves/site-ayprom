@@ -6,8 +6,9 @@ import { Reveal } from "@/components/motion/Reveal";
 import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
 
 export const metadata: Metadata = {
-  title: "Контакты — AYPROM",
+  title: "Контакты",
   description: "Адрес, телефоны и соцсети AYPROM в Бишкеке — гидравлика для тягачей, самосвалов и спецтехники.",
+  alternates: { canonical: "/contacts" },
 };
 
 interface ContactCard {
@@ -89,6 +90,7 @@ export default function ContactsPage() {
     <Container className="py-16 sm:py-24">
       <Reveal>
         <SectionHeading
+          as="h1"
           className="mx-auto text-center"
           eyebrow="Контакты"
           title="Свяжитесь с AYPROM"

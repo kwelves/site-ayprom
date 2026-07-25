@@ -123,7 +123,7 @@ export function SubcategoryForm({ mode, categorySlug, categoryName, subcategory 
             </div>
           ) : (
             <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-300 px-4 py-2 text-sm text-slate-600 transition-colors hover:border-primary hover:text-primary">
-              {isUploadingImage ? "Загрузка..." : "Заменить изображение"}
+              {isUploadingImage ? "Загрузка…" : "Заменить изображение"}
               <input
                 type="file"
                 accept="image/*"
@@ -136,7 +136,7 @@ export function SubcategoryForm({ mode, categorySlug, categoryName, subcategory 
         </div>
 
         <div className="flex items-center gap-4 border-t border-border pt-6">
-          <SubmitButton pendingLabel={mode === "create" ? "Создание..." : "Сохранение..."}>
+          <SubmitButton pendingLabel={mode === "create" ? "Создание…" : "Сохранение…"}>
             {mode === "create" ? "Создать подкатегорию" : "Сохранить"}
           </SubmitButton>
           {mode === "edit" && (

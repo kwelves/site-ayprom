@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createVehicleType, updateVehicleType, deleteVehicleType } from "@/lib/admin/actions";
-import { describeVehicleTypeUsage } from "@/lib/admin/queries";
+import { describeVehicleTypeUsage } from "@/lib/admin/usage-descriptions";
 import { slugify } from "@/lib/admin/slugify";
 import { BackLink } from "@/components/admin/ui/BackLink";
 import { FormField } from "@/components/admin/ui/FormField";
@@ -77,7 +77,7 @@ export function VehicleTypeForm({ mode, vehicleType }: VehicleTypeFormProps) {
         )}
 
         <div className="flex items-center gap-4 border-t border-border pt-6">
-          <SubmitButton pendingLabel={mode === "create" ? "Создание..." : "Сохранение..."}>
+          <SubmitButton pendingLabel={mode === "create" ? "Создание…" : "Сохранение…"}>
             {mode === "create" ? "Создать тип техники" : "Сохранить"}
           </SubmitButton>
           {mode === "edit" && (

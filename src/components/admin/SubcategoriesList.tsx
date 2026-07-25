@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { SortableList } from "@/components/admin/SortableList";
 import { Toast } from "@/components/admin/ui/Toast";
+import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import { reorderSubcategories, deleteSubcategory } from "@/lib/admin/actions";
 import { useAdminList } from "@/lib/admin/use-admin-list";
 import type { AdminSubcategory } from "@/lib/admin/queries";
@@ -18,7 +19,7 @@ export function SubcategoriesList({
   flashSlug?: string;
   flashAction?: "created" | "updated";
 }) {
-  const { items: subcategories, handleReorder, removeItem, toast, dismissToast, highlightedKey } =
+  const { items: subcategories, handleReorder, removeItem, toast, dismissToast, highlightedKey, actionError, dismissActionError } =
     useAdminList<AdminSubcategory>({
       initial: initialSubcategories,
       getId: (sub) => sub.id,
@@ -78,6 +79,7 @@ export function SubcategoriesList({
       )}
     />
     <Toast message={toast} onDismiss={dismissToast} />
+    <AdminActionFeedback message={actionError} onDismiss={dismissActionError} />
     </>
   );
 }
