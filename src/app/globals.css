@@ -17,8 +17,8 @@
   --color-blue-300: #a5c8fc;
   --color-blue-400: #78aafa;
   --color-blue-500: #4f91f8;
-  --color-blue-600: #0959dc;
-  --color-blue-700: #084bb9;
+  --color-blue-600: #084bb9;
+  --color-blue-700: #073f9c;
 }
 
 @theme inline {
@@ -52,8 +52,7 @@
   --color-card-foreground: var(--color-slate-900);
 
   /*
-   * Brand blue matches the recolored logo assets. It stays separate from
-   * primary so buttons can remain slightly brighter than the logo.
+   * Brand blue matches the recolored logo assets and primary actions.
    */
   --color-brand: #084bb9;
 }
