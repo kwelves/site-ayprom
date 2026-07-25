@@ -103,11 +103,12 @@ export function AboutPreview() {
           <div className="flex h-full flex-col gap-5 rounded-2xl border border-blue-100 bg-accent/50 p-6">
             <div className="flex items-center gap-3">
               <Image
-                src="/brand/ayprom-icon-light.png"
+                src="/brand/ayprom-icon.svg"
                 alt=""
                 width={102}
                 height={90}
                 className="h-11 w-auto shrink-0 rounded-xl object-contain"
+                unoptimized
               />
               <div>
                 <p className="text-sm font-semibold text-card-foreground">AYPROM</p>

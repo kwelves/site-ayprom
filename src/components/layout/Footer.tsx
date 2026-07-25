@@ -20,11 +20,12 @@ export function Footer({ categories, vehicleTypes }: { categories: Category[]; v
           <div>
             <Link href="/" className="inline-flex" onClick={(event) => handleHashClick("/", event)}>
               <Image
-                src="/brand/ayprom-logo.png"
+                src="/brand/ayprom-logo.svg"
                 alt="AYPROM"
                 width={378}
                 height={90}
                 className="h-10 w-auto object-contain"
+                unoptimized
               />
             </Link>
             <p className="mt-4 max-w-xs text-sm text-slate-400">

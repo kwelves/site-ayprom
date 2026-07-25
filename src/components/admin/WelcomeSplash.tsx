@@ -26,7 +26,14 @@ export function WelcomeSplash() {
         transition={{ duration: 0.4, ease: "easeOut" }}
         className="flex h-16 w-16 items-center justify-center rounded-full bg-brand p-3"
       >
-        <Image src="/brand/ayprom-icon-light.png" alt="" width={102} height={90} className="h-full w-full object-contain" />
+        <Image
+          src="/brand/ayprom-icon.svg"
+          alt=""
+          width={102}
+          height={90}
+          className="h-full w-full object-contain"
+          unoptimized
+        />
       </motion.span>
       <motion.div
         initial={{ y: 8, opacity: 0 }}

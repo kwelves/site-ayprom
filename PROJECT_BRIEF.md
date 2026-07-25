@@ -44,6 +44,23 @@ The client company logo uses blue and white, so the website palette should be ba
 
 The design should be pleasant, but not overloaded. The main goal is usability and fast access to catalog sections.
 
+## Media quality
+
+Quality has priority for every production photo, video, logo, and illustration.
+
+- Raster photos and videos must use an ultra-high-quality or high-quality master
+  with a resolution of at least 2K, preferably 4K.
+- If the best available raster source is below 2K, upscale it before production
+  use and inspect the result for blur, halos, noise, distorted text, and
+  artificial details.
+- Do not upscale or rasterize SVG files. A true SVG has no pixel-resolution
+  limit and must remain vector-based, with a correct `viewBox`, intact paths,
+  and no embedded low-resolution raster image.
+- Do not reduce resolution or compression quality merely to satisfy an
+  arbitrary file-size target. When performance matters, create responsive
+  derivatives from the retained high-resolution master and verify their visual
+  quality on the target screen.
+
 ## Reference
 
 The client strongly likes how this website looks and considers it the main visual reference:

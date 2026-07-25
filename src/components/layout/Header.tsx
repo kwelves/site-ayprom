@@ -57,12 +57,13 @@ export function Header({ categories, vehicleTypes }: { categories: Category[]; v
           }}
         >
           <Image
-            src="/brand/ayprom-logo.png"
+            src="/brand/ayprom-logo.svg"
             alt="AYPROM"
             width={378}
             height={90}
             className="h-9 w-auto object-contain"
             preload
+            unoptimized
           />
         </Link>
 
