@@ -289,3 +289,61 @@ publishable key and remain protected by RLS. Secret/service-role keys must be us
 server-side code.
 
 Continue using Next.js App Router, TypeScript, Tailwind CSS, and clean reusable components.
+
+## Future task backlog
+
+The following tasks are intentionally deferred. They are recorded so they are not lost between
+sessions, but they must not be implemented automatically or treated as fixed first-version
+requirements without a new user request.
+
+Recommended order:
+
+1. Complete the customer contact flow:
+   - add the global circular WhatsApp badge described above
+   - make WhatsApp and phone calls the primary product inquiry actions
+   - prefill the product name and article in WhatsApp messages
+   - keep email as a secondary contact method
+2. Optimize video delivery without sacrificing the retained 4K masters:
+   - create efficient web derivatives and compatible format fallbacks
+   - prepare genuinely separate desktop and mobile versions
+   - defer the Special Machinery background video until the section approaches the viewport
+   - verify visual quality, loading time, data usage, and playback on real mobile devices
+3. Bring the admin image pipeline into line with the media-quality rules:
+   - retain the original high-resolution master
+   - never irreversibly reduce the only stored copy to Full HD
+   - generate separate optimized derivatives for cards and product pages
+4. Add safe bulk product import for the catalog:
+   - CSV and Excel upload
+   - preview and validation before writing
+   - duplicate detection and idempotent create/update by article
+   - dry-run mode and a downloadable row-level error report
+   - plan for batch image association
+5. Improve search result ranking:
+   - exact article match first
+   - article prefix and exact product name next
+   - name, brand, category, and characteristic matches after that
+   - preserve manual ordering as a final tie-breaker
+6. Collect privacy-conscious product analytics:
+   - search and zero-result events
+   - product views
+   - WhatsApp, phone, and email inquiry clicks
+   - popular categories, brands, and vehicle types
+   - do not store unnecessary personal data
+7. Consider lightweight URL-synced catalog controls after real catalog data is loaded:
+   - category
+   - machinery brand
+   - vehicle type
+   - avoid a large conventional filter sidebar unless customer behavior justifies it
+8. Centralize company contact details and working hours in one configuration source, then reuse
+   them in the Footer, Contacts page, structured data, WhatsApp links, and product actions.
+9. Add production observability and recovery:
+   - client and server error reporting
+   - uptime checks for the homepage and catalog
+   - alerts for Supabase/catalog failures
+   - tested backups for database content and uploaded media
+10. Perform a final accessibility and interaction pass, especially visible keyboard focus,
+    safe-area spacing for fixed controls, and real-device touch testing.
+
+Do not add more homepage sections or decorative effects merely to make the site feel more
+complete. The next major phase should prioritize contact conversion, media delivery, catalog
+operations, search quality, and measurable real-user behavior.
