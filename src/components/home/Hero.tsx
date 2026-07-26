@@ -95,12 +95,12 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
             bottom where the text sits — guarantees contrast there regardless
             of what's in that part of the frame, without dimming the whole shot. */}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/35 to-transparent" />
-        {/* This gradient fades to nothing right at the top, so the transparent
-            Header's white logo/nav text — sitting directly on the video up
-            there — has no guaranteed contrast of its own. A second, short
-            top-anchored gradient covers just that strip without touching how
-            bright the rest of the video reads. */}
-        <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-slate-900/55 to-transparent sm:h-28" />
+        {/* Soft local falloff behind the title. It belongs to the video backdrop,
+            so the Hero content itself remains transparent and visually floating. */}
+        <div className="absolute left-0 top-[16%] h-[52%] w-[88%] bg-[radial-gradient(ellipse_at_22%_50%,rgba(2,6,23,0.44)_0%,rgba(2,6,23,0.25)_38%,rgba(2,6,23,0.09)_63%,transparent_82%)] sm:top-[17%] sm:h-[50%] sm:w-[74%] lg:top-[18%] lg:h-[48%] lg:w-[62%]" />
+        {/* A long, diffused fade gives the transparent Header consistent contrast
+            without leaving a visible dark band across the video. */}
+        <div className="absolute inset-x-0 top-0 h-32 bg-[linear-gradient(180deg,rgba(2,6,23,0.62)_0%,rgba(2,6,23,0.32)_42%,rgba(2,6,23,0.11)_70%,transparent_100%)] sm:h-36" />
       </div>
 
       <Container className="pb-24 sm:pb-28 lg:pb-32">
