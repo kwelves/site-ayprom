@@ -1,4 +1,3 @@
-import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/motion/Reveal";
 import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
@@ -140,12 +139,12 @@ export async function VehicleShowcaseSection() {
   return (
     <section
       id="vehicle-showcase"
-      className="relative isolate scroll-mt-16 overflow-hidden py-16 sm:py-20"
+      className="relative isolate scroll-mt-16 overflow-hidden pt-8 pb-16 sm:pt-10 sm:pb-20"
     >
       <VehicleShowcaseBackground />
 
-      <Container className="relative z-10">
-        <Reveal>
+      <div className="relative z-10">
+        <Reveal className="px-[15px]">
           <SectionHeading
             eyebrow="Спецтехника"
             title="Оборудование для спецтехники"
@@ -155,11 +154,10 @@ export async function VehicleShowcaseSection() {
           />
         </Reveal>
 
-        <StaggerGroup className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+        <StaggerGroup className="mt-10 grid grid-cols-2 gap-[15px] px-[15px] lg:grid-cols-4">
           {showcaseRows.flatMap((row, rowIndex) =>
-            row.map((vehicleType, columnIndex) => {
+            row.map((vehicleType) => {
               const visual = vehicleVisuals[vehicleType.slug];
-              const cardIndex = rowIndex * showcaseTypes.length + columnIndex;
 
               return (
                 <StaggerItem key={`${vehicleType.slug}-${rowIndex}`}>
@@ -171,14 +169,13 @@ export async function VehicleShowcaseSection() {
                     nativeHeight={visual.nativeHeight}
                     placement={visual.placement}
                     shadows={visual.shadows}
-                    floatDelay={cardIndex * 0.55}
                   />
                 </StaggerItem>
               );
             }),
           )}
         </StaggerGroup>
-      </Container>
+      </div>
     </section>
   );
 }
