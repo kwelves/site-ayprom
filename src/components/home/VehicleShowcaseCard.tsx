@@ -55,7 +55,7 @@ export function VehicleShowcaseCard({
   return (
     <MotionLink
       href={href}
-      className="group relative z-0 flex h-full transform-gpu flex-col overflow-hidden rounded-xl border border-white/65 bg-card/90 shadow-[0_22px_50px_-24px_rgba(0,0,0,0.95),0_10px_24px_-16px_rgba(0,0,0,0.85)] ring-1 ring-white/20 backdrop-blur-[4px] transition-colors duration-150 will-change-transform hover:z-10 hover:border-blue-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+      className="group relative z-0 flex h-full transform-gpu flex-col overflow-hidden rounded-xl border border-white/65 bg-card/85 shadow-[0_22px_50px_-24px_rgba(0,0,0,0.95),0_10px_24px_-16px_rgba(0,0,0,0.85)] ring-1 ring-white/20 backdrop-blur-[4px] transition-colors duration-150 will-change-transform hover:z-10 hover:border-blue-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
       whileHover={shouldReduceMotion ? undefined : { scale: 1.025, y: -4 }}
       whileTap={shouldReduceMotion ? undefined : { scale: 0.99 }}
       transition={hoverTransition}
