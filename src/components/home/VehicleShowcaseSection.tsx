@@ -154,7 +154,7 @@ export async function VehicleShowcaseSection() {
           />
         </Reveal>
 
-        <StaggerGroup className="mx-auto mt-10 grid w-[77%] grid-cols-2 gap-[25px] lg:w-4/5 lg:grid-cols-4">
+        <StaggerGroup className="mx-auto mt-10 grid w-[calc(77%+5px)] grid-cols-2 gap-[30px] lg:w-[calc(80%+15px)] lg:grid-cols-4">
           {showcaseRows.flatMap((row, rowIndex) =>
             row.map((vehicleType) => {
               const visual = vehicleVisuals[vehicleType.slug];
