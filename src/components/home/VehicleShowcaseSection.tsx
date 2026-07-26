@@ -2,6 +2,7 @@ import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/motion/Reveal";
 import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
+import { VehicleShowcaseBackground } from "@/components/home/VehicleShowcaseBackground";
 import { VehicleShowcaseCard } from "@/components/home/VehicleShowcaseCard";
 import { getVehicleTypes } from "@/lib/queries/vehicle-types";
 
@@ -132,38 +133,50 @@ const vehicleVisuals: Record<
 export async function VehicleShowcaseSection() {
   const vehicleTypes = await getVehicleTypes();
   const showcaseTypes = vehicleTypes.filter((vehicleType) => vehicleType.slug in vehicleVisuals);
+  const showcaseRows = [showcaseTypes, showcaseTypes];
 
   if (showcaseTypes.length === 0) return null;
 
   return (
-    <section id="vehicle-showcase" className="scroll-mt-16 bg-muted py-14 sm:py-16">
-      <Container>
+    <section
+      id="vehicle-showcase"
+      className="relative isolate scroll-mt-16 overflow-hidden py-16 sm:py-20"
+    >
+      <VehicleShowcaseBackground />
+
+      <Container className="relative z-10">
         <Reveal>
           <SectionHeading
             eyebrow="Спецтехника"
             title="Оборудование для спецтехники"
             description="Подберите технику под задачи перевозки, строительства и монтажа — от самосвалов до кранов-манипуляторов."
             className="mx-auto max-w-2xl text-center"
+            tone="inverse"
           />
         </Reveal>
 
-        <StaggerGroup className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {showcaseTypes.map((vehicleType) => {
-            const visual = vehicleVisuals[vehicleType.slug];
-            return (
-              <StaggerItem key={vehicleType.slug}>
-                <VehicleShowcaseCard
-                  href={`/catalog/vehicle-type/${vehicleType.slug}`}
-                  name={vehicleType.name}
-                  image={visual.image}
-                  nativeWidth={visual.nativeWidth}
-                  nativeHeight={visual.nativeHeight}
-                  placement={visual.placement}
-                  shadows={visual.shadows}
-                />
-              </StaggerItem>
-            );
-          })}
+        <StaggerGroup className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+          {showcaseRows.flatMap((row, rowIndex) =>
+            row.map((vehicleType, columnIndex) => {
+              const visual = vehicleVisuals[vehicleType.slug];
+              const cardIndex = rowIndex * showcaseTypes.length + columnIndex;
+
+              return (
+                <StaggerItem key={`${vehicleType.slug}-${rowIndex}`}>
+                  <VehicleShowcaseCard
+                    href={`/catalog/vehicle-type/${vehicleType.slug}`}
+                    name={vehicleType.name}
+                    image={visual.image}
+                    nativeWidth={visual.nativeWidth}
+                    nativeHeight={visual.nativeHeight}
+                    placement={visual.placement}
+                    shadows={visual.shadows}
+                    floatDelay={cardIndex * 0.55}
+                  />
+                </StaggerItem>
+              );
+            }),
+          )}
         </StaggerGroup>
       </Container>
     </section>

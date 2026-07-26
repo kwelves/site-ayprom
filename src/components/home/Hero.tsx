@@ -24,6 +24,30 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
     if (!prefersReducedMotion && (videoRef.current?.readyState ?? 0) >= 3) setVideoLoaded(true);
   }, [prefersReducedMotion]);
 
+  // The backdrop is fixed, but it does not need to keep decoding beneath the
+  // rest of the page. Pause it as soon as Hero leaves the viewport so this
+  // video and lower section backgrounds never compete for playback resources.
+  useEffect(() => {
+    const section = sectionRef.current;
+    const video = videoRef.current;
+
+    if (!section || !video || prefersReducedMotion) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          void video.play().catch(() => undefined);
+        } else {
+          video.pause();
+        }
+      },
+      { threshold: 0.05 },
+    );
+
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, [prefersReducedMotion]);
+
   // Not a plain scrollIntoView({block: "start"}) — that aligns the next
   // section's top edge with the very top of the viewport, but the sticky
   // Header (h-16 = 64px) then sits on top of that edge and overlaps into
