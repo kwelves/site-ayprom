@@ -15,6 +15,7 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
   const sectionRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoLoaded, setVideoLoaded] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
   const prefersReducedMotion = useReducedMotion();
 
   // The video can reach readyState >= 3 (autoplay starts) before React
@@ -65,12 +66,17 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
     <section ref={sectionRef} className="relative flex min-h-[calc(100dvh-4rem)] items-end">
       {/* Fixed backdrop: the video stays pinned to the viewport while the page scrolls over it */}
       <div className="fixed inset-x-0 top-0 -z-10 h-dvh bg-slate-900">
-        {prefersReducedMotion ? (
-          <div
-            className="h-full w-full bg-cover bg-center"
-            style={{ backgroundImage: "url('/images/under-hero-photo.webp')" }}
-          />
-        ) : (
+        {/* Keep the poster independent from the video element. If the media
+            request fails, the video never reaches canplay and remains
+            transparent, while this fallback still fills the Hero. */}
+        <div
+          aria-hidden="true"
+          className={`absolute inset-0 bg-cover bg-center transition-opacity duration-700 ${
+            videoLoaded && !videoFailed ? "opacity-0" : "opacity-100"
+          }`}
+          style={{ backgroundImage: "url('/images/under-hero-photo.webp')" }}
+        />
+        {!prefersReducedMotion && (
           <video
             ref={videoRef}
             poster="/images/under-hero-photo.webp"
@@ -80,7 +86,13 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
             playsInline
             preload="metadata"
             onCanPlay={() => setVideoLoaded(true)}
-            className={`h-full w-full object-cover transition-opacity duration-1000 ${videoLoaded ? "opacity-100" : "opacity-0"}`}
+            onError={() => {
+              setVideoFailed(true);
+              setVideoLoaded(false);
+            }}
+            className={`relative h-full w-full object-cover transition-opacity duration-1000 ${
+              videoLoaded && !videoFailed ? "opacity-100" : "opacity-0"
+            }`}
           >
             <source
               src="/videos/hero-background-mobile.mp4"
