@@ -5,10 +5,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, Menu, X } from "lucide-react";
+import { ChevronDown, Menu, Search, X } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { NavDropdown } from "@/components/layout/NavDropdown";
+import { ProductSearchForm } from "@/components/catalog/ProductSearchForm";
 import { buildMainNav, type NavItem } from "@/lib/navigation";
 import { useScroll } from "@/lib/use-scroll";
 import { useHashNavClick } from "@/lib/use-hash-nav-click";
@@ -17,6 +18,7 @@ import type { Category, VehicleType } from "@/types/catalog";
 
 export function Header({ categories, vehicleTypes }: { categories: Category[]; vehicleTypes: VehicleType[] }) {
   const [open, setOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const scrolled = useScroll(10);
   const pathname = usePathname();
   const handleHashClick = useHashNavClick();
@@ -84,7 +86,23 @@ export function Header({ categories, vehicleTypes }: { categories: Category[]; v
           )}
         </nav>
 
-        <div className="hidden md:block">
+        <div className="hidden items-center gap-2 md:flex">
+          <button
+            type="button"
+            className={cn(
+              "inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors",
+              overPhoto ? "text-white hover:bg-white/10" : "text-slate-700 hover:bg-accent"
+            )}
+            onClick={() => {
+              setOpen(false);
+              setSearchOpen((value) => !value);
+            }}
+            aria-label={searchOpen ? "Закрыть поиск" : "Открыть поиск"}
+            aria-expanded={searchOpen}
+            aria-controls="header-search"
+          >
+            {searchOpen ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
+          </button>
           <Button href="/catalog" size="sm">
             Все товары
           </Button>
@@ -96,7 +114,10 @@ export function Header({ categories, vehicleTypes }: { categories: Category[]; v
             "inline-flex h-11 w-11 items-center justify-center rounded-md transition-colors md:hidden",
             overPhoto ? "text-white" : "text-slate-700"
           )}
-          onClick={() => setOpen((value) => !value)}
+          onClick={() => {
+            setSearchOpen(false);
+            setOpen((value) => !value);
+          }}
           aria-label="Открыть меню"
           aria-expanded={open}
         >
@@ -122,6 +143,7 @@ export function Header({ categories, vehicleTypes }: { categories: Category[]; v
             className="overflow-hidden border-t border-border bg-card md:hidden"
           >
             <Container className="flex flex-col gap-1 py-4">
+              <ProductSearchForm action="/catalog" placeholder="Например: гидроцилиндр HOWO" />
               {mainNav.map((item) => (
                 <MobileNavItem
                   key={item.label}
@@ -133,6 +155,23 @@ export function Header({ categories, vehicleTypes }: { categories: Category[]; v
               <Button href="/catalog" className="mt-2 w-full" onClick={() => setOpen(false)}>
                 Все товары
               </Button>
+            </Container>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence initial={false}>
+        {searchOpen && (
+          <motion.div
+            id="header-search"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            className="hidden overflow-hidden border-t border-border bg-card md:block"
+          >
+            <Container className="py-4">
+              <ProductSearchForm action="/catalog" placeholder="Например: гидроцилиндр HOWO" />
             </Container>
           </motion.div>
         )}
