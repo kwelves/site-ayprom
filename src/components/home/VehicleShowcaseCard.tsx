@@ -39,6 +39,11 @@ interface VehicleShowcaseCardProps {
   nativeHeight: number;
   placement: VehiclePlacement;
   shadows: ShadowSpec[];
+  // Product count for this vehicle type, shown as a permanent (not
+  // hover-only) chip-caption per docs/design-orchestration/06-council-result.md
+  // §5/§11. Omitted from the caption when unknown so the card never shows a
+  // fabricated number.
+  count?: number;
 }
 
 export function VehicleShowcaseCard({
@@ -49,6 +54,7 @@ export function VehicleShowcaseCard({
   nativeHeight,
   placement,
   shadows,
+  count,
 }: VehicleShowcaseCardProps) {
   const shouldReduceMotion = useReducedMotion();
 
@@ -105,8 +111,13 @@ export function VehicleShowcaseCard({
         />
       </div>
 
-      <div className="px-2 py-3 text-center sm:px-4 sm:py-3.5">
+      <div className="flex items-center justify-center gap-1.5 px-2 py-3 text-center sm:px-4 sm:py-3.5">
         <span className="text-xs font-medium text-card-foreground sm:text-sm">{name}</span>
+        {typeof count === "number" && (
+          <span className="rounded-full bg-accent px-1.5 py-0.5 font-mono text-[11px] text-accent-foreground">
+            {count}
+          </span>
+        )}
       </div>
     </MotionLink>
   );

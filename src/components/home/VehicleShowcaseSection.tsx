@@ -4,6 +4,7 @@ import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
 import { VehicleShowcaseBackground } from "@/components/home/VehicleShowcaseBackground";
 import { VehicleShowcaseCard } from "@/components/home/VehicleShowcaseCard";
 import { getVehicleTypes } from "@/lib/queries/vehicle-types";
+import { getProducts } from "@/lib/queries/products";
 
 interface VehiclePlacement {
   leftPct: number;
@@ -136,6 +137,13 @@ export async function VehicleShowcaseSection() {
 
   if (showcaseTypes.length === 0) return null;
 
+  // pageSize: 1 keeps each call cheap — the RPC's exact count comes back
+  // regardless of page size, only `items` would be truncated.
+  const counts = await Promise.all(
+    showcaseTypes.map((vehicleType) => getProducts({ vehicleTypeSlug: vehicleType.slug, pageSize: 1 })),
+  );
+  const countBySlug = new Map(showcaseTypes.map((vehicleType, index) => [vehicleType.slug, counts[index].total]));
+
   return (
     <section
       id="vehicle-showcase"
@@ -169,6 +177,7 @@ export async function VehicleShowcaseSection() {
                     nativeHeight={visual.nativeHeight}
                     placement={visual.placement}
                     shadows={visual.shadows}
+                    count={countBySlug.get(vehicleType.slug)}
                   />
                 </StaggerItem>
               );
