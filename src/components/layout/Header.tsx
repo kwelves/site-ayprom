@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -9,7 +9,6 @@ import { ChevronDown, Menu, X } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { NavDropdown } from "@/components/layout/NavDropdown";
-import { HeaderSearchTrigger } from "@/components/layout/HeaderSearchTrigger";
 import { buildMainNav, type NavItem } from "@/lib/navigation";
 import { useScroll } from "@/lib/use-scroll";
 import { useHashNavClick } from "@/lib/use-hash-nav-click";
@@ -18,7 +17,6 @@ import type { Category, VehicleType } from "@/types/catalog";
 
 export function Header({ categories, vehicleTypes }: { categories: Category[]; vehicleTypes: VehicleType[] }) {
   const [open, setOpen] = useState(false);
-  const logoRef = useRef<HTMLAnchorElement>(null);
   const scrolled = useScroll(10);
   const pathname = usePathname();
   const handleHashClick = useHashNavClick();
@@ -40,7 +38,6 @@ export function Header({ categories, vehicleTypes }: { categories: Category[]; v
     >
       <Container className="flex h-16 items-center justify-between">
         <Link
-          ref={logoRef}
           href="/"
           className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           onClick={(event) => {
@@ -87,33 +84,32 @@ export function Header({ categories, vehicleTypes }: { categories: Category[]; v
           )}
         </nav>
 
-        <div className="flex items-center gap-1 sm:gap-2">
-          <HeaderSearchTrigger overPhoto={overPhoto} logoRef={logoRef} onOpen={() => setOpen(false)} />
-          <Button href="/catalog" size="sm" className="hidden md:inline-flex">
+        <div className="hidden md:block">
+          <Button href="/catalog" size="sm">
             Все товары
           </Button>
-
-          <button
-            type="button"
-            className={cn(
-              "inline-flex h-11 w-11 items-center justify-center rounded-md transition-colors md:hidden",
-              overPhoto ? "text-white" : "text-slate-700"
-            )}
-            onClick={() => setOpen((value) => !value)}
-            aria-label="Открыть меню"
-            aria-expanded={open}
-          >
-            <motion.span
-              key={open ? "close" : "open"}
-              initial={{ rotate: -90, opacity: 0 }}
-              animate={{ rotate: 0, opacity: 1 }}
-              transition={{ duration: 0.2 }}
-              className="flex"
-            >
-              {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </motion.span>
-          </button>
         </div>
+
+        <button
+          type="button"
+          className={cn(
+            "inline-flex h-11 w-11 items-center justify-center rounded-md transition-colors md:hidden",
+            overPhoto ? "text-white" : "text-slate-700"
+          )}
+          onClick={() => setOpen((value) => !value)}
+          aria-label="Открыть меню"
+          aria-expanded={open}
+        >
+          <motion.span
+            key={open ? "close" : "open"}
+            initial={{ rotate: -90, opacity: 0 }}
+            animate={{ rotate: 0, opacity: 1 }}
+            transition={{ duration: 0.2 }}
+            className="flex"
+          >
+            {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </motion.span>
+        </button>
       </Container>
 
       <AnimatePresence initial={false}>

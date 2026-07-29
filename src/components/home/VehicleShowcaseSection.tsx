@@ -1,10 +1,10 @@
+import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/motion/Reveal";
 import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
 import { VehicleShowcaseBackground } from "@/components/home/VehicleShowcaseBackground";
 import { VehicleShowcaseCard } from "@/components/home/VehicleShowcaseCard";
 import { getVehicleTypes } from "@/lib/queries/vehicle-types";
-import { getProducts } from "@/lib/queries/products";
 
 interface VehiclePlacement {
   leftPct: number;
@@ -137,22 +137,15 @@ export async function VehicleShowcaseSection() {
 
   if (showcaseTypes.length === 0) return null;
 
-  // pageSize: 1 keeps each call cheap — the RPC's exact count comes back
-  // regardless of page size, only `items` would be truncated.
-  const counts = await Promise.all(
-    showcaseTypes.map((vehicleType) => getProducts({ vehicleTypeSlug: vehicleType.slug, pageSize: 1 })),
-  );
-  const countBySlug = new Map(showcaseTypes.map((vehicleType, index) => [vehicleType.slug, counts[index].total]));
-
   return (
     <section
       id="vehicle-showcase"
-      className="relative isolate scroll-mt-16 overflow-hidden pt-8 pb-16 sm:pt-10 sm:pb-20"
+      className="relative isolate scroll-mt-16 overflow-hidden py-16 sm:py-20"
     >
       <VehicleShowcaseBackground />
 
-      <div className="relative z-10">
-        <Reveal className="px-[15px]">
+      <Container className="relative z-10">
+        <Reveal>
           <SectionHeading
             eyebrow="Спецтехника"
             title="Оборудование для спецтехники"
@@ -162,10 +155,11 @@ export async function VehicleShowcaseSection() {
           />
         </Reveal>
 
-        <StaggerGroup className="mx-auto mt-10 grid w-[calc(77%+5px)] grid-cols-2 gap-[30px] lg:w-[calc(80%+15px)] lg:grid-cols-4">
+        <StaggerGroup className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
           {showcaseRows.flatMap((row, rowIndex) =>
-            row.map((vehicleType) => {
+            row.map((vehicleType, columnIndex) => {
               const visual = vehicleVisuals[vehicleType.slug];
+              const cardIndex = rowIndex * showcaseTypes.length + columnIndex;
 
               return (
                 <StaggerItem key={`${vehicleType.slug}-${rowIndex}`}>
@@ -177,14 +171,14 @@ export async function VehicleShowcaseSection() {
                     nativeHeight={visual.nativeHeight}
                     placement={visual.placement}
                     shadows={visual.shadows}
-                    count={countBySlug.get(vehicleType.slug)}
+                    floatDelay={cardIndex * 0.55}
                   />
                 </StaggerItem>
               );
             }),
           )}
         </StaggerGroup>
-      </div>
+      </Container>
     </section>
   );
 }

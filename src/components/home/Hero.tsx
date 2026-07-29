@@ -8,20 +8,13 @@ import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { fadeUp, staggerContainer } from "@/lib/motion";
 import { useHashNavClick } from "@/lib/use-hash-nav-click";
-import type { Category, VehicleType } from "@/types/catalog";
+import type { VehicleType } from "@/types/catalog";
 
-export function Hero({
-  vehicleTypes,
-  categories,
-}: {
-  vehicleTypes: VehicleType[];
-  categories: Category[];
-}) {
+export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
   const handleHashClick = useHashNavClick();
   const sectionRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoLoaded, setVideoLoaded] = useState(false);
-  const [videoFailed, setVideoFailed] = useState(false);
   const prefersReducedMotion = useReducedMotion();
 
   // The video can reach readyState >= 3 (autoplay starts) before React
@@ -72,17 +65,12 @@ export function Hero({
     <section ref={sectionRef} className="relative flex min-h-[calc(100dvh-4rem)] items-end">
       {/* Fixed backdrop: the video stays pinned to the viewport while the page scrolls over it */}
       <div className="fixed inset-x-0 top-0 -z-10 h-dvh bg-slate-900">
-        {/* Keep the poster independent from the video element. If the media
-            request fails, the video never reaches canplay and remains
-            transparent, while this fallback still fills the Hero. */}
-        <div
-          aria-hidden="true"
-          className={`absolute inset-0 bg-cover bg-center transition-opacity duration-700 ${
-            videoLoaded && !videoFailed ? "opacity-0" : "opacity-100"
-          }`}
-          style={{ backgroundImage: "url('/images/under-hero-photo.webp')" }}
-        />
-        {!prefersReducedMotion && (
+        {prefersReducedMotion ? (
+          <div
+            className="h-full w-full bg-cover bg-center"
+            style={{ backgroundImage: "url('/images/under-hero-photo.webp')" }}
+          />
+        ) : (
           <video
             ref={videoRef}
             poster="/images/under-hero-photo.webp"
@@ -92,13 +80,7 @@ export function Hero({
             playsInline
             preload="metadata"
             onCanPlay={() => setVideoLoaded(true)}
-            onError={() => {
-              setVideoFailed(true);
-              setVideoLoaded(false);
-            }}
-            className={`relative h-full w-full object-cover transition-opacity duration-1000 ${
-              videoLoaded && !videoFailed ? "opacity-100" : "opacity-0"
-            }`}
+            className={`h-full w-full object-cover transition-opacity duration-1000 ${videoLoaded ? "opacity-100" : "opacity-0"}`}
           >
             <source
               src="/videos/hero-background-mobile.mp4"
@@ -113,12 +95,12 @@ export function Hero({
             bottom where the text sits — guarantees contrast there regardless
             of what's in that part of the frame, without dimming the whole shot. */}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/35 to-transparent" />
-        {/* Soft local falloff behind the title. It belongs to the video backdrop,
-            so the Hero content itself remains transparent and visually floating. */}
-        <div className="absolute left-0 top-[16%] h-[52%] w-[88%] bg-[radial-gradient(ellipse_at_22%_50%,rgba(2,6,23,0.44)_0%,rgba(2,6,23,0.25)_38%,rgba(2,6,23,0.09)_63%,transparent_82%)] sm:top-[17%] sm:h-[50%] sm:w-[74%] lg:top-[18%] lg:h-[48%] lg:w-[62%]" />
-        {/* A long, diffused fade gives the transparent Header consistent contrast
-            without leaving a visible dark band across the video. */}
-        <div className="absolute inset-x-0 top-0 h-32 bg-[linear-gradient(180deg,rgba(2,6,23,0.62)_0%,rgba(2,6,23,0.32)_42%,rgba(2,6,23,0.11)_70%,transparent_100%)] sm:h-36" />
+        {/* This gradient fades to nothing right at the top, so the transparent
+            Header's white logo/nav text — sitting directly on the video up
+            there — has no guaranteed contrast of its own. A second, short
+            top-anchored gradient covers just that strip without touching how
+            bright the rest of the video reads. */}
+        <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-slate-900/55 to-transparent sm:h-28" />
       </div>
 
       <Container className="pb-24 sm:pb-28 lg:pb-32">
@@ -195,20 +177,6 @@ export function Hero({
               Марки техники
             </Button>
           </motion.div>
-
-          {categories.length > 0 && (
-            <motion.div variants={fadeUp} className="mt-4 flex flex-wrap gap-2">
-              {categories.slice(0, 6).map((category) => (
-                <Link
-                  key={category.slug}
-                  href={`/catalog/category/${category.slug}`}
-                  className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm transition-colors hover:border-white/40 hover:bg-white/20 sm:text-sm"
-                >
-                  {category.name}
-                </Link>
-              ))}
-            </motion.div>
-          )}
         </motion.div>
       </Container>
 

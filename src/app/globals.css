@@ -25,7 +25,6 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 
   /*
    * Semantic tokens for the site's blue/white industrial palette (CLAUDE.md).
@@ -56,15 +55,6 @@
    * Brand blue matches the recolored logo assets and primary actions.
    */
   --color-brand: #084bb9;
-
-  /*
-   * Derived from --color-blue-600/500 for the engineering-datasheet accent
-   * layer (hairline dividers, corner brackets) decided in
-   * docs/design-orchestration/06-council-result.md. Never introduce a new
-   * accent hue here — only alpha variants of the existing brand blue.
-   */
-  --color-hairline: color-mix(in srgb, var(--color-blue-600) 9%, transparent);
-  --color-grid-line: color-mix(in srgb, var(--color-blue-500) 35%, transparent);
 }
 
 html {
