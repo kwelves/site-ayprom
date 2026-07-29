@@ -6,7 +6,6 @@ import { Search, ChevronDown } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
-import { CornerBracket } from "@/components/ui/CornerBracket";
 import { fadeUp, staggerContainer } from "@/lib/motion";
 import { useHashNavClick } from "@/lib/use-hash-nav-click";
 import type { Category, VehicleType } from "@/types/catalog";
@@ -120,7 +119,6 @@ export function Hero({
         {/* A long, diffused fade gives the transparent Header consistent contrast
             without leaving a visible dark band across the video. */}
         <div className="absolute inset-x-0 top-0 h-32 bg-[linear-gradient(180deg,rgba(2,6,23,0.62)_0%,rgba(2,6,23,0.32)_42%,rgba(2,6,23,0.11)_70%,transparent_100%)] sm:h-36" />
-        <CornerBracket inset={28} size={22} className="hidden sm:block" />
       </div>
 
       <Container className="pb-24 sm:pb-28 lg:pb-32">
