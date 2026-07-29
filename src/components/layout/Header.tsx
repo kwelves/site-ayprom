@@ -1,15 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, Menu, Search, X } from "lucide-react";
+import { ChevronDown, Menu, X } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { NavDropdown } from "@/components/layout/NavDropdown";
-import { ProductSearchForm } from "@/components/catalog/ProductSearchForm";
+import { HeaderSearchTrigger } from "@/components/layout/HeaderSearchTrigger";
 import { buildMainNav, type NavItem } from "@/lib/navigation";
 import { useScroll } from "@/lib/use-scroll";
 import { useHashNavClick } from "@/lib/use-hash-nav-click";
@@ -18,7 +18,7 @@ import type { Category, VehicleType } from "@/types/catalog";
 
 export function Header({ categories, vehicleTypes }: { categories: Category[]; vehicleTypes: VehicleType[] }) {
   const [open, setOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
+  const logoRef = useRef<HTMLAnchorElement>(null);
   const scrolled = useScroll(10);
   const pathname = usePathname();
   const handleHashClick = useHashNavClick();
@@ -40,6 +40,7 @@ export function Header({ categories, vehicleTypes }: { categories: Category[]; v
     >
       <Container className="flex h-16 items-center justify-between">
         <Link
+          ref={logoRef}
           href="/"
           className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           onClick={(event) => {
@@ -86,51 +87,33 @@ export function Header({ categories, vehicleTypes }: { categories: Category[]; v
           )}
         </nav>
 
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="flex items-center gap-1 sm:gap-2">
+          <HeaderSearchTrigger overPhoto={overPhoto} logoRef={logoRef} onOpen={() => setOpen(false)} />
+          <Button href="/catalog" size="sm" className="hidden md:inline-flex">
+            Все товары
+          </Button>
+
           <button
             type="button"
             className={cn(
-              "inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors",
-              overPhoto ? "text-white hover:bg-white/10" : "text-slate-700 hover:bg-accent"
+              "inline-flex h-11 w-11 items-center justify-center rounded-md transition-colors md:hidden",
+              overPhoto ? "text-white" : "text-slate-700"
             )}
-            onClick={() => {
-              setOpen(false);
-              setSearchOpen((value) => !value);
-            }}
-            aria-label={searchOpen ? "Закрыть поиск" : "Открыть поиск"}
-            aria-expanded={searchOpen}
-            aria-controls="header-search"
+            onClick={() => setOpen((value) => !value)}
+            aria-label="Открыть меню"
+            aria-expanded={open}
           >
-            {searchOpen ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
+            <motion.span
+              key={open ? "close" : "open"}
+              initial={{ rotate: -90, opacity: 0 }}
+              animate={{ rotate: 0, opacity: 1 }}
+              transition={{ duration: 0.2 }}
+              className="flex"
+            >
+              {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </motion.span>
           </button>
-          <Button href="/catalog" size="sm">
-            Все товары
-          </Button>
         </div>
-
-        <button
-          type="button"
-          className={cn(
-            "inline-flex h-11 w-11 items-center justify-center rounded-md transition-colors md:hidden",
-            overPhoto ? "text-white" : "text-slate-700"
-          )}
-          onClick={() => {
-            setSearchOpen(false);
-            setOpen((value) => !value);
-          }}
-          aria-label="Открыть меню"
-          aria-expanded={open}
-        >
-          <motion.span
-            key={open ? "close" : "open"}
-            initial={{ rotate: -90, opacity: 0 }}
-            animate={{ rotate: 0, opacity: 1 }}
-            transition={{ duration: 0.2 }}
-            className="flex"
-          >
-            {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </motion.span>
-        </button>
       </Container>
 
       <AnimatePresence initial={false}>
@@ -143,7 +126,6 @@ export function Header({ categories, vehicleTypes }: { categories: Category[]; v
             className="overflow-hidden border-t border-border bg-card md:hidden"
           >
             <Container className="flex flex-col gap-1 py-4">
-              <ProductSearchForm action="/catalog" placeholder="Например: гидроцилиндр HOWO" />
               {mainNav.map((item) => (
                 <MobileNavItem
                   key={item.label}
@@ -155,23 +137,6 @@ export function Header({ categories, vehicleTypes }: { categories: Category[]; v
               <Button href="/catalog" className="mt-2 w-full" onClick={() => setOpen(false)}>
                 Все товары
               </Button>
-            </Container>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence initial={false}>
-        {searchOpen && (
-          <motion.div
-            id="header-search"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: "easeInOut" }}
-            className="hidden overflow-hidden border-t border-border bg-card md:block"
-          >
-            <Container className="py-4">
-              <ProductSearchForm action="/catalog" placeholder="Например: гидроцилиндр HOWO" />
             </Container>
           </motion.div>
         )}
