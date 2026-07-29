@@ -6,11 +6,18 @@ import { Search, ChevronDown } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
+import { CornerBracket } from "@/components/ui/CornerBracket";
 import { fadeUp, staggerContainer } from "@/lib/motion";
 import { useHashNavClick } from "@/lib/use-hash-nav-click";
-import type { VehicleType } from "@/types/catalog";
+import type { Category, VehicleType } from "@/types/catalog";
 
-export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
+export function Hero({
+  vehicleTypes,
+  categories,
+}: {
+  vehicleTypes: VehicleType[];
+  categories: Category[];
+}) {
   const handleHashClick = useHashNavClick();
   const sectionRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -113,6 +120,7 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
         {/* A long, diffused fade gives the transparent Header consistent contrast
             without leaving a visible dark band across the video. */}
         <div className="absolute inset-x-0 top-0 h-32 bg-[linear-gradient(180deg,rgba(2,6,23,0.62)_0%,rgba(2,6,23,0.32)_42%,rgba(2,6,23,0.11)_70%,transparent_100%)] sm:h-36" />
+        <CornerBracket inset={28} size={22} className="hidden sm:block" />
       </div>
 
       <Container className="pb-24 sm:pb-28 lg:pb-32">
@@ -189,6 +197,20 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
               Марки техники
             </Button>
           </motion.div>
+
+          {categories.length > 0 && (
+            <motion.div variants={fadeUp} className="mt-4 flex flex-wrap gap-2">
+              {categories.slice(0, 6).map((category) => (
+                <Link
+                  key={category.slug}
+                  href={`/catalog/category/${category.slug}`}
+                  className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm transition-colors hover:border-white/40 hover:bg-white/20 sm:text-sm"
+                >
+                  {category.name}
+                </Link>
+              ))}
+            </motion.div>
+          )}
         </motion.div>
       </Container>
 
