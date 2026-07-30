@@ -51,10 +51,9 @@ export function buildMainNav(categories: Category[], vehicleTypes: VehicleType[]
 
   return [
     { label: "Главная", href: "/" },
+    { label: "Спецтехника", href: "/#vehicle-showcase", dropdown: vehicleTypeDropdown },
     { label: "Каталог", href: "/#categories", dropdown: catalogDropdown },
     { label: "Бренды", href: "/#brands", dropdown: brandsDropdown },
-    { label: "Спецтехника", href: "/#vehicle-showcase", dropdown: vehicleTypeDropdown },
     { label: "О нас", href: "/#about" },
-    { label: "Контакты", href: "/#contacts" },
   ];
 }
