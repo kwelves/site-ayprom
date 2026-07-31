@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import path from "path";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const supabaseUrl = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!);
 const contentSecurityPolicy = [
@@ -8,7 +9,9 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   `img-src 'self' data: blob: ${supabaseUrl.origin}`,
   "media-src 'self'",
-  `connect-src 'self' ${supabaseUrl.origin}`,
+  // https://*.sentry.io covers every regional ingest host without needing to
+  // hardcode the org-specific subdomain baked into the DSN.
+  `connect-src 'self' ${supabaseUrl.origin} https://*.sentry.io`,
   "font-src 'self' data:",
   "object-src 'none'",
   "base-uri 'self'",
@@ -50,4 +53,15 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// authToken (SENTRY_AUTH_TOKEN) is only needed to upload readable source maps
+// during `next build` in CI/production — unset locally, error reporting still
+// works, stack traces are just minified.
+// disableLogger/automaticVercelMonitors are webpack-plugin options with no
+// Turbopack equivalent yet — this project builds with Turbopack, so they're
+// omitted rather than set to a config path that's silently ignored.
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: true,
+});
