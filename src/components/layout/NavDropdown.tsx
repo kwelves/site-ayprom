@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
@@ -14,13 +14,45 @@ interface NavDropdownProps {
   items: NavDropdownItem[];
   /** Light trigger colors for use over the dark hero photo. */
   light?: boolean;
+  /** Pins the panel to a single, fixed-width column regardless of item
+   * count — for lists that can keep growing (e.g. every brand in the
+   * catalog) so the panel's footprint never balloons into two columns. */
+  fixedSingleColumn?: boolean;
+  /** Caps the item list to a fixed height and makes it scroll internally,
+   * with its own scroll-position indicator, instead of growing the panel. */
+  scrollable?: boolean;
 }
 
-export function NavDropdown({ label, href, items, light }: NavDropdownProps) {
+export function NavDropdown({ label, href, items, light, fixedSingleColumn, scrollable }: NavDropdownProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const twoColumn = items.length > 4;
+  const listRef = useRef<HTMLDivElement>(null);
+  const twoColumn = !fixedSingleColumn && items.length > 4;
   const handleHashClick = useHashNavClick();
+
+  // Thumb size/offset as fractions of the track (0–1). Tracked independently
+  // of the page's own scroll position (useScroll in Header) — this list has
+  // its own scrollTop and never reads or writes window scroll state.
+  const [thumb, setThumb] = useState({ size: 1, offset: 0 });
+
+  const measureScroll = useCallback(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    const size = clientHeight >= scrollHeight ? 1 : clientHeight / scrollHeight;
+    const maxScroll = scrollHeight - clientHeight;
+    const offset = maxScroll > 0 ? scrollTop / maxScroll : 0;
+    setThumb({ size, offset });
+  }, []);
+
+  useEffect(() => {
+    if (open && scrollable) {
+      // Measure after the panel has actually mounted/expanded, not just on
+      // scroll — otherwise the indicator stays invisible until first scroll.
+      const id = requestAnimationFrame(measureScroll);
+      return () => cancelAnimationFrame(id);
+    }
+  }, [open, scrollable, measureScroll]);
 
   return (
     <div
@@ -63,30 +95,68 @@ export function NavDropdown({ label, href, items, light }: NavDropdownProps) {
               twoColumn ? "w-[34rem]" : "w-80"
             )}
           >
-            <div
-              className={cn(
-                "grid gap-1 rounded-xl border border-border bg-card p-2 shadow-lg shadow-foreground/5",
-                twoColumn && "grid-cols-2"
-              )}
-            >
-              {items.map((item) => {
-                const Icon = item.icon;
-                return (
+            <div className="relative rounded-xl border border-border bg-card p-2 shadow-lg shadow-foreground/5">
+              <div
+                ref={listRef}
+                onScroll={scrollable ? measureScroll : undefined}
+                // Isolation: hovering/scrolling this list must never leak into
+                // page-level state (Header's window-scroll listener, any
+                // future mouse-tracking effects) and vice versa — the list
+                // keeps its own scrollTop, unrelated to window scroll.
+                onWheel={(event) => event.stopPropagation()}
+                onMouseMove={(event) => event.stopPropagation()}
+                className={cn(
+                  "grid gap-1",
+                  twoColumn && "grid-cols-2",
+                  // overscroll-contain stops this list from chaining its
+                  // scroll into the page once it hits the top/bottom edge.
+                  scrollable && "max-h-64 overflow-y-auto overscroll-contain pr-3"
+                )}
+              >
+                {items.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
                     className="group flex items-start gap-3 rounded-lg p-2.5 transition-colors hover:bg-accent/60"
                   >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                      <Icon className="h-4 w-4" />
+                    <span
+                      className={cn(
+                        "flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg",
+                        item.logo
+                          ? "border border-border bg-white"
+                          : "bg-accent text-accent-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground"
+                      )}
+                    >
+                      {item.logo ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- local brand SVGs; next/image blocks them without dangerouslyAllowSVG
+                        <img
+                          src={item.logo}
+                          alt=""
+                          className="h-full w-full object-contain p-1"
+                        />
+                      ) : item.icon ? (
+                        <item.icon className="h-4 w-4" />
+                      ) : null}
                     </span>
                     <span className="flex flex-col">
                       <span className="text-sm font-semibold text-card-foreground">{item.label}</span>
                       <span className="text-xs text-muted-foreground">{item.description}</span>
                     </span>
                   </Link>
-                );
-              })}
+                ))}
+              </div>
+
+              {scrollable && thumb.size < 1 && (
+                <div className="pointer-events-none absolute bottom-2 right-1.5 top-2 w-1 rounded-full bg-border">
+                  <div
+                    className="absolute left-0 w-full rounded-full bg-slate-400"
+                    style={{
+                      height: `${thumb.size * 100}%`,
+                      top: `${thumb.offset * (1 - thumb.size) * 100}%`,
+                    }}
+                  />
+                </div>
+              )}
             </div>
           </motion.div>
         )}

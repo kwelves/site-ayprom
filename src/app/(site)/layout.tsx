@@ -5,7 +5,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { ScrollToHash } from "@/components/layout/ScrollToHash";
 import { ResetScrollOnNavigate } from "@/components/layout/ResetScrollOnNavigate";
-import { getCategories } from "@/lib/queries/categories";
+import { getBrands } from "@/lib/queries/brands";
 import { StructuredData } from "@/components/seo/StructuredData";
 import { MotionPreferences } from "@/components/motion/MotionPreferences";
 import { getSiteUrl } from "@/lib/site-url";
@@ -43,7 +43,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const categories = await getCategories();
+  const brands = await getBrands();
 
   return (
     <html lang="ru" className={`${geistSans.variable} h-full antialiased`}>
@@ -73,9 +73,9 @@ export default async function RootLayout({
         />
         <ScrollToHash />
         <ResetScrollOnNavigate />
-        <Header categories={categories} />
+        <Header brands={brands} />
         <main id="main-content" className="flex-1" tabIndex={-1}>{children}</main>
-        <Footer categories={categories} />
+        <Footer brands={brands} />
         </MotionPreferences>
         <SpeedInsights />
       </body>

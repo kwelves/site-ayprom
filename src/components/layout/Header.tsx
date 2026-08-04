@@ -13,14 +13,14 @@ import { buildMainNav, type NavItem } from "@/lib/navigation";
 import { useScroll } from "@/lib/use-scroll";
 import { useHashNavClick } from "@/lib/use-hash-nav-click";
 import { cn } from "@/lib/utils";
-import type { Category } from "@/types/catalog";
+import type { Brand } from "@/types/catalog";
 
-export function Header({ categories }: { categories: Category[] }) {
+export function Header({ brands }: { brands: Brand[] }) {
   const [open, setOpen] = useState(false);
   const scrolled = useScroll(10);
   const pathname = usePathname();
   const handleHashClick = useHashNavClick();
-  const mainNav = buildMainNav(categories);
+  const mainNav = buildMainNav(brands);
 
   // On the homepage the header floats transparently over the fixed hero video
   // until scroll. The hero's short top gradient supplies contrast; deriving
@@ -71,6 +71,8 @@ export function Header({ categories }: { categories: Category[] }) {
                 href={item.href}
                 items={item.dropdown}
                 light={overPhoto}
+                fixedSingleColumn={item.label === "Каталог"}
+                scrollable={item.label === "Каталог"}
               />
             ) : (
               <Link
@@ -207,25 +209,32 @@ function MobileNavItem({
             className="overflow-hidden pl-3"
           >
             <div className="grid gap-1 py-1">
-              {item.dropdown.map((sub) => {
-                const Icon = sub.icon;
-                return (
-                  <Link
-                    key={sub.href}
-                    href={sub.href}
-                    onClick={onNavigate}
-                    className="flex items-start gap-3 rounded-lg p-2 hover:bg-muted"
+              {item.dropdown.map((sub) => (
+                <Link
+                  key={sub.href}
+                  href={sub.href}
+                  onClick={onNavigate}
+                  className="flex items-start gap-3 rounded-lg p-2 hover:bg-muted"
+                >
+                  <span
+                    className={cn(
+                      "flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg",
+                      sub.logo ? "border border-border bg-white" : "bg-accent text-accent-foreground"
+                    )}
                   >
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
-                      <Icon className="h-4 w-4" />
-                    </span>
-                    <span className="flex flex-col">
-                      <span className="text-sm font-medium text-card-foreground">{sub.label}</span>
-                      <span className="text-xs text-muted-foreground">{sub.description}</span>
-                    </span>
-                  </Link>
-                );
-              })}
+                    {sub.logo ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- local brand SVGs; next/image blocks them without dangerouslyAllowSVG
+                      <img src={sub.logo} alt="" className="h-full w-full object-contain p-1" />
+                    ) : sub.icon ? (
+                      <sub.icon className="h-4 w-4" />
+                    ) : null}
+                  </span>
+                  <span className="flex flex-col">
+                    <span className="text-sm font-medium text-card-foreground">{sub.label}</span>
+                    <span className="text-xs text-muted-foreground">{sub.description}</span>
+                  </span>
+                </Link>
+              ))}
             </div>
           </motion.div>
         )}

@@ -1,12 +1,14 @@
 import { LayoutGrid, Truck } from "lucide-react";
-import { categoryIconMap } from "@/lib/category-icons";
-import type { Category, IconComponent } from "@/types/catalog";
+import type { Brand, IconComponent } from "@/types/catalog";
 
 export interface NavDropdownItem {
   label: string;
   description: string;
   href: string;
-  icon: IconComponent;
+  /** Icon-based row (categories, curated brand shortcuts). */
+  icon?: IconComponent;
+  /** Photo-based row (real brand logo) — takes priority over `icon` when present. */
+  logo?: string;
 }
 
 export interface NavItem {
@@ -27,21 +29,23 @@ export const brandsDropdown: NavDropdownItem[] = [
   },
 ];
 
-// Takes categories as a parameter (fetched once, server-side, in the root
+// Takes brands as a parameter (fetched once, server-side, in the root
 // layout) instead of importing the data module directly — this is what lets
 // Header/Footer stay client components without each doing their own fetch.
-export function buildMainNav(categories: Category[]): NavItem[] {
-  const catalogDropdown: NavDropdownItem[] = categories.map((category) => ({
-    label: category.name,
-    description: category.description,
-    href: `/catalog/category/${category.slug}`,
-    icon: categoryIconMap[category.icon],
+export function buildMainNav(brands: Brand[]): NavItem[] {
+  // Real, unfiltered brand list — grows as brands are added in the admin,
+  // unlike the curated `brandsDropdown` shortcut above.
+  const allBrandsDropdown: NavDropdownItem[] = brands.map((brand) => ({
+    label: brand.name,
+    description: brand.country,
+    href: `/catalog/brand/${brand.slug}`,
+    logo: brand.logo,
   }));
 
   return [
     { label: "Главная", href: "/" },
     { label: "Спецтехника", href: "/#vehicle-showcase" },
-    { label: "Каталог", href: "/#categories", dropdown: catalogDropdown },
+    { label: "Каталог", href: "/#categories", dropdown: allBrandsDropdown },
     { label: "Бренды", href: "/#brands", dropdown: brandsDropdown },
     { label: "О нас", href: "/#about" },
   ];
