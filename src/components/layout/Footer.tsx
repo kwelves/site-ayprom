@@ -7,11 +7,11 @@ import { Container } from "@/components/ui/Container";
 import { Reveal } from "@/components/motion/Reveal";
 import { buildMainNav } from "@/lib/navigation";
 import { useHashNavClick } from "@/lib/use-hash-nav-click";
-import type { Brand } from "@/types/catalog";
+import type { Brand, Category } from "@/types/catalog";
 
-export function Footer({ brands }: { brands: Brand[] }) {
+export function Footer({ categories, brands }: { categories: Category[]; brands: Brand[] }) {
   const handleHashClick = useHashNavClick();
-  const mainNav = buildMainNav(brands);
+  const mainNav = buildMainNav(categories, brands);
 
   return (
     <footer id="contacts" className="scroll-mt-16 bg-slate-900 text-slate-300">

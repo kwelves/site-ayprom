@@ -13,14 +13,14 @@ import { buildMainNav, type NavItem } from "@/lib/navigation";
 import { useScroll } from "@/lib/use-scroll";
 import { useHashNavClick } from "@/lib/use-hash-nav-click";
 import { cn } from "@/lib/utils";
-import type { Brand } from "@/types/catalog";
+import type { Brand, Category } from "@/types/catalog";
 
-export function Header({ brands }: { brands: Brand[] }) {
+export function Header({ categories, brands }: { categories: Category[]; brands: Brand[] }) {
   const [open, setOpen] = useState(false);
   const scrolled = useScroll(10);
   const pathname = usePathname();
   const handleHashClick = useHashNavClick();
-  const mainNav = buildMainNav(brands);
+  const mainNav = buildMainNav(categories, brands);
 
   // On the homepage the header floats transparently over the fixed hero video
   // until scroll. The hero's short top gradient supplies contrast; deriving
@@ -71,8 +71,8 @@ export function Header({ brands }: { brands: Brand[] }) {
                 href={item.href}
                 items={item.dropdown}
                 light={overPhoto}
-                fixedSingleColumn={item.label === "Каталог"}
-                scrollable={item.label === "Каталог"}
+                fixedSingleColumn={item.label === "Бренды"}
+                scrollable={item.label === "Бренды"}
               />
             ) : (
               <Link
