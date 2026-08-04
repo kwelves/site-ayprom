@@ -13,14 +13,14 @@ import { buildMainNav, type NavItem } from "@/lib/navigation";
 import { useScroll } from "@/lib/use-scroll";
 import { useHashNavClick } from "@/lib/use-hash-nav-click";
 import { cn } from "@/lib/utils";
-import type { Category, VehicleType } from "@/types/catalog";
+import type { Category } from "@/types/catalog";
 
-export function Header({ categories, vehicleTypes }: { categories: Category[]; vehicleTypes: VehicleType[] }) {
+export function Header({ categories }: { categories: Category[] }) {
   const [open, setOpen] = useState(false);
   const scrolled = useScroll(10);
   const pathname = usePathname();
   const handleHashClick = useHashNavClick();
-  const mainNav = buildMainNav(categories, vehicleTypes);
+  const mainNav = buildMainNav(categories);
 
   // On the homepage the header floats transparently over the fixed hero video
   // until scroll. The hero's short top gradient supplies contrast; deriving
@@ -30,7 +30,7 @@ export function Header({ categories, vehicleTypes }: { categories: Category[]; v
   return (
     <header
       className={cn(
-        "sticky top-0 z-50 w-full border-b border-transparent transition-[background-color,backdrop-filter,border-color] duration-300",
+        "sticky top-0 z-50 w-full border-b border-transparent transition-[background-color,backdrop-filter,border-color] duration-200",
         overPhoto ? "bg-transparent" : pathname === "/" ? undefined : "bg-muted",
         scrolled && "border-border bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60",
         !scrolled && open && "bg-background"
@@ -39,21 +39,27 @@ export function Header({ categories, vehicleTypes }: { categories: Category[]; v
       <Container className="flex h-16 items-center justify-between">
         <Link
           href="/"
-          className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          className="inline-flex items-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           onClick={(event) => {
             handleHashClick("/", event);
             setOpen(false);
           }}
         >
-          <Image
-            src="/brand/ayprom-logo.svg"
-            alt="AYPROM"
-            width={378}
-            height={90}
-            className="h-9 w-auto object-contain"
-            preload
-            unoptimized
-          />
+          <motion.span
+            className="inline-flex origin-top-right"
+            animate={{ scale: overPhoto ? 1.7 : 1 }}
+            transition={{ duration: overPhoto ? 0.15 : 0.2, ease: "easeOut" }}
+          >
+            <Image
+              src="/brand/ayprom-logo.svg"
+              alt="AYPROM"
+              width={378}
+              height={90}
+              className="h-9 w-auto object-contain"
+              preload
+              unoptimized
+            />
+          </motion.span>
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">

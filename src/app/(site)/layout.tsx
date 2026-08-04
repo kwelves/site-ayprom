@@ -6,7 +6,6 @@ import { Footer } from "@/components/layout/Footer";
 import { ScrollToHash } from "@/components/layout/ScrollToHash";
 import { ResetScrollOnNavigate } from "@/components/layout/ResetScrollOnNavigate";
 import { getCategories } from "@/lib/queries/categories";
-import { getVehicleTypes } from "@/lib/queries/vehicle-types";
 import { StructuredData } from "@/components/seo/StructuredData";
 import { MotionPreferences } from "@/components/motion/MotionPreferences";
 import { getSiteUrl } from "@/lib/site-url";
@@ -44,7 +43,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [categories, vehicleTypes] = await Promise.all([getCategories(), getVehicleTypes()]);
+  const categories = await getCategories();
 
   return (
     <html lang="ru" className={`${geistSans.variable} h-full antialiased`}>
@@ -74,9 +73,9 @@ export default async function RootLayout({
         />
         <ScrollToHash />
         <ResetScrollOnNavigate />
-        <Header categories={categories} vehicleTypes={vehicleTypes} />
+        <Header categories={categories} />
         <main id="main-content" className="flex-1" tabIndex={-1}>{children}</main>
-        <Footer categories={categories} vehicleTypes={vehicleTypes} />
+        <Footer categories={categories} />
         </MotionPreferences>
         <SpeedInsights />
       </body>

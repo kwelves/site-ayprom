@@ -1,6 +1,6 @@
 import { LayoutGrid, Truck } from "lucide-react";
 import { categoryIconMap } from "@/lib/category-icons";
-import type { Category, IconComponent, VehicleType } from "@/types/catalog";
+import type { Category, IconComponent } from "@/types/catalog";
 
 export interface NavDropdownItem {
   label: string;
@@ -27,11 +27,10 @@ export const brandsDropdown: NavDropdownItem[] = [
   },
 ];
 
-// Takes categories/vehicleTypes as parameters (fetched once, server-side, in
-// the root layout) instead of importing the data modules directly — this is
-// what lets Header/Footer stay client components without each doing their
-// own fetch.
-export function buildMainNav(categories: Category[], vehicleTypes: VehicleType[]): NavItem[] {
+// Takes categories as a parameter (fetched once, server-side, in the root
+// layout) instead of importing the data module directly — this is what lets
+// Header/Footer stay client components without each doing their own fetch.
+export function buildMainNav(categories: Category[]): NavItem[] {
   const catalogDropdown: NavDropdownItem[] = categories.map((category) => ({
     label: category.name,
     description: category.description,
@@ -39,19 +38,9 @@ export function buildMainNav(categories: Category[], vehicleTypes: VehicleType[]
     icon: categoryIconMap[category.icon],
   }));
 
-  // Built from real data (like catalogDropdown), not curated like
-  // brandsDropdown — vehicle types have no description/icon of their own,
-  // so every item shares one generic description and the same icon.
-  const vehicleTypeDropdown: NavDropdownItem[] = vehicleTypes.map((vehicleType) => ({
-    label: vehicleType.name,
-    description: "Запчасти для этого типа техники",
-    href: `/catalog/vehicle-type/${vehicleType.slug}`,
-    icon: Truck,
-  }));
-
   return [
     { label: "Главная", href: "/" },
-    { label: "Спецтехника", href: "/#vehicle-showcase", dropdown: vehicleTypeDropdown },
+    { label: "Спецтехника", href: "/#vehicle-showcase" },
     { label: "Каталог", href: "/#categories", dropdown: catalogDropdown },
     { label: "Бренды", href: "/#brands", dropdown: brandsDropdown },
     { label: "О нас", href: "/#about" },
