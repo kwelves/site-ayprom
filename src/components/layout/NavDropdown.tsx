@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
@@ -18,41 +18,16 @@ interface NavDropdownProps {
    * count — for lists that can keep growing (e.g. every brand in the
    * catalog) so the panel's footprint never balloons into two columns. */
   fixedSingleColumn?: boolean;
-  /** Caps the item list to a fixed height and makes it scroll internally,
-   * with its own scroll-position indicator, instead of growing the panel. */
+  /** Caps the item list to a fixed height and makes it scroll internally
+   * instead of growing the panel. */
   scrollable?: boolean;
 }
 
 export function NavDropdown({ label, href, items, light, fixedSingleColumn, scrollable }: NavDropdownProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
   const twoColumn = !fixedSingleColumn && items.length > 4;
   const handleHashClick = useHashNavClick();
-
-  // Thumb size/offset as fractions of the track (0–1). Tracked independently
-  // of the page's own scroll position (useScroll in Header) — this list has
-  // its own scrollTop and never reads or writes window scroll state.
-  const [thumb, setThumb] = useState({ size: 1, offset: 0 });
-
-  const measureScroll = useCallback(() => {
-    const el = listRef.current;
-    if (!el) return;
-    const { scrollTop, scrollHeight, clientHeight } = el;
-    const size = clientHeight >= scrollHeight ? 1 : clientHeight / scrollHeight;
-    const maxScroll = scrollHeight - clientHeight;
-    const offset = maxScroll > 0 ? scrollTop / maxScroll : 0;
-    setThumb({ size, offset });
-  }, []);
-
-  useEffect(() => {
-    if (open && scrollable) {
-      // Measure after the panel has actually mounted/expanded, not just on
-      // scroll — otherwise the indicator stays invisible until first scroll.
-      const id = requestAnimationFrame(measureScroll);
-      return () => cancelAnimationFrame(id);
-    }
-  }, [open, scrollable, measureScroll]);
 
   return (
     <div
@@ -95,10 +70,8 @@ export function NavDropdown({ label, href, items, light, fixedSingleColumn, scro
               twoColumn ? "w-[34rem]" : "w-80"
             )}
           >
-            <div className="relative rounded-xl border border-border bg-card p-2 shadow-lg shadow-foreground/5">
+            <div className="rounded-xl border border-border bg-card p-2 shadow-lg shadow-foreground/5">
               <div
-                ref={listRef}
-                onScroll={scrollable ? measureScroll : undefined}
                 // Isolation: hovering/scrolling this list must never leak into
                 // page-level state (Header's window-scroll listener, any
                 // future mouse-tracking effects) and vice versa — the list
@@ -110,7 +83,7 @@ export function NavDropdown({ label, href, items, light, fixedSingleColumn, scro
                   twoColumn && "grid-cols-2",
                   // overscroll-contain stops this list from chaining its
                   // scroll into the page once it hits the top/bottom edge.
-                  scrollable && "no-scrollbar max-h-64 overflow-y-auto overscroll-contain pr-3"
+                  scrollable && "max-h-64 overflow-y-auto overscroll-contain"
                 )}
               >
                 {items.map((item) => (
@@ -145,18 +118,6 @@ export function NavDropdown({ label, href, items, light, fixedSingleColumn, scro
                   </Link>
                 ))}
               </div>
-
-              {scrollable && thumb.size < 1 && (
-                <div className="pointer-events-none absolute bottom-2 right-1.5 top-2 w-1 rounded-full bg-border">
-                  <div
-                    className="absolute left-0 w-full rounded-full bg-slate-400"
-                    style={{
-                      height: `${thumb.size * 100}%`,
-                      top: `${thumb.offset * (1 - thumb.size) * 100}%`,
-                    }}
-                  />
-                </div>
-              )}
             </div>
           </motion.div>
         )}
