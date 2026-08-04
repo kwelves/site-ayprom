@@ -75,6 +75,17 @@ a {
   scroll-margin-top: 5rem;
 }
 
+/* Hides the native scrollbar so only the custom NavDropdown scroll
+   indicator shows, while keeping native wheel/touch/keyboard scrolling. */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

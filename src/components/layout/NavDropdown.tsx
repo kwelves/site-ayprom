@@ -110,7 +110,7 @@ export function NavDropdown({ label, href, items, light, fixedSingleColumn, scro
                   twoColumn && "grid-cols-2",
                   // overscroll-contain stops this list from chaining its
                   // scroll into the page once it hits the top/bottom edge.
-                  scrollable && "max-h-64 overflow-y-auto overscroll-contain pr-3"
+                  scrollable && "no-scrollbar max-h-64 overflow-y-auto overscroll-contain pr-3"
                 )}
               >
                 {items.map((item) => (

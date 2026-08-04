@@ -47,7 +47,7 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
         >
           <motion.span
             className="inline-flex origin-top-right"
-            animate={{ scale: overPhoto ? 1.7 : 1 }}
+            animate={{ scale: overPhoto ? 1.6 : 1 }}
             transition={{ duration: overPhoto ? 0.15 : 0.2, ease: "easeOut" }}
           >
             <Image
