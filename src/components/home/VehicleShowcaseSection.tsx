@@ -16,12 +16,48 @@ import { VehicleShowcaseInteractive, type VehicleVisual } from "./vehicle-showca
 // x_pct/y_pct or 44px size changing. Tyagach gets a smaller bump than the
 // rest because its native crop is already the tallest/most vertical of the
 // five and clips against the stage sooner.
+// `contentBottomPct` is the real bottom edge of the opaque truck pixels
+// (wheels), as % of the native photo height — measured per file via
+// PIL's getbbox(), since every source PNG has a different amount of
+// transparent margin baked in below the vehicle. Needed so the carousel's
+// active-lamp glow (VehicleCarousel.tsx) lands right under the wheels
+// instead of under the empty bottom margin of the canvas.
 const VEHICLE_VISUALS: Record<string, VehicleVisual> = {
-  "kran-manipulyator": { image: "/images/vehicle-showcase/kran-manipulyator.png", naturalWidth: 1086, naturalHeight: 1448, scale: 2 },
-  musorovoz: { image: "/images/vehicle-showcase/musorovoz.png", naturalWidth: 1024, naturalHeight: 1536, scale: 2 },
-  avtovoz: { image: "/images/vehicle-showcase/avtovoz.png", naturalWidth: 1086, naturalHeight: 1448, scale: 2 },
-  samosval: { image: "/images/vehicle-showcase/samosval.png", naturalWidth: 1086, naturalHeight: 1448, scale: 2 },
-  tyagach: { image: "/images/vehicle-showcase/tyagach.png", naturalWidth: 1086, naturalHeight: 1448, scale: 1.6 },
+  "kran-manipulyator": {
+    image: "/images/vehicle-showcase/kran-manipulyator.png",
+    naturalWidth: 1086,
+    naturalHeight: 1448,
+    scale: 2,
+    contentBottomPct: 74.86,
+  },
+  musorovoz: {
+    image: "/images/vehicle-showcase/musorovoz.png",
+    naturalWidth: 1024,
+    naturalHeight: 1536,
+    scale: 2,
+    contentBottomPct: 70.18,
+  },
+  avtovoz: {
+    image: "/images/vehicle-showcase/avtovoz.png",
+    naturalWidth: 1086,
+    naturalHeight: 1448,
+    scale: 2,
+    contentBottomPct: 69.54,
+  },
+  samosval: {
+    image: "/images/vehicle-showcase/samosval.png",
+    naturalWidth: 1086,
+    naturalHeight: 1448,
+    scale: 2,
+    contentBottomPct: 77.62,
+  },
+  tyagach: {
+    image: "/images/vehicle-showcase/tyagach.png",
+    naturalWidth: 1086,
+    naturalHeight: 1448,
+    scale: 1.6,
+    contentBottomPct: 83.43,
+  },
 };
 
 export async function VehicleShowcaseSection() {

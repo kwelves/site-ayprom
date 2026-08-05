@@ -3,6 +3,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { motion, type PanInfo } from "framer-motion";
+import { useContainRect } from "./useContainRect";
 
 const SWIPE_THRESHOLD = 40;
 // How many slots are visible on each side of the active one. With 5 real
@@ -14,6 +15,12 @@ interface VehicleCarouselItem {
   slug: string;
   name: string;
   image: string;
+  naturalWidth: number;
+  naturalHeight: number;
+  /** Real bottom edge of the opaque truck pixels, as % of naturalHeight —
+   * every source PNG has a different amount of transparent margin below
+   * the vehicle, so this can't be assumed to be 100. */
+  contentBottomPct: number;
 }
 
 interface VehicleCarouselProps {
@@ -148,10 +155,7 @@ export function VehicleCarousel({ items, activeIndex, onSelect }: VehicleCarouse
                 }}
                 transition={{ type: "spring", stiffness: 260, damping: 30 }}
               >
-                {isActive && <ActiveLamp isDragging={isDragging} />}
-                <div className="relative h-full w-full">
-                  <Image src={item.image} alt="" fill sizes="128px" className="object-contain" draggable={false} />
-                </div>
+                <CarouselItemContent item={item} isActive={isActive} isDragging={isDragging} />
               </motion.button>
             );
           })}
@@ -161,17 +165,45 @@ export function VehicleCarousel({ items, activeIndex, onSelect }: VehicleCarouse
   );
 }
 
+// Measures its own object-contain rect (same technique as the main stage)
+// so the lamp can anchor to the *photo's* actual bottom edge — not the
+// button box's — regardless of how much transparent padding each source
+// PNG happens to have baked in above/below the truck.
+function CarouselItemContent({ item, isActive, isDragging }: { item: VehicleCarouselItem; isActive: boolean; isDragging: boolean }) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const rect = useContainRect(boxRef, item.naturalWidth, item.naturalHeight);
+
+  // rect.top is the letterbox gap (same on top and bottom for a centered
+  // object-contain image), so rect.top + rect.height is the *photo canvas's*
+  // bottom edge in box pixels — not the truck's. The truck's actual bottom
+  // (wheels) sits `contentBottomPct` of the way down that photo, so its
+  // distance from the box's own bottom edge is the remaining photo height
+  // below the wheels, plus the bottom letterbox gap.
+  const contentBottomOffset = rect.top + rect.height * (1 - item.contentBottomPct / 100);
+
+  return (
+    <div ref={boxRef} className="relative h-full w-full">
+      {isActive && <ActiveLamp isDragging={isDragging} bottomOffset={contentBottomOffset} />}
+      <Image src={item.image} alt="" fill sizes="128px" className="object-contain" draggable={false} />
+    </div>
+  );
+}
+
 // Three-layer LED-rail glow under the active thumbnail's wheels: a crisp
 // white core, a tight blue near-glow (box-shadow), and a wide soft upward
 // radial wash lighting the vehicle from below. Opacity stays modest even at
 // full brightness — the "expensive" look comes from spreading the soft
-// glow wider, not from pushing intensity up.
-function ActiveLamp({ isDragging }: { isDragging: boolean }) {
+// glow wider, not from pushing intensity up. Sits behind the vehicle photo
+// (rendered before it in DOM order, no explicit z-index needed) so the
+// wide wash reads as light cast up onto the underside of the truck rather
+// than a separate glowing pill floating below it.
+function ActiveLamp({ isDragging, bottomOffset }: { isDragging: boolean; bottomOffset: number }) {
   return (
     <motion.span
       aria-hidden="true"
-      className="pointer-events-none absolute bottom-2 left-1/2 h-1 w-[70px] -translate-x-1/2 rounded-full sm:w-[90px]"
+      className="pointer-events-none absolute left-1/2 z-0 h-1 w-[70px] -translate-x-1/2 rounded-full sm:w-[90px]"
       style={{
+        bottom: bottomOffset,
         background: "linear-gradient(90deg, transparent 0%, #dceeff 10%, #ffffff 50%, #dceeff 90%, transparent 100%)",
         boxShadow: "0 0 5px rgba(255,255,255,0.95), 0 0 12px rgba(103,181,255,0.75), 0 0 24px rgba(43,135,255,0.45)",
       }}

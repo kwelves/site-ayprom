@@ -19,6 +19,9 @@ export interface VehicleVisual {
    * exactly). Hotspots track this same scaled rect, so they stay pinned to
    * their equipment regardless of the value. */
   scale?: number;
+  /** Real bottom edge of the opaque truck pixels, as % of naturalHeight —
+   * see the comment in VehicleShowcaseSection.tsx for how it's measured. */
+  contentBottomPct?: number;
 }
 
 interface VehicleShowcaseInteractiveProps {
@@ -162,11 +165,17 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
 
   const vehicleItems = useMemo(
     () =>
-      entries.map((entry) => ({
-        slug: entry.vehicleType.slug,
-        name: entry.vehicleType.name,
-        image: visuals[entry.vehicleType.slug]?.image ?? "",
-      })),
+      entries.map((entry) => {
+        const entryVisual = visuals[entry.vehicleType.slug];
+        return {
+          slug: entry.vehicleType.slug,
+          name: entry.vehicleType.name,
+          image: entryVisual?.image ?? "",
+          naturalWidth: entryVisual?.naturalWidth ?? 1,
+          naturalHeight: entryVisual?.naturalHeight ?? 1,
+          contentBottomPct: entryVisual?.contentBottomPct ?? 100,
+        };
+      }),
     [entries, visuals],
   );
 
