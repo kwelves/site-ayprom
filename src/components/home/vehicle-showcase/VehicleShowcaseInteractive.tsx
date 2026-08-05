@@ -159,6 +159,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
   if (!activeEntry || !visual) return null;
 
   const hotspotNumber = activeEntry.hotspots.length;
+  const activePaths = connectorPaths ?? verticalPath;
 
   return (
     <div ref={sectionRef} className="relative">
@@ -207,18 +208,6 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
                 />
               ))}
           </div>
-
-          {!isDesktop && verticalPath && activeHotspot && (
-            <svg
-              aria-hidden="true"
-              className="pointer-events-none absolute top-full left-0 -mt-px"
-              width={svgSize.width}
-              height={80}
-              style={{ overflow: "visible" }}
-            >
-              <Connector paths={verticalPath} onConnected={() => setConnected(true)} />
-            </svg>
-          )}
         </div>
 
         {revealed && (
@@ -258,7 +247,12 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
           </div>
         )}
 
-        {isDesktop && connectorPaths && (
+        {activePaths && (
+          // Sized and positioned against containerRef, same origin the
+          // geometry in connector-geometry.ts was measured against — a
+          // svg nested inside the photo column instead (tried for the
+          // mobile stem) renders in a different coordinate space and the
+          // line ends up invisible off to the side.
           <svg
             aria-hidden="true"
             data-testid="vehicle-connector-svg"
@@ -266,7 +260,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
             width={svgSize.width}
             height={svgSize.height}
           >
-            <Connector paths={connectorPaths} onConnected={() => setConnected(true)} />
+            <Connector paths={activePaths} onConnected={() => setConnected(true)} />
           </svg>
         )}
       </div>
