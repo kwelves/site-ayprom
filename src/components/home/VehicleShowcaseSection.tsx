@@ -3,19 +3,19 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { getVehicleShowcaseData } from "@/lib/queries/vehicle-hotspots";
 import { VehicleShowcaseInteractive, type VehicleVisual } from "./vehicle-showcase/VehicleShowcaseInteractive";
 
-// Image + native frame proportions are presentation geometry tied to the
-// specific showcase photo crop (from the approved Figma reference) — not
-// stored in vehicle_types, same convention as the old placement/shadows
-// system this section replaces (see project memory). Using object-cover at
-// this exact aspect ratio reproduces Figma's own fill-to-frame crop almost
-// exactly, which is what the vehicle_hotspots x_pct/y_pct coordinates were
-// measured against.
+// Native pixel dimensions of each showcase photo. The stage itself is a
+// single fixed aspect ratio shared by all vehicles (so switching vehicles
+// never resizes the section) and each photo is shown via object-contain —
+// the whole vehicle always fits, never cropped. vehicle_hotspots.x_pct/
+// y_pct are measured against these native dimensions (% of the full photo,
+// not of the stage box), so hotspot placement has to account for the
+// contain-fit letterboxing at render time — see useContainRect.
 const VEHICLE_VISUALS: Record<string, VehicleVisual> = {
-  "kran-manipulyator": { image: "/images/vehicle-showcase/kran-manipulyator.png", aspectRatio: 1086 / 768 },
-  musorovoz: { image: "/images/vehicle-showcase/musorovoz.png", aspectRatio: 1024 / 738 },
-  avtovoz: { image: "/images/vehicle-showcase/avtovoz.png", aspectRatio: 1086 / 717 },
-  samosval: { image: "/images/vehicle-showcase/samosval.png", aspectRatio: 1034 / 773 },
-  tyagach: { image: "/images/vehicle-showcase/tyagach.png", aspectRatio: 1086 / 1099 },
+  "kran-manipulyator": { image: "/images/vehicle-showcase/kran-manipulyator.png", naturalWidth: 1086, naturalHeight: 1448 },
+  musorovoz: { image: "/images/vehicle-showcase/musorovoz.png", naturalWidth: 1024, naturalHeight: 1536 },
+  avtovoz: { image: "/images/vehicle-showcase/avtovoz.png", naturalWidth: 1086, naturalHeight: 1448 },
+  samosval: { image: "/images/vehicle-showcase/samosval.png", naturalWidth: 1086, naturalHeight: 1448 },
+  tyagach: { image: "/images/vehicle-showcase/tyagach.png", naturalWidth: 1086, naturalHeight: 1448 },
 };
 
 export async function VehicleShowcaseSection() {

@@ -15,7 +15,11 @@ export interface ConnectorPaths {
 const CARD_MARGIN = 100;
 const MIN_DIAGONAL = 56;
 const CLEARANCE = 34;
-const CORNER_MAX = 34;
+// Must match ProductPanel's actual CSS corner radius (rounded-2xl = 1rem =
+// 16px) — a mismatch here is what made the traced outline visibly diverge
+// from the card's real rounded corner, reading as a second, sharper-edged
+// box ghosting behind it.
+const CORNER_MAX = 16;
 const OBSTACLE_RADIUS = 22;
 const Y_CANDIDATES = [76, 116, 46, 156, 26, 196];
 

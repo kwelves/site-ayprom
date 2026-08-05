@@ -7,12 +7,14 @@ import { HotspotMarker } from "./HotspotMarker";
 import { VehicleCarousel } from "./VehicleCarousel";
 import { ProductPanel } from "./ProductPanel";
 import { Connector } from "./Connector";
+import { useContainRect } from "./useContainRect";
 import { buildConnectorPaths, buildVerticalConnectorPath, type ConnectorPaths, type Rect } from "./connector-geometry";
 import type { VehicleShowcaseEntry } from "@/lib/queries/vehicle-hotspots";
 
 export interface VehicleVisual {
   image: string;
-  aspectRatio: number;
+  naturalWidth: number;
+  naturalHeight: number;
 }
 
 interface VehicleShowcaseInteractiveProps {
@@ -20,6 +22,15 @@ interface VehicleShowcaseInteractiveProps {
   visuals: Record<string, VehicleVisual>;
   defaultSlug: string;
 }
+
+// One fixed shape for every vehicle so switching vehicles never resizes the
+// section — only the vehicle drawing (via object-contain) scales to fit
+// inside it, and the whole thing is always fully visible, never cropped.
+// Taller/near-square on narrow screens (there's no second column stealing
+// width there, and the native photos are themselves portrait-ish) so the
+// vehicle doesn't shrink to a speck; wide on desktop where the stage shares
+// the row with the card.
+const STAGE_ASPECT_CLASS = "aspect-[4/3] sm:aspect-[3/2] lg:aspect-video";
 
 function toRect(domRect: DOMRect, containerRect: DOMRect): Rect {
   return {
@@ -34,6 +45,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
   const shouldReduceMotion = useReducedMotion();
   const sectionRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const hotspotRefs = useRef(new Map<string, HTMLButtonElement>());
 
@@ -49,12 +61,12 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
   const [isDesktop, setIsDesktop] = useState(false);
   const [connectorPaths, setConnectorPaths] = useState<ConnectorPaths | null>(null);
   const [verticalPath, setVerticalPath] = useState<{ stem: string; terminal: { x: number; y: number } } | null>(null);
-  const [connected, setConnected] = useState(false);
   const [svgSize, setSvgSize] = useState({ width: 0, height: 0 });
 
   const activeEntry = entries[activeVehicleIndex];
   const activeHotspot = activeEntry?.hotspots.find((hotspot) => hotspot.id === activeHotspotId) ?? null;
   const visual = visuals[activeEntry?.vehicleType.slug ?? ""];
+  const containRect = useContainRect(stageRef, visual?.naturalWidth ?? 1, visual?.naturalHeight ?? 1);
 
   useEffect(() => {
     const query = window.matchMedia("(min-width: 1024px)");
@@ -89,7 +101,6 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
   const clearConnector = () => {
     setConnectorPaths(null);
     setVerticalPath(null);
-    setConnected(false);
   };
 
   // Switching vehicle shows a fresh set of hotspots for different equipment
@@ -107,7 +118,6 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
         clearConnector();
         return null;
       }
-      setConnected(false);
       return id;
     });
   };
@@ -158,62 +168,68 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
 
   if (!activeEntry || !visual) return null;
 
-  const hotspotNumber = activeEntry.hotspots.length;
+  const hotspotCount = activeEntry.hotspots.length;
   const activePaths = connectorPaths ?? verticalPath;
+
+  const stage = (
+    <div ref={stageRef} className={`relative w-full ${STAGE_ASPECT_CLASS}`}>
+      <Image
+        src={visual.image}
+        alt={activeEntry.vehicleType.name}
+        fill
+        sizes="(max-width: 1023px) 90vw, 55vw"
+        priority
+        className="object-contain"
+      />
+
+      {revealed &&
+        containRect.width > 0 &&
+        activeEntry.hotspots.map((hotspot) => (
+          <HotspotMarker
+            key={hotspot.id}
+            ref={(node) => {
+              if (node) hotspotRefs.current.set(hotspot.id, node);
+              else hotspotRefs.current.delete(hotspot.id);
+            }}
+            left={containRect.left + (hotspot.xPct / 100) * containRect.width}
+            top={containRect.top + (hotspot.yPct / 100) * containRect.height}
+            topPct={hotspot.yPct}
+            label={hotspot.label}
+            isActive={hotspot.id === activeHotspotId}
+            revealDelay={hotspot.hotspotNumber * 0.08}
+            onClick={() => selectHotspot(hotspot.id)}
+          />
+        ))}
+    </div>
+  );
 
   return (
     <div ref={sectionRef} className="relative">
       <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">{activeEntry.vehicleType.name}</p>
 
-      {/* Always two columns on desktop — the right column shows a hint
-          panel before any hotspot is picked and the product card after,
-          rather than the grid itself growing a second column on first
-          click. A layout that structurally changes shape (1→2 columns)
-          mid-interaction was tried first and is the reason connector
-          geometry kept measuring a mid-transition position; keeping the
-          grid shape constant removes that whole class of bug. */}
+      {/* `stage` stays in this exact spot in the tree at all times — it's
+          never swapped between differently-shaped branches. Before reveal
+          the grid is forced to one column (so the vehicle reads as
+          centered, full width, nothing else on screen); the moment
+          `revealed` flips, the lg:grid-cols-[...] class takes effect
+          instantly (no transition property on grid-template-columns), at
+          the same beat hotspots and the carousel pop in. Swapping `stage`
+          between separate branches was tried first — React remounts the
+          div when its position in the tree changes, which drops
+          useContainRect's ResizeObserver silently (the ref re-attaches to
+          a new node, but the effect's deps don't change, so it never
+          reruns) and hotspots stopped rendering entirely. */}
       <div
         ref={containerRef}
         data-testid="vehicle-showcase-grid"
-        className="relative mt-3 grid grid-cols-1 gap-6 lg:grid-cols-[1.3fr_1fr] lg:items-center lg:gap-10"
+        className={`relative mt-3 grid grid-cols-1 gap-6 ${revealed ? "mx-auto lg:mx-0 lg:grid-cols-[1.3fr_1fr] lg:items-center lg:gap-10" : "mx-auto max-w-2xl"}`}
       >
-        <div className="relative">
-          <div
-            className="relative isolate w-full overflow-hidden rounded-2xl border border-white/10 bg-[#0b1220]"
-            style={{ aspectRatio: visual.aspectRatio }}
-          >
-            <Image
-              src={visual.image}
-              alt={activeEntry.vehicleType.name}
-              fill
-              sizes="(max-width: 1023px) 90vw, 55vw"
-              priority
-              className="object-cover"
-            />
-
-            {revealed &&
-              activeEntry.hotspots.map((hotspot) => (
-                <HotspotMarker
-                  key={hotspot.id}
-                  ref={(node) => {
-                    if (node) hotspotRefs.current.set(hotspot.id, node);
-                    else hotspotRefs.current.delete(hotspot.id);
-                  }}
-                  xPct={hotspot.xPct}
-                  yPct={hotspot.yPct}
-                  label={hotspot.label}
-                  isActive={hotspot.id === activeHotspotId}
-                  revealDelay={hotspot.hotspotNumber * 0.08}
-                  onClick={() => selectHotspot(hotspot.id)}
-                />
-              ))}
-          </div>
-        </div>
+        {stage}
 
         {revealed && (
-          // Ref target for the connector measurement — stays mounted across
-          // both hotspot switches and the hint↔card swap so it's never a
-          // stale/removed node when geometry is (re)computed.
+          // Ref target for the connector measurement — stays mounted
+          // across both hotspot switches and the hint↔card swap so it's
+          // never a stale/removed node when geometry is (re)computed.
           <div ref={cardRef} data-testid="vehicle-card" className="min-h-[220px]">
             <AnimatePresence mode="wait">
               {activeHotspot ? (
@@ -224,7 +240,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
                   exit={{ opacity: 0, x: 16 }}
                   transition={{ duration: 0.25, ease: "easeOut" }}
                 >
-                  <ProductPanel label={activeHotspot.label} product={activeHotspot.product} isConnected={connected} />
+                  <ProductPanel label={activeHotspot.label} product={activeHotspot.product} />
                 </motion.div>
               ) : (
                 <motion.div
@@ -236,47 +252,45 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
                   className="flex min-h-[220px] flex-col justify-center gap-2 px-2"
                 >
                   <p className="text-4xl font-bold text-white/10 tabular-nums">
-                    01—{String(hotspotNumber).padStart(2, "0")}
+                    01—{String(hotspotCount).padStart(2, "0")}
                   </p>
-                  <p className="text-sm text-slate-400">
-                    Нажмите на синий плюс, чтобы увидеть подходящее оборудование.
-                  </p>
+                  <p className="text-sm text-slate-400">Нажмите на синий плюс, чтобы увидеть подходящее оборудование.</p>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
         )}
 
-        {activePaths && (
-          // Sized and positioned against containerRef, same origin the
-          // geometry in connector-geometry.ts was measured against — a
-          // svg nested inside the photo column instead (tried for the
-          // mobile stem) renders in a different coordinate space and the
-          // line ends up invisible off to the side.
-          <svg
-            aria-hidden="true"
-            data-testid="vehicle-connector-svg"
-            className="pointer-events-none absolute inset-0 z-10"
-            width={svgSize.width}
-            height={svgSize.height}
-          >
-            <Connector paths={activePaths} onConnected={() => setConnected(true)} />
-          </svg>
-        )}
+        {/* Keyed by the active hotspot so every switch is a fresh mount —
+            restarting the draw from scratch and playing the previous
+            line's exit (erase) instead of just re-pointing a persistent
+            path at new coordinates. */}
+        <AnimatePresence>
+          {activePaths && (
+            <svg
+              key={activeHotspotId}
+              aria-hidden="true"
+              data-testid="vehicle-connector-svg"
+              className="pointer-events-none absolute inset-0 z-10"
+              width={svgSize.width}
+              height={svgSize.height}
+            >
+              <Connector paths={activePaths} />
+            </svg>
+          )}
+        </AnimatePresence>
       </div>
 
-      <AnimatePresence>
-        {revealed && (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-            className="mt-8"
-          >
-            <VehicleCarousel items={vehicleItems} activeIndex={activeVehicleIndex} onSelect={selectVehicle} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {revealed && (
+        <motion.div
+          initial={{ scaleY: 0.4, opacity: 0 }}
+          animate={{ scaleY: 1, opacity: 1 }}
+          transition={{ duration: shouldReduceMotion ? 0 : 0.4, ease: [0.39, 0.575, 0.565, 1] }}
+          className="mt-8"
+        >
+          <VehicleCarousel items={vehicleItems} activeIndex={activeVehicleIndex} onSelect={selectVehicle} />
+        </motion.div>
+      )}
     </div>
   );
 }

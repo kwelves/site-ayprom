@@ -6,8 +6,12 @@ import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface HotspotMarkerProps {
-  xPct: number;
-  yPct: number;
+  left: number;
+  top: number;
+  /** 0-100, position within the box the marker is placed in — only used to
+   * decide whether the tooltip flips below (near the top edge, a tooltip
+   * above would clip out of the photo). */
+  topPct: number;
   label: string;
   isActive: boolean;
   /** Seconds to wait before popping in, staggered by hotspot number. */
@@ -16,11 +20,11 @@ interface HotspotMarkerProps {
 }
 
 export const HotspotMarker = forwardRef<HTMLButtonElement, HotspotMarkerProps>(function HotspotMarker(
-  { xPct, yPct, label, isActive, revealDelay, onClick },
+  { left, top, topPct, label, isActive, revealDelay, onClick },
   ref,
 ) {
   const shouldReduceMotion = useReducedMotion();
-  const tooltipBelow = yPct < 16;
+  const tooltipBelow = topPct < 16;
   const [popped, setPopped] = useState(shouldReduceMotion ?? false);
 
   useEffect(() => {
@@ -33,15 +37,13 @@ export const HotspotMarker = forwardRef<HTMLButtonElement, HotspotMarkerProps>(f
   }, [revealDelay, shouldReduceMotion]);
 
   return (
-    // Positioning (left/top % + the -1/2 translate) lives on this button and
-    // nowhere else. Tailwind v4 composes translate/scale utilities into one
-    // `transform` via shared CSS variables, so the entrance `scale-50` here
-    // combines safely with the centering translate — unlike a framer-motion
-    // wrapper, whose own inline `transform` would either override this
-    // translate outright or (if used on an ancestor instead) turn that
-    // ancestor into a new containing block and break the % positioning of
-    // this button entirely. Both were tried and both broke; plain CSS
-    // transitions avoid the whole class of bug.
+    // Positioning (pixel left/top + the -1/2 translate) lives on this button
+    // and nowhere else — see the note in git history on why a framer-motion
+    // wrapper around this button breaks CSS containing-block resolution.
+    // The entrance here is a plain "zoom out" (starts larger, settles to
+    // 1) via CSS transition; Tailwind v4 composes translate + scale
+    // utilities into one `transform`, so it combines safely with the
+    // centering translate below.
     <button
       ref={ref}
       type="button"
@@ -49,10 +51,10 @@ export const HotspotMarker = forwardRef<HTMLButtonElement, HotspotMarkerProps>(f
       aria-label={label}
       aria-pressed={isActive}
       className={cn(
-        "group absolute z-20 grid h-11 w-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full outline-none transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
-        popped ? "scale-100 opacity-100" : "scale-50 opacity-0",
+        "group absolute z-20 grid h-11 w-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full outline-none transition-[transform,opacity] duration-300 ease-out",
+        popped ? "scale-100 opacity-100" : "scale-150 opacity-0",
       )}
-      style={{ left: `${xPct}%`, top: `${yPct}%` }}
+      style={{ left, top }}
     >
       {!shouldReduceMotion && (
         <motion.span
@@ -71,12 +73,12 @@ export const HotspotMarker = forwardRef<HTMLButtonElement, HotspotMarkerProps>(f
             : "border-white/28 bg-[#084bb9] shadow-[0_0_0_0_rgba(79,145,248,0.35),0_8px_18px_rgba(2,6,24,0.28)] group-hover:scale-[1.08] group-hover:bg-[#0a5edd] group-hover:shadow-[0_0_0_8px_rgba(79,145,248,0.16),0_10px_24px_rgba(2,6,24,0.34)] group-focus-visible:scale-[1.08] group-focus-visible:bg-[#0a5edd] group-focus-visible:shadow-[0_0_0_8px_rgba(79,145,248,0.16),0_10px_24px_rgba(2,6,24,0.34)]",
         )}
       >
+        {/* "+" only turns into "×" once this hotspot is the active one —
+            hovering (unselected) never rotates it, that would make "you can
+            click this again to close" look like "this is already open". */}
         <Plus
           aria-hidden="true"
-          className={cn(
-            "h-[18px] w-[18px] text-white transition-transform duration-150 ease-out",
-            isActive ? "rotate-45" : "group-hover:rotate-45 group-focus-visible:rotate-45",
-          )}
+          className={cn("h-[18px] w-[18px] text-white transition-transform duration-150 ease-out", isActive && "rotate-45")}
           strokeWidth={1.8}
         />
       </span>
