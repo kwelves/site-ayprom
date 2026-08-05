@@ -3,7 +3,6 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { motion, type PanInfo } from "framer-motion";
-import { useContainRect } from "./useContainRect";
 
 const SWIPE_THRESHOLD = 40;
 // How many slots are visible on each side of the active one. With 5 real
@@ -15,12 +14,6 @@ interface VehicleCarouselItem {
   slug: string;
   name: string;
   image: string;
-  naturalWidth: number;
-  naturalHeight: number;
-  /** Real bottom edge of the opaque truck pixels, as % of naturalHeight —
-   * every source PNG has a different amount of transparent margin below
-   * the vehicle, so this can't be assumed to be 100. */
-  contentBottomPct: number;
 }
 
 interface VehicleCarouselProps {
@@ -75,7 +68,7 @@ export function VehicleCarousel({ items, activeIndex, onSelect }: VehicleCarouse
   const didDragRef = useRef(false);
   const nextKeyRef = useRef(BUFFER + 1);
   const [isDragging, setIsDragging] = useState(false);
-  const [slotWidth, setSlotWidth] = useState(120);
+  const [slotWidth, setSlotWidth] = useState(220);
   const [slots, setSlots] = useState<Slot[]>(() => buildInitialSlots(activeIndex, items.length));
 
   useLayoutEffect(() => {
@@ -106,18 +99,24 @@ export function VehicleCarousel({ items, activeIndex, onSelect }: VehicleCarouse
   };
 
   return (
-    <div className="mx-auto max-w-3xl rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-6 sm:px-8">
+    <div className="mx-auto max-w-4xl rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-8 sm:px-8">
       {/* Edge-fade mask: items dissolve into the container edge instead of
           being hard-clipped or (the thing we're avoiding) visibly flying in
           from the opposite side. */}
       <div
         ref={maskRef}
-        className="relative h-24 overflow-hidden sm:h-28"
+        className="relative h-48 overflow-hidden sm:h-56"
         style={{
           maskImage: "linear-gradient(to right, transparent, black 14%, black 86%, transparent)",
           WebkitMaskImage: "linear-gradient(to right, transparent, black 14%, black 86%, transparent)",
         }}
       >
+        {/* Fixed, always-on indicator — center-anchored regardless of which
+            vehicle is active, never unmounted. Only two states: lit
+            (default) and dimmed while the strip is being dragged. Sits a
+            clear gap below the artwork, not flush against it. */}
+        <ActiveLamp isDragging={isDragging} />
+
         <motion.div
           ref={trackRef}
           className="absolute inset-0 touch-pan-y"
@@ -145,7 +144,7 @@ export function VehicleCarousel({ items, activeIndex, onSelect }: VehicleCarouse
                 }}
                 aria-label={item.name}
                 aria-current={isActive}
-                className="absolute top-1/2 left-1/2 h-14 w-24 -translate-x-1/2 -translate-y-1/2 outline-none sm:h-16 sm:w-32"
+                className="absolute top-1/2 left-1/2 h-28 w-48 -translate-x-1/2 -translate-y-1/2 outline-none sm:h-32 sm:w-64"
                 initial={{ x: slot.position * slotWidth, opacity: 0 }}
                 animate={{
                   x: slot.position * slotWidth,
@@ -155,7 +154,7 @@ export function VehicleCarousel({ items, activeIndex, onSelect }: VehicleCarouse
                 }}
                 transition={{ type: "spring", stiffness: 260, damping: 30 }}
               >
-                <CarouselItemContent item={item} isActive={isActive} isDragging={isDragging} />
+                <Image src={item.image} alt="" fill sizes="256px" className="object-contain" draggable={false} />
               </motion.button>
             );
           })}
@@ -165,61 +164,30 @@ export function VehicleCarousel({ items, activeIndex, onSelect }: VehicleCarouse
   );
 }
 
-// Measures its own object-contain rect (same technique as the main stage)
-// so the lamp can anchor to the *photo's* actual bottom edge — not the
-// button box's — regardless of how much transparent padding each source
-// PNG happens to have baked in above/below the truck.
-function CarouselItemContent({ item, isActive, isDragging }: { item: VehicleCarouselItem; isActive: boolean; isDragging: boolean }) {
-  const boxRef = useRef<HTMLDivElement>(null);
-  const rect = useContainRect(boxRef, item.naturalWidth, item.naturalHeight);
-
-  // rect.top is the letterbox gap (same on top and bottom for a centered
-  // object-contain image), so rect.top + rect.height is the *photo canvas's*
-  // bottom edge in box pixels — not the truck's. The truck's actual bottom
-  // (wheels) sits `contentBottomPct` of the way down that photo, so its
-  // distance from the box's own bottom edge is the remaining photo height
-  // below the wheels, plus the bottom letterbox gap.
-  const contentBottomOffset = rect.top + rect.height * (1 - item.contentBottomPct / 100);
-
-  return (
-    <div ref={boxRef} className="relative h-full w-full">
-      {isActive && <ActiveLamp isDragging={isDragging} bottomOffset={contentBottomOffset} />}
-      <Image src={item.image} alt="" fill sizes="128px" className="object-contain" draggable={false} />
-    </div>
-  );
-}
-
-// Three-layer LED-rail glow under the active thumbnail's wheels: a crisp
-// white core, a tight blue near-glow (box-shadow), and a wide soft upward
-// radial wash lighting the vehicle from below. Opacity stays modest even at
-// full brightness — the "expensive" look comes from spreading the soft
-// glow wider, not from pushing intensity up. Sits behind the vehicle photo
-// (rendered before it in DOM order, no explicit z-index needed) so the
-// wide wash reads as light cast up onto the underside of the truck rather
-// than a separate glowing pill floating below it.
-function ActiveLamp({ isDragging, bottomOffset }: { isDragging: boolean; bottomOffset: number }) {
+// Fixed LED-rail indicator, center-anchored under the strip — not tied to
+// any one thumbnail's artwork, never unmounted. Two states only: lit
+// (default) and dimmed while dragging; it stays put and visible either way,
+// just loses its glow. A crisp white core (linear-gradient) plus a tight
+// near-glow (box-shadow) — no wide upward wash reaching for the vehicle,
+// since the point is a gap between the light and the truck, not contact.
+function ActiveLamp({ isDragging }: { isDragging: boolean }) {
   return (
     <motion.span
       aria-hidden="true"
-      className="pointer-events-none absolute left-1/2 z-0 h-1 w-[70px] -translate-x-1/2 rounded-full sm:w-[90px]"
+      className="pointer-events-none absolute bottom-5 left-1/2 z-0 h-[3px] w-[100px] -translate-x-1/2 rounded-full sm:bottom-6 sm:w-[120px]"
       style={{
-        bottom: bottomOffset,
         background: "linear-gradient(90deg, transparent 0%, #dceeff 10%, #ffffff 50%, #dceeff 90%, transparent 100%)",
-        boxShadow: "0 0 5px rgba(255,255,255,0.95), 0 0 12px rgba(103,181,255,0.75), 0 0 24px rgba(43,135,255,0.45)",
       }}
       initial={false}
-      animate={{ opacity: isDragging ? 0 : 1, scaleX: isDragging ? 0.35 : 1 }}
-      transition={{ opacity: { duration: 0.28 }, scaleX: { duration: 0.48, ease: [0.22, 1, 0.36, 1] } }}
-    >
-      <motion.span
-        aria-hidden="true"
-        className="pointer-events-none absolute bottom-[-8px] left-1/2 -z-10 h-16 w-[140px] -translate-x-1/2 sm:w-[170px]"
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 100%, rgba(92,169,255,0.38) 0%, rgba(66,145,255,0.17) 35%, transparent 72%)",
-          filter: "blur(10px)",
-        }}
-      />
-    </motion.span>
+      animate={
+        isDragging
+          ? { opacity: 0.4, boxShadow: "0 0 0 rgba(255,255,255,0)" }
+          : {
+              opacity: 1,
+              boxShadow: "0 0 5px rgba(255,255,255,0.95), 0 0 12px rgba(103,181,255,0.75), 0 0 22px rgba(43,135,255,0.4)",
+            }
+      }
+      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+    />
   );
 }
