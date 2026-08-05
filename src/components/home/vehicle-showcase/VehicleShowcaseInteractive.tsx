@@ -15,6 +15,10 @@ export interface VehicleVisual {
   image: string;
   naturalWidth: number;
   naturalHeight: number;
+  /** How far beyond strict contain-fit to inflate the photo (1 = fits
+   * exactly). Hotspots track this same scaled rect, so they stay pinned to
+   * their equipment regardless of the value. */
+  scale?: number;
 }
 
 interface VehicleShowcaseInteractiveProps {
@@ -66,7 +70,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
   const activeEntry = entries[activeVehicleIndex];
   const activeHotspot = activeEntry?.hotspots.find((hotspot) => hotspot.id === activeHotspotId) ?? null;
   const visual = visuals[activeEntry?.vehicleType.slug ?? ""];
-  const containRect = useContainRect(stageRef, visual?.naturalWidth ?? 1, visual?.naturalHeight ?? 1);
+  const containRect = useContainRect(stageRef, visual?.naturalWidth ?? 1, visual?.naturalHeight ?? 1, visual?.scale ?? 1);
 
   useEffect(() => {
     const query = window.matchMedia("(min-width: 1024px)");
@@ -173,33 +177,48 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
 
   const stage = (
     <div ref={stageRef} className={`relative w-full ${STAGE_ASPECT_CLASS}`}>
-      <Image
-        src={visual.image}
-        alt={activeEntry.vehicleType.name}
-        fill
-        sizes="(max-width: 1023px) 90vw, 55vw"
-        priority
-        className="object-contain"
-      />
+      {containRect.width > 0 && (
+        // Not `fill` — `scale` on VehicleVisual can push the photo past
+        // strict contain-fit on purpose, and `fill` always clamps to the
+        // parent box. Explicit width/height (from the same scaled rect
+        // hotspots use) lets it actually overflow; `max-w-none` beats
+        // the global img{max-width:100%} reset that would otherwise shrink
+        // it straight back down.
+        <Image
+          src={visual.image}
+          alt={activeEntry.vehicleType.name}
+          width={Math.round(containRect.width)}
+          height={Math.round(containRect.height)}
+          sizes="(max-width: 1023px) 90vw, 55vw"
+          priority
+          className="pointer-events-none absolute max-w-none"
+          style={{ left: containRect.left, top: containRect.top, width: containRect.width, height: containRect.height }}
+        />
+      )}
 
       {revealed &&
         containRect.width > 0 &&
-        activeEntry.hotspots.map((hotspot) => (
-          <HotspotMarker
-            key={hotspot.id}
-            ref={(node) => {
-              if (node) hotspotRefs.current.set(hotspot.id, node);
-              else hotspotRefs.current.delete(hotspot.id);
-            }}
-            left={containRect.left + (hotspot.xPct / 100) * containRect.width}
-            top={containRect.top + (hotspot.yPct / 100) * containRect.height}
-            topPct={hotspot.yPct}
-            label={hotspot.label}
-            isActive={hotspot.id === activeHotspotId}
-            revealDelay={hotspot.hotspotNumber * 0.08}
-            onClick={() => selectHotspot(hotspot.id)}
-          />
-        ))}
+        activeEntry.hotspots.map((hotspot) => {
+          const left = containRect.left + (hotspot.xPct / 100) * containRect.width;
+          const top = containRect.top + (hotspot.yPct / 100) * containRect.height;
+          return (
+            <HotspotMarker
+              key={hotspot.id}
+              ref={(node) => {
+                if (node) hotspotRefs.current.set(hotspot.id, node);
+                else hotspotRefs.current.delete(hotspot.id);
+              }}
+              left={left}
+              top={top}
+              tooltipBelow={top < containRect.boxHeight * 0.2}
+              tooltipAlign={left < containRect.boxWidth * 0.25 ? "start" : left > containRect.boxWidth * 0.75 ? "end" : "center"}
+              label={hotspot.label}
+              isActive={hotspot.id === activeHotspotId}
+              revealDelay={hotspot.hotspotNumber * 0.08}
+              onClick={() => selectHotspot(hotspot.id)}
+            />
+          );
+        })}
     </div>
   );
 

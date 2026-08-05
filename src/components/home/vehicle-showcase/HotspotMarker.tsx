@@ -5,26 +5,29 @@ import { motion, useReducedMotion } from "framer-motion";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+export type TooltipAlign = "start" | "center" | "end";
+
 interface HotspotMarkerProps {
   left: number;
   top: number;
-  /** 0-100, position within the box the marker is placed in — only used to
-   * decide whether the tooltip flips below (near the top edge, a tooltip
-   * above would clip out of the photo). */
-  topPct: number;
   label: string;
   isActive: boolean;
+  /** Which edge has room — computed by the parent from the hotspot's pixel
+   * position against the actual stage bounds, since with the vehicle now
+   * scaled beyond strict contain-fit a hotspot can sit close to (or past)
+   * the stage edge in either axis. */
+  tooltipBelow: boolean;
+  tooltipAlign: TooltipAlign;
   /** Seconds to wait before popping in, staggered by hotspot number. */
   revealDelay: number;
   onClick: () => void;
 }
 
 export const HotspotMarker = forwardRef<HTMLButtonElement, HotspotMarkerProps>(function HotspotMarker(
-  { left, top, topPct, label, isActive, revealDelay, onClick },
+  { left, top, label, isActive, tooltipBelow, tooltipAlign, revealDelay, onClick },
   ref,
 ) {
   const shouldReduceMotion = useReducedMotion();
-  const tooltipBelow = topPct < 16;
   const [popped, setPopped] = useState(shouldReduceMotion ?? false);
 
   useEffect(() => {
@@ -86,10 +89,12 @@ export const HotspotMarker = forwardRef<HTMLButtonElement, HotspotMarkerProps>(f
       <span
         role="tooltip"
         className={cn(
-          "pointer-events-none absolute left-1/2 hidden max-w-[180px] -translate-x-1/2 rounded-md border border-white/10 bg-[rgba(15,23,43,0.9)] px-[9px] py-[7px] text-[11px] leading-[1.2] whitespace-nowrap text-white opacity-0 transition-[opacity,transform] duration-150 ease-out sm:block",
-          tooltipBelow
-            ? "top-[calc(100%+9px)] translate-y-[-5px] group-hover:translate-y-0 group-focus-visible:translate-y-0"
-            : "bottom-[calc(100%+9px)] translate-y-[5px] group-hover:translate-y-0 group-focus-visible:translate-y-0",
+          "pointer-events-none absolute hidden max-w-[180px] rounded-md border border-white/10 bg-[rgba(15,23,43,0.9)] px-[9px] py-[7px] text-[11px] leading-[1.2] whitespace-nowrap text-white opacity-0 transition-[opacity,transform] duration-150 ease-out sm:block",
+          tooltipBelow ? "top-[calc(100%+9px)]" : "bottom-[calc(100%+9px)]",
+          tooltipAlign === "center" && "left-1/2 -translate-x-1/2",
+          tooltipAlign === "start" && "left-0",
+          tooltipAlign === "end" && "right-0",
+          tooltipBelow ? "translate-y-[-5px] group-hover:translate-y-0 group-focus-visible:translate-y-0" : "translate-y-[5px] group-hover:translate-y-0 group-focus-visible:translate-y-0",
           "group-hover:opacity-100 group-focus-visible:opacity-100",
           isActive && "opacity-100 translate-y-0",
         )}
@@ -98,8 +103,11 @@ export const HotspotMarker = forwardRef<HTMLButtonElement, HotspotMarkerProps>(f
         <span
           aria-hidden="true"
           className={cn(
-            "absolute left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 border-[rgba(255,255,255,0.1)] bg-[rgba(15,23,43,0.9)]",
+            "absolute h-2 w-2 rotate-45 border-[rgba(255,255,255,0.1)] bg-[rgba(15,23,43,0.9)]",
             tooltipBelow ? "top-[-4px] border-t border-l" : "bottom-[-4px] border-r border-b",
+            tooltipAlign === "center" && "left-1/2 -translate-x-1/2",
+            tooltipAlign === "start" && "left-[18px]",
+            tooltipAlign === "end" && "right-[18px]",
           )}
         />
       </span>

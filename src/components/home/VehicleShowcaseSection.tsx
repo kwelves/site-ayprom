@@ -10,12 +10,18 @@ import { VehicleShowcaseInteractive, type VehicleVisual } from "./vehicle-showca
 // y_pct are measured against these native dimensions (% of the full photo,
 // not of the stage box), so hotspot placement has to account for the
 // contain-fit letterboxing at render time — see useContainRect.
+// `scale` inflates the vehicle beyond strict contain-fit (1 = fits exactly)
+// — hotspots are positioned from the same scaled rect, so they stay pinned
+// to the same physical spot on the truck as it grows, without their own
+// x_pct/y_pct or 44px size changing. Tyagach gets a smaller bump than the
+// rest because its native crop is already the tallest/most vertical of the
+// five and clips against the stage sooner.
 const VEHICLE_VISUALS: Record<string, VehicleVisual> = {
-  "kran-manipulyator": { image: "/images/vehicle-showcase/kran-manipulyator.png", naturalWidth: 1086, naturalHeight: 1448 },
-  musorovoz: { image: "/images/vehicle-showcase/musorovoz.png", naturalWidth: 1024, naturalHeight: 1536 },
-  avtovoz: { image: "/images/vehicle-showcase/avtovoz.png", naturalWidth: 1086, naturalHeight: 1448 },
-  samosval: { image: "/images/vehicle-showcase/samosval.png", naturalWidth: 1086, naturalHeight: 1448 },
-  tyagach: { image: "/images/vehicle-showcase/tyagach.png", naturalWidth: 1086, naturalHeight: 1448 },
+  "kran-manipulyator": { image: "/images/vehicle-showcase/kran-manipulyator.png", naturalWidth: 1086, naturalHeight: 1448, scale: 2 },
+  musorovoz: { image: "/images/vehicle-showcase/musorovoz.png", naturalWidth: 1024, naturalHeight: 1536, scale: 2 },
+  avtovoz: { image: "/images/vehicle-showcase/avtovoz.png", naturalWidth: 1086, naturalHeight: 1448, scale: 2 },
+  samosval: { image: "/images/vehicle-showcase/samosval.png", naturalWidth: 1086, naturalHeight: 1448, scale: 2 },
+  tyagach: { image: "/images/vehicle-showcase/tyagach.png", naturalWidth: 1086, naturalHeight: 1448, scale: 1.6 },
 };
 
 export async function VehicleShowcaseSection() {
@@ -43,13 +49,7 @@ export async function VehicleShowcaseSection() {
       />
 
       <Container className="relative z-10">
-        <SectionHeading
-          eyebrow="Интерактивный подбор"
-          title="Гидравлика на вашей технике"
-          description="Выберите машину, затем нажмите на отмеченный узел."
-          className="max-w-2xl"
-          tone="inverse"
-        />
+        <SectionHeading title="Гидравлика на вашей технике" className="max-w-2xl" tone="inverse" />
 
         <div className="mt-10">
           <VehicleShowcaseInteractive entries={entries} visuals={VEHICLE_VISUALS} defaultSlug="kran-manipulyator" />
