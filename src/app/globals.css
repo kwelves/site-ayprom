@@ -85,3 +85,22 @@ a {
     transition-duration: 0.01ms !important;
   }
 }
+
+/*
+ * Rotating "connected" glow on the vehicle-showcase product card
+ * (VehicleShowcase/ProductPanel.tsx) — a conic-gradient border whose angle
+ * is an animatable custom property, giving the ring a running-blip look
+ * instead of a flat spinning gradient. Unsupported browsers just see a
+ * static ring (graceful degradation, no JS fallback needed).
+ */
+@property --vs-glow-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes vs-glow-spin {
+  to {
+    --vs-glow-angle: 360deg;
+  }
+}
