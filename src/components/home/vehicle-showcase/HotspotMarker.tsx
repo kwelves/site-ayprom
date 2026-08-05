@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef } from "react";
+import { forwardRef, useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -10,24 +10,48 @@ interface HotspotMarkerProps {
   yPct: number;
   label: string;
   isActive: boolean;
+  /** Seconds to wait before popping in, staggered by hotspot number. */
+  revealDelay: number;
   onClick: () => void;
 }
 
 export const HotspotMarker = forwardRef<HTMLButtonElement, HotspotMarkerProps>(function HotspotMarker(
-  { xPct, yPct, label, isActive, onClick },
+  { xPct, yPct, label, isActive, revealDelay, onClick },
   ref,
 ) {
   const shouldReduceMotion = useReducedMotion();
   const tooltipBelow = yPct < 16;
+  const [popped, setPopped] = useState(shouldReduceMotion ?? false);
+
+  useEffect(() => {
+    if (shouldReduceMotion) {
+      setPopped(true);
+      return;
+    }
+    const timer = setTimeout(() => setPopped(true), revealDelay * 1000);
+    return () => clearTimeout(timer);
+  }, [revealDelay, shouldReduceMotion]);
 
   return (
+    // Positioning (left/top % + the -1/2 translate) lives on this button and
+    // nowhere else. Tailwind v4 composes translate/scale utilities into one
+    // `transform` via shared CSS variables, so the entrance `scale-50` here
+    // combines safely with the centering translate — unlike a framer-motion
+    // wrapper, whose own inline `transform` would either override this
+    // translate outright or (if used on an ancestor instead) turn that
+    // ancestor into a new containing block and break the % positioning of
+    // this button entirely. Both were tried and both broke; plain CSS
+    // transitions avoid the whole class of bug.
     <button
       ref={ref}
       type="button"
       onClick={onClick}
       aria-label={label}
       aria-pressed={isActive}
-      className="group absolute z-20 grid h-11 w-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full outline-none"
+      className={cn(
+        "group absolute z-20 grid h-11 w-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full outline-none transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+        popped ? "scale-100 opacity-100" : "scale-50 opacity-0",
+      )}
       style={{ left: `${xPct}%`, top: `${yPct}%` }}
     >
       {!shouldReduceMotion && (

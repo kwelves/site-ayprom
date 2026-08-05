@@ -44,10 +44,10 @@ export async function VehicleShowcaseSection() {
 
       <Container className="relative z-10">
         <SectionHeading
-          eyebrow="Спецтехника"
-          title="Оборудование для спецтехники"
-          description="Нажмите на отмеченную точку на фото техники, чтобы увидеть подходящую деталь для этого узла."
-          className="mx-auto max-w-2xl text-center"
+          eyebrow="Интерактивный подбор"
+          title="Гидравлика на вашей технике"
+          description="Выберите машину, затем нажмите на отмеченный узел."
+          className="max-w-2xl"
           tone="inverse"
         />
 

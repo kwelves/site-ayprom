@@ -1,6 +1,5 @@
 "use client";
 
-import { forwardRef } from "react";
 import Link from "next/link";
 import { ArrowRight, Clock } from "lucide-react";
 import { ImageFallback } from "@/components/ui/ImageFallback";
@@ -12,10 +11,7 @@ interface ProductPanelProps {
   isConnected: boolean;
 }
 
-export const ProductPanel = forwardRef<HTMLDivElement, ProductPanelProps>(function ProductPanel(
-  { label, product, isConnected },
-  ref,
-) {
+export function ProductPanel({ label, product, isConnected }: ProductPanelProps) {
   return (
     <div className="relative">
       {isConnected && (
@@ -30,10 +26,7 @@ export const ProductPanel = forwardRef<HTMLDivElement, ProductPanelProps>(functi
         />
       )}
 
-      <div
-        ref={ref}
-        className="relative flex min-h-[220px] flex-col gap-4 rounded-2xl border border-white/10 bg-[#0b1220] p-5 sm:p-6"
-      >
+      <div className="relative flex min-h-[220px] flex-col gap-4 rounded-2xl border border-white/10 bg-[#0b1220] p-5 sm:p-6">
         {product ? (
           <>
             <div className="relative aspect-square w-full max-w-[200px] overflow-hidden rounded-xl bg-white/5">
@@ -72,4 +65,4 @@ export const ProductPanel = forwardRef<HTMLDivElement, ProductPanelProps>(functi
       </div>
     </div>
   );
-});
+}

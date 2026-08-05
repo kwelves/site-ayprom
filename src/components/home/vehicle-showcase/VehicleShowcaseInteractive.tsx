@@ -158,15 +158,25 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
 
   if (!activeEntry || !visual) return null;
 
+  const hotspotNumber = activeEntry.hotspots.length;
+
   return (
     <div ref={sectionRef} className="relative">
+      <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">{activeEntry.vehicleType.name}</p>
+
+      {/* Always two columns on desktop — the right column shows a hint
+          panel before any hotspot is picked and the product card after,
+          rather than the grid itself growing a second column on first
+          click. A layout that structurally changes shape (1→2 columns)
+          mid-interaction was tried first and is the reason connector
+          geometry kept measuring a mid-transition position; keeping the
+          grid shape constant removes that whole class of bug. */}
       <div
         ref={containerRef}
-        className={`relative mx-auto grid gap-8 transition-[grid-template-columns] duration-500 ease-out ${
-          activeHotspotId ? "max-w-5xl lg:grid-cols-[1.3fr_1fr] lg:items-center" : "max-w-2xl grid-cols-1"
-        }`}
+        data-testid="vehicle-showcase-grid"
+        className="relative mt-3 grid grid-cols-1 gap-6 lg:grid-cols-[1.3fr_1fr] lg:items-center lg:gap-10"
       >
-        <motion.div layout className="relative">
+        <div className="relative">
           <div
             className="relative isolate w-full overflow-hidden rounded-2xl border border-white/10 bg-[#0b1220]"
             style={{ aspectRatio: visual.aspectRatio }}
@@ -180,33 +190,22 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
               className="object-cover"
             />
 
-            <span className="absolute top-3 left-3 z-20 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
-              {activeEntry.vehicleType.name}
-            </span>
-
-            <AnimatePresence>
-              {revealed &&
-                activeEntry.hotspots.map((hotspot) => (
-                  <motion.div
-                    key={hotspot.id}
-                    initial={{ opacity: 0, scale: 0.5 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: hotspot.hotspotNumber * 0.08, type: "spring", stiffness: 300, damping: 20 }}
-                  >
-                    <HotspotMarker
-                      ref={(node) => {
-                        if (node) hotspotRefs.current.set(hotspot.id, node);
-                        else hotspotRefs.current.delete(hotspot.id);
-                      }}
-                      xPct={hotspot.xPct}
-                      yPct={hotspot.yPct}
-                      label={hotspot.label}
-                      isActive={hotspot.id === activeHotspotId}
-                      onClick={() => selectHotspot(hotspot.id)}
-                    />
-                  </motion.div>
-                ))}
-            </AnimatePresence>
+            {revealed &&
+              activeEntry.hotspots.map((hotspot) => (
+                <HotspotMarker
+                  key={hotspot.id}
+                  ref={(node) => {
+                    if (node) hotspotRefs.current.set(hotspot.id, node);
+                    else hotspotRefs.current.delete(hotspot.id);
+                  }}
+                  xPct={hotspot.xPct}
+                  yPct={hotspot.yPct}
+                  label={hotspot.label}
+                  isActive={hotspot.id === activeHotspotId}
+                  revealDelay={hotspot.hotspotNumber * 0.08}
+                  onClick={() => selectHotspot(hotspot.id)}
+                />
+              ))}
           </div>
 
           {!isDesktop && verticalPath && activeHotspot && (
@@ -220,25 +219,49 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
               <Connector paths={verticalPath} onConnected={() => setConnected(true)} />
             </svg>
           )}
-        </motion.div>
+        </div>
 
-        <AnimatePresence mode="wait">
-          {activeHotspot && (
-            <motion.div
-              key={activeHotspot.id}
-              initial={{ opacity: 0, x: 16 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 16 }}
-              transition={{ duration: 0.25, ease: "easeOut" }}
-            >
-              <ProductPanel ref={cardRef} label={activeHotspot.label} product={activeHotspot.product} isConnected={connected} />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {revealed && (
+          // Ref target for the connector measurement — stays mounted across
+          // both hotspot switches and the hint↔card swap so it's never a
+          // stale/removed node when geometry is (re)computed.
+          <div ref={cardRef} data-testid="vehicle-card" className="min-h-[220px]">
+            <AnimatePresence mode="wait">
+              {activeHotspot ? (
+                <motion.div
+                  key={activeHotspot.id}
+                  initial={{ opacity: 0, x: 16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 16 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                >
+                  <ProductPanel label={activeHotspot.label} product={activeHotspot.product} isConnected={connected} />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="hint"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                  className="flex min-h-[220px] flex-col justify-center gap-2 px-2"
+                >
+                  <p className="text-4xl font-bold text-white/10 tabular-nums">
+                    01—{String(hotspotNumber).padStart(2, "0")}
+                  </p>
+                  <p className="text-sm text-slate-400">
+                    Нажмите на синий плюс, чтобы увидеть подходящее оборудование.
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
 
         {isDesktop && connectorPaths && (
           <svg
             aria-hidden="true"
+            data-testid="vehicle-connector-svg"
             className="pointer-events-none absolute inset-0 z-10"
             width={svgSize.width}
             height={svgSize.height}
