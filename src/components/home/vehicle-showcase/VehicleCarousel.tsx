@@ -105,7 +105,7 @@ export function VehicleCarousel({ items, activeIndex, onSelect }: VehicleCarouse
           from the opposite side. */}
       <div
         ref={maskRef}
-        className="relative h-48 overflow-hidden sm:h-56"
+        className="relative h-40 overflow-hidden sm:h-48"
         style={{
           maskImage: "linear-gradient(to right, transparent, black 14%, black 86%, transparent)",
           WebkitMaskImage: "linear-gradient(to right, transparent, black 14%, black 86%, transparent)",
@@ -113,8 +113,10 @@ export function VehicleCarousel({ items, activeIndex, onSelect }: VehicleCarouse
       >
         {/* Fixed, always-on indicator — center-anchored regardless of which
             vehicle is active, never unmounted. Only two states: lit
-            (default) and dimmed while the strip is being dragged. Sits a
-            clear gap below the artwork, not flush against it. */}
+            (default) and dimmed while the strip is being dragged. The
+            thumbnails below are bottom-anchored (not vertically centered)
+            precisely so there's a deliberate, consistent gap between them
+            and this lamp rather than the truck sitting flush on top of it. */}
         <ActiveLamp isDragging={isDragging} />
 
         <motion.div
@@ -144,7 +146,7 @@ export function VehicleCarousel({ items, activeIndex, onSelect }: VehicleCarouse
                 }}
                 aria-label={item.name}
                 aria-current={isActive}
-                className="absolute top-1/2 left-1/2 h-28 w-48 -translate-x-1/2 -translate-y-1/2 outline-none sm:h-32 sm:w-64"
+                className="absolute bottom-9 left-1/2 h-24 w-44 -translate-x-1/2 outline-none sm:bottom-11 sm:h-28 sm:w-56"
                 initial={{ x: slot.position * slotWidth, opacity: 0 }}
                 animate={{
                   x: slot.position * slotWidth,
@@ -165,29 +167,47 @@ export function VehicleCarousel({ items, activeIndex, onSelect }: VehicleCarouse
 }
 
 // Fixed LED-rail indicator, center-anchored under the strip — not tied to
-// any one thumbnail's artwork, never unmounted. Two states only: lit
-// (default) and dimmed while dragging; it stays put and visible either way,
-// just loses its glow. A crisp white core (linear-gradient) plus a tight
-// near-glow (box-shadow) — no wide upward wash reaching for the vehicle,
-// since the point is a gap between the light and the truck, not contact.
+// any one thumbnail's artwork, never unmounted. Three layers, exactly per
+// spec: a crisp white core (linear-gradient bar), a tight near-glow
+// (box-shadow), and a wide soft radial wash that reaches upward toward the
+// vehicle sitting above it — that wash is what visually "touches" and
+// lights the truck; the core bar itself stays a thin, sharp line with real
+// air between it and the artwork. Two states only — lit (default) and off
+// while the strip is being dragged — both driven by one boolean, nothing
+// about the lamp itself ever unmounts.
 function ActiveLamp({ isDragging }: { isDragging: boolean }) {
   return (
-    <motion.span
-      aria-hidden="true"
-      className="pointer-events-none absolute bottom-5 left-1/2 z-0 h-[3px] w-[100px] -translate-x-1/2 rounded-full sm:bottom-6 sm:w-[120px]"
-      style={{
-        background: "linear-gradient(90deg, transparent 0%, #dceeff 10%, #ffffff 50%, #dceeff 90%, transparent 100%)",
-      }}
-      initial={false}
-      animate={
-        isDragging
-          ? { opacity: 0.4, boxShadow: "0 0 0 rgba(255,255,255,0)" }
-          : {
-              opacity: 1,
-              boxShadow: "0 0 5px rgba(255,255,255,0.95), 0 0 12px rgba(103,181,255,0.75), 0 0 22px rgba(43,135,255,0.4)",
-            }
-      }
-      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-    />
+    // Positioning (bottom + horizontal centering) lives on this plain,
+    // non-animated span. Framer writes its own inline `transform` for
+    // scaleX below — on the *same* element that would silently replace
+    // (not merge with) a `-translate-x-1/2` class's transform, since
+    // inline style always wins over a stylesheet rule for one CSS
+    // property. Same class of bug as the hotspot entrance animation, same
+    // fix: keep the class-based transform and the framer-animated
+    // transform on two different elements.
+    <span aria-hidden="true" className="pointer-events-none absolute bottom-2 left-1/2 z-0 h-1 w-[120px] -translate-x-1/2 rounded-full">
+      <motion.span
+        className="absolute inset-0 rounded-full"
+        style={{
+          background: "linear-gradient(90deg, transparent 0%, #dceeff 10%, #ffffff 50%, #dceeff 90%, transparent 100%)",
+          boxShadow: "0 0 5px rgba(255,255,255,0.95), 0 0 12px rgba(103,181,255,0.75), 0 0 24px rgba(43,135,255,0.45)",
+          isolation: "isolate",
+        }}
+        initial={false}
+        animate={{ opacity: isDragging ? 0 : 1, scaleX: isDragging ? 0.35 : 1 }}
+        transition={{ opacity: { duration: 0.28 }, scaleX: { duration: 0.48, ease: [0.22, 1, 0.36, 1] } }}
+      />
+      {/* Wide soft upward wash — the ::before equivalent from spec. Not
+          animated, so no transform-precedence conflict here; it just fades
+          with its parent's opacity via CSS. */}
+      <span
+        className="pointer-events-none absolute -bottom-[5px] left-1/2 -z-10 h-[70px] w-[190px] -translate-x-1/2 transition-opacity duration-300"
+        style={{
+          background: "radial-gradient(ellipse at 50% 100%, rgba(92,169,255,0.38) 0%, rgba(66,145,255,0.17) 35%, transparent 72%)",
+          filter: "blur(10px)",
+          opacity: isDragging ? 0 : 1,
+        }}
+      />
+    </span>
   );
 }
