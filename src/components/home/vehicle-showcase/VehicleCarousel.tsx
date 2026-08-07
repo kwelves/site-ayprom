@@ -1,14 +1,49 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { motion, type PanInfo } from "framer-motion";
+import { CarouselLamp } from "./CarouselLamp";
 
 const SWIPE_THRESHOLD = 40;
+// How the dim-flash on a click-driven switch stays in sync with
+// CarouselLamp's own opacity transition duration (see CarouselLamp.tsx).
+const FLASH_MS = 280;
 // How many slots are visible on each side of the active one. With 5 real
 // vehicles this exactly covers all of them (0 = active, ±1 = near, ±2 =
 // the ones fading into the edge) — no vehicle is ever rendered twice.
 const BUFFER = 2;
+
+// Per-vehicle lg-only correction so every thumbnail grows ~35-40% while
+// landing on the *same* 10px gap between wheel-base and the lamp's bright
+// core line (CarouselLamp.tsx: `bottom-2` + `h-[2px]`, so that line's top
+// edge sits 10px above this button's own bottom-0), despite each PNG
+// having a different amount of transparent margin below its wheels. Each
+// source photo was measured with a canvas alpha-channel scan (bottom-most
+// non-transparent pixel row, as a fraction of image height) at the
+// thumbnail's lg box height (64px):
+//   kran-manipulyator 0.2514  musorovoz 0.2982  avtovoz 0.3052
+//   samosval 0.2244            tyagach 0.1657
+// `scale` is applied from a bottom-center origin (`origin-bottom`), so it
+// grows the photo without moving its bottom edge; `translateY` then places
+// the wheel-base 20px above bottom-0 — 10px of that is the lamp line's own
+// height above bottom-0, the other 10px is the actual visible gap:
+//   translateY = fBottom × 64 × scale − 20
+// Verified in-browser (measured wheel-bottom vs. the lamp line's actual
+// getBoundingClientRect, not just the math) — see conversation history.
+// Lives on an inner wrapper, not the <Image> itself or the outer
+// motion.button — the button already carries Framer's own animated
+// `scale` for the near/far depth effect, and an inline `transform` from
+// Framer would silently overwrite (not merge with) a class-based one on
+// the same element (see HotspotMarker's entrance-animation comment for the
+// same class of bug).
+const CAROUSEL_LG_VISUAL: Record<string, string> = {
+  "kran-manipulyator": "lg:origin-bottom lg:scale-[1.375] lg:translate-y-[2.1px]",
+  musorovoz: "lg:origin-bottom lg:scale-[1.375] lg:translate-y-[6.2px]",
+  avtovoz: "lg:origin-bottom lg:scale-[1.375] lg:translate-y-[6.9px]",
+  samosval: "lg:origin-bottom lg:scale-[1.375] lg:translate-y-[-0.3px]",
+  tyagach: "lg:origin-bottom lg:scale-[1.375] lg:translate-y-[-5.4px]",
+};
 
 interface VehicleCarouselItem {
   slug: string;
@@ -48,6 +83,8 @@ function buildInitialSlots(activeIndex: number, count: number): Slot[] {
  * the item(s) actually entering the window are freshly mounted (fading in
  * at the edge, already blurred there — never a "flies in from the opposite
  * side" jump, which is what a circular-shortest-distance layout gives you).
+ * This is what makes the strip infinite in both directions: there is no
+ * start/end index, only positions relative to whatever is active.
  */
 function shiftSlots(prevSlots: Slot[], delta: number, newActiveIndex: number, count: number, nextKeyRef: { current: number }): Slot[] {
   const shifted = prevSlots
@@ -67,7 +104,9 @@ export function VehicleCarousel({ items, activeIndex, onSelect }: VehicleCarouse
   const trackRef = useRef<HTMLDivElement>(null);
   const didDragRef = useRef(false);
   const nextKeyRef = useRef(BUFFER + 1);
+  const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [isDragging, setIsDragging] = useState(false);
+  const [isFlashing, setIsFlashing] = useState(false);
   const [slotWidth, setSlotWidth] = useState(220);
   const [slots, setSlots] = useState<Slot[]>(() => buildInitialSlots(activeIndex, items.length));
 
@@ -81,9 +120,20 @@ export function VehicleCarousel({ items, activeIndex, onSelect }: VehicleCarouse
     return () => resizeObserver.disconnect();
   }, []);
 
+  useEffect(() => () => clearTimeout(flashTimeoutRef.current), []);
+
   const navigate = (delta: number, newActiveIndex: number) => {
     setSlots((prev) => shiftSlots(prev, delta, newActiveIndex, items.length, nextKeyRef));
     onSelect(newActiveIndex);
+  };
+
+  // Same lamp-dim beat as an actual drag (see CarouselLamp), fired instead
+  // for a click-driven switch. Held in a ref so a fast second click restarts
+  // the timer instead of letting a stale one turn the lamp back on early.
+  const flashLamp = () => {
+    clearTimeout(flashTimeoutRef.current);
+    setIsFlashing(true);
+    flashTimeoutRef.current = setTimeout(() => setIsFlashing(false), FLASH_MS);
   };
 
   const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
@@ -99,26 +149,18 @@ export function VehicleCarousel({ items, activeIndex, onSelect }: VehicleCarouse
   };
 
   return (
-    <div className="mx-auto max-w-4xl rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-8 sm:px-8">
+    <div className="relative mx-auto w-full max-w-4xl">
       {/* Edge-fade mask: items dissolve into the container edge instead of
           being hard-clipped or (the thing we're avoiding) visibly flying in
           from the opposite side. */}
       <div
         ref={maskRef}
-        className="relative h-40 overflow-hidden sm:h-48"
+        className="relative z-10 h-20 overflow-hidden sm:h-24 lg:h-28"
         style={{
           maskImage: "linear-gradient(to right, transparent, black 14%, black 86%, transparent)",
           WebkitMaskImage: "linear-gradient(to right, transparent, black 14%, black 86%, transparent)",
         }}
       >
-        {/* Fixed, always-on indicator — center-anchored regardless of which
-            vehicle is active, never unmounted. Only two states: lit
-            (default) and dimmed while the strip is being dragged. The
-            thumbnails below are bottom-anchored (not vertically centered)
-            precisely so there's a deliberate, consistent gap between them
-            and this lamp rather than the truck sitting flush on top of it. */}
-        <ActiveLamp isDragging={isDragging} />
-
         <motion.div
           ref={trackRef}
           className="absolute inset-0 touch-pan-y"
@@ -142,72 +184,36 @@ export function VehicleCarousel({ items, activeIndex, onSelect }: VehicleCarouse
                 key={slot.key}
                 type="button"
                 onClick={() => {
-                  if (!didDragRef.current && slot.position !== 0) navigate(slot.position, slot.semanticIndex);
+                  if (!didDragRef.current && slot.position !== 0) {
+                    navigate(slot.position, slot.semanticIndex);
+                    flashLamp();
+                  }
                 }}
                 aria-label={item.name}
                 aria-current={isActive}
-                className="absolute bottom-9 left-1/2 h-24 w-44 -translate-x-1/2 outline-none sm:bottom-11 sm:h-28 sm:w-56"
+                className="absolute bottom-0 left-1/2 h-[77px] w-[134px] -translate-x-1/2 outline-none sm:h-20 sm:w-32 lg:h-16 lg:w-28"
                 initial={{ x: slot.position * slotWidth, opacity: 0 }}
                 animate={{
                   x: slot.position * slotWidth,
-                  opacity: isActive || isNear ? 1 : 0.22,
+                  opacity: isActive || isNear ? 1 : 0.75,
                   scale: isActive ? 1 : isNear ? 0.82 : 0.62,
-                  filter: isActive ? "brightness(1) blur(0px)" : isNear ? "brightness(0.87) blur(0px)" : "brightness(0.7) blur(4px)",
+                  filter: isActive ? "brightness(1) blur(0px)" : isNear ? "brightness(0.87) blur(0px)" : "brightness(0.95) blur(0.4px)",
                 }}
                 transition={{ type: "spring", stiffness: 260, damping: 30 }}
               >
-                <Image src={item.image} alt="" fill sizes="256px" className="object-contain" draggable={false} />
+                <div className={`relative h-full w-full ${CAROUSEL_LG_VISUAL[item.slug] ?? ""}`}>
+                  <Image src={item.image} alt="" fill sizes="256px" className="object-contain" draggable={false} />
+                </div>
               </motion.button>
             );
           })}
         </motion.div>
       </div>
-    </div>
-  );
-}
 
-// Fixed LED-rail indicator, center-anchored under the strip — not tied to
-// any one thumbnail's artwork, never unmounted. Three layers, exactly per
-// spec: a crisp white core (linear-gradient bar), a tight near-glow
-// (box-shadow), and a wide soft radial wash that reaches upward toward the
-// vehicle sitting above it — that wash is what visually "touches" and
-// lights the truck; the core bar itself stays a thin, sharp line with real
-// air between it and the artwork. Two states only — lit (default) and off
-// while the strip is being dragged — both driven by one boolean, nothing
-// about the lamp itself ever unmounts.
-function ActiveLamp({ isDragging }: { isDragging: boolean }) {
-  return (
-    // Positioning (bottom + horizontal centering) lives on this plain,
-    // non-animated span. Framer writes its own inline `transform` for
-    // scaleX below — on the *same* element that would silently replace
-    // (not merge with) a `-translate-x-1/2` class's transform, since
-    // inline style always wins over a stylesheet rule for one CSS
-    // property. Same class of bug as the hotspot entrance animation, same
-    // fix: keep the class-based transform and the framer-animated
-    // transform on two different elements.
-    <span aria-hidden="true" className="pointer-events-none absolute bottom-2 left-1/2 z-0 h-1 w-[120px] -translate-x-1/2 rounded-full">
-      <motion.span
-        className="absolute inset-0 rounded-full"
-        style={{
-          background: "linear-gradient(90deg, transparent 0%, #dceeff 10%, #ffffff 50%, #dceeff 90%, transparent 100%)",
-          boxShadow: "0 0 5px rgba(255,255,255,0.95), 0 0 12px rgba(103,181,255,0.75), 0 0 24px rgba(43,135,255,0.45)",
-          isolation: "isolate",
-        }}
-        initial={false}
-        animate={{ opacity: isDragging ? 0 : 1, scaleX: isDragging ? 0.35 : 1 }}
-        transition={{ opacity: { duration: 0.28 }, scaleX: { duration: 0.48, ease: [0.22, 1, 0.36, 1] } }}
-      />
-      {/* Wide soft upward wash — the ::before equivalent from spec. Not
-          animated, so no transform-precedence conflict here; it just fades
-          with its parent's opacity via CSS. */}
-      <span
-        className="pointer-events-none absolute -bottom-[5px] left-1/2 -z-10 h-[70px] w-[190px] -translate-x-1/2 transition-opacity duration-300"
-        style={{
-          background: "radial-gradient(ellipse at 50% 100%, rgba(92,169,255,0.38) 0%, rgba(66,145,255,0.17) 35%, transparent 72%)",
-          filter: "blur(10px)",
-          opacity: isDragging ? 0 : 1,
-        }}
-      />
-    </span>
+      {/* Pinned to the carousel container's own bottom-center, independent
+          of the mask above — its glow sits behind the thumbnails (z-0 vs.
+          the mask's z-10) and isn't edge-faded or clipped with them. */}
+      <CarouselLamp dimmed={isDragging || isFlashing} />
+    </div>
   );
 }

@@ -46,7 +46,7 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
           }}
         >
           <motion.span
-            className="inline-flex origin-top-right"
+            className="inline-flex origin-top-left md:origin-top-right"
             animate={{ scale: overPhoto ? 1.6 : 1 }}
             transition={{ duration: overPhoto ? 0.15 : 0.2, ease: "easeOut" }}
           >
@@ -134,6 +134,7 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
                 <MobileNavItem
                   key={item.label}
                   item={item}
+                  pathname={pathname}
                   onNavigate={() => setOpen(false)}
                   handleHashClick={handleHashClick}
                 />
@@ -151,23 +152,42 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
 
 function MobileNavItem({
   item,
+  pathname,
   onNavigate,
   handleHashClick,
 }: {
   item: NavItem;
+  pathname: string;
   onNavigate: () => void;
   handleHashClick: (href: string, event: React.MouseEvent) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
+  // The mobile panel lives in normal document flow (open, it pushes the
+  // page content below it down), so closing it collapses that height and
+  // shifts everything under it — including whatever position
+  // `scrollIntoView` was just told to scroll to, mid-animation. Closing
+  // first and only starting the scroll once that collapse has settled
+  // keeps the two from fighting each other instead of racing them.
+  // Cross-page hash links skip the delay entirely: Link's normal
+  // navigation unmounts this Header, so there's nothing left to race.
+  const handleMobileNavClick = (event: React.MouseEvent, href: string) => {
+    const hashIndex = href.indexOf("#");
+    const targetPath = hashIndex === -1 ? href : href.slice(0, hashIndex) || "/";
+    if (targetPath !== pathname) {
+      onNavigate();
+      return;
+    }
+    event.preventDefault();
+    onNavigate();
+    window.setTimeout(() => handleHashClick(href, event), 300);
+  };
+
   if (!item.dropdown) {
     return (
       <Link
         href={item.href}
-        onClick={(event) => {
-          handleHashClick(item.href, event);
-          onNavigate();
-        }}
+        onClick={(event) => handleMobileNavClick(event, item.href)}
         className="rounded-md flex min-h-11 items-center px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-muted hover:text-primary"
       >
         {item.label}
@@ -180,10 +200,7 @@ function MobileNavItem({
       <div className="flex items-center">
         <Link
           href={item.href}
-          onClick={(event) => {
-            handleHashClick(item.href, event);
-            onNavigate();
-          }}
+          onClick={(event) => handleMobileNavClick(event, item.href)}
           className="flex-1 rounded-md flex min-h-11 items-center px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-muted hover:text-primary"
         >
           {item.label}

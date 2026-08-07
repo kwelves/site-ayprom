@@ -23,11 +23,11 @@ export const ProductPanel = forwardRef<HTMLDivElement, ProductPanelProps>(functi
   return (
     <div
       ref={ref}
-      className="relative flex min-h-[220px] flex-col gap-4 rounded-2xl border border-white/15 bg-[#0b1220] p-5 sm:p-6"
+      className="relative flex min-h-[220px] flex-col gap-4 rounded-2xl border border-white/15 bg-[#0b1220] p-5 sm:p-6 lg:min-h-0 lg:flex-row lg:items-start lg:gap-3 lg:p-3"
     >
       {product ? (
         <>
-          <div className="relative aspect-square w-full max-w-[200px] overflow-hidden rounded-xl bg-white/5">
+          <div className="relative aspect-square w-full max-w-[200px] shrink-0 overflow-hidden rounded-xl bg-white/5 lg:max-w-[90px]">
             <ImageFallback
               src={product.image?.url}
               alt={product.name}
@@ -36,18 +36,20 @@ export const ProductPanel = forwardRef<HTMLDivElement, ProductPanelProps>(functi
               style={product.image?.scale ? { transform: `scale(${product.image.scale})` } : undefined}
             />
           </div>
-          <div>
-            <p className="text-xs font-semibold tracking-wide text-[#5b9dff] uppercase">{label}</p>
-            <h3 className="mt-1 text-lg font-bold text-white">{product.name}</h3>
-            <p className="mt-2 text-sm text-slate-300">{product.shortDescription}</p>
+          <div className="flex min-w-0 flex-1 flex-col lg:self-stretch">
+            <div>
+              <p className="text-xs font-semibold tracking-wide text-[#5b9dff] uppercase">{label}</p>
+              <h3 className="mt-1 text-lg font-bold text-white lg:text-base">{product.name}</h3>
+              <p className="mt-2 text-sm text-slate-300 lg:line-clamp-2 lg:text-xs">{product.shortDescription}</p>
+            </div>
+            <Link
+              href={`/product/${product.slug}`}
+              className="mt-auto inline-flex items-center gap-1.5 pt-2 text-sm font-semibold text-[#5b9dff] transition-colors hover:text-[#8fc2ff] lg:text-xs"
+            >
+              Подробнее
+              <ArrowRight aria-hidden="true" className="h-4 w-4" />
+            </Link>
           </div>
-          <Link
-            href={`/product/${product.slug}`}
-            className="mt-auto inline-flex items-center gap-1.5 text-sm font-semibold text-[#5b9dff] transition-colors hover:text-[#8fc2ff]"
-          >
-            Подробнее
-            <ArrowRight aria-hidden="true" className="h-4 w-4" />
-          </Link>
         </>
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">

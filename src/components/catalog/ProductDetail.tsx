@@ -1,9 +1,6 @@
-import Link from "next/link";
 import { Reveal } from "@/components/motion/Reveal";
 import { ProductGallery } from "@/components/catalog/ProductGallery";
 import { ProductCard } from "@/components/catalog/ProductCard";
-import { getBrands } from "@/lib/queries/brands";
-import { getVehicleTypes } from "@/lib/queries/vehicle-types";
 import { getProducts } from "@/lib/queries/products";
 import { getCategoryBrandSlugs } from "@/lib/queries/category-brands";
 import { getProductHref } from "@/lib/product-href";
@@ -11,9 +8,16 @@ import type { Product } from "@/types/catalog";
 
 // Shared product-detail render, used by both the subcategory-path and the
 // brand-path product routes so the page looks identical regardless of which
-// navigation route reached it. Every optional block (description,
-// characteristics, compatible brands) is omitted entirely when its data is
-// missing, so a partially-filled product never renders empty sections.
+// navigation route reached it. Every optional block (characteristics) is
+// omitted entirely when its data is missing, so a partially-filled product
+// never renders empty sections.
+//
+// Article, long description, "Подходит для"/"Совместимость" and the
+// "Уточнить наличие" CTA are deliberately not rendered — v1 shows title,
+// short description, characteristics, and photos only. The underlying
+// Product fields (article, description, compatibleBrands, vehicleTypes)
+// and their admin inputs are untouched, so this is reversible without a
+// data migration whenever a later version wants them back.
 //
 // No category/subcategory breadcrumb-style eyebrow here — the page's real
 // Breadcrumb (in the shared layout) already shows that path, so repeating
@@ -22,23 +26,11 @@ export async function ProductDetail({ product }: { product: Product }) {
   const relatedFilter = product.subcategory
     ? { categorySlug: product.category, subcategorySlug: product.subcategory }
     : { categorySlug: product.category, brandSlug: product.compatibleBrands[0] };
-  const [brands, vehicleTypes, relatedPage, categoryBrandSlugs] = await Promise.all([
-    getBrands(),
-    getVehicleTypes(),
+  const [relatedPage, categoryBrandSlugs] = await Promise.all([
     getProducts({ ...relatedFilter, pageSize: 5 }),
     getCategoryBrandSlugs(),
   ]);
-  const compatibleBrands = product.compatibleBrands
-    .map((brandSlug) => brands.find((brand) => brand.slug === brandSlug))
-    .filter((brand): brand is NonNullable<typeof brand> => Boolean(brand));
-  const productVehicleTypes = product.vehicleTypes
-    .map((vehicleTypeSlug) => vehicleTypes.find((vehicleType) => vehicleType.slug === vehicleTypeSlug))
-    .filter((vehicleType): vehicleType is NonNullable<typeof vehicleType> => Boolean(vehicleType));
   const relatedProducts = relatedPage.items.filter((item) => item.slug !== product.slug).slice(0, 4);
-  const inquirySubject = encodeURIComponent(`Уточнить наличие: ${product.name}`);
-  const inquiryBody = encodeURIComponent(
-    `Здравствуйте! Подскажите, пожалуйста, наличие товара «${product.name}»${product.article ? `, артикул ${product.article}` : ""}.`,
-  );
 
   return (
     <>
@@ -50,12 +42,7 @@ export async function ProductDetail({ product }: { product: Product }) {
         <Reveal>
           <div>
             <h1 className="text-2xl font-bold text-foreground sm:text-3xl">{product.name}</h1>
-            <p className="mt-2 text-sm font-medium text-primary">
-              Артикул: {product.article || "уточняется"}
-            </p>
             <p className="mt-3 text-slate-600">{product.shortDescription}</p>
-
-            {product.description && <p className="mt-6 text-sm leading-relaxed text-slate-600">{product.description}</p>}
 
             <div className="mt-6">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
@@ -74,51 +61,6 @@ export async function ProductDetail({ product }: { product: Product }) {
                 <p className="mt-3 text-sm text-muted-foreground">Характеристики уточняются.</p>
               )}
             </div>
-
-            {productVehicleTypes.length > 0 && (
-              <div className="mt-6">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Подходит для</h2>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {productVehicleTypes.map((vehicleType) => (
-                    <Link
-                      key={vehicleType.slug}
-                      href={`/catalog/vehicle-type/${vehicleType.slug}`}
-                      className="rounded-full border border-border bg-card px-3 py-2 text-sm text-card-foreground transition-colors hover:border-blue-300"
-                    >
-                      {vehicleType.name}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="mt-6">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Совместимость
-              </h2>
-              {compatibleBrands.length > 0 ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {compatibleBrands.map((brand) => (
-                    <Link
-                      key={brand.slug}
-                      href={`/catalog/brand/${brand.slug}`}
-                      className="rounded-full border border-border bg-card px-3 py-2 text-sm text-card-foreground transition-colors hover:border-blue-300"
-                    >
-                      {brand.name}
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-3 text-sm text-muted-foreground">Совместимость уточняется у менеджера.</p>
-              )}
-            </div>
-
-            <a
-              href={`mailto:info@ayprom.kg?subject=${inquirySubject}&body=${inquiryBody}`}
-              className="mt-8 inline-flex rounded-md bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-blue-700"
-            >
-              Уточнить наличие
-            </a>
           </div>
         </Reveal>
       </div>

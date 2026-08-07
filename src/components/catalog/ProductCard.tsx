@@ -147,7 +147,6 @@ export function ProductCard({ product, href }: { product: ProductListItem; href:
 
       <div className="flex flex-1 flex-col px-4 pt-4 pb-5">
         <span className="text-sm font-semibold text-card-foreground">{product.name}</span>
-        {product.article && <span className="mt-0.5 text-xs text-muted-foreground">Артикул: {product.article}</span>}
         <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
           {product.shortDescription}
         </p>

@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { HotspotMarker } from "./HotspotMarker";
+import { HotspotMarker, type TooltipAlign } from "./HotspotMarker";
 import { VehicleCarousel } from "./VehicleCarousel";
 import { ProductPanel } from "./ProductPanel";
 import { Connector } from "./Connector";
@@ -19,7 +19,82 @@ export interface VehicleVisual {
    * exactly). Hotspots track this same scaled rect, so they stay pinned to
    * their equipment regardless of the value. */
   scale?: number;
+  /** Overrides `scale` at the lg breakpoint, where the stage's height comes
+   * from available flex space (see STAGE_ASPECT_CLASS) instead of a fixed
+   * aspect-ratio box — the same inflate factor that fits a tall aspect-video
+   * box can overflow a much shorter one. Defaults to `scale`. */
+  desktopScale?: number;
 }
+
+interface TooltipPlacement {
+  below: boolean;
+  align: TooltipAlign;
+  gap?: 9 | 16 | 24 | 32;
+}
+
+// Per-(vehicle, hotspot label) tooltip placement, keyed because the generic
+// "near top → below, near an edge → start/end" heuristic only reasons about
+// the hotspot's position against the *stage* edges — it has no idea where
+// the other 4 hotspots on the same truck actually are, so on any vehicle
+// where hotspots cluster close together it just as often points a tooltip
+// straight at a neighboring marker. Each entry here was picked by trying
+// every (gap × below × align) combination against the real rendered DOM —
+// each other marker's actual bounding box — and keeping the one with the
+// fewest overlaps; `gap: 16/24/32` widens the default 9px clearance for
+// hotspots still touching a neighbor at every below/align choice.
+//
+// Getting a trustworthy reading here took three retries because the
+// measurement itself was lying in three different ways: (1) a same-hash
+// `navigate` doesn't remount the carousel, so state from a previous probe
+// leaks into the next one; (2) firing clicks back-to-back with no settle
+// time desyncs the carousel's internal slot indices from the visible
+// vehicle; (3) reading a tooltip's *live* (unhovered) box mid-transition
+// catches it between its `opacity-0`/peek position and its hovered/settled
+// one, since `transition-[opacity,transform]` animates that move — you
+// have to swap in a transition-free class, measure, then restore, exactly
+// like the candidate search below does. Every value here was reproduced
+// twice from a hard `location.reload()` with `document.fonts.ready`
+// awaited first. Two hotspots have no zero-overlap option at all —
+// Самосвал's "Гидробак за кабиной" always touches "Распределитель"
+// (their circles sit under one diameter apart), and Тонар's "Гидронасос"
+// sits low enough on the truck that flipping it to `below` avoids every
+// neighbor but clips the *grid's* `lg:overflow-hidden` bottom edge
+// instead — a container clip that z-30 can't rescue, unlike a same-level
+// sibling overlap, so `below: false` (overlaps 4 neighbors, 0 clip) beats
+// `below: true` (0 overlaps, clips) here. HotspotMarker's hover/active
+// z-30 is the backstop for both overlap cases, so the tooltip you're
+// pointing at always paints over the marker(s) it still overlaps.
+const TOOLTIP_PLACEMENT: Record<string, TooltipPlacement> = {
+  "kran-manipulyator:Гидробак": { below: false, align: "center" },
+  "kran-manipulyator:Гидронасос": { below: true, align: "center", gap: 16 },
+  "kran-manipulyator:КОМ": { below: true, align: "center" },
+  "kran-manipulyator:Гидрораспределитель": { below: false, align: "center" },
+  "kran-manipulyator:Кнопка пневмоуправления": { below: false, align: "center" },
+
+  "musorovoz:Кнопка пневмоуправления": { below: false, align: "center" },
+  "musorovoz:Гидрораспределитель": { below: false, align: "center" },
+  "musorovoz:КОМ": { below: true, align: "center" },
+  "musorovoz:Гидронасос": { below: false, align: "center" },
+  "musorovoz:Гидробак": { below: false, align: "center" },
+
+  "samosval:Гидронасос": { below: true, align: "center" },
+  "samosval:КОМ": { below: true, align: "center", gap: 32 },
+  "samosval:Джойстик подъёма/опускания": { below: false, align: "end" },
+  "samosval:Распределитель": { below: false, align: "center" },
+  "samosval:Гидробак за кабиной": { below: false, align: "start" },
+
+  "tyagach:Распределитель": { below: false, align: "start" },
+  "tyagach:Джойстик подъёма/опускания": { below: false, align: "center" },
+  "tyagach:Гидронасос": { below: false, align: "center" },
+  "tyagach:КОМ": { below: false, align: "center", gap: 24 },
+  "tyagach:Гидробак": { below: true, align: "center", gap: 16 },
+
+  "avtovoz:Гидрораспределитель": { below: true, align: "center" },
+  "avtovoz:Гидробак": { below: true, align: "center" },
+  "avtovoz:КОМ": { below: true, align: "center" },
+  "avtovoz:Гидронасос": { below: false, align: "center" },
+  "avtovoz:Кнопка пневмоуправления": { below: false, align: "center" },
+};
 
 interface VehicleShowcaseInteractiveProps {
   entries: VehicleShowcaseEntry[];
@@ -34,7 +109,7 @@ interface VehicleShowcaseInteractiveProps {
 // width there, and the native photos are themselves portrait-ish) so the
 // vehicle doesn't shrink to a speck; wide on desktop where the stage shares
 // the row with the card.
-const STAGE_ASPECT_CLASS = "aspect-[4/3] sm:aspect-[3/2] lg:aspect-video";
+const STAGE_ASPECT_CLASS = "aspect-[4/3] sm:aspect-[3/2] lg:aspect-auto lg:h-full";
 
 function toRect(domRect: DOMRect, containerRect: DOMRect): Rect {
   return {
@@ -70,7 +145,8 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
   const activeEntry = entries[activeVehicleIndex];
   const activeHotspot = activeEntry?.hotspots.find((hotspot) => hotspot.id === activeHotspotId) ?? null;
   const visual = visuals[activeEntry?.vehicleType.slug ?? ""];
-  const containRect = useContainRect(stageRef, visual?.naturalWidth ?? 1, visual?.naturalHeight ?? 1, visual?.scale ?? 1);
+  const effectiveScale = isDesktop ? (visual?.desktopScale ?? visual?.scale ?? 1) : (visual?.scale ?? 1);
+  const containRect = useContainRect(stageRef, visual?.naturalWidth ?? 1, visual?.naturalHeight ?? 1, effectiveScale);
 
   useEffect(() => {
     const query = window.matchMedia("(min-width: 1024px)");
@@ -176,7 +252,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
   const activePaths = connectorPaths ?? verticalPath;
 
   const stage = (
-    <div ref={stageRef} className={`relative w-full ${STAGE_ASPECT_CLASS}`}>
+    <div ref={stageRef} className={`relative w-full lg:overflow-hidden ${STAGE_ASPECT_CLASS}`}>
       {containRect.width > 0 && (
         // Not `fill` — `scale` on VehicleVisual can push the photo past
         // strict contain-fit on purpose, and `fill` always clamps to the
@@ -201,6 +277,11 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
         activeEntry.hotspots.map((hotspot) => {
           const left = containRect.left + (hotspot.xPct / 100) * containRect.width;
           const top = containRect.top + (hotspot.yPct / 100) * containRect.height;
+          // Falls back to the generic edge-based heuristic for any hotspot
+          // not in the table (new DB data before it's been measured/added).
+          const placement = TOOLTIP_PLACEMENT[`${activeEntry.vehicleType.slug}:${hotspot.label}`];
+          const tooltipBelow = placement?.below ?? top < containRect.boxHeight * 0.2;
+          const tooltipAlign = placement?.align ?? (left < containRect.boxWidth * 0.25 ? "start" : left > containRect.boxWidth * 0.75 ? "end" : "center");
           return (
             <HotspotMarker
               key={hotspot.id}
@@ -210,8 +291,9 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
               }}
               left={left}
               top={top}
-              tooltipBelow={top < containRect.boxHeight * 0.2}
-              tooltipAlign={left < containRect.boxWidth * 0.25 ? "start" : left > containRect.boxWidth * 0.75 ? "end" : "center"}
+              tooltipBelow={tooltipBelow}
+              tooltipAlign={tooltipAlign}
+              tooltipGap={placement?.gap}
               label={hotspot.label}
               isActive={hotspot.id === activeHotspotId}
               revealDelay={hotspot.hotspotNumber * 0.08}
@@ -223,7 +305,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
   );
 
   return (
-    <div ref={sectionRef} className="relative">
+    <div ref={sectionRef} className="relative lg:flex lg:h-full lg:min-h-0 lg:flex-col">
       <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">{activeEntry.vehicleType.name}</p>
 
       {/* `stage` stays in this exact spot in the tree at all times — it's
@@ -241,7 +323,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
       <div
         ref={containerRef}
         data-testid="vehicle-showcase-grid"
-        className={`relative mt-3 grid grid-cols-1 gap-6 ${revealed ? "mx-auto lg:mx-0 lg:grid-cols-[1.3fr_1fr] lg:items-center lg:gap-10" : "mx-auto max-w-2xl"}`}
+        className={`relative mt-3 grid grid-cols-1 gap-6 lg:min-h-0 lg:flex-1 lg:overflow-hidden ${revealed ? "mx-auto lg:mx-0 lg:grid-cols-[1.3fr_1fr] lg:gap-10" : "mx-auto max-w-2xl"}`}
       >
         {stage}
 
@@ -249,7 +331,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
           // Ref target for the connector measurement — stays mounted
           // across both hotspot switches and the hint↔card swap so it's
           // never a stale/removed node when geometry is (re)computed.
-          <div ref={cardRef} data-testid="vehicle-card" className="min-h-[220px]">
+          <div ref={cardRef} data-testid="vehicle-card" className="min-h-[220px] lg:min-h-0">
             <AnimatePresence mode="wait">
               {activeHotspot ? (
                 <motion.div
@@ -268,7 +350,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.25, ease: "easeOut" }}
-                  className="flex min-h-[220px] flex-col justify-center gap-2 px-2"
+                  className="flex min-h-[220px] flex-col justify-center gap-2 px-2 lg:min-h-0"
                 >
                   <p className="text-4xl font-bold text-white/10 tabular-nums">
                     01—{String(hotspotCount).padStart(2, "0")}
@@ -305,7 +387,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
           initial={{ scaleY: 0.4, opacity: 0 }}
           animate={{ scaleY: 1, opacity: 1 }}
           transition={{ duration: shouldReduceMotion ? 0 : 0.4, ease: [0.39, 0.575, 0.565, 1] }}
-          className="mt-8"
+          className="mt-8 shrink-0 lg:mt-4"
         >
           <VehicleCarousel items={vehicleItems} activeIndex={activeVehicleIndex} onSelect={selectVehicle} />
         </motion.div>

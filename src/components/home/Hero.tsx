@@ -163,7 +163,7 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
               href="/#categories"
               size="lg"
               className="min-w-0 flex-1 px-3 text-sm whitespace-nowrap sm:flex-initial sm:px-6 sm:text-base"
-              onClick={scrollToNextSection}
+              onClick={(event) => handleHashClick("/#categories", event)}
             >
               Перейти в каталог
             </Button>
