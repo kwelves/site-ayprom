@@ -25,3 +25,14 @@ create policy "Public can read vehicle types of published products" on public.pr
 );
 
 create index product_vehicle_types_slug_idx on public.product_vehicle_types (vehicle_type_slug);
+
+-- Baseline rows. These four were originally created through the admin panel
+-- rather than a migration, so a fresh `supabase db reset` left the table empty
+-- and 20260806020100_vehicle_hotspots.sql failed on its foreign key. Values
+-- mirror the hosted project exactly; `on conflict` keeps this a no-op there.
+insert into public.vehicle_types (slug, name, "order") values
+  ('samosval', 'Самосвал', 0),
+  ('kran-manipulyator', 'Кран-Манипулятор', 1),
+  ('tyagach', 'Тонар', 2),
+  ('avtovoz', 'Автовоз', 3)
+on conflict (slug) do nothing;

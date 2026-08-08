@@ -46,6 +46,10 @@ language sql
 security invoker
 set search_path = ''
 as $$
+  -- Category and subcategory are pulled with scalar subqueries rather than an
+  -- `update ... from ... left join`: Postgres forbids referencing the UPDATE
+  -- target (`product`) from a join's ON clause, so the join form fails to even
+  -- create the function with SQLSTATE 42P01.
   update public.products as product
   set search_text = public.normalize_catalog_search(concat_ws(
     ' ',
@@ -53,8 +57,16 @@ as $$
     product.article,
     product.short_description,
     product.description,
-    category.name,
-    subcategory.name,
+    (
+      select category.name
+      from public.categories as category
+      where category.slug = product.category_slug
+    ),
+    (
+      select subcategory.name
+      from public.subcategories as subcategory
+      where subcategory.id = product.subcategory_id
+    ),
     (
       select string_agg(concat_ws(' ', brand.name, array_to_string(brand.aliases, ' ')), ' ')
       from public.product_brands as product_brand
@@ -67,10 +79,7 @@ as $$
       where characteristic.product_id = product.id
     )
   ))
-  from public.categories as category
-  left join public.subcategories as subcategory on subcategory.id = product.subcategory_id
-  where product.id = target_product_id
-    and category.slug = product.category_slug;
+  where product.id = target_product_id;
 $$;
 
 create or replace function public.refresh_product_search_from_product()
