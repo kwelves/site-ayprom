@@ -389,10 +389,25 @@ CREATE OR REPLACE FUNCTION "public"."search_catalog_products"("search_query" "te
     )
     and (
       normalized_query.value = ''
-      or not exists (
-        select 1
-        from unnest(string_to_array(normalized_query.value, ' ')) as word
-        where product.search_text not like ('%' || word || '%')
+      or (
+        -- Два условия делают разную работу, и оба нужны.
+        --
+        -- Первое — одиночный LIKE по первому слову — единственная форма,
+        -- которую планировщик умеет свести к GIN-индексу по trgm. Проверено
+        -- через EXPLAIN: ни `not exists (... not like ...)`, ни `like all`
+        -- (ни с подзапросом, ни с массивом) индексом не покрываются и дают
+        -- Seq Scan даже при enable_seqscan = off. Именно поэтому advisor
+        -- считал products_search_text_trgm_idx неиспользуемым.
+        --
+        -- Второе — точная проверка «присутствуют все слова». Первое условие
+        -- лишь сужает выборку до надмножества (первое слово входит в набор
+        -- обязательных), поэтому семантика не меняется. Эквивалентность
+        -- прежней формуле проверена на всех словах и парах слов каталога.
+        product.search_text like ('%' || split_part(normalized_query.value, ' ', 1) || '%')
+        and product.search_text like all (
+          select '%' || word || '%'
+          from unnest(string_to_array(normalized_query.value, ' ')) as word
+        )
       )
     )
   order by product."order", product.name;
@@ -400,6 +415,137 @@ $$;
 
 
 ALTER FUNCTION "public"."search_catalog_products"("search_query" "text", "category_filter" "text", "subcategory_filter" "text", "brand_filter" "text", "vehicle_type_filter" "text") OWNER TO "postgres";
+
+
+-- Перестановка порядка одним запросом в транзакции.
+--
+-- Прежде каждая сортировка отправляла по отдельному UPDATE на запись через
+-- Promise.all: при 2000 товарах это 2000 параллельных запросов к PostgREST,
+-- исчерпание пула соединений и частичный сбой без отката — порядок оставался
+-- в противоречивом состоянии.
+--
+-- reorder_products устроен иначе остальных: он не перенумеровывает записи
+-- подряд, а перераспределяет уже занятые ими значения "order". Набор значений
+-- сохраняется, товары вне выборки не затрагиваются. Благодаря этому порядок
+-- остаётся сквозным по всему каталогу, а перетаскивание работает в любом
+-- отфильтрованном или постраничном срезе — иначе при 2000 товарах пришлось бы
+-- либо отказаться от сортировки мышью, либо сделать порядок внутрикатегорийным.
+CREATE OR REPLACE FUNCTION "public"."reorder_products"("ordered_slugs" "text"[]) RETURNS "void"
+    LANGUAGE "sql"
+    SET "search_path" TO ''
+    AS $$
+  with "desired" as (
+    select "slug", "ordinality" as "position"
+    from unnest("ordered_slugs") with ordinality as "u"("slug", "ordinality")
+  ), "slots" as (
+    select
+      "product"."order" as "slot",
+      row_number() over (order by "product"."order", "product"."name") as "position"
+    from "public"."products" as "product"
+    join "desired" on "desired"."slug" = "product"."slug"
+  )
+  update "public"."products" as "product"
+  set "order" = "slots"."slot"
+  from "desired"
+  join "slots" on "slots"."position" = "desired"."position"
+  where "product"."slug" = "desired"."slug"
+    and "product"."order" is distinct from "slots"."slot";
+$$;
+
+
+ALTER FUNCTION "public"."reorder_products"("ordered_slugs" "text"[]) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."reorder_brands"("ordered_slugs" "text"[]) RETURNS "void"
+    LANGUAGE "sql"
+    SET "search_path" TO ''
+    AS $$
+  update "public"."brands" as "brand"
+  set "order" = ("desired"."ordinality" - 1)::integer
+  from unnest("ordered_slugs") with ordinality as "desired"("slug", "ordinality")
+  where "brand"."slug" = "desired"."slug"
+    and "brand"."order" is distinct from ("desired"."ordinality" - 1)::integer;
+$$;
+
+
+ALTER FUNCTION "public"."reorder_brands"("ordered_slugs" "text"[]) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."reorder_categories"("ordered_slugs" "text"[]) RETURNS "void"
+    LANGUAGE "sql"
+    SET "search_path" TO ''
+    AS $$
+  update "public"."categories" as "category"
+  set "order" = ("desired"."ordinality" - 1)::integer
+  from unnest("ordered_slugs") with ordinality as "desired"("slug", "ordinality")
+  where "category"."slug" = "desired"."slug"
+    and "category"."order" is distinct from ("desired"."ordinality" - 1)::integer;
+$$;
+
+
+ALTER FUNCTION "public"."reorder_categories"("ordered_slugs" "text"[]) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."reorder_vehicle_types"("ordered_slugs" "text"[]) RETURNS "void"
+    LANGUAGE "sql"
+    SET "search_path" TO ''
+    AS $$
+  update "public"."vehicle_types" as "vehicle_type"
+  set "order" = ("desired"."ordinality" - 1)::integer
+  from unnest("ordered_slugs") with ordinality as "desired"("slug", "ordinality")
+  where "vehicle_type"."slug" = "desired"."slug"
+    and "vehicle_type"."order" is distinct from ("desired"."ordinality" - 1)::integer;
+$$;
+
+
+ALTER FUNCTION "public"."reorder_vehicle_types"("ordered_slugs" "text"[]) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."reorder_subcategories"("ordered_ids" "uuid"[]) RETURNS "void"
+    LANGUAGE "sql"
+    SET "search_path" TO ''
+    AS $$
+  update "public"."subcategories" as "subcategory"
+  set "order" = ("desired"."ordinality" - 1)::integer
+  from unnest("ordered_ids") with ordinality as "desired"("id", "ordinality")
+  where "subcategory"."id" = "desired"."id"
+    and "subcategory"."order" is distinct from ("desired"."ordinality" - 1)::integer;
+$$;
+
+
+ALTER FUNCTION "public"."reorder_subcategories"("ordered_ids" "uuid"[]) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."reorder_product_images"("ordered_ids" "uuid"[]) RETURNS "void"
+    LANGUAGE "sql"
+    SET "search_path" TO ''
+    AS $$
+  update "public"."product_images" as "image"
+  set "order" = ("desired"."ordinality" - 1)::integer
+  from unnest("ordered_ids") with ordinality as "desired"("id", "ordinality")
+  where "image"."id" = "desired"."id"
+    and "image"."order" is distinct from ("desired"."ordinality" - 1)::integer;
+$$;
+
+
+ALTER FUNCTION "public"."reorder_product_images"("ordered_ids" "uuid"[]) OWNER TO "postgres";
+
+
+-- Порядок брендов задаётся внутри категории, поэтому ключ составной.
+CREATE OR REPLACE FUNCTION "public"."reorder_category_brands"("target_category_slug" "text", "ordered_brand_slugs" "text"[]) RETURNS "void"
+    LANGUAGE "sql"
+    SET "search_path" TO ''
+    AS $$
+  update "public"."category_brands" as "link"
+  set "order" = ("desired"."ordinality" - 1)::integer
+  from unnest("ordered_brand_slugs") with ordinality as "desired"("brand_slug", "ordinality")
+  where "link"."category_slug" = "target_category_slug"
+    and "link"."brand_slug" = "desired"."brand_slug"
+    and "link"."order" is distinct from ("desired"."ordinality" - 1)::integer;
+$$;
+
+
+ALTER FUNCTION "public"."reorder_category_brands"("target_category_slug" "text", "ordered_brand_slugs" "text"[]) OWNER TO "postgres";
 
 SET default_tablespace = '';
 
@@ -683,6 +829,13 @@ CREATE INDEX "brands_aliases_idx" ON "public"."brands" USING "gin" ("aliases");
 
 
 
+-- Внешний ключ без покрывающего индекса: каждая проверка ссылочной целостности
+-- при изменении brands сканирует category_brands целиком. Отмечено advisor'ом
+-- Supabase (unindexed_foreign_keys).
+CREATE INDEX "category_brands_brand_slug_idx" ON "public"."category_brands" USING "btree" ("brand_slug");
+
+
+
 CREATE INDEX "product_brands_brand_slug_idx" ON "public"."product_brands" USING "btree" ("brand_slug");
 
 
@@ -728,6 +881,13 @@ CREATE INDEX "products_subcategory_id_idx" ON "public"."products" USING "btree" 
 
 
 CREATE INDEX "vehicle_hotspots_vehicle_type_slug_idx" ON "public"."vehicle_hotspots" USING "btree" ("vehicle_type_slug");
+
+
+
+-- Второй внешний ключ без покрывающего индекса (unindexed_foreign_keys).
+-- Здесь он ещё и функционально нужен: удаление товара каскадом чистит
+-- vehicle_hotspots, а hotspot'ы читаются вместе с карточкой товара.
+CREATE INDEX "vehicle_hotspots_product_id_idx" ON "public"."vehicle_hotspots" USING "btree" ("product_id");
 
 
 
@@ -988,6 +1148,32 @@ REVOKE ALL ON FUNCTION "public"."refresh_product_search_text"("target_product_id
 
 REVOKE ALL ON FUNCTION "public"."register_admin_login_attempt"("attempt_key_hash" "text", "password_is_valid" boolean) FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."register_admin_login_attempt"("attempt_key_hash" "text", "password_is_valid" boolean) TO "service_role";
+
+
+-- Функции сортировки вызываются только административным слоем через
+-- service_role. Postgres выдаёт EXECUTE роли PUBLIC по умолчанию, а anon и
+-- authenticated наследуют от неё, поэтому право снимается именно с PUBLIC —
+-- иначе любой посетитель мог бы переставлять порядок каталога.
+REVOKE ALL ON FUNCTION "public"."reorder_products"("ordered_slugs" "text"[]) FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."reorder_products"("ordered_slugs" "text"[]) TO "service_role";
+
+REVOKE ALL ON FUNCTION "public"."reorder_brands"("ordered_slugs" "text"[]) FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."reorder_brands"("ordered_slugs" "text"[]) TO "service_role";
+
+REVOKE ALL ON FUNCTION "public"."reorder_categories"("ordered_slugs" "text"[]) FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."reorder_categories"("ordered_slugs" "text"[]) TO "service_role";
+
+REVOKE ALL ON FUNCTION "public"."reorder_vehicle_types"("ordered_slugs" "text"[]) FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."reorder_vehicle_types"("ordered_slugs" "text"[]) TO "service_role";
+
+REVOKE ALL ON FUNCTION "public"."reorder_subcategories"("ordered_ids" "uuid"[]) FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."reorder_subcategories"("ordered_ids" "uuid"[]) TO "service_role";
+
+REVOKE ALL ON FUNCTION "public"."reorder_product_images"("ordered_ids" "uuid"[]) FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."reorder_product_images"("ordered_ids" "uuid"[]) TO "service_role";
+
+REVOKE ALL ON FUNCTION "public"."reorder_category_brands"("target_category_slug" "text", "ordered_brand_slugs" "text"[]) FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."reorder_category_brands"("target_category_slug" "text", "ordered_brand_slugs" "text"[]) TO "service_role";
 
 
 
