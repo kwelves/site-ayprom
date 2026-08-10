@@ -407,14 +407,19 @@ export async function toggleProductPublished(slug: string, published: boolean): 
   revalidatePublicSite();
 }
 
+// Один запрос в транзакции вместо UPDATE на каждую позицию: при каталоге в
+// 2000 товаров прежний вариант слал 2000 параллельных запросов к PostgREST и
+// при частичном сбое оставлял порядок в противоречивом состоянии.
+//
+// reorder_products переставляет товары внутри уже занятых ими значений order,
+// а не нумерует их подряд от нуля. Поэтому перетаскивание корректно работает
+// и в отфильтрованном или постраничном срезе: товары вне выборки сохраняют
+// свои позиции, а сквозной порядок каталога не ломается.
 export async function reorderProducts(orderedSlugs: string[]): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
-  const results = await Promise.all(
-    orderedSlugs.map((slug, index) => supabase.from("products").update({ order: index }).eq("slug", slug)),
-  );
-  const failed = results.find((result) => result.error);
-  if (failed?.error) throw failed.error;
+  const { error } = await supabase.rpc("reorder_products", { ordered_slugs: orderedSlugs });
+  if (error) throw error;
   revalidatePath("/admin/products");
   revalidatePublicSite();
 }
@@ -550,11 +555,8 @@ export async function deleteProductImage(imageId: string): Promise<void> {
 export async function reorderProductImages(productSlug: string, orderedImageIds: string[]): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
-  const results = await Promise.all(
-    orderedImageIds.map((id, index) => supabase.from("product_images").update({ order: index }).eq("id", id)),
-  );
-  const failed = results.find((result) => result.error);
-  if (failed?.error) throw failed.error;
+  const { error } = await supabase.rpc("reorder_product_images", { ordered_ids: orderedImageIds });
+  if (error) throw error;
   revalidatePath(`/admin/products/${productSlug}/edit`);
   revalidatePublicSite();
 }
@@ -713,11 +715,8 @@ export async function deleteBrand(slug: string): Promise<void> {
 export async function reorderBrands(orderedSlugs: string[]): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
-  const results = await Promise.all(
-    orderedSlugs.map((slug, index) => supabase.from("brands").update({ order: index }).eq("slug", slug)),
-  );
-  const failed = results.find((result) => result.error);
-  if (failed?.error) throw failed.error;
+  const { error } = await supabase.rpc("reorder_brands", { ordered_slugs: orderedSlugs });
+  if (error) throw error;
   revalidatePath("/admin/brands");
   revalidatePublicSite();
 }
@@ -880,11 +879,8 @@ export async function deleteCategory(slug: string): Promise<void> {
 export async function reorderCategories(orderedSlugs: string[]): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
-  const results = await Promise.all(
-    orderedSlugs.map((slug, index) => supabase.from("categories").update({ order: index }).eq("slug", slug)),
-  );
-  const failed = results.find((result) => result.error);
-  if (failed?.error) throw failed.error;
+  const { error } = await supabase.rpc("reorder_categories", { ordered_slugs: orderedSlugs });
+  if (error) throw error;
   revalidatePath("/admin/categories");
   revalidatePublicSite();
 }
@@ -1043,11 +1039,8 @@ export async function deleteSubcategory(subcategoryId: string): Promise<void> {
 export async function reorderSubcategories(categorySlug: string, orderedIds: string[]): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
-  const results = await Promise.all(
-    orderedIds.map((id, index) => supabase.from("subcategories").update({ order: index }).eq("id", id)),
-  );
-  const failed = results.find((result) => result.error);
-  if (failed?.error) throw failed.error;
+  const { error } = await supabase.rpc("reorder_subcategories", { ordered_ids: orderedIds });
+  if (error) throw error;
   revalidatePath(`/admin/categories/${categorySlug}/subcategories`);
   revalidatePublicSite();
 }
@@ -1099,13 +1092,11 @@ export async function updateCategoryBrandOverride(
 export async function reorderCategoryBrands(categorySlug: string, orderedBrandSlugs: string[]): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
-  const results = await Promise.all(
-    orderedBrandSlugs.map((brandSlug, index) =>
-      supabase.from("category_brands").update({ order: index }).eq("category_slug", categorySlug).eq("brand_slug", brandSlug)
-    )
-  );
-  const failed = results.find((result) => result.error);
-  if (failed?.error) throw failed.error;
+  const { error } = await supabase.rpc("reorder_category_brands", {
+    target_category_slug: categorySlug,
+    ordered_brand_slugs: orderedBrandSlugs,
+  });
+  if (error) throw error;
   revalidatePath(`/admin/categories/${categorySlug}/category-brands`);
   revalidatePublicSite();
 }
@@ -1181,11 +1172,8 @@ export async function deleteVehicleType(slug: string): Promise<void> {
 export async function reorderVehicleTypes(orderedSlugs: string[]): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
-  const results = await Promise.all(
-    orderedSlugs.map((slug, index) => supabase.from("vehicle_types").update({ order: index }).eq("slug", slug)),
-  );
-  const failed = results.find((result) => result.error);
-  if (failed?.error) throw failed.error;
+  const { error } = await supabase.rpc("reorder_vehicle_types", { ordered_slugs: orderedSlugs });
+  if (error) throw error;
   revalidatePath("/admin/vehicle-types");
   revalidatePublicSite();
 }
