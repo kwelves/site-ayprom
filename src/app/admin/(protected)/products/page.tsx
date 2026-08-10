@@ -1,8 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { getAdminProducts, getAdminCategories } from "@/lib/admin/queries";
+import { parseAdminPage } from "@/lib/admin/pagination";
 import { ProductsList } from "@/components/admin/ProductsList";
 import { ProductsFilterBar } from "@/components/admin/ProductsFilterBar";
+import { AdminPagination } from "@/components/admin/AdminPagination";
 
 export const metadata: Metadata = {
   title: "Товары — Админка AYPROM",
@@ -11,15 +13,16 @@ export const metadata: Metadata = {
 export const revalidate = 0;
 
 interface AdminProductsPageProps {
-  searchParams: Promise<{ q?: string; category?: string; created?: string; updated?: string }>;
+  searchParams: Promise<{ q?: string; category?: string; page?: string; created?: string; updated?: string }>;
 }
 
 export default async function AdminProductsPage({ searchParams }: AdminProductsPageProps) {
-  const { q, category, created, updated } = await searchParams;
+  const { q, category, page, created, updated } = await searchParams;
   const isFiltered = Boolean(q?.trim() || category);
+  const currentPage = parseAdminPage(page);
 
-  const [products, categories] = await Promise.all([
-    getAdminProducts({ q, categorySlug: category }),
+  const [productPage, categories] = await Promise.all([
+    getAdminProducts({ q, categorySlug: category, page: currentPage }),
     getAdminCategories(),
   ]);
 
@@ -37,24 +40,31 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
 
       <ProductsFilterBar categories={categories.map((c) => ({ slug: c.slug, name: c.name }))} />
 
-      {isFiltered && (
+      {productPage.total > 0 && (
         <p className="mt-3 text-xs text-muted-foreground">
-          При активном поиске или фильтре перетаскивание для сортировки недоступно — измените порядок в полном списке.
+          {isFiltered ? "Найдено" : "Всего"}: {productPage.total}
+          {productPage.totalPages > 1 && ` · страница ${productPage.page} из ${productPage.totalPages}`}
         </p>
       )}
 
-      {products.length === 0 ? (
+      {productPage.items.length === 0 ? (
         <p className="mt-8 text-sm text-muted-foreground">
           {isFiltered ? "Ничего не найдено." : "Товаров пока нет."}
         </p>
       ) : (
-        <ProductsList
-          key={`${q ?? ""}:${category ?? ""}`}
-          products={products}
-          sortable={!isFiltered}
-          flashSlug={created ?? updated}
-          flashAction={created ? "created" : updated ? "updated" : undefined}
-        />
+        <>
+          {/* Перетаскивание остаётся доступным и в отфильтрованном, и в
+              постраничном виде: reorder_products переставляет товары внутри
+              уже занятых ими значений order, а не нумерует подряд от нуля,
+              поэтому позиции товаров вне текущей выборки не сдвигаются. */}
+          <ProductsList
+            key={`${q ?? ""}:${category ?? ""}:${productPage.page}`}
+            products={productPage.items}
+            flashSlug={created ?? updated}
+            flashAction={created ? "created" : updated ? "updated" : undefined}
+          />
+          <AdminPagination page={productPage.page} totalPages={productPage.totalPages} />
+        </>
       )}
     </div>
   );

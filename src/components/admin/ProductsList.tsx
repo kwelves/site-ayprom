@@ -12,12 +12,16 @@ import type { AdminProductListItem } from "@/lib/admin/queries";
 
 interface ProductsListProps {
   products: AdminProductListItem[];
-  sortable?: boolean;
   flashSlug?: string;
   flashAction?: "created" | "updated";
 }
 
-export function ProductsList({ products: initialProducts, sortable = true, flashSlug, flashAction }: ProductsListProps) {
+// Перетаскивание доступно всегда — в том числе при активном поиске, фильтре и
+// на любой странице списка. Раньше его приходилось отключать на подмножествах,
+// потому что сортировка нумеровала товары подряд от нуля и ломала позиции всех
+// остальных. reorder_products переставляет товары внутри уже занятых ими
+// значений order, поэтому выборка перестраивается, не задевая каталог.
+export function ProductsList({ products: initialProducts, flashSlug, flashAction }: ProductsListProps) {
   const {
     items: products,
     setItems: setProducts,
@@ -70,7 +74,6 @@ export function ProductsList({ products: initialProducts, sortable = true, flash
         items={products}
         getId={(product) => product.slug}
         onReorder={handleReorder}
-        disabled={!sortable}
         highlightedKey={highlightedKey}
         renderItem={(product) => (
         <div className="flex items-start gap-3">

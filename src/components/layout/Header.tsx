@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -17,10 +17,65 @@ import type { Brand, Category } from "@/types/catalog";
 
 export function Header({ categories, brands }: { categories: Category[]; brands: Brand[] }) {
   const [open, setOpen] = useState(false);
+  // Accordion: at most one mobile dropdown ("Каталог"/"Бренды") open at a
+  // time, tracked by label here instead of locally in MobileNavItem so
+  // opening one can collapse the other. Reset whenever the whole mobile
+  // menu closes, so reopening it later never surfaces a dropdown that was
+  // left expanded from a previous visit.
+  const [expandedLabel, setExpandedLabel] = useState<string | null>(null);
   const scrolled = useScroll(10);
   const pathname = usePathname();
   const handleHashClick = useHashNavClick();
   const mainNav = buildMainNav(categories, brands);
+
+  // Closes the whole mobile menu and, in the same breath, whatever
+  // dropdown was expanded inside it — used everywhere the panel closes
+  // instead of a bare `setOpen(false)`, so reopening it later never
+  // surfaces a dropdown left expanded from a previous visit.
+  const closeMenu = () => {
+    setOpen(false);
+    setExpandedLabel(null);
+  };
+
+  const panelRef = useRef<HTMLDivElement>(null);
+  const toggleButtonRef = useRef<HTMLButtonElement>(null);
+
+  // While the panel is open, treat two things as "dismiss": tapping
+  // anywhere outside it (the site visible below, now that its height is
+  // capped instead of unbounded) or scrolling that underlying page by
+  // more than a few dozen px. Deliberately not a body-scroll-lock — a
+  // little scroll is let through on purpose, it's just read as "done with
+  // the menu" rather than left to silently keep scrolling a page the user
+  // can no longer fully see under the panel. Uses the setState setters
+  // directly (stable identities, no need for `closeMenu` in the deps
+  // array) so this effect only re-subscribes when `open` actually changes.
+  useEffect(() => {
+    if (!open) return;
+
+    const dismiss = () => {
+      setOpen(false);
+      setExpandedLabel(null);
+    };
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (panelRef.current?.contains(target) || toggleButtonRef.current?.contains(target)) return;
+      dismiss();
+    };
+
+    const baselineScrollY = window.scrollY;
+    const SCROLL_CLOSE_THRESHOLD_PX = 36;
+    const handleScroll = () => {
+      if (Math.abs(window.scrollY - baselineScrollY) >= SCROLL_CLOSE_THRESHOLD_PX) dismiss();
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, [open]);
 
   // On the homepage the header floats transparently over the fixed hero video
   // until scroll. The hero's short top gradient supplies contrast; deriving
@@ -42,7 +97,7 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
           className="inline-flex items-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           onClick={(event) => {
             handleHashClick("/", event);
-            setOpen(false);
+            closeMenu();
           }}
         >
           <motion.span
@@ -99,12 +154,13 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
         </div>
 
         <button
+          ref={toggleButtonRef}
           type="button"
           className={cn(
             "inline-flex h-11 w-11 items-center justify-center rounded-md transition-colors md:hidden",
             overPhoto ? "text-white" : "text-slate-700"
           )}
-          onClick={() => setOpen((value) => !value)}
+          onClick={() => (open ? closeMenu() : setOpen(true))}
           aria-label="Открыть меню"
           aria-expanded={open}
         >
@@ -123,23 +179,33 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
       <AnimatePresence initial={false}>
         {open && (
           <motion.div
+            ref={panelRef}
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: "easeInOut" }}
             className="overflow-hidden border-t border-border bg-card md:hidden"
           >
-            <Container className="flex flex-col gap-1 py-4">
+            {/* Capped to the viewport height left below the sticky header
+                (4rem = h-16) so the panel always owns its own scroll area
+                instead of growing taller than the screen and leaking
+                scroll through to the page behind it — same fix as the
+                Каталог/Бренды dropdown below, one level up. Framer still
+                measures this div's (now capped) height for the panel's
+                open/close animation above, so a short menu is unaffected. */}
+            <Container className="flex max-h-[calc(100dvh-4rem)] flex-col gap-1 overflow-y-auto overscroll-contain py-4">
               {mainNav.map((item) => (
                 <MobileNavItem
                   key={item.label}
                   item={item}
                   pathname={pathname}
-                  onNavigate={() => setOpen(false)}
+                  isExpanded={expandedLabel === item.label}
+                  onToggleExpand={() => setExpandedLabel((current) => (current === item.label ? null : item.label))}
+                  onNavigate={closeMenu}
                   handleHashClick={handleHashClick}
                 />
               ))}
-              <Button href="/catalog" className="mt-2 w-full" onClick={() => setOpen(false)}>
+              <Button href="/catalog" className="mt-2 w-full" onClick={closeMenu}>
                 Все товары
               </Button>
             </Container>
@@ -153,16 +219,18 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
 function MobileNavItem({
   item,
   pathname,
+  isExpanded,
+  onToggleExpand,
   onNavigate,
   handleHashClick,
 }: {
   item: NavItem;
   pathname: string;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
   onNavigate: () => void;
   handleHashClick: (href: string, event: React.MouseEvent) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
-
   // The mobile panel lives in normal document flow (open, it pushes the
   // page content below it down), so closing it collapses that height and
   // shifts everything under it — including whatever position
@@ -207,17 +275,17 @@ function MobileNavItem({
         </Link>
         <button
           type="button"
-          onClick={() => setExpanded((value) => !value)}
+          onClick={onToggleExpand}
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-primary"
-          aria-expanded={expanded}
+          aria-expanded={isExpanded}
           aria-label={`Показать подраздел «${item.label}»`}
         >
-          <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", expanded && "rotate-180")} />
+          <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", isExpanded && "rotate-180")} />
         </button>
       </div>
 
       <AnimatePresence initial={false}>
-        {expanded && (
+        {isExpanded && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
@@ -225,7 +293,14 @@ function MobileNavItem({
             transition={{ duration: 0.2, ease: "easeInOut" }}
             className="overflow-hidden pl-3"
           >
-            <div className="grid gap-1 py-1">
+            {/* Capped to roughly the height of the shorter "Каталог" list
+                (~4 items) so a longer list like "Бренды" scrolls inside
+                this box instead of growing the whole mobile panel to
+                page length. overscroll-contain stops that internal
+                scroll from chaining into the page once it hits either
+                end — without it, the page behind the (semi-transparent)
+                header visibly scrolls instead. */}
+            <div className="grid max-h-60 gap-1 overflow-y-auto overscroll-contain py-1">
               {item.dropdown.map((sub) => (
                 <Link
                   key={sub.href}

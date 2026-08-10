@@ -5,6 +5,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { ADMIN_PAGE_SIZE } from "@/lib/admin/pagination";
 import type { CategoryIcon } from "@/types/catalog";
 
 export interface AdminProductListItem {
@@ -30,17 +31,37 @@ interface AdminProductListRow {
 export interface AdminProductFilters {
   q?: string;
   categorySlug?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminProductPage {
+  items: AdminProductListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 // Every product regardless of `published` status — unlike the public
 // getProducts(), this reads via the service-role client so drafts are
 // visible to the admin.
-export async function getAdminProducts(filters: AdminProductFilters = {}): Promise<AdminProductListItem[]> {
+//
+// Пагинация обязательна, а не удобство: config.toml ограничивает ответ
+// PostgREST тысячей строк (max_rows), поэтому прежний запрос без range()
+// при каталоге в 2000 товаров молча показывал бы половину — без ошибки и
+// без единого признака, что список неполон.
+export async function getAdminProducts(filters: AdminProductFilters = {}): Promise<AdminProductPage> {
   const supabase = createAdminClient();
+  const page = Math.max(1, filters.page ?? 1);
+  const pageSize = Math.min(200, Math.max(1, filters.pageSize ?? ADMIN_PAGE_SIZE));
+  const from = (page - 1) * pageSize;
+
   let query = supabase
     .from("products")
-    .select("id, slug, name, published, order, categories(name), product_images(url, order)")
-    .order("order");
+    .select("id, slug, name, published, order, categories(name), product_images(url, order)", { count: "exact" })
+    .order("order")
+    .range(from, from + pageSize - 1);
 
   if (filters.categorySlug) {
     query = query.eq("category_slug", filters.categorySlug);
@@ -54,18 +75,25 @@ export async function getAdminProducts(filters: AdminProductFilters = {}): Promi
     }
   }
 
-  const { data, error } = await query;
+  const { data, error, count } = await query;
   if (error) throw error;
 
-  return (data as unknown as AdminProductListRow[]).map((row) => ({
-    id: row.id,
-    slug: row.slug,
-    name: row.name,
-    categoryName: row.categories?.name ?? "—",
-    published: row.published,
-    order: row.order,
-    coverImage: [...row.product_images].sort((a, b) => a.order - b.order)[0]?.url ?? null,
-  }));
+  const total = count ?? 0;
+  return {
+    items: (data as unknown as AdminProductListRow[]).map((row) => ({
+      id: row.id,
+      slug: row.slug,
+      name: row.name,
+      categoryName: row.categories?.name ?? "—",
+      published: row.published,
+      order: row.order,
+      coverImage: [...row.product_images].sort((a, b) => a.order - b.order)[0]?.url ?? null,
+    })),
+    total,
+    page,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+  };
 }
 
 export interface AdminProduct {
