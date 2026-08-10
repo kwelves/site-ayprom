@@ -64,7 +64,10 @@ for (const migrationFile of migrationFiles) {
   const withoutComments = sql.replace(/--.*$/gm, "");
 
   for (const match of withoutComments.matchAll(
-    /create\s+table\s+(?:if\s+not\s+exists\s+)?public\."?([a-z_][a-z0-9_]*)"?\s*\(([\s\S]*?)\)\s*;/gi,
+    // Схема может быть в кавычках: pg_dump пишет "public"."products", рукописные
+    // миграции — public.products. Принимаем оба варианта, иначе baseline,
+    // снятый дампом, выглядит как отсутствие всех таблиц разом.
+    /create\s+table\s+(?:if\s+not\s+exists\s+)?"?public"?\."?([a-z_][a-z0-9_]*)"?\s*\(([\s\S]*?)\)\s*;/gi,
   )) {
     const [, tableName, body] = match;
     const columns = new Set();
@@ -80,23 +83,28 @@ for (const migrationFile of migrationFiles) {
   }
 
   for (const match of withoutComments.matchAll(
-    /alter\s+table\s+(?:if\s+exists\s+)?public\."?([a-z_][a-z0-9_]*)"?\s+add\s+column\s+(?:if\s+not\s+exists\s+)?(?:"([^"]+)"|([a-z_][a-z0-9_]*))/gi,
+    /alter\s+table\s+(?:if\s+exists\s+)?"?public"?\."?([a-z_][a-z0-9_]*)"?\s+add\s+column\s+(?:if\s+not\s+exists\s+)?(?:"([^"]+)"|([a-z_][a-z0-9_]*))/gi,
   )) {
     const [, tableName, quotedColumn, plainColumn] = match;
     expectedTables.get(tableName)?.add(quotedColumn ?? plainColumn);
   }
 
   for (const match of withoutComments.matchAll(
-    /alter\s+table\s+(?:if\s+exists\s+)?public\."?([a-z_][a-z0-9_]*)"?\s+drop\s+column\s+(?:if\s+exists\s+)?(?:"([^"]+)"|([a-z_][a-z0-9_]*))/gi,
+    /alter\s+table\s+(?:if\s+exists\s+)?"?public"?\."?([a-z_][a-z0-9_]*)"?\s+drop\s+column\s+(?:if\s+exists\s+)?(?:"([^"]+)"|([a-z_][a-z0-9_]*))/gi,
   )) {
     const [, tableName, quotedColumn, plainColumn] = match;
     expectedTables.get(tableName)?.delete(quotedColumn ?? plainColumn);
   }
 
-  for (const match of withoutComments.matchAll(
-    /insert\s+into\s+storage\.buckets[\s\S]*?values\s*\(\s*'([^']+)'\s*,\s*'[^']+'\s*,\s*(true|false)/gi,
+  // Один INSERT может задавать сразу несколько bucket'ов, поэтому сначала
+  // выделяется всё выражение до `;`, а потом из него разбираются все кортежи.
+  // Прежняя версия читала только первый и молча теряла остальные.
+  for (const statement of withoutComments.matchAll(
+    /insert\s+into\s+"?storage"?\."?buckets"?[^;]*?values\s*([\s\S]*?);/gi,
   )) {
-    expectedBuckets.set(match[1], match[2].toLowerCase() === "true");
+    for (const tuple of statement[1].matchAll(/\(\s*'([^']+)'\s*,\s*'[^']+'\s*,\s*(true|false)/gi)) {
+      expectedBuckets.set(tuple[1], tuple[2].toLowerCase() === "true");
+    }
   }
 }
 
