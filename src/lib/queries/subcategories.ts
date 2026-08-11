@@ -77,8 +77,9 @@ export async function getBrandSubcategories(brandSlug: string, categorySlug: str
 }
 
 // Every subcategory across every category at once, with its parent category
-// slug attached — used by search-products.ts to build search text for a
-// batch of products without a query per product.
+// slug attached — the product form needs the full list to populate its
+// category-dependent subcategory select, and the sitemap needs it to emit
+// every subcategory URL.
 export async function getAllSubcategories(): Promise<(Subcategory & { categorySlug: string })[]> {
   const supabase = await createClient();
   const { data, error } = await supabase

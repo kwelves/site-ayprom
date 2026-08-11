@@ -1,4 +1,5 @@
 import { cache } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeSearchQuery } from "@/lib/normalize-search";
 import type { Product, ProductListItem } from "@/types/catalog";
@@ -185,7 +186,20 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Product
   // Keeps the site usable while a newly deployed application waits for the
   // migration to be applied. Once the RPC exists, every catalog/search path
   // uses the indexed backend implementation above.
+  //
+  // Reported to Sentry rather than taken silently, and that is the whole
+  // point. Two features in this codebase — backend search and the admin login
+  // rate limit — were broken for months precisely because their fallbacks
+  // engaged without a sound: the site kept working, the logs stayed clean, and
+  // nothing indicated the real implementation had never run. A fallback that
+  // hides a missing migration is worse than an outage, because nobody goes
+  // looking. If this fires in production, the deploy is half-applied.
   if (error?.code === "PGRST202" || error?.code === "42883") {
+    Sentry.captureMessage("search_catalog_products RPC missing — serving catalog from legacy fallback", {
+      level: "error",
+      tags: { subsystem: "catalog-search", fallback: "legacy-product-page" },
+      extra: { postgrestCode: error.code, message: error.message },
+    });
     return getLegacyProductPage(filters, page, pageSize);
   }
   if (error) throw error;

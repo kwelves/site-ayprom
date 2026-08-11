@@ -1,6 +1,7 @@
 import "server-only";
 
 import { headers } from "next/headers";
+import * as Sentry from "@sentry/nextjs";
 import { requireServerEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -70,7 +71,23 @@ export async function registerLoginAttempt(passwordIsValid: boolean): Promise<nu
     password_is_valid: passwordIsValid,
   });
 
+  // 42883 is deliberately broad: it covers both "function does not exist" and
+  // "operator does not exist". That breadth is what let a real bug hide here
+  // for months — the RPC existed but raised 42883 on every call because a
+  // variable was named `current_time`, a reserved keyword, so every comparison
+  // failed on a type mismatch. The caller read that as "not deployed yet" and
+  // quietly degraded, meaning brute-force protection never actually ran.
+  //
+  // The in-memory fallback is per-process, so on serverless it is close to no
+  // protection at all: each instance counts attempts separately. It is a
+  // stopgap for the minutes between a deploy and its migration, never a
+  // steady state — hence the alert.
   if (error?.code === "PGRST202" || error?.code === "42883") {
+    Sentry.captureMessage("register_admin_login_attempt RPC unavailable — admin login rate limit degraded to in-memory", {
+      level: "error",
+      tags: { subsystem: "admin-auth", fallback: "in-memory-rate-limit" },
+      extra: { postgrestCode: error.code, message: error.message },
+    });
     return registerFallbackAttempt(keyHash, passwordIsValid);
   }
   if (error) throw new Error("Не удалось проверить ограничение входа.");
