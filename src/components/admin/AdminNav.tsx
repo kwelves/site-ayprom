@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: "/admin/vehicle-types", label: "Типы техники" },
   { href: "/admin/categories", label: "Категории" },
   { href: "/admin/import", label: "Импорт" },
+  { href: "/admin/audit", label: "Журнал" },
 ];
 
 // A client component just for the nav links (rather than the whole layout)

@@ -28,6 +28,82 @@ interface AdminProductListRow {
   product_images: { url: string; order: number }[];
 }
 
+export interface AuditLogEntry {
+  id: number;
+  occurredAt: string;
+  actor: string;
+  action: "INSERT" | "UPDATE" | "DELETE";
+  entityType: string;
+  entityKey: string | null;
+  changedFields: string[];
+}
+
+export interface AuditLogPage {
+  items: AuditLogEntry[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface AuditLogFilters {
+  entityType?: string;
+  action?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+// Журнал изменений пишется триггерами базы, а не приложением — здесь только
+// чтение. Пагинация обязательна: массовый импорт порождает записи на каждую
+// строку каждой связанной таблицы, и таблица растёт быстрее самого каталога
+// (нагрузочный прогон на 5000 товаров дал 144 тысячи записей).
+export async function getAuditLog(filters: AuditLogFilters = {}): Promise<AuditLogPage> {
+  const supabase = createAdminClient();
+  const page = Math.max(1, filters.page ?? 1);
+  const pageSize = Math.min(200, Math.max(1, filters.pageSize ?? ADMIN_PAGE_SIZE));
+  const from = (page - 1) * pageSize;
+
+  let query = supabase
+    .from("admin_audit_log")
+    .select("id, occurred_at, actor, action, entity_type, entity_key, changed_fields", { count: "exact" })
+    .order("occurred_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(from, from + pageSize - 1);
+
+  if (filters.entityType) query = query.eq("entity_type", filters.entityType);
+  if (filters.action) query = query.eq("action", filters.action);
+
+  const { data, error, count } = await query;
+  if (error) throw error;
+
+  const total = count ?? 0;
+  return {
+    items: (data ?? []).map((row) => ({
+      id: row.id as number,
+      occurredAt: row.occurred_at as string,
+      actor: row.actor as string,
+      action: row.action as AuditLogEntry["action"],
+      entityType: row.entity_type as string,
+      entityKey: (row.entity_key as string | null) ?? null,
+      changedFields: (row.changed_fields as string[] | null) ?? [],
+    })),
+    total,
+    page,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+  };
+}
+
+// Значения для выпадающих фильтров берутся из самих данных, а не
+// хардкодятся: набор таблиц под аудитом задан триггерами в миграции и может
+// измениться независимо от этого кода.
+export async function getAuditLogEntityTypes(): Promise<string[]> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.from("admin_audit_log").select("entity_type").limit(1000);
+  if (error) throw error;
+  return [...new Set((data ?? []).map((row) => row.entity_type as string))].sort();
+}
+
 export interface AdminProductFilters {
   q?: string;
   categorySlug?: string;
