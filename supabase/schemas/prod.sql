@@ -1258,6 +1258,20 @@ REVOKE ALL ON FUNCTION "public"."refresh_product_search_from_subcategory"() FROM
 
 REVOKE ALL ON FUNCTION "public"."refresh_product_search_text"("target_product_id" "uuid") FROM PUBLIC;
 
+-- Найдено нагрузочной проверкой Фазы 3.2, а не раньше: все прежние проверки
+-- этой функции шли через MCP execute_sql или "psql -U postgres" —
+-- суперпользователь, который REVOKE попросту не касается. Через PostgREST
+-- admin-запись идёт от service_role (createAdminClient), и триггер
+-- products_refresh_search_text вызывает эту функцию изнутри SECURITY INVOKER
+-- цепочки — исполняется с правами того, кто сделал запись, то есть
+-- service_role. Без явного GRANT это "permission denied", AFTER-триггер
+-- прерывает всю операцию, и создание/редактирование ЛЮБОГО товара через
+-- настоящую админку падает целиком. Сами триггерные функции-обёртки
+-- (refresh_product_search_from_*) грантов не требуют — вызов триггера не
+-- проверяет EXECUTE, это подтверждено эмпирически: без этого гранта ошибка
+-- возникает именно на внутреннем вызове, а не на срабатывании триггера.
+GRANT EXECUTE ON FUNCTION "public"."refresh_product_search_text"("target_product_id" "uuid") TO "service_role";
+
 
 
 REVOKE ALL ON FUNCTION "public"."register_admin_login_attempt"("attempt_key_hash" "text", "password_is_valid" boolean) FROM PUBLIC;
