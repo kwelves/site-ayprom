@@ -1,6 +1,6 @@
 # Claude Instructions
 
-Ты помогаешь проектировать и разрабатывать production-ready каталог AYPROM с административной панелью.
+Всегда отвечай на Русском
 
 ## Как использовать бриф
 
@@ -21,9 +21,7 @@
 
 ## Текущее продуктовое направление
 
-- Главная должна оставаться сфокусированной, но строгого ограничения по длине нет.
 - Основная палитра: синий и белый. Стиль: современный, практичный, промышленный.
-- Клиенту особенно нравится визуальное направление `hyva.com.ua`; адаптируй его идеи без прямого копирования.
 - WhatsApp будет небольшим круглым закреплённым бейджем справа снизу и откроет чат напрямую.
 - Поиск остаётся основным способом сузить каталог. Лёгкие элементы, похожие на фильтры, допустимы, если помогают реальному сценарию.
 - Каталог рассчитан примерно на 2 000 товаров. Никогда не загружай весь каталог на frontend.
@@ -33,28 +31,15 @@
 
 - Используй TypeScript, Next.js App Router, Tailwind CSS и переиспользуемые компоненты.
 - Перед изменением Next.js-кода читай соответствующую документацию в `node_modules/next/dist/docs/`.
+- Цвет задавай только семантическими токенами из `src/app/globals.css` (`bg-primary`, `text-muted-foreground`, `border-input`, `text-danger`). Прямые палитровые классы (`bg-blue-600`, `text-slate-600`), `-white`/`-black` и значения вида `bg-[#084bb9]` запрещены: их отклоняет `npm run check:colors` внутри `npm run check`. Нет подходящего токена — добавь токен, а не прямой класс; таблица и порядок — в `docs/design-tokens.md`.
 - Supabase является источником данных каталога. Mock-данные допустимы только в тестах, локальных фикстурах и performance-проверках.
 - Храни изменения схемы в `supabase/migrations`, проверяй их локально и сохраняй Row Level Security (RLS).
 - Используй backend-поиск и пагинацию: база возвращает только нужную страницу товаров.
 - Делай интерфейс адаптивным для телефона, планшета и компьютера.
-- Предпочитай понятную архитектуру, но предлагай более сильный вариант, когда текущий подход создаёт риск или ограничение.
 - Кратко объясняй сделанные изменения и результаты проверок.
 
 ## Чекпоинты
 
-- После каждого среднего или крупного изменения запусти релевантные проверки и создай локальный Git-коммит.
 - Используй короткое сообщение коммита, которое описывает результат изменения.
-- Не включай в чекпоинт посторонние пользовательские правки.
 - Не выполняй `git push` автоматически.
 
-## graphify
-
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
-
-Rules:
-- Перед выполнением первого запроса в каждой новой сессии обнови граф: запусти `graphify update .`, если `graphify-out/graph.json` существует; иначе запусти `/graphify .`.
-- Если обновление не удалось, один раз сообщи об этом и продолжай по исходному коду, не зацикливаясь на Graphify.
-- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
-- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
-- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- После среднего или крупного изменения запусти `graphify update .` перед созданием чекпоинта.
