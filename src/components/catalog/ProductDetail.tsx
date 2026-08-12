@@ -42,7 +42,7 @@ export async function ProductDetail({ product }: { product: Product }) {
         <Reveal>
           <div>
             <h1 className="text-2xl font-bold text-foreground sm:text-3xl">{product.name}</h1>
-            <p className="mt-3 text-slate-600">{product.shortDescription}</p>
+            <p className="mt-3 text-muted-foreground">{product.shortDescription}</p>
 
             <div className="mt-6">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
@@ -52,7 +52,7 @@ export async function ProductDetail({ product }: { product: Product }) {
                 <dl className="mt-3 divide-y divide-border">
                   {product.characteristics.map((item) => (
                     <div key={item.attribute} className="flex justify-between gap-4 py-2 text-sm">
-                      <dt className="text-slate-600">{item.attribute}</dt>
+                      <dt className="text-muted-foreground">{item.attribute}</dt>
                       <dd className="font-medium text-card-foreground">{item.value}</dd>
                     </div>
                   ))}

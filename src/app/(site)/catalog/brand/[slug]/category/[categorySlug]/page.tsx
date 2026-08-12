@@ -55,7 +55,7 @@ export default async function BrandCategoryPage({ params }: BrandCategoryPagePro
         <div className="text-center">
           <p className="text-sm font-semibold uppercase tracking-wide text-primary">{brand.name}</p>
           <h1 className="mt-3 text-2xl font-bold text-foreground sm:text-3xl">{category.name}</h1>
-          <p className="mt-3 text-slate-600">
+          <p className="mt-3 text-muted-foreground">
             У бренда «{brand.name}» пока нет товаров в категории «{category.name}».
           </p>
         </div>

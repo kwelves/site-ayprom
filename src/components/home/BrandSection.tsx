@@ -13,7 +13,7 @@ function BrandGrid({ brands }: { brands: Brand[] }) {
         <StaggerItem key={brand.slug} hover>
           <Link
             href={`/catalog/brand/${brand.slug}`}
-            className="flex h-full flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-3 text-center transition-colors hover:border-blue-300 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:gap-3 sm:p-4"
+            className="flex h-full flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-3 text-center transition-colors hover:border-border-interactive hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:gap-3 sm:p-4"
           >
             <span className="flex h-10 w-full items-center justify-center sm:h-12">
               {/* eslint-disable-next-line @next/next/no-img-element -- static local SVGs are already optimal; next/image blocks local SVGs without dangerouslyAllowSVG */}

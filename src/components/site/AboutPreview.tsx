@@ -74,7 +74,7 @@ export function AboutPreview() {
             {values.map(({ icon: Icon, title, description }) => (
               <div
                 key={title}
-                className="flex items-start gap-3 py-3 max-sm:first:pt-0 sm:block sm:rounded-xl sm:border sm:border-border sm:bg-card sm:p-4 sm:transition-colors sm:hover:border-blue-200 sm:hover:bg-accent/40"
+                className="flex items-start gap-3 py-3 max-sm:first:pt-0 sm:block sm:rounded-xl sm:border sm:border-border sm:bg-card sm:p-4 sm:transition-colors sm:hover:border-border-interactive sm:hover:bg-accent/40"
               >
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
                   <Icon className="h-4 w-4" />
@@ -100,7 +100,7 @@ export function AboutPreview() {
             the Tilda mockup — it's a decorative cutout laid over the block,
             not a separate card. */}
         <div className="relative">
-          <div className="flex h-full flex-col gap-5 rounded-2xl border border-blue-100 bg-accent/50 p-6">
+          <div className="flex h-full flex-col gap-5 rounded-2xl border border-border-accent bg-accent/50 p-6">
             <div className="flex items-center gap-3">
               <Image
                 src="/brand/ayprom-icon.svg"
@@ -116,7 +116,7 @@ export function AboutPreview() {
               </div>
             </div>
 
-            <div className="flex flex-1 flex-col justify-center divide-y divide-blue-100">
+            <div className="flex flex-1 flex-col justify-center divide-y divide-border-accent">
             {infoRows.map(({ icon: Icon, label, value, href }) => {
               // The row itself must be the direct child of the divide-y list
               // (not wrapped in an extra element) — first:/last: below compile

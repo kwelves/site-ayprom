@@ -74,13 +74,13 @@ export default async function BrandPage({ params }: BrandPageProps) {
       <BrandHeader brand={brand} />
 
       {categories.length === 0 ? (
-        <p className="mx-auto mt-8 max-w-2xl text-center text-slate-600">
+        <p className="mx-auto mt-8 max-w-2xl text-center text-muted-foreground">
           У бренда «{brand.name}» пока нет товаров. Скоро они здесь появятся.
         </p>
       ) : (
         <>
           <Reveal>
-            <p className="mx-auto mt-6 max-w-2xl text-center text-slate-600">
+            <p className="mx-auto mt-6 max-w-2xl text-center text-muted-foreground">
               Выберите категорию, чтобы найти запчасти для «{brand.name}».
             </p>
           </Reveal>

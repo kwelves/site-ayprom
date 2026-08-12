@@ -15,9 +15,9 @@ export function ProductSearchForm({ action, defaultValue, placeholder }: Product
     <form
       action={action}
       method="GET"
-      className="mx-auto flex w-full max-w-lg items-center gap-2 rounded-lg border border-slate-300 bg-card p-1.5 shadow-sm focus-within:border-ring focus-within:ring-1 focus-within:ring-ring"
+      className="mx-auto flex w-full max-w-lg items-center gap-2 rounded-lg border border-input bg-card p-1.5 shadow-sm focus-within:border-ring focus-within:ring-1 focus-within:ring-ring"
     >
-      <Search aria-hidden="true" className="ml-2 h-5 w-5 shrink-0 text-slate-400" />
+      <Search aria-hidden="true" className="ml-2 h-5 w-5 shrink-0 text-faint-foreground" />
       <input
         type="text"
         name="q"
@@ -25,7 +25,7 @@ export function ProductSearchForm({ action, defaultValue, placeholder }: Product
         autoComplete="off"
         defaultValue={defaultValue}
         placeholder={`${placeholder}…`}
-        className="h-10 w-full border-0 bg-transparent text-sm text-foreground outline-none placeholder:text-slate-400"
+        className="h-10 w-full border-0 bg-transparent text-sm text-foreground outline-none placeholder:text-faint-foreground"
       />
       <Button type="submit" className="shrink-0">
         Найти

@@ -83,7 +83,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         <BrandCardGrid brands={categoryBrands} categorySlug={category.slug} className="mt-10" />
 
         <Reveal>
-          <p className="mx-auto mt-14 max-w-2xl text-center text-slate-600">
+          <p className="mx-auto mt-14 max-w-2xl text-center text-muted-foreground">
             {category.intro
               ? `${category.intro} Выберите бренд, чтобы быстро найти нужные детали.`
               : "Выберите бренд, чтобы быстро найти нужные детали."}
@@ -101,7 +101,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         <div className="text-center">
           <p className="text-sm font-semibold uppercase tracking-wide text-primary">Каталог</p>
           <h1 className="mt-3 text-2xl font-bold text-foreground sm:text-3xl">{category.name}</h1>
-          <p className="mt-3 text-slate-600">
+          <p className="mt-3 text-muted-foreground">
             Раздел в разработке. Скоро здесь появится каталог этой категории.
           </p>
         </div>

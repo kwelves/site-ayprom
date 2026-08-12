@@ -81,7 +81,7 @@ export function ProductCard({ product, href }: { product: ProductListItem; href:
   };
 
   return (
-    <div className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-blue-300 hover:shadow-sm">
+    <div className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-border-interactive hover:shadow-sm">
       <Link
         href={href}
         aria-label={product.name}
@@ -169,7 +169,7 @@ export function ProductCard({ product, href }: { product: ProductListItem; href:
               <span
                 className={cn(
                   "block h-1.5 rounded-full transition-[width,background-color]",
-                  i === index ? "w-4 bg-primary" : "w-1.5 bg-border hover:bg-blue-300"
+                  i === index ? "w-4 bg-primary" : "w-1.5 bg-border hover:bg-primary-soft"
                 )}
               />
             </button>

@@ -121,7 +121,7 @@ export function ProductGridWithSearch({
         {query && (
           <Link
             href={action}
-            className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 font-medium text-primary hover:bg-blue-100"
+            className="rounded-full border border-border-interactive bg-accent px-3 py-1.5 font-medium text-primary hover:bg-accent-strong"
           >
             Поиск: «{query}» ×
           </Link>

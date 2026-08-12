@@ -55,7 +55,7 @@ export default function AboutPage() {
       </Reveal>
 
       <Reveal delay={0.05}>
-        <div className="mx-auto mt-8 max-w-2xl space-y-4 text-slate-600">
+        <div className="mx-auto mt-8 max-w-2xl space-y-4 text-muted-foreground">
           <p>
             Мы закрываем одну простую задачу: чтобы поломка гидравлического узла не останавливала вашу технику
             надолго. Работаем из Бишкека с тягачами, самосвалами, тонарами, полуприцепами, кранами-манипуляторами и
@@ -80,7 +80,7 @@ export default function AboutPage() {
       <StaggerGroup className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {values.map(({ icon: Icon, title, description }) => (
           <StaggerItem key={title}>
-            <div className="h-full rounded-xl border border-border bg-card p-5 transition-colors hover:border-blue-200 hover:bg-accent/40">
+            <div className="h-full rounded-xl border border-border bg-card p-5 transition-colors hover:border-border-interactive hover:bg-accent/40">
               <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-accent-foreground">
                 <Icon className="h-5 w-5" />
               </span>
@@ -95,7 +95,7 @@ export default function AboutPage() {
         <div className="mt-14 flex flex-col items-center gap-3 text-center sm:flex-row sm:justify-center sm:gap-6">
           <Link
             href="/catalog"
-            className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-blue-700"
+            className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover"
           >
             Смотреть каталог
           </Link>

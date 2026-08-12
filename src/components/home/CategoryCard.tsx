@@ -30,7 +30,7 @@ export function CategoryCard({
   return (
     <MotionLink
       href={href}
-      className="group relative z-0 flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:z-10 hover:border-blue-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+      className="group relative z-0 flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:z-10 hover:border-border-interactive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
       whileHover={shouldReduceMotion ? undefined : { scale: 1.05, y: -4 }}
       whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
       transition={springSnappy}

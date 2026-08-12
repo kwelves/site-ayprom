@@ -67,7 +67,7 @@ export default async function SubcategoryProductsPage({ params, searchParams }: 
 
       {subcategory.intro && (
         <Reveal>
-          <p className="mx-auto mt-14 max-w-2xl text-center text-slate-600">{subcategory.intro}</p>
+          <p className="mx-auto mt-14 max-w-2xl text-center text-muted-foreground">{subcategory.intro}</p>
         </Reveal>
       )}
     </>

@@ -104,7 +104,7 @@ export default function ContactsPage() {
             {card.href ? (
               <a
                 href={card.href}
-                className="block h-full rounded-xl border border-border bg-card p-5 transition-colors hover:border-blue-300"
+                className="block h-full rounded-xl border border-border bg-card p-5 transition-colors hover:border-border-interactive"
               >
                 <ContactCardBody icon={card.icon} label={card.label}>
                   {card.value}

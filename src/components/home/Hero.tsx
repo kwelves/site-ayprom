@@ -64,7 +64,7 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
   return (
     <section ref={sectionRef} className="relative flex min-h-[calc(100dvh-4rem)] items-end">
       {/* Fixed backdrop: the video stays pinned to the viewport while the page scrolls over it */}
-      <div className="fixed inset-x-0 top-0 -z-10 h-dvh bg-slate-900">
+      <div className="fixed inset-x-0 top-0 -z-10 h-dvh bg-inverse">
         {prefersReducedMotion ? (
           <div
             className="h-full w-full bg-cover bg-center"
@@ -94,13 +94,13 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
             stays bright (sky, the truck itself), darkening only toward the
             bottom where the text sits — guarantees contrast there regardless
             of what's in that part of the frame, without dimming the whole shot. */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/35 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-inverse/90 via-inverse/35 to-transparent" />
         {/* This gradient fades to nothing right at the top, so the transparent
             Header's white logo/nav text — sitting directly on the video up
             there — has no guaranteed contrast of its own. A second, short
             top-anchored gradient covers just that strip without touching how
             bright the rest of the video reads. */}
-        <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-slate-900/55 to-transparent sm:h-28" />
+        <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-inverse/55 to-transparent sm:h-28" />
       </div>
 
       <Container className="pb-24 sm:pb-28 lg:pb-32">
@@ -112,18 +112,18 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
         >
           <motion.h1
             variants={fadeUp}
-            className="text-shadow-md text-balance text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl"
+            className="text-shadow-md text-balance text-3xl font-bold tracking-tight text-inverse-foreground sm:text-4xl lg:text-5xl"
           >
             Каталог гидрооборудования и запчастей для спецтехники
           </motion.h1>
           {vehicleTypes.length > 0 && (
             <motion.div
               variants={fadeUp}
-              className="mt-6 flex flex-wrap items-center gap-2 text-shadow-sm text-xl font-medium text-slate-200"
+              className="mt-6 flex flex-wrap items-center gap-2 text-shadow-sm text-xl font-medium text-inverse-foreground-muted"
             >
               {vehicleTypes.map((vehicleType, i) => (
                 <span key={vehicleType.slug} className="flex items-center gap-2">
-                  {i > 0 && <span className="text-slate-400">/</span>}
+                  {i > 0 && <span className="text-inverse-foreground-subtle">/</span>}
                   <Link
                     href={`/catalog/vehicle-type/${vehicleType.slug}`}
                     className="transition-colors hover:text-primary"
@@ -139,16 +139,16 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
             variants={fadeUp}
             action="/catalog"
             method="GET"
-            className="mt-12 flex w-full max-w-lg items-center gap-2 rounded-lg border border-slate-300 bg-card p-1.5 shadow-sm focus-within:border-ring focus-within:ring-1 focus-within:ring-ring"
+            className="mt-12 flex w-full max-w-lg items-center gap-2 rounded-lg border border-input bg-card p-1.5 shadow-sm focus-within:border-ring focus-within:ring-1 focus-within:ring-ring"
           >
-            <Search aria-hidden="true" className="ml-2 h-5 w-5 shrink-0 text-slate-400" />
+            <Search aria-hidden="true" className="ml-2 h-5 w-5 shrink-0 text-faint-foreground" />
             <input
               type="text"
               name="q"
               aria-label="Поиск по каталогу"
               autoComplete="off"
               placeholder="Например: гидроцилиндр HOWO…"
-              className="h-10 w-full border-0 bg-transparent text-base text-foreground outline-none placeholder:text-slate-400"
+              className="h-10 w-full border-0 bg-transparent text-base text-foreground outline-none placeholder:text-faint-foreground"
             />
             <Button type="submit" size="lg" className="shrink-0">
               Найти
@@ -184,7 +184,7 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
         type="button"
         onClick={scrollToNextSection}
         aria-label="Прокрутить вниз"
-        className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full p-2.5 text-white/80 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+        className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full p-2.5 text-inverse-foreground/80 transition-colors hover:text-inverse-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inverse-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-inverse"
         animate={prefersReducedMotion ? undefined : { y: [0, 8, 0] }}
         transition={prefersReducedMotion ? undefined : { duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
       >
