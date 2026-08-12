@@ -70,6 +70,15 @@ declare
   row_data jsonb := case when tg_op = 'DELETE' then to_jsonb(old) else to_jsonb(new) end;
   field_names text[] := '{}';
 begin
+  -- Триггеры вроде products_refresh_search_text каскадно выполняют свой
+  -- собственный UPDATE (например, пересчёт search_text) в ответ на исходную
+  -- мутацию. pg_trigger_depth() > 1 отличает такой вложенный, вызванный
+  -- другим триггером UPDATE от прямой мутации клиента/service_role — иначе
+  -- одно реальное действие администратора порождает лишние записи аудита.
+  if pg_trigger_depth() > 1 then
+    return case when tg_op = 'DELETE' then old else new end;
+  end if;
+
   if tg_op = 'UPDATE' then
     select coalesce(array_agg(field.key order by field.key), '{}')
     into field_names
