@@ -72,12 +72,18 @@ jobs:
             exit 1
           fi
 
+      # `supabase status -o env` quotes values (KEY="value") for shell sourcing,
+      # but $GITHUB_ENV takes KEY=value literally — quotes included — so
+      # NEXT_PUBLIC_SUPABASE_URL becomes the 25-char string "http://…" (with
+      # literal quote characters) and next.config.ts's `new URL(...)` throws.
+      # Strip the wrapping quotes before appending.
       - name: Export local Supabase environment
         run: |
           supabase status -o env \
             --override-name api.url=NEXT_PUBLIC_SUPABASE_URL \
             --override-name auth.anon_key=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY \
             --override-name auth.service_role_key=SUPABASE_SECRET_KEY \
+            | sed -E 's/="(.*)"$/=\1/' \
             >> "$GITHUB_ENV"
 
       - name: Database integration and RLS tests
