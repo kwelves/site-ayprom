@@ -137,8 +137,8 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
                 className={cn(
                   "rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   overPhoto
-                    ? "text-white hover:bg-white/10"
-                    : "text-slate-700 hover:bg-accent hover:text-accent-foreground"
+                    ? "text-inverse-foreground hover:bg-inverse-foreground/10"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 )}
               >
                 {item.label}
@@ -158,7 +158,7 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
           type="button"
           className={cn(
             "inline-flex h-11 w-11 items-center justify-center rounded-md transition-colors md:hidden",
-            overPhoto ? "text-white" : "text-slate-700"
+            overPhoto ? "text-inverse-foreground" : "text-muted-foreground"
           )}
           onClick={() => (open ? closeMenu() : setOpen(true))}
           aria-label="Открыть меню"
@@ -256,7 +256,7 @@ function MobileNavItem({
       <Link
         href={item.href}
         onClick={(event) => handleMobileNavClick(event, item.href)}
-        className="rounded-md flex min-h-11 items-center px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-muted hover:text-primary"
+        className="rounded-md flex min-h-11 items-center px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-primary"
       >
         {item.label}
       </Link>
@@ -269,7 +269,7 @@ function MobileNavItem({
         <Link
           href={item.href}
           onClick={(event) => handleMobileNavClick(event, item.href)}
-          className="flex-1 rounded-md flex min-h-11 items-center px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-muted hover:text-primary"
+          className="flex-1 rounded-md flex min-h-11 items-center px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-primary"
         >
           {item.label}
         </Link>
@@ -311,7 +311,7 @@ function MobileNavItem({
                   <span
                     className={cn(
                       "flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg",
-                      sub.logo ? "border border-border bg-white" : "bg-accent text-accent-foreground"
+                      sub.logo ? "border border-border bg-card" : "bg-accent text-accent-foreground"
                     )}
                   >
                     {sub.logo ? (

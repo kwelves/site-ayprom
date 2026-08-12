@@ -48,9 +48,9 @@ export function NavDropdown({ label, href, items, light, fixedSingleColumn, scro
         className={cn(
           "flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium transition-colors",
           light
-            ? "text-white hover:bg-white/10"
-            : "text-slate-700 hover:bg-accent hover:text-accent-foreground",
-          open && (light ? "bg-white/10" : "bg-accent text-accent-foreground")
+            ? "text-inverse-foreground hover:bg-inverse-foreground/10"
+            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+          open && (light ? "bg-inverse-foreground/10" : "bg-accent text-accent-foreground")
         )}
         aria-expanded={open}
       >
@@ -96,7 +96,7 @@ export function NavDropdown({ label, href, items, light, fixedSingleColumn, scro
                       className={cn(
                         "flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg",
                         item.logo
-                          ? "border border-border bg-white"
+                          ? "border border-border bg-card"
                           : "bg-accent text-accent-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground"
                       )}
                     >
