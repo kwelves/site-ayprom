@@ -18,7 +18,7 @@ export function ErrorState({
 }: ErrorStateProps) {
   return (
     <div className="mx-auto flex min-h-[45vh] max-w-xl flex-col items-center justify-center px-6 py-16 text-center">
-      <AlertTriangle className="h-10 w-10 text-amber-500" aria-hidden="true" />
+      <AlertTriangle className="h-10 w-10 text-warning" aria-hidden="true" />
       <h1 className="mt-4 text-2xl font-semibold text-foreground">{title}</h1>
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{description}</p>
       <div className="mt-6 flex flex-wrap justify-center gap-3">
@@ -26,7 +26,7 @@ export function ErrorState({
           <button
             type="button"
             onClick={retry}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-blue-700"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover"
           >
             Повторить
           </button>

@@ -33,7 +33,7 @@ export function ImageFallback({
       <div
         role="img"
         aria-label={`${alt}. ${fallbackLabel}`}
-        className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-slate-100 px-4 text-center text-slate-500"
+        className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-surface-subtle px-4 text-center text-muted-foreground"
       >
         <ImageOff className="h-8 w-8" aria-hidden="true" />
         <span className="text-xs font-medium">{fallbackLabel}</span>

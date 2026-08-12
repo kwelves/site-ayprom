@@ -11,8 +11,8 @@ const buttonStyles = cva(
   {
     variants: {
       variant: {
-        primary: "bg-primary text-primary-foreground hover:bg-blue-700",
-        secondary: "border border-slate-300 bg-secondary text-secondary-foreground hover:bg-muted",
+        primary: "bg-primary text-primary-foreground hover:bg-primary-hover",
+        secondary: "border border-input bg-secondary text-secondary-foreground hover:bg-muted",
       },
       size: {
         default: "h-11 px-5 text-sm",

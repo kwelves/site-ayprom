@@ -20,10 +20,10 @@ export function AdminActionFeedback({ message, tone = "error", onDismiss }: Admi
       aria-live="polite"
       className={cn(
         "fixed bottom-6 right-6 z-50 flex max-w-md items-start gap-3 rounded-lg border bg-card px-4 py-3 shadow-lg",
-        tone === "error" ? "border-red-200" : "border-border",
+        tone === "error" ? "border-danger-border" : "border-border",
       )}
     >
-      <Icon aria-hidden="true" className={cn("mt-0.5 h-5 w-5 shrink-0", tone === "error" ? "text-red-600" : "text-primary")} />
+      <Icon aria-hidden="true" className={cn("mt-0.5 h-5 w-5 shrink-0", tone === "error" ? "text-danger" : "text-primary")} />
       <p className="text-sm font-medium text-card-foreground">{message}</p>
       <button
         type="button"

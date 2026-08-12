@@ -26,7 +26,7 @@ export function SectionHeading({
         <p
           className={cn(
             "text-sm font-semibold uppercase tracking-wide",
-            isInverse ? "text-blue-300 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" : "text-primary",
+            isInverse ? "text-inverse-accent drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" : "text-primary",
           )}
         >
           {eyebrow}
@@ -36,7 +36,7 @@ export function SectionHeading({
         className={cn(
           "mt-2 text-2xl font-bold tracking-tight sm:text-3xl",
           isInverse
-            ? "text-white drop-shadow-[0_4px_14px_rgba(0,0,0,0.9)]"
+            ? "text-inverse-foreground drop-shadow-[0_4px_14px_rgba(0,0,0,0.9)]"
             : "text-foreground",
         )}
       >
@@ -47,8 +47,8 @@ export function SectionHeading({
           className={cn(
             "mt-3",
             isInverse
-              ? "text-slate-100 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]"
-              : "text-slate-600",
+              ? "text-inverse-foreground-muted drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]"
+              : "text-muted-foreground",
           )}
         >
           {description}
