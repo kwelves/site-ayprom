@@ -165,7 +165,7 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
               />
             </div>
           ) : (
-            <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-300 px-4 py-2 text-sm text-slate-600 transition-colors hover:border-primary hover:text-primary">
+            <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-input px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary">
               {isUploadingImage ? "Загрузка…" : "Заменить изображение"}
               <input
                 type="file"
@@ -203,7 +203,7 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
             {mode === "create" ? "Создать категорию" : "Сохранить"}
           </SubmitButton>
           {mode === "edit" && (
-            <button type="button" onClick={handleDeleteCategory} className="text-sm text-red-600 hover:underline">
+            <button type="button" onClick={handleDeleteCategory} className="text-sm text-danger hover:underline">
               Удалить категорию
             </button>
           )}

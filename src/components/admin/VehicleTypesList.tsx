@@ -60,14 +60,14 @@ export function VehicleTypesList({ vehicleTypes: initialVehicleTypes, flashSlug,
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <Link
                 href={`/admin/vehicle-types/${vehicleType.slug}/edit`}
-                className="rounded-md border border-border px-3 py-1 text-sm font-medium text-primary transition-colors hover:border-blue-200 hover:bg-accent"
+                className="rounded-md border border-border px-3 py-1 text-sm font-medium text-primary transition-colors hover:border-border-interactive hover:bg-accent"
               >
                 Редактировать
               </Link>
               <button
                 type="button"
                 onClick={() => handleDelete(vehicleType)}
-                className="rounded-md border border-red-200 px-3 py-1 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+                className="rounded-md border border-danger-border px-3 py-1 text-sm font-medium text-danger transition-colors hover:bg-danger-surface"
               >
                 Удалить
               </button>

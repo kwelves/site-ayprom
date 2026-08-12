@@ -21,7 +21,7 @@ export default function ProtectedAdminLayout({ children }: Readonly<{ children: 
             <form action={logout}>
               <button
                 type="submit"
-                className="text-slate-600 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                className="text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 Выйти
               </button>

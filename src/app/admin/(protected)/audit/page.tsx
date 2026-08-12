@@ -17,9 +17,9 @@ interface AuditPageProps {
 }
 
 const ACTION_STYLES: Record<string, string> = {
-  INSERT: "bg-green-100 text-green-700",
-  UPDATE: "bg-blue-100 text-blue-700",
-  DELETE: "bg-red-100 text-red-700",
+  INSERT: "bg-success-surface text-success",
+  UPDATE: "bg-accent-strong text-accent-foreground",
+  DELETE: "bg-danger-surface-hover text-danger",
 };
 
 // Время пишется триггером через clock_timestamp() в UTC. Показываем в

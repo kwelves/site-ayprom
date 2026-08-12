@@ -33,7 +33,7 @@ export default async function AdminSubcategoriesPage({ params, searchParams }: S
         <h1 className="text-xl font-semibold text-foreground">Подкатегории: {category.name}</h1>
         <Link
           href={`/admin/categories/${slug}/subcategories/new`}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-blue-700"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover"
         >
           Добавить подкатегорию
         </Link>

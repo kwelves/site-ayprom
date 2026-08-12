@@ -142,7 +142,7 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
               <button
                 type="button"
                 onClick={() => handleRemove(brand)}
-                className="shrink-0 rounded-md border border-red-200 px-3 py-1 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+                className="shrink-0 rounded-md border border-danger-border px-3 py-1 text-sm font-medium text-danger transition-colors hover:bg-danger-surface"
               >
                 Убрать
               </button>
@@ -171,7 +171,7 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
             type="button"
             onClick={handleAdd}
             disabled={!selectedBrandToAdd}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-blue-700 disabled:opacity-50"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-50"
           >
             Добавить
           </button>

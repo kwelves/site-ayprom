@@ -61,7 +61,7 @@ export function SortableList<T>({
             data-flash-key={flashKeyOf(item)}
             className={cn(
               "flex items-center gap-2 rounded-md border border-border bg-card p-2 transition-colors duration-300",
-              highlightedKey === flashKeyOf(item) && "border-blue-300 bg-blue-50"
+              highlightedKey === flashKeyOf(item) && "border-border-interactive bg-accent"
             )}
           >
             <div className="min-w-0 flex-1">{renderItem(item)}</div>
@@ -149,7 +149,7 @@ function SortableRow({
       className={cn(
         "flex items-center gap-2 rounded-md border border-border bg-card p-2 transition-colors duration-300",
         isDragging && "opacity-50",
-        highlighted && "border-blue-300 bg-blue-50"
+        highlighted && "border-border-interactive bg-accent"
       )}
     >
       <button
@@ -157,7 +157,7 @@ function SortableRow({
         {...attributes}
         {...listeners}
         aria-label="Перетащить для изменения порядка"
-        className="-m-2 shrink-0 cursor-grab touch-none p-2 text-slate-400 transition-colors hover:text-slate-600 active:cursor-grabbing"
+        className="-m-2 shrink-0 cursor-grab touch-none p-2 text-faint-foreground transition-colors hover:text-muted-foreground active:cursor-grabbing"
       >
         <GripVertical className="h-4 w-4" />
       </button>

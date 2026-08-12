@@ -33,7 +33,7 @@ export function AdminPagination({ page, totalPages }: AdminPaginationProps) {
   }
 
   const linkClass =
-    "inline-flex h-9 min-w-9 items-center justify-center gap-1 rounded-md border border-border px-3 text-sm font-medium transition-colors hover:border-blue-200 hover:bg-accent";
+    "inline-flex h-9 min-w-9 items-center justify-center gap-1 rounded-md border border-border px-3 text-sm font-medium transition-colors hover:border-border-interactive hover:bg-accent";
   const disabledClass = "pointer-events-none opacity-40";
 
   return (

@@ -23,7 +23,7 @@ export default async function AdminVehicleTypesPage({ searchParams }: AdminVehic
         <h1 className="text-xl font-semibold text-foreground">Типы техники</h1>
         <Link
           href="/admin/vehicle-types/new"
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-blue-700"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover"
         >
           Добавить тип техники
         </Link>

@@ -123,7 +123,7 @@ export function SubcategoryForm({ mode, categorySlug, categoryName, subcategory 
               />
             </div>
           ) : (
-            <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-300 px-4 py-2 text-sm text-slate-600 transition-colors hover:border-primary hover:text-primary">
+            <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-input px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary">
               {isUploadingImage ? "Загрузка…" : "Заменить изображение"}
               <input
                 type="file"
@@ -141,7 +141,7 @@ export function SubcategoryForm({ mode, categorySlug, categoryName, subcategory 
             {mode === "create" ? "Создать подкатегорию" : "Сохранить"}
           </SubmitButton>
           {mode === "edit" && (
-            <button type="button" onClick={handleDeleteSubcategory} className="text-sm text-red-600 hover:underline">
+            <button type="button" onClick={handleDeleteSubcategory} className="text-sm text-danger hover:underline">
               Удалить подкатегорию
             </button>
           )}

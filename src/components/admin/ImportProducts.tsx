@@ -60,7 +60,7 @@ export function ImportProducts() {
               <code>characteristics</code>. Списки — через «;», характеристики — «Атрибут=Значение;…».
             </p>
           </div>
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-blue-700">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover">
             {isPending && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />}
             Выбрать файл
             <input
@@ -76,7 +76,7 @@ export function ImportProducts() {
       )}
 
       {error && (
-        <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div className="flex items-start gap-2 rounded-md border border-danger-border bg-danger-surface p-3 text-sm text-danger">
           <AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
           <p>{error}</p>
         </div>
@@ -114,25 +114,25 @@ function ImportPreviewPanel({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-4 rounded-md border border-border bg-card p-4 text-sm">
         <span className="font-medium text-card-foreground">Прочитано строк: {preview.totalRows}</span>
-        <span className="text-green-700">Создать: {toCreate}</span>
-        <span className="text-blue-700">Обновить: {toUpdate}</span>
-        {preview.errors.length > 0 && <span className="text-red-600">Ошибок: {preview.errors.length}</span>}
+        <span className="text-success">Создать: {toCreate}</span>
+        <span className="text-accent-foreground">Обновить: {toUpdate}</span>
+        {preview.errors.length > 0 && <span className="text-danger">Ошибок: {preview.errors.length}</span>}
       </div>
 
       {preview.errors.length > 0 && (
-        <div className="max-h-64 overflow-y-auto rounded-md border border-red-200">
+        <div className="max-h-64 overflow-y-auto rounded-md border border-danger-border">
           <table className="w-full text-left text-sm">
-            <thead className="sticky top-0 bg-red-50 text-red-700">
+            <thead className="sticky top-0 bg-danger-surface text-danger">
               <tr>
                 <th className="px-3 py-2 font-medium">Строка</th>
                 <th className="px-3 py-2 font-medium">Ошибка</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-red-100">
+            <tbody className="divide-y divide-danger-surface-hover">
               {preview.errors.map((rowError, i) => (
                 <tr key={i}>
-                  <td className="px-3 py-2 text-red-600">{rowError.rowIndex + 2}</td>
-                  <td className="px-3 py-2 text-red-700">{rowError.message}</td>
+                  <td className="px-3 py-2 text-danger">{rowError.rowIndex + 2}</td>
+                  <td className="px-3 py-2 text-danger">{rowError.message}</td>
                 </tr>
               ))}
             </tbody>
@@ -159,11 +159,11 @@ function ImportPreviewPanel({
                   <td className="px-3 py-2 text-muted-foreground">{row.article ?? "—"}</td>
                   <td className="px-3 py-2">
                     {row.matchedExisting ? (
-                      <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                      <span className="rounded-full bg-accent-strong px-2 py-0.5 text-xs font-medium text-accent-foreground">
                         Обновление
                       </span>
                     ) : (
-                      <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                      <span className="rounded-full bg-success-surface px-2 py-0.5 text-xs font-medium text-success">
                         Создание
                       </span>
                     )}
@@ -180,7 +180,7 @@ function ImportPreviewPanel({
           type="button"
           onClick={() => onConfirm(preview.validRows)}
           disabled={isPending || preview.validRows.length === 0}
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+          className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-70"
         >
           {isPending && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />}
           Подтвердить импорт {preview.validRows.length > 0 ? `(${preview.validRows.length})` : ""}
@@ -201,9 +201,9 @@ function ImportPreviewPanel({
 function ImportResultPanel({ result, onReset }: { result: ImportCommitResult; onReset: () => void }) {
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-start gap-3 rounded-md border border-green-200 bg-green-50 p-4">
-        <CheckCircle2 aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-green-700" />
-        <div className="text-sm text-green-800">
+      <div className="flex items-start gap-3 rounded-md border border-success-border bg-success-surface p-4">
+        <CheckCircle2 aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-success" />
+        <div className="text-sm text-success">
           <p className="font-medium">Импорт завершён.</p>
           <p>
             Создано: {result.created}. Обновлено: {result.updated}.
@@ -213,21 +213,21 @@ function ImportResultPanel({ result, onReset }: { result: ImportCommitResult; on
       </div>
 
       {result.errors.length > 0 && (
-        <div className="max-h-64 overflow-y-auto rounded-md border border-red-200">
+        <div className="max-h-64 overflow-y-auto rounded-md border border-danger-border">
           <table className="w-full text-left text-sm">
-            <thead className="sticky top-0 bg-red-50 text-red-700">
+            <thead className="sticky top-0 bg-danger-surface text-danger">
               <tr>
                 <th className="px-3 py-2 font-medium">Строка</th>
                 <th className="px-3 py-2 font-medium">Slug</th>
                 <th className="px-3 py-2 font-medium">Ошибка</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-red-100">
+            <tbody className="divide-y divide-danger-surface-hover">
               {result.errors.map((rowError, i) => (
                 <tr key={i}>
-                  <td className="px-3 py-2 text-red-600">{rowError.rowIndex + 2}</td>
-                  <td className="px-3 py-2 text-red-600">{rowError.slug}</td>
-                  <td className="px-3 py-2 text-red-700">{rowError.message}</td>
+                  <td className="px-3 py-2 text-danger">{rowError.rowIndex + 2}</td>
+                  <td className="px-3 py-2 text-danger">{rowError.slug}</td>
+                  <td className="px-3 py-2 text-danger">{rowError.message}</td>
                 </tr>
               ))}
             </tbody>

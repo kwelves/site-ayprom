@@ -95,8 +95,8 @@ export function ProductsList({ products: initialProducts, flashSlug, flashAction
                 className={cn(
                   "overflow-hidden rounded-full px-2.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
                   product.published
-                    ? "bg-green-100 text-green-700 hover:bg-green-200"
-                    : "bg-amber-100 text-amber-700 hover:bg-amber-200"
+                    ? "bg-success-surface text-success hover:bg-success-surface-hover"
+                    : "bg-warning-surface text-warning hover:bg-warning-surface-hover"
                 )}
               >
                 <AnimatePresence mode="wait" initial={false}>
@@ -114,14 +114,14 @@ export function ProductsList({ products: initialProducts, flashSlug, flashAction
               </button>
               <Link
                 href={`/admin/products/${product.slug}/edit`}
-                className="rounded-md border border-border px-3 py-1 text-sm font-medium text-primary transition-colors hover:border-blue-200 hover:bg-accent"
+                className="rounded-md border border-border px-3 py-1 text-sm font-medium text-primary transition-colors hover:border-border-interactive hover:bg-accent"
               >
                 Редактировать
               </Link>
               <button
                 type="button"
                 onClick={() => handleDelete(product)}
-                className="rounded-md border border-red-200 px-3 py-1 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+                className="rounded-md border border-danger-border px-3 py-1 text-sm font-medium text-danger transition-colors hover:bg-danger-surface"
               >
                 Удалить
               </button>

@@ -112,7 +112,7 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
               />
             </div>
           ) : (
-            <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-300 px-4 py-2 text-sm text-slate-600 transition-colors hover:border-primary hover:text-primary">
+            <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-input px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary">
               {isUploadingLogo ? "Загрузка…" : "Заменить логотип"}
               <input
                 type="file"
@@ -130,7 +130,7 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
             {mode === "create" ? "Создать бренд" : "Сохранить"}
           </SubmitButton>
           {mode === "edit" && (
-            <button type="button" onClick={handleDeleteBrand} className="text-sm text-red-600 hover:underline">
+            <button type="button" onClick={handleDeleteBrand} className="text-sm text-danger hover:underline">
               Удалить бренд
             </button>
           )}

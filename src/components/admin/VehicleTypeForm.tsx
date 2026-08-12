@@ -81,7 +81,7 @@ export function VehicleTypeForm({ mode, vehicleType }: VehicleTypeFormProps) {
             {mode === "create" ? "Создать тип техники" : "Сохранить"}
           </SubmitButton>
           {mode === "edit" && (
-            <button type="button" onClick={handleDeleteVehicleType} className="text-sm text-red-600 hover:underline">
+            <button type="button" onClick={handleDeleteVehicleType} className="text-sm text-danger hover:underline">
               Удалить тип техники
             </button>
           )}

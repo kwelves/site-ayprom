@@ -63,7 +63,7 @@ export function CategoriesList({ categories: initialCategories, flashSlug, flash
               <span
                 className={cn(
                   "rounded-full px-2 py-0.5 text-xs font-medium",
-                  category.type === "brand" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-700"
+                  category.type === "brand" ? "bg-accent-strong text-accent-foreground" : "bg-surface-subtle text-muted-foreground"
                 )}
               >
                 {category.type === "brand" ? "По брендам" : "По подкатегориям"}
@@ -73,14 +73,14 @@ export function CategoriesList({ categories: initialCategories, flashSlug, flash
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <Link
                 href={`/admin/categories/${category.slug}/edit`}
-                className="rounded-md border border-border px-3 py-1 text-sm font-medium text-primary transition-colors hover:border-blue-200 hover:bg-accent"
+                className="rounded-md border border-border px-3 py-1 text-sm font-medium text-primary transition-colors hover:border-border-interactive hover:bg-accent"
               >
                 Редактировать
               </Link>
               <button
                 type="button"
                 onClick={() => handleDelete(category)}
-                className="rounded-md border border-red-200 px-3 py-1 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+                className="rounded-md border border-danger-border px-3 py-1 text-sm font-medium text-danger transition-colors hover:bg-danger-surface"
               >
                 Удалить
               </button>

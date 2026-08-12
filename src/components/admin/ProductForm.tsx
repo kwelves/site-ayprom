@@ -338,7 +338,7 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
                   <button
                     type="button"
                     onClick={() => removeCharacteristic(c.key)}
-                    className="shrink-0 text-sm text-red-600 hover:underline"
+                    className="shrink-0 text-sm text-danger hover:underline"
                   >
                     Удалить
                   </button>
@@ -378,7 +378,7 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
                     <button
                       type="button"
                       onClick={() => handleImageDelete(img.id)}
-                      className="shrink-0 text-sm text-red-600 hover:underline"
+                      className="shrink-0 text-sm text-danger hover:underline"
                     >
                       Удалить
                     </button>
@@ -386,7 +386,7 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
                 )}
               />
             )}
-            <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-300 px-4 py-2 text-sm text-slate-600 transition-colors hover:border-primary hover:text-primary">
+            <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-input px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary">
               {isUploading ? "Загрузка…" : "Загрузить фото"}
               <input
                 type="file"
@@ -405,7 +405,7 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
               Необязательно: товар без фото поддерживается и будет показан с нейтральной заглушкой. До 10 файлов JPEG,
               PNG, WebP или AVIF, не более 8 МБ каждый.
             </p>
-            <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-slate-300 px-4 py-2 text-sm text-slate-600 transition-colors hover:border-primary hover:text-primary">
+            <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-input px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary">
               {pendingPhotoCount > 0 ? `Выбрано фото: ${pendingPhotoCount}` : "Выбрать фото"}
               <input
                 type="file"
@@ -428,7 +428,7 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
             {mode === "create" ? "Создать товар" : "Сохранить"}
           </SubmitButton>
           {mode === "edit" && (
-            <button type="button" onClick={handleDeleteProduct} className="text-sm text-red-600 hover:underline">
+            <button type="button" onClick={handleDeleteProduct} className="text-sm text-danger hover:underline">
               Удалить товар
             </button>
           )}

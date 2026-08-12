@@ -22,23 +22,23 @@ export default async function AdminLoginPage({ searchParams }: LoginPageProps) {
         <h1 className="text-lg font-semibold text-card-foreground">Вход в админку</h1>
 
         <label className="mt-6 block text-sm">
-          <span className="text-slate-600">Пароль</span>
+          <span className="text-muted-foreground">Пароль</span>
           <input
             type="password"
             name="password"
             required
             autoComplete="current-password"
-            className="mt-1.5 block w-full rounded-md border border-slate-300 px-3 py-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:py-2"
+            className="mt-1.5 block w-full rounded-md border border-input px-3 py-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:py-2"
           />
         </label>
 
         {error === "rate" ? (
-          <p className="mt-3 text-sm text-red-600" role="alert">
+          <p className="mt-3 text-sm text-danger" role="alert">
             Слишком много попыток. Повторите вход примерно через {retryMinutes} мин.
           </p>
         ) : (
           error && (
-            <p className="mt-3 text-sm text-red-600" role="alert">
+            <p className="mt-3 text-sm text-danger" role="alert">
               Неверный пароль. Проверьте ввод и повторите попытку.
             </p>
           )
@@ -46,14 +46,14 @@ export default async function AdminLoginPage({ searchParams }: LoginPageProps) {
 
         <button
           type="submit"
-          className="mt-6 w-full rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:py-2"
+          className="mt-6 w-full rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:py-2"
         >
           Войти
         </button>
 
         <Link
           href="/"
-          className="mt-4 flex items-center justify-center gap-1.5 py-3 text-sm font-medium text-slate-500 transition-colors hover:text-primary sm:py-0"
+          className="mt-4 flex items-center justify-center gap-1.5 py-3 text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:py-0"
         >
           <ArrowLeft aria-hidden="true" className="h-4 w-4" />
           Вернуться на сайт

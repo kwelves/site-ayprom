@@ -31,7 +31,7 @@ export function AdminNav() {
             aria-current={active ? "page" : undefined}
             className={cn(
               "transition-colors hover:text-primary",
-              active ? "font-semibold text-primary" : "text-slate-600"
+              active ? "font-semibold text-primary" : "text-muted-foreground"
             )}
           >
             {item.label}
