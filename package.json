@@ -17,7 +17,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "check": "npm run lint && npm run typecheck && npm run test",
+    "check": "npm run lint && npm run typecheck && npm run check:colors && npm run test",
+    "check:colors": "node scripts/check-color-tokens.mjs",
     "schema:check": "node scripts/check-supabase-schema.mjs"
   },
   "dependencies": {
