@@ -1,12 +1,6 @@
-"use client";
-
 import Image from "next/image";
 import Link from "next/link";
-import { motion, useReducedMotion } from "framer-motion";
-import { springSnappy } from "@/lib/motion";
 import { cn } from "@/lib/utils";
-
-const MotionLink = motion.create(Link);
 
 interface CategoryCardProps {
   href: string;
@@ -25,15 +19,14 @@ export function CategoryCard({
   nameClassName,
   imageClassName,
 }: CategoryCardProps) {
-  const shouldReduceMotion = useReducedMotion();
-
   return (
-    <MotionLink
+    // Подъём под курсором — CSS, а не whileHover: сетка карточек поднимала по
+    // аниматору framer-motion на каждую плитку, все на главном потоке. Вариант
+    // `hover:` в Tailwind v4 уже под `@media (hover: hover)`, поэтому на
+    // телефоне карточка больше не остаётся увеличенной после тапа.
+    <Link
       href={href}
-      className="group relative z-0 flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:z-10 hover:border-border-interactive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-      whileHover={shouldReduceMotion ? undefined : { scale: 1.05, y: -4 }}
-      whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
-      transition={springSnappy}
+      className="group relative z-0 flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-[border-color,translate,scale] duration-fast ease-ui hover:z-10 hover:-translate-y-1 hover:scale-[1.03] hover:border-border-interactive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-[0.98]"
     >
       {/* Extra internal padding keeps the product smaller within the frame so the
           card reads airier now that it's just a photo + caption. */}
@@ -44,6 +37,6 @@ export function CategoryCard({
       <div className="px-4 py-3.5 text-center">
         <span className={cn("text-sm font-medium text-card-foreground", nameClassName)}>{name}</span>
       </div>
-    </MotionLink>
+    </Link>
   );
 }

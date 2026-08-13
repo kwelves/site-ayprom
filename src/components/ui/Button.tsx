@@ -1,13 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { motion, useReducedMotion } from "framer-motion";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
-import { springSnappy } from "@/lib/motion";
 
+// Нажатие и наведение — обычный CSS, а не whileHover/whileTap:
+//   * `transform` через класс считается композитором, тогда как Framer
+//     анимирует сокращённый `scale` покадрово на главном потоке — а кнопка
+//     на странице не одна;
+//   * вариант `hover:` в Tailwind v4 уже завёрнут в `@media (hover: hover)`,
+//     поэтому эффект не «залипает» после тапа на телефоне;
+//   * `prefers-reduced-motion` глушится общим правилом в globals.css, ручная
+//     проверка useReducedMotion больше не нужна.
+// Список свойств перечислен явно: `transition-transform` перебил бы
+// `transition-colors`, а не дополнил его. `scale`/`translate` в Tailwind v4 —
+// самостоятельные CSS-свойства, а не части `transform`, поэтому названы прямо.
 const buttonStyles = cva(
-  "inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+  "inline-flex items-center justify-center gap-2 rounded-md font-medium transition-[color,background-color,border-color,scale] duration-fast ease-ui hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
   {
     variants: {
       variant: {
@@ -24,8 +33,6 @@ const buttonStyles = cva(
   }
 );
 
-const MotionLink = motion.create(Link);
-
 interface ButtonProps extends VariantProps<typeof buttonStyles> {
   children: React.ReactNode;
   className?: string;
@@ -36,22 +43,18 @@ interface ButtonProps extends VariantProps<typeof buttonStyles> {
 
 export function Button({ href, type = "button", variant, size, className, children, onClick }: ButtonProps) {
   const classes = cn(buttonStyles({ variant, size }), className);
-  const shouldReduceMotion = useReducedMotion();
-  const tapFeedback = shouldReduceMotion
-    ? {}
-    : { whileHover: { scale: 1.03 }, whileTap: { scale: 0.97 }, transition: springSnappy };
 
   if (href) {
     return (
-      <MotionLink href={href} className={classes} onClick={onClick} {...tapFeedback}>
+      <Link href={href} className={classes} onClick={onClick}>
         {children}
-      </MotionLink>
+      </Link>
     );
   }
 
   return (
-    <motion.button type={type} className={classes} onClick={onClick} {...tapFeedback}>
+    <button type={type} className={classes} onClick={onClick}>
       {children}
-    </motion.button>
+    </button>
   );
 }

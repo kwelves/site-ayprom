@@ -15,8 +15,8 @@ export function PartnersSection() {
         </Reveal>
         <StaggerGroup className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
           {partners.map((partner) => (
-            <StaggerItem key={partner} hover>
-              <div className="flex h-16 items-center justify-center rounded-lg border border-border bg-muted px-3 text-sm font-semibold text-faint-foreground grayscale transition hover:grayscale-0 hover:text-muted-foreground">
+            <StaggerItem key={partner}>
+              <div className="flex h-16 items-center justify-center rounded-lg border border-border bg-muted px-3 text-sm font-semibold text-faint-foreground grayscale transition duration-fast ease-ui hover:-translate-y-1 hover:scale-[1.03] hover:grayscale-0 hover:text-muted-foreground">
                 {partner}
               </div>
             </StaggerItem>

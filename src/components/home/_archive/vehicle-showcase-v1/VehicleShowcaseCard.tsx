@@ -2,8 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { motion, useReducedMotion } from "framer-motion";
-import { springSnappy } from "@/lib/motion";
+import { motion, useReducedMotion, type Transition } from "framer-motion";
+
+// Архив вне общего словаря движения: пружина жила в @/lib/motion, но там
+// осталась без пользователей после перевода карточек на CSS-hover, поэтому
+// переехала сюда как есть — поведение архива не меняется.
+const springSnappy: Transition = { type: "spring", stiffness: 420, damping: 22 };
 
 const MotionLink = motion.create(Link);
 

@@ -33,6 +33,36 @@
    * width above 1440px — silently, since both rules are valid CSS.
    */
   --breakpoint-wide: 90rem;
+
+  /*
+   * Токены движения. Tailwind резолвит `ease-<имя>` из пространства
+   * `--ease-*`, `duration-<имя>` — из `--transition-duration-*`, поэтому
+   * это настоящие утилиты, а не просто переменные.
+   *
+   * Framer Motion не читает CSS-переменные, поэтому те же значения
+   * продублированы в src/lib/motion.ts; tests/motion-tokens.test.ts
+   * сверяет две копии, чтобы они не разъехались.
+   *
+   * Обе кривые — «быстро стартует, мягко тормозит»: движение должно
+   * начинаться в момент нажатия, а не разгоняться. ease-in для интерфейса
+   * не используем нигде.
+   */
+  --ease-ui: cubic-bezier(0.23, 1, 0.32, 1);
+  /* Для симметричных состояний, где раскрытие и схлопывание равноправны
+     (высота мобильной панели), а не для отклика на нажатие. */
+  --ease-ui-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+
+  --transition-duration-fast: 150ms; /* цвет, hover, микрообратная связь */
+  --transition-duration-base: 200ms; /* вход панелей, дропдаунов, смена фото */
+  --transition-duration-slow: 280ms; /* изменение высоты, крупные перемещения */
+  --transition-duration-reveal: 420ms; /* появление блока при прокрутке */
+
+  /* Появление контента без участия JS: анимация стартует в первом кадре, не
+     дожидаясь гидратации (Hero, экран входа в админку). */
+  --animate-fade-up: fade-up var(--transition-duration-reveal) var(--ease-ui) both;
+  --animate-pop-in: pop-in var(--transition-duration-reveal) var(--ease-ui) both;
+  /* Подсказка «прокрути вниз» под первым экраном. */
+  --animate-nudge-down: nudge-down 1.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
 
 @theme inline {
@@ -145,6 +175,36 @@ a {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/*
+ * Кадры для токенов --animate-* выше. Анимируются только `opacity` и
+ * `translate`/`scale` — композитные свойства, они не трогают раскладку.
+ * `prefers-reduced-motion` глушится общим правилом выше, отдельная проверка
+ * в компонентах не нужна.
+ */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    translate: 0 12px;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    scale: 0.94;
+  }
+}
+
+@keyframes nudge-down {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 8px;
   }
 }
 

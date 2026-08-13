@@ -1,12 +1,6 @@
-"use client";
-
 import Link from "next/link";
-import { motion, useReducedMotion } from "framer-motion";
-import { springSnappy } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import type { Brand } from "@/types/catalog";
-
-const MotionLink = motion.create(Link);
 
 interface BrandCardProps {
   href: string;
@@ -28,16 +22,13 @@ interface BrandCardProps {
 // photo at the same pixel size, so it needs a shorter box and more breathing
 // room to feel as contained as the catalog cards.
 export function BrandCard({ href, brand, nameClassName, imageClassName, logoScale }: BrandCardProps) {
-  const shouldReduceMotion = useReducedMotion();
   const scale = logoScale ?? brand.logoScale;
 
   return (
-    <MotionLink
+    // Тот же CSS-подъём, что и у CategoryCard — см. комментарий там.
+    <Link
       href={href}
-      className="group relative z-0 flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:z-10 hover:border-border-interactive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-      whileHover={shouldReduceMotion ? undefined : { scale: 1.05, y: -4 }}
-      whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
-      transition={springSnappy}
+      className="group relative z-0 flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-[border-color,translate,scale] duration-fast ease-ui hover:z-10 hover:-translate-y-1 hover:scale-[1.03] hover:border-border-interactive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-[0.98]"
     >
       <div className="relative aspect-2/1 w-full shrink-0 bg-muted/40">
         {/* Absolute + inset-0 (mirroring next/image's `fill`) instead of a flex
@@ -58,6 +49,6 @@ export function BrandCard({ href, brand, nameClassName, imageClassName, logoScal
       <div className="px-4 py-3.5 text-center">
         <span className={cn("text-sm font-medium text-card-foreground", nameClassName)}>{brand.name}</span>
       </div>
-    </MotionLink>
+    </Link>
   );
 }
