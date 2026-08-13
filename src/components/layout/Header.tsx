@@ -100,10 +100,27 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
             closeMenu();
           }}
         >
-          <motion.span
-            className="inline-flex origin-top-left md:origin-top-right"
-            animate={{ scale: overPhoto ? 1.6 : 1 }}
-            transition={{ duration: overPhoto ? 0.15 : 0.2, ease: "easeOut" }}
+          {/* The enlarged-over-hero state is a CSS transition keyed off a data
+              attribute, not a Framer `animate` prop: the class lands in the
+              first server-rendered frame (Framer only applies its transform
+              after mount, so the large logo never showed on a fresh load), and
+              a CSS transform animates off the main thread.
+
+              The scale is capped by how much room the logo actually has to
+              grow into, not by one number picked at one window size. Origin is
+              top-left below `lg`, so it grows rightwards into the gap before
+              the navigation; from `lg` it is top-right and grows leftwards
+              into the page gutter, which is only 32px wide until the viewport
+              outgrows the 1280px container — hence the smaller 1.15 there
+              (22.7px of growth, ~9px of breathing room left) and full 1.6
+              again from the `wide` breakpoint, defined in globals.css as the
+              first width whose gutter clears what the full scale needs. */}
+          <span
+            data-large={overPhoto || undefined}
+            className={cn(
+              "inline-flex origin-top-left transition-transform duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] lg:origin-top-right",
+              "scale-100 data-[large]:scale-[1.6] md:data-[large]:scale-[1.5] lg:data-[large]:scale-[1.15] wide:data-[large]:scale-[1.6]"
+            )}
           >
             <Image
               src="/brand/ayprom-logo.svg"
@@ -114,7 +131,7 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
               preload
               unoptimized
             />
-          </motion.span>
+          </span>
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">
@@ -147,7 +164,13 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
           )}
         </nav>
 
-        <div className="hidden md:block">
+        {/* Held back to `lg`: measured at a 769px viewport, logo (150.7) +
+            nav (460) + this button (110.7) came to 721.4px against 721px of
+            available width, so the row had literally zero slack and both "О
+            нас" and this button's label wrapped onto two lines. The nav still
+            carries "Каталог", so nothing becomes unreachable between 768 and
+            1024 — and dropping it frees the gap the logo grows into. */}
+        <div className="hidden lg:block">
           <Button href="/catalog" size="sm">
             Все товары
           </Button>

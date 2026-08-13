@@ -150,14 +150,25 @@ export function AboutPreview() {
           {/* Overlay only from lg up, where the two-column layout gives the
               contact card an empty right side to lay the truck over. Below lg
               the card is full-width and the truck would cover the text, so it's
-              hidden rather than shown as a separate block. */}
+              hidden rather than shown as a separate block.
+
+              The 32% overhang is what the design wants, but it is measured
+              from the card, not from the screen: at a 1361px viewport it put
+              the truck's right edge 42.8px past the viewport, where
+              `overflow-x: hidden` silently sliced it off — and below 1446px it
+              was always clipped. So the shift is capped by the gutter that
+              actually exists to the right of the container (half of whatever
+              the viewport has over the 1280px container, plus a little of the
+              padding), and only reaches the full 32% once there is room.
+              `100vw` includes the scrollbar, so the +1rem term stays well
+              under the real 2rem padding to absorb that. */}
           <Image
             src="/about-samosval.png"
             alt="Самосвал"
             width={612}
             height={408}
             sizes="360px"
-            className="pointer-events-none absolute -bottom-5 right-0 z-10 hidden w-[72%] max-w-[360px] translate-x-[32%] drop-shadow-xl lg:block"
+            className="pointer-events-none absolute -bottom-5 right-0 z-10 hidden w-[72%] max-w-[360px] translate-x-[min(32%,calc((100vw-min(100vw,80rem))/2+1rem))] drop-shadow-xl lg:block"
           />
         </div>
       </Container>

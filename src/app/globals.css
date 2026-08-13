@@ -19,6 +19,20 @@
   --color-blue-500: #4f91f8;
   --color-blue-600: #084bb9;
   --color-blue-700: #073f9c;
+
+  /*
+   * The first width whose page gutter — half of whatever the viewport has
+   * over the 1280px container, plus the 32px padding — is wide enough for the
+   * header logo to grow to its full scale without touching the screen edge
+   * (112px available against the 90.7px it needs).
+   *
+   * Declared as a real breakpoint rather than written inline as
+   * `min-[1440px]:`: Tailwind orders named breakpoints by width, so this rule
+   * lands after `lg`. An arbitrary `min-[…]` variant is emitted in a fixed
+   * position ahead of `md`/`lg`, and the later `lg` rule then wins at every
+   * width above 1440px — silently, since both rules are valid CSS.
+   */
+  --breakpoint-wide: 90rem;
 }
 
 @theme inline {
