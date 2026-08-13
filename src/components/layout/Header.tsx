@@ -12,6 +12,7 @@ import { NavDropdown } from "@/components/layout/NavDropdown";
 import { buildMainNav, type NavItem } from "@/lib/navigation";
 import { useScroll } from "@/lib/use-scroll";
 import { useHashNavClick } from "@/lib/use-hash-nav-click";
+import { DURATION, EASE_UI, EASE_UI_IN_OUT } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import type { Brand, Category } from "@/types/catalog";
 
@@ -85,7 +86,7 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
   return (
     <header
       className={cn(
-        "sticky top-0 z-50 w-full border-b border-transparent transition-[background-color,backdrop-filter,border-color] duration-200",
+        "sticky top-0 z-50 w-full border-b border-transparent transition-[background-color,backdrop-filter,border-color] duration-base ease-ui",
         overPhoto ? "bg-transparent" : pathname === "/" ? undefined : "bg-muted",
         scrolled && "border-border bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60",
         !scrolled && open && "bg-background"
@@ -118,7 +119,7 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
           <span
             data-large={overPhoto || undefined}
             className={cn(
-              "inline-flex origin-top-left transition-transform duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] lg:origin-top-right",
+              "inline-flex origin-top-left transition-transform duration-base ease-ui lg:origin-top-right",
               "scale-100 data-[large]:scale-[1.6] md:data-[large]:scale-[1.5] lg:data-[large]:scale-[1.15] wide:data-[large]:scale-[1.6]"
             )}
           >
@@ -191,7 +192,7 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
             key={open ? "close" : "open"}
             initial={{ rotate: -90, opacity: 0 }}
             animate={{ rotate: 0, opacity: 1 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: DURATION.fast, ease: EASE_UI }}
             className="flex"
           >
             {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -204,9 +205,8 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
           <motion.div
             ref={panelRef}
             initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: "easeInOut" }}
+            animate={{ height: "auto", opacity: 1, transition: { duration: DURATION.slow, ease: EASE_UI_IN_OUT } }}
+            exit={{ height: 0, opacity: 0, transition: { duration: DURATION.base, ease: EASE_UI_IN_OUT } }}
             className="overflow-hidden border-t border-border bg-card md:hidden"
           >
             {/* Capped to the viewport height left below the sticky header
@@ -303,7 +303,7 @@ function MobileNavItem({
           aria-expanded={isExpanded}
           aria-label={`Показать подраздел «${item.label}»`}
         >
-          <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", isExpanded && "rotate-180")} />
+          <ChevronDown className={cn("h-4 w-4 transition-transform duration-base ease-ui", isExpanded && "rotate-180")} />
         </button>
       </div>
 
@@ -311,9 +311,8 @@ function MobileNavItem({
         {isExpanded && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: "easeInOut" }}
+            animate={{ height: "auto", opacity: 1, transition: { duration: DURATION.base, ease: EASE_UI_IN_OUT } }}
+            exit={{ height: 0, opacity: 0, transition: { duration: DURATION.fast, ease: EASE_UI_IN_OUT } }}
             className="overflow-hidden pl-3"
           >
             {/* Capped to roughly the height of the shorter "Каталог" list

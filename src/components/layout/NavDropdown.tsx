@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { useHashNavClick } from "@/lib/use-hash-nav-click";
+import { DURATION, EASE_UI } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import type { NavDropdownItem } from "@/lib/navigation";
 
@@ -55,16 +56,15 @@ export function NavDropdown({ label, href, items, light, fixedSingleColumn, scro
         aria-expanded={open}
       >
         {label}
-        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", open && "rotate-180")} />
+        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-base ease-ui", open && "rotate-180")} />
       </Link>
 
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 8 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0, transition: { duration: DURATION.base, ease: EASE_UI } }}
+            exit={{ opacity: 0, y: 4, transition: { duration: DURATION.fast, ease: EASE_UI } }}
             className={cn(
               "absolute left-1/2 top-full z-50 -translate-x-1/2 pt-2",
               twoColumn ? "w-[34rem]" : "w-80"
