@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 
 const REDIRECT_DELAY_MS = 1400;
 
@@ -20,12 +19,10 @@ export function WelcomeSplash() {
 
   return (
     <div className="flex min-h-full flex-1 flex-col items-center justify-center gap-4 px-4 text-center">
-      <motion.span
-        initial={{ scale: 0.6, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-        className="flex h-16 w-16 items-center justify-center rounded-full bg-brand p-3"
-      >
+      {/* Появление один раз при монтировании, без ухода — здесь framer-motion
+          нечего делать, хватает классов. Старт с 0.94, а не с 0.6: слишком
+          мелкий старт читается как прыжок, а не как появление. */}
+      <span className="flex h-16 w-16 animate-pop-in items-center justify-center rounded-full bg-brand p-3">
         <Image
           src="/brand/ayprom-icon.svg"
           alt=""
@@ -34,15 +31,11 @@ export function WelcomeSplash() {
           className="h-full w-full object-contain"
           unoptimized
         />
-      </motion.span>
-      <motion.div
-        initial={{ y: 8, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.4, delay: 0.15, ease: "easeOut" }}
-      >
+      </span>
+      <div className="animate-fade-up [animation-delay:150ms]">
         <h1 className="text-xl font-semibold text-foreground">Здравствуйте, шеф</h1>
         <p className="mt-1.5 text-sm text-muted-foreground">Загружаем панель управления...</p>
-      </motion.div>
+      </div>
     </div>
   );
 }

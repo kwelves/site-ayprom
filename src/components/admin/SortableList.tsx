@@ -60,7 +60,7 @@ export function SortableList<T>({
             key={getId(item)}
             data-flash-key={flashKeyOf(item)}
             className={cn(
-              "flex items-center gap-2 rounded-md border border-border bg-card p-2 transition-colors duration-300",
+              "flex items-center gap-2 rounded-md border border-border bg-card p-2 transition-colors duration-fast ease-ui",
               highlightedKey === flashKeyOf(item) && "border-border-interactive bg-accent"
             )}
           >
@@ -147,7 +147,7 @@ function SortableRow({
       style={style}
       data-flash-key={flashKey}
       className={cn(
-        "flex items-center gap-2 rounded-md border border-border bg-card p-2 transition-colors duration-300",
+        "flex items-center gap-2 rounded-md border border-border bg-card p-2 transition-colors duration-fast ease-ui",
         isDragging && "opacity-50",
         highlighted && "border-border-interactive bg-accent"
       )}

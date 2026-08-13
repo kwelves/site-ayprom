@@ -7,6 +7,7 @@ import { Toast } from "@/components/admin/ui/Toast";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import { reorderProducts, deleteProduct, toggleProductPublished } from "@/lib/admin/actions";
 import { useAdminList } from "@/lib/admin/use-admin-list";
+import { DURATION, EASE_UI } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import type { AdminProductListItem } from "@/lib/admin/queries";
 
@@ -103,9 +104,8 @@ export function ProductsList({ products: initialProducts, flashSlug, flashAction
                   <motion.span
                     key={product.published ? "published" : "draft"}
                     initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.15, ease: "easeOut" }}
+                    animate={{ opacity: 1, y: 0, transition: { duration: DURATION.fast, ease: EASE_UI } }}
+                    exit={{ opacity: 0, y: -6, transition: { duration: DURATION.fast, ease: EASE_UI } }}
                     className="block"
                   >
                     {product.published ? "Опубликован" : "Черновик"}

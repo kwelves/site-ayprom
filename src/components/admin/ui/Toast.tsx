@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle2, X } from "lucide-react";
+import { DURATION, EASE_UI } from "@/lib/motion";
 
 const AUTO_DISMISS_MS = 4000;
 
@@ -19,10 +20,9 @@ export function Toast({ message, onDismiss }: { message: string | null; onDismis
         <motion.div
           role="status"
           aria-live="polite"
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 12 }}
-          transition={{ duration: 0.2 }}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0, transition: { duration: DURATION.base, ease: EASE_UI } }}
+          exit={{ opacity: 0, y: 8, transition: { duration: DURATION.fast, ease: EASE_UI } }}
           className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 shadow-lg"
         >
           <CheckCircle2 aria-hidden="true" className="h-5 w-5 shrink-0 text-primary" />
