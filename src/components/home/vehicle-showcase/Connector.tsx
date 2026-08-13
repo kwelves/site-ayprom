@@ -6,6 +6,21 @@ import type { ConnectorPaths } from "./connector-geometry";
 
 const DRAW_EASE = [0.22, 1, 0.36, 1] as const;
 
+// Ни на одном пути здесь нет `vector-effect="non-scaling-stroke"`, и добавлять
+// его нельзя. Framer рисует `pathLength` не сам: он ставит на путь атрибут
+// `pathLength="1"` и анимирует `stroke-dasharray` от «0 1» до «1 1», то есть
+// нормализует длину в пользовательских координатах SVG.
+// `non-scaling-stroke` переводит обводку вместе с рисунком штриха в экранные
+// координаты — длина штриха остаётся в пользовательских, а раскладывается вдоль
+// пути, измеренного в экранных. Пока масштаб между ними равен единице, разницы
+// нет; при масштабировании дисплея Windows (или зуме страницы) каждый путь
+// прорисовывается ровно на 1/масштаб своей длины, и линия обрывается на
+// полпути — одинаково у стержня и у обеих ветвей, при том что бегущий импульс
+// продолжает ходить целиком.
+// Толщину обводки атрибут здесь всё равно ни на что не влияет: у <svg>
+// коннектора нет ни viewBox, ни трансформации, пользовательские координаты
+// совпадают с CSS-пикселями один в один.
+
 interface ConnectorProps {
   paths: Pick<ConnectorPaths, "stem" | "terminal"> & Partial<Pick<ConnectorPaths, "topBranch" | "bottomBranch">>;
   onConnected?: () => void;
@@ -37,7 +52,6 @@ export function Connector({ paths, onConnected }: ConnectorProps) {
           strokeWidth={2.25}
           strokeLinecap="round"
           strokeLinejoin="round"
-          vectorEffect="non-scaling-stroke"
           initial={{ pathLength: 0 }}
           animate={{ pathLength: 1 }}
           exit={{ pathLength: 0, transition: { duration: shouldReduceMotion ? 0 : 0.25, ease: "easeIn" } }}
@@ -53,7 +67,6 @@ export function Connector({ paths, onConnected }: ConnectorProps) {
               strokeWidth={2.25}
               strokeLinecap="round"
               strokeLinejoin="round"
-              vectorEffect="non-scaling-stroke"
               initial={{ pathLength: 0 }}
               animate={{ pathLength: 1 }}
               exit={{ pathLength: 0, transition: { duration: shouldReduceMotion ? 0 : 0.25, ease: "easeIn" } }}
@@ -66,7 +79,6 @@ export function Connector({ paths, onConnected }: ConnectorProps) {
               strokeWidth={2.25}
               strokeLinecap="round"
               strokeLinejoin="round"
-              vectorEffect="non-scaling-stroke"
               initial={{ pathLength: 0 }}
               animate={{ pathLength: 1 }}
               exit={{ pathLength: 0, transition: { duration: shouldReduceMotion ? 0 : 0.25, ease: "easeIn" } }}
@@ -88,7 +100,6 @@ export function Connector({ paths, onConnected }: ConnectorProps) {
             stroke="#b9dcff"
             strokeWidth={3.5}
             strokeLinecap="round"
-            vectorEffect="non-scaling-stroke"
             initial={{ pathLength: 0.08, pathOffset: 0, opacity: 1 }}
             animate={{ pathOffset: 0.95, opacity: [1, 1, 0] }}
             transition={{ duration: stemDuration, ease: DRAW_EASE }}
@@ -101,7 +112,6 @@ export function Connector({ paths, onConnected }: ConnectorProps) {
                 stroke="#b9dcff"
                 strokeWidth={3.5}
                 strokeLinecap="round"
-                vectorEffect="non-scaling-stroke"
                 initial={{ pathLength: 0.08, pathOffset: 0, opacity: 1 }}
                 animate={{ pathOffset: 0.95, opacity: [1, 1, 0] }}
                 transition={{ duration: branchDuration, delay: stemDuration, ease: DRAW_EASE }}
@@ -112,7 +122,6 @@ export function Connector({ paths, onConnected }: ConnectorProps) {
                 stroke="#b9dcff"
                 strokeWidth={3.5}
                 strokeLinecap="round"
-                vectorEffect="non-scaling-stroke"
                 initial={{ pathLength: 0.08, pathOffset: 0, opacity: 1 }}
                 animate={{ pathOffset: 0.95, opacity: [1, 1, 0] }}
                 transition={{ duration: branchDuration, delay: stemDuration, ease: DRAW_EASE }}
@@ -135,7 +144,6 @@ export function Connector({ paths, onConnected }: ConnectorProps) {
             stroke="#b9dcff"
             strokeWidth={3}
             strokeLinecap="round"
-            vectorEffect="non-scaling-stroke"
             initial={{ pathLength: 0.1, pathOffset: 0 }}
             animate={{ pathOffset: 1 }}
             transition={{ duration: 2, ease: "linear", repeat: Number.POSITIVE_INFINITY }}
@@ -146,7 +154,6 @@ export function Connector({ paths, onConnected }: ConnectorProps) {
             stroke="#b9dcff"
             strokeWidth={3}
             strokeLinecap="round"
-            vectorEffect="non-scaling-stroke"
             initial={{ pathLength: 0.1, pathOffset: 0 }}
             animate={{ pathOffset: 1 }}
             transition={{ duration: 2, ease: "linear", repeat: Number.POSITIVE_INFINITY }}
