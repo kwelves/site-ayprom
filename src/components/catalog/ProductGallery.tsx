@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AnimatePresence, motion, type PanInfo } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DURATION, EASE_UI } from "@/lib/motion";
 import { useIsTouchDevice } from "@/lib/use-is-touch-device";
 import { ImageFallback } from "@/components/ui/ImageFallback";
 
@@ -12,10 +13,17 @@ interface ProductGalleryProps {
   alt: string;
 }
 
+// Уход быстрее прихода, и оба идут одновременно (без mode="wait"): слайды
+// абсолютно спозиционированы, поэтому наложение ничего не ломает, а нажатие
+// на стрелку перестаёт ждать, пока доиграет предыдущий кадр.
 const slideVariants = {
   enter: (direction: number) => ({ x: direction > 0 ? 32 : -32, opacity: 0 }),
-  center: { x: 0, opacity: 1 },
-  exit: (direction: number) => ({ x: direction > 0 ? -32 : 32, opacity: 0 }),
+  center: { x: 0, opacity: 1, transition: { duration: DURATION.base, ease: EASE_UI } },
+  exit: (direction: number) => ({
+    x: direction > 0 ? -32 : 32,
+    opacity: 0,
+    transition: { duration: DURATION.fast, ease: EASE_UI },
+  }),
 };
 
 const SWIPE_THRESHOLD = 50;
@@ -59,7 +67,7 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
         dragElastic={0}
         onDragEnd={handleDragEnd}
       >
-        <AnimatePresence initial={false} custom={direction} mode="wait">
+        <AnimatePresence initial={false} custom={direction}>
           <motion.div
             key={currentImage?.url ?? "image-fallback"}
             custom={direction}
@@ -67,7 +75,6 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
             initial="enter"
             animate="center"
             exit="exit"
-            transition={{ duration: 0.25, ease: "easeInOut" }}
             className="absolute inset-0"
           >
             <ImageFallback
@@ -117,10 +124,14 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
               aria-current={i === index}
               className="p-2.5"
             >
+              {/* Ширина у всех точек одинаковая, сжимается только сама точка:
+                  анимировать `width` значило бы пересчитывать раскладку каждый
+                  кадр, и вся строка точек «дышала» по ширине при переключении.
+                  `scale` считается композитором и ничего не двигает. */}
               <span
                 className={cn(
-                  "block h-2 rounded-full transition-[width,background-color]",
-                  i === index ? "w-6 bg-primary" : "w-2 bg-border hover:bg-primary-soft"
+                  "block h-2 w-6 rounded-full transition-[scale,background-color] duration-fast ease-ui",
+                  i === index ? "scale-x-100 bg-primary" : "scale-x-[0.333] bg-border hover:bg-primary-soft"
                 )}
               />
             </button>

@@ -6,14 +6,20 @@ import Link from "next/link";
 import { AnimatePresence, motion, type PanInfo } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DURATION, EASE_UI } from "@/lib/motion";
 import { useIsTouchDevice } from "@/lib/use-is-touch-device";
 import { ImageFallback } from "@/components/ui/ImageFallback";
 import type { ProductListItem } from "@/types/catalog";
 
+// Как в ProductGallery: уход короче прихода, оба идут одновременно.
 const slideVariants = {
   enter: (direction: number) => ({ x: direction > 0 ? 24 : -24, opacity: 0 }),
-  center: { x: 0, opacity: 1 },
-  exit: (direction: number) => ({ x: direction > 0 ? -24 : 24, opacity: 0 }),
+  center: { x: 0, opacity: 1, transition: { duration: DURATION.base, ease: EASE_UI } },
+  exit: (direction: number) => ({
+    x: direction > 0 ? -24 : 24,
+    opacity: 0,
+    transition: { duration: DURATION.fast, ease: EASE_UI },
+  }),
 };
 
 const SWIPE_THRESHOLD = 40;
@@ -101,7 +107,7 @@ export function ProductCard({ product, href }: { product: ProductListItem; href:
           router.push(href);
         }}
       >
-        <AnimatePresence initial={false} custom={direction} mode="wait">
+        <AnimatePresence initial={false} custom={direction}>
           <motion.div
             key={currentImage?.url ?? "image-fallback"}
             custom={direction}
@@ -109,7 +115,6 @@ export function ProductCard({ product, href }: { product: ProductListItem; href:
             initial="enter"
             animate="center"
             exit="exit"
-            transition={{ duration: 0.2, ease: "easeInOut" }}
             className="absolute inset-0"
           >
             <ImageFallback
@@ -166,10 +171,11 @@ export function ProductCard({ product, href }: { product: ProductListItem; href:
               aria-current={i === index}
               className="p-2"
             >
+              {/* Ширина фиксированная, сжимается сама точка — см. ProductGallery. */}
               <span
                 className={cn(
-                  "block h-1.5 rounded-full transition-[width,background-color]",
-                  i === index ? "w-4 bg-primary" : "w-1.5 bg-border hover:bg-primary-soft"
+                  "block h-1.5 w-4 rounded-full transition-[scale,background-color] duration-fast ease-ui",
+                  i === index ? "scale-x-100 bg-primary" : "scale-x-[0.375] bg-border hover:bg-primary-soft"
                 )}
               />
             </button>
