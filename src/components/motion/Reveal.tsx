@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
-import { fadeUp } from "@/lib/motion";
+import { DURATION, EASE_UI, fadeUp } from "@/lib/motion";
 
 interface RevealProps {
   children: React.ReactNode;
@@ -9,6 +9,9 @@ interface RevealProps {
   delay?: number;
 }
 
+// Остаётся на framer-motion: нужен IntersectionObserver (whileInView), а
+// чисто-CSS аналог (`animation-timeline: view()`) пока только в Chromium.
+// Анимация одноразовая (once: true), после срабатывания аниматор снимается.
 export function Reveal({ children, className, delay = 0 }: RevealProps) {
   const shouldReduceMotion = useReducedMotion();
 
@@ -18,8 +21,10 @@ export function Reveal({ children, className, delay = 0 }: RevealProps) {
       variants={fadeUp}
       initial="hidden"
       whileInView="visible"
-      viewport={{ once: true, margin: "-80px" }}
-      transition={shouldReduceMotion ? { duration: 0 } : { delay, duration: 0.5, ease: "easeOut" }}
+      viewport={{ once: true, margin: "-64px" }}
+      transition={
+        shouldReduceMotion ? { duration: 0 } : { delay, duration: DURATION.reveal, ease: EASE_UI }
+      }
     >
       {children}
     </motion.div>

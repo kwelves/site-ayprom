@@ -3,10 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Search, ChevronDown } from "lucide-react";
-import { motion, useReducedMotion } from "framer-motion";
+import { useReducedMotion } from "framer-motion";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
-import { fadeUp, staggerContainer } from "@/lib/motion";
 import { useHashNavClick } from "@/lib/use-hash-nav-click";
 import type { VehicleType } from "@/types/catalog";
 
@@ -80,6 +79,9 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
             playsInline
             preload="metadata"
             onCanPlay={() => setVideoLoaded(true)}
+            // Единственная длительность вне токенов, намеренно: это не отклик
+            // интерфейса, а проявление фона поверх постера — короткий токен
+            // превратил бы его в заметный скачок яркости.
             className={`h-full w-full object-cover transition-opacity duration-1000 ${videoLoaded ? "opacity-100" : "opacity-0"}`}
           >
             <source
@@ -103,23 +105,20 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
         <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-inverse/55 to-transparent sm:h-28" />
       </div>
 
+      {/* Появление первого экрана — CSS-анимация, а не варианты framer-motion.
+          Заголовок здесь почти наверняка LCP-элемент, а у Framer он стартует
+          с opacity: 0 и становится виден только после гидратации: сначала
+          загрузка и исполнение JS, и лишь потом появление. Класс же работает
+          с первого отрисованного кадра. Задержки заменяют каскад вариантов,
+          `prefers-reduced-motion` глушится общим правилом в globals.css. */}
       <Container className="pb-24 sm:pb-28 lg:pb-32">
-        <motion.div
-          variants={staggerContainer}
-          initial="hidden"
-          animate="visible"
-          className="max-w-2xl"
-        >
-          <motion.h1
-            variants={fadeUp}
-            className="text-shadow-md text-balance text-3xl font-bold tracking-tight text-inverse-foreground sm:text-4xl lg:text-5xl"
-          >
+        <div className="max-w-2xl">
+          <h1 className="animate-fade-up text-shadow-md text-balance text-3xl font-bold tracking-tight text-inverse-foreground sm:text-4xl lg:text-5xl">
             Каталог гидрооборудования и запчастей для спецтехники
-          </motion.h1>
+          </h1>
           {vehicleTypes.length > 0 && (
-            <motion.div
-              variants={fadeUp}
-              className="mt-6 flex flex-wrap items-center gap-2 text-shadow-sm text-xl font-medium text-inverse-foreground-muted"
+            <div
+              className="mt-6 flex animate-fade-up flex-wrap items-center gap-2 text-shadow-sm text-xl font-medium text-inverse-foreground-muted [animation-delay:60ms]"
             >
               {vehicleTypes.map((vehicleType, i) => (
                 <span key={vehicleType.slug} className="flex items-center gap-2">
@@ -132,14 +131,13 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
                   </Link>
                 </span>
               ))}
-            </motion.div>
+            </div>
           )}
 
-          <motion.form
-            variants={fadeUp}
+          <form
             action="/catalog"
             method="GET"
-            className="mt-12 flex w-full max-w-lg items-center gap-2 rounded-lg border border-input bg-card p-1.5 shadow-sm focus-within:border-ring focus-within:ring-1 focus-within:ring-ring"
+            className="mt-12 flex w-full max-w-lg animate-fade-up items-center gap-2 rounded-lg border border-input bg-card p-1.5 shadow-sm [animation-delay:120ms] focus-within:border-ring focus-within:ring-1 focus-within:ring-ring"
           >
             <Search aria-hidden="true" className="ml-2 h-5 w-5 shrink-0 text-faint-foreground" />
             <input
@@ -153,12 +151,12 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
             <Button type="submit" size="lg" className="shrink-0">
               Найти
             </Button>
-          </motion.form>
+          </form>
 
           {/* flex-nowrap + shrinking padding/text (not flex-wrap) — on narrow
               phones these two buttons should stay side by side and shrink
               together rather than the second one dropping to its own line. */}
-          <motion.div variants={fadeUp} className="mt-6 flex flex-nowrap gap-2 sm:gap-3">
+          <div className="mt-6 flex animate-fade-up flex-nowrap gap-2 [animation-delay:180ms] sm:gap-3">
             <Button
               href="/#categories"
               size="lg"
@@ -176,20 +174,25 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
             >
               Марки техники
             </Button>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       </Container>
 
-      <motion.button
-        type="button"
-        onClick={scrollToNextSection}
-        aria-label="Прокрутить вниз"
-        className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full p-2.5 text-inverse-foreground/80 transition-colors hover:text-inverse-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inverse-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-inverse"
-        animate={prefersReducedMotion ? undefined : { y: [0, 8, 0] }}
-        transition={prefersReducedMotion ? undefined : { duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
-      >
-        <ChevronDown aria-hidden="true" className="h-8 w-8" />
-      </motion.button>
+      {/* Покачивание — CSS-ключевые кадры, а не бесконечный animate у Framer:
+          тот держал rAF-цикл на главном потоке всё время, пока открыта
+          главная, в том числе когда первый экран уже прокручен. Обёртка нужна,
+          чтобы центрирование (`-translate-x-1/2`) и анимация не спорили за
+          свойство `translate`. */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+        <button
+          type="button"
+          onClick={scrollToNextSection}
+          aria-label="Прокрутить вниз"
+          className="animate-nudge-down rounded-full p-2.5 text-inverse-foreground/80 transition-colors duration-fast ease-ui hover:text-inverse-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inverse-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-inverse"
+        >
+          <ChevronDown aria-hidden="true" className="h-8 w-8" />
+        </button>
+      </div>
     </section>
   );
 }
