@@ -63,10 +63,6 @@
   --animate-pop-in: pop-in var(--transition-duration-reveal) var(--ease-ui) both;
   /* Подсказка «прокрути вниз» под первым экраном. */
   --animate-nudge-down: nudge-down 1.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-  /* Лента логотипов брендов на главной (BrandSection): список логотипов
-     задублирован в разметке, лента едет на -50% своей ширины и стык с
-     повтором не виден. */
-  --animate-marquee: marquee 32s linear infinite;
 }
 
 @theme inline {
@@ -216,12 +212,6 @@ a {
   }
   50% {
     translate: 0 8px;
-  }
-}
-
-@keyframes marquee {
-  to {
-    translate: -50% 0;
   }
 }
 
