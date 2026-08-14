@@ -2,35 +2,48 @@ import Link from "next/link";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/motion/Reveal";
-import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
 import { getBrands } from "@/lib/queries/brands";
 import type { Brand } from "@/types/catalog";
 
-function BrandGrid({ brands }: { brands: Brand[] }) {
+// Лёгкая едущая лента логотипов вместо ещё одной сетки карточек — на главной
+// и так три блока подряд строятся по схеме "заголовок + сетка"
+// (VehicleShowcase, Category, About), у брендов другая форма.
+function BrandMarquee({ brands }: { brands: Brand[] }) {
+  // Список задублирован, а лента едет ровно на -50% своей ширины — стык
+  // между концом первой копии и началом второй не виден.
+  const track = [...brands, ...brands];
+
   return (
-    <StaggerGroup className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
-      {brands.map((brand) => (
-        <StaggerItem key={brand.slug}>
-          <Link
-            href={`/catalog/brand/${brand.slug}`}
-            className="flex h-full flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-3 text-center transition-[border-color,translate,scale] duration-fast ease-ui hover:-translate-y-1 hover:scale-[1.03] hover:border-border-interactive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-[0.98] sm:gap-3 sm:p-4"
-          >
-            <span className="flex h-10 w-full items-center justify-center sm:h-12">
+    <div className="mt-8 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]">
+      <div className="flex w-max animate-marquee items-center gap-10 hover:[animation-play-state:paused] focus-within:[animation-play-state:paused] sm:gap-14">
+        {track.map((brand, index) => {
+          // Вторая копия дублирует ссылки только визуально (для бесшовной
+          // петли) — из таба и скринридера она исключена, иначе получаются
+          // копии одних и тех же ссылок на странице.
+          const isDuplicate = index >= brands.length;
+
+          return (
+            <Link
+              key={`${brand.slug}-${index}`}
+              href={`/catalog/brand/${brand.slug}`}
+              aria-hidden={isDuplicate}
+              tabIndex={isDuplicate ? -1 : undefined}
+              className="flex shrink-0 items-center opacity-60 grayscale transition-[opacity,filter] duration-fast ease-ui hover:opacity-100 hover:grayscale-0 focus-visible:opacity-100 focus-visible:grayscale-0 focus-visible:outline-none"
+            >
               {/* eslint-disable-next-line @next/next/no-img-element -- static local SVGs are already optimal; next/image blocks local SVGs without dangerouslyAllowSVG */}
               <img
                 src={brand.logo}
                 alt={`Логотип ${brand.name}`}
-                width={160}
-                height={48}
-                className="max-h-10 max-w-[80%] object-contain sm:max-h-12"
+                width={120}
+                height={40}
+                className="h-8 w-auto max-w-[120px] object-contain sm:h-9"
                 style={brand.logoScale ? { transform: `scale(${brand.logoScale})` } : undefined}
               />
-            </span>
-            <span className="text-xs font-semibold text-card-foreground sm:text-sm">{brand.name}</span>
-          </Link>
-        </StaggerItem>
-      ))}
-    </StaggerGroup>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -47,9 +60,9 @@ export async function BrandSection() {
             description="Найдите запчасти, совместимые с вашей маркой спецтехники."
           />
         </Reveal>
-
-        <BrandGrid brands={brands} />
       </Container>
+
+      <BrandMarquee brands={brands} />
     </section>
   );
 }
