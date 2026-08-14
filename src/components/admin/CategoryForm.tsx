@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { createCategory, updateCategory, deleteCategory, replaceCategoryImage } from "@/lib/admin/actions";
+import type { FormActionState } from "@/lib/admin/actions";
 import { describeCategoryUsage } from "@/lib/admin/usage-descriptions";
 import { formatRussianCount } from "@/lib/russian-plural";
 import { slugify } from "@/lib/admin/slugify";
@@ -14,6 +15,7 @@ import { FormField } from "@/components/admin/ui/FormField";
 import { Input } from "@/components/admin/ui/Input";
 import { Textarea } from "@/components/admin/ui/Textarea";
 import { Select } from "@/components/admin/ui/Select";
+import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import type { AdminCategory } from "@/lib/admin/queries";
 import type { CategoryIcon } from "@/types/catalog";
 
@@ -34,6 +36,7 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
   const [slug, setSlug] = useState(category?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(false);
   const [image, setImage] = useState(category?.image ?? "");
+  const [dismissedError, setDismissedError] = useState<FormActionState>(null);
   const { isUploading: isUploadingImage, handleReplace: handleImageReplace } = useImageReplace(
     (formData) => replaceCategoryImage(category!.slug, formData),
     setImage
@@ -58,13 +61,15 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
     deleteCategory(category.slug);
   }
 
-  const action = mode === "create" ? createCategory : updateCategory.bind(null, category!.slug);
+  const boundAction = mode === "create" ? createCategory : updateCategory.bind(null, category!.slug);
+  const [formState, formAction] = useActionState(boundAction, null);
+  const actionError = formState !== dismissedError ? (formState?.error ?? null) : null;
 
   return (
     <div className="max-w-2xl">
       <BackLink href="/admin/categories" label="Категории" />
 
-      <form action={action} className="mt-4 space-y-6">
+      <form action={formAction} className="mt-4 space-y-6">
         <h1 className="text-xl font-semibold text-foreground">
           {mode === "create" ? "Новая категория" : `Редактировать: ${category?.name}`}
         </h1>
@@ -209,6 +214,7 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
           )}
         </div>
       </form>
+      <AdminActionFeedback message={actionError} onDismiss={() => setDismissedError(formState)} />
     </div>
   );
 }

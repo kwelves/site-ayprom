@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useState } from "react";
 import { createVehicleType, updateVehicleType, deleteVehicleType } from "@/lib/admin/actions";
+import type { FormActionState } from "@/lib/admin/actions";
 import { describeVehicleTypeUsage } from "@/lib/admin/usage-descriptions";
 import { slugify } from "@/lib/admin/slugify";
 import { BackLink } from "@/components/admin/ui/BackLink";
 import { FormField } from "@/components/admin/ui/FormField";
 import { Input } from "@/components/admin/ui/Input";
 import { SubmitButton } from "@/components/admin/ui/SubmitButton";
+import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import type { AdminVehicleType } from "@/lib/admin/queries";
 
 interface VehicleTypeFormProps {
@@ -19,6 +21,7 @@ export function VehicleTypeForm({ mode, vehicleType }: VehicleTypeFormProps) {
   const [name, setName] = useState(vehicleType?.name ?? "");
   const [slug, setSlug] = useState(vehicleType?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(false);
+  const [dismissedError, setDismissedError] = useState<FormActionState>(null);
 
   function handleNameChange(value: string) {
     setName(value);
@@ -39,13 +42,15 @@ export function VehicleTypeForm({ mode, vehicleType }: VehicleTypeFormProps) {
     deleteVehicleType(vehicleType.slug);
   }
 
-  const action = mode === "create" ? createVehicleType : updateVehicleType.bind(null, vehicleType!.slug);
+  const boundAction = mode === "create" ? createVehicleType : updateVehicleType.bind(null, vehicleType!.slug);
+  const [formState, formAction] = useActionState(boundAction, null);
+  const actionError = formState !== dismissedError ? (formState?.error ?? null) : null;
 
   return (
     <div className="max-w-xl">
       <BackLink href="/admin/vehicle-types" label="Типы техники" />
 
-      <form action={action} className="mt-4 space-y-6">
+      <form action={formAction} className="mt-4 space-y-6">
         <h1 className="text-xl font-semibold text-foreground">
           {mode === "create" ? "Новый тип техники" : `Редактировать: ${vehicleType?.name}`}
         </h1>
@@ -87,6 +92,7 @@ export function VehicleTypeForm({ mode, vehicleType }: VehicleTypeFormProps) {
           )}
         </div>
       </form>
+      <AdminActionFeedback message={actionError} onDismiss={() => setDismissedError(formState)} />
     </div>
   );
 }

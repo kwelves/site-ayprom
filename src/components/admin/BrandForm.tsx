@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useState } from "react";
 import { createBrand, updateBrand, deleteBrand, replaceBrandLogo } from "@/lib/admin/actions";
+import type { FormActionState } from "@/lib/admin/actions";
 import { describeBrandUsage } from "@/lib/admin/usage-descriptions";
 import { slugify } from "@/lib/admin/slugify";
 import { compressFileInput } from "@/lib/admin/compress-image";
@@ -10,6 +11,7 @@ import { BackLink } from "@/components/admin/ui/BackLink";
 import { SubmitButton } from "@/components/admin/ui/SubmitButton";
 import { FormField } from "@/components/admin/ui/FormField";
 import { Input } from "@/components/admin/ui/Input";
+import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import type { AdminBrand } from "@/lib/admin/queries";
 
 interface BrandFormProps {
@@ -22,6 +24,7 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
   const [slug, setSlug] = useState(brand?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(false);
   const [logo, setLogo] = useState(brand?.logo ?? "");
+  const [dismissedError, setDismissedError] = useState<FormActionState>(null);
   const { isUploading: isUploadingLogo, handleReplace: handleLogoReplace } = useImageReplace(
     (formData) => replaceBrandLogo(brand!.slug, formData),
     setLogo
@@ -40,13 +43,15 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
     deleteBrand(brand.slug);
   }
 
-  const action = mode === "create" ? createBrand : updateBrand.bind(null, brand!.slug);
+  const boundAction = mode === "create" ? createBrand : updateBrand.bind(null, brand!.slug);
+  const [formState, formAction] = useActionState(boundAction, null);
+  const actionError = formState !== dismissedError ? (formState?.error ?? null) : null;
 
   return (
     <div className="max-w-xl">
       <BackLink href="/admin/brands" label="Бренды" />
 
-      <form action={action} className="mt-4 space-y-6">
+      <form action={formAction} className="mt-4 space-y-6">
         <h1 className="text-xl font-semibold text-foreground">
           {mode === "create" ? "Новый бренд" : `Редактировать: ${brand?.name}`}
         </h1>
@@ -136,6 +141,7 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
           )}
         </div>
       </form>
+      <AdminActionFeedback message={actionError} onDismiss={() => setDismissedError(formState)} />
     </div>
   );
 }

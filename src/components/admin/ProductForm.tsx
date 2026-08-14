@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
 import {
   createProduct,
   updateProduct,
@@ -10,6 +10,7 @@ import {
   reorderProductImages,
   updateProductImageScale,
 } from "@/lib/admin/actions";
+import type { FormActionState } from "@/lib/admin/actions";
 import { slugify } from "@/lib/admin/slugify";
 import { compressImage, compressFileListInput } from "@/lib/admin/compress-image";
 import { SubmitButton } from "@/components/admin/ui/SubmitButton";
@@ -56,6 +57,7 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
   const [isUploading, setIsUploading] = useState(false);
   const [pendingPhotoCount, setPendingPhotoCount] = useState(0);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [dismissedFormError, setDismissedFormError] = useState<FormActionState>(null);
   const [, startTransition] = useTransition();
 
   const selectedCategory = categories.find((c) => c.slug === categorySlug);
@@ -185,13 +187,16 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
     });
   }
 
-  const action = mode === "create" ? createProduct : updateProduct.bind(null, product!.slug);
+  const boundAction = mode === "create" ? createProduct : updateProduct.bind(null, product!.slug);
+  const [formState, formAction] = useActionState(boundAction, null);
+  const displayedError =
+    actionError ?? (formState !== dismissedFormError ? (formState?.error ?? null) : null);
 
   return (
     <div className="max-w-3xl">
       <BackLink href="/admin/products" label="Товары" />
 
-      <form action={action} className="mt-4 space-y-6">
+      <form action={formAction} className="mt-4 space-y-6">
         <h1 className="text-xl font-semibold text-foreground">
           {mode === "create" ? "Новый товар" : `Редактировать: ${product?.name}`}
         </h1>
@@ -434,7 +439,13 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
           )}
         </div>
       </form>
-      <AdminActionFeedback message={actionError} onDismiss={() => setActionError(null)} />
+      <AdminActionFeedback
+        message={displayedError}
+        onDismiss={() => {
+          setActionError(null);
+          setDismissedFormError(formState);
+        }}
+      />
     </div>
   );
 }

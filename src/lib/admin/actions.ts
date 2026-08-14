@@ -20,6 +20,39 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
+export type FormActionState = { error: string } | null;
+
+// redirect() reports success by throwing a special error tagged with this
+// digest prefix — runFormAction must let it pass through instead of turning
+// it into a displayed error. Not part of next/navigation's public API (only
+// the internal build path exports isRedirectError), so this checks the
+// documented digest shape directly instead of reaching into next/dist.
+function isRedirectError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    typeof (error as { digest: unknown }).digest === "string" &&
+    (error as { digest: string }).digest.startsWith("NEXT_REDIRECT")
+  );
+}
+
+// Every create/update Server Action bound directly to a <form action> (via
+// useActionState) goes through this instead of letting validation/Supabase
+// errors throw: an uncaught throw here bubbles to error.tsx, which unmounts
+// the whole form and wipes every field the admin already filled in. Wrapping
+// it turns that into a returned {error} the form can show inline while
+// keeping its state intact.
+async function runFormAction(fn: () => Promise<void>): Promise<FormActionState> {
+  try {
+    await fn();
+    return null;
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { error: getErrorMessage(error, "Не удалось сохранить изменения.") };
+  }
+}
+
 export async function login(formData: FormData): Promise<void> {
   const password = formData.get("password");
   const expectedPassword = requireServerEnv("ADMIN_PASSWORD");
@@ -189,7 +222,11 @@ async function generateUniqueSlug(
   }
 }
 
-export async function createProduct(formData: FormData): Promise<void> {
+export async function createProduct(
+  _prevState: FormActionState,
+  formData: FormData
+): Promise<FormActionState> {
+  return runFormAction(async () => {
   await requireAdminSession();
   const fields = parseProductFormData(formData);
   const supabase = createAdminClient();
@@ -282,9 +319,15 @@ export async function createProduct(formData: FormData): Promise<void> {
   revalidatePath("/admin/products");
   revalidatePublicSite();
   redirect(`/admin/products?created=${encodeURIComponent(slug)}`);
+  });
 }
 
-export async function updateProduct(slug: string, formData: FormData): Promise<void> {
+export async function updateProduct(
+  slug: string,
+  _prevState: FormActionState,
+  formData: FormData
+): Promise<FormActionState> {
+  return runFormAction(async () => {
   await requireAdminSession();
   const fields = parseProductFormData(formData);
   const supabase = createAdminClient();
@@ -358,6 +401,7 @@ export async function updateProduct(slug: string, formData: FormData): Promise<v
   revalidatePath("/admin/products");
   revalidatePublicSite();
   redirect(`/admin/products?updated=${encodeURIComponent(slug)}`);
+  });
 }
 
 export async function deleteProduct(slug: string): Promise<void> {
@@ -615,7 +659,11 @@ async function uploadBrandLogo(
 // on the site renders it unconditionally), so unlike products it has to be
 // uploaded within the same submission as the rest of the row instead of
 // after the fact.
-export async function createBrand(formData: FormData): Promise<void> {
+export async function createBrand(
+  _prevState: FormActionState,
+  formData: FormData
+): Promise<FormActionState> {
+  return runFormAction(async () => {
   await requireAdminSession();
   const fields = parseBrandFormData(formData);
   const file = formData.get("logo");
@@ -643,6 +691,7 @@ export async function createBrand(formData: FormData): Promise<void> {
   revalidatePath("/admin/brands");
   revalidatePublicSite();
   redirect(`/admin/brands?created=${encodeURIComponent(slug)}`);
+  });
 }
 
 // Text fields only — logo replacement is a separate immediate action
@@ -651,7 +700,12 @@ export async function createBrand(formData: FormData): Promise<void> {
 // uploadProductImage's comment): a `<form action>` Server Action's return
 // value isn't visible to the component without useActionState, and this
 // form doesn't need that complexity for its own text fields.
-export async function updateBrand(slug: string, formData: FormData): Promise<void> {
+export async function updateBrand(
+  slug: string,
+  _prevState: FormActionState,
+  formData: FormData
+): Promise<FormActionState> {
+  return runFormAction(async () => {
   await requireAdminSession();
   const fields = parseBrandFormData(formData);
   const supabase = createAdminClient();
@@ -666,6 +720,7 @@ export async function updateBrand(slug: string, formData: FormData): Promise<voi
   revalidatePath(`/admin/brands/${slug}/edit`);
   revalidatePublicSite();
   redirect(`/admin/brands?updated=${encodeURIComponent(slug)}`);
+  });
 }
 
 export async function replaceBrandLogo(slug: string, formData: FormData): Promise<string | null> {
@@ -766,7 +821,11 @@ async function uploadCategoryImage(
 // updateCategory below: changing it on an existing category would orphan
 // whichever child rows (subcategories vs. category_brands) belong to the
 // type it's leaving.
-export async function createCategory(formData: FormData): Promise<void> {
+export async function createCategory(
+  _prevState: FormActionState,
+  formData: FormData
+): Promise<FormActionState> {
+  return runFormAction(async () => {
   await requireAdminSession();
   const fields = parseCategoryFormData(formData);
   const file = formData.get("image");
@@ -796,6 +855,7 @@ export async function createCategory(formData: FormData): Promise<void> {
   revalidatePath("/admin/categories");
   revalidatePublicSite();
   redirect(`/admin/categories?created=${encodeURIComponent(slug)}`);
+  });
 }
 
 // Text fields only, same reasoning as updateBrand — image replacement is
@@ -803,7 +863,12 @@ export async function createCategory(formData: FormData): Promise<void> {
 // pushed straight into CategoryForm's local state. `type` is never updated
 // here (see createCategory's comment) and neither is `slug` (locked after
 // create, same as products/brands, to avoid breaking existing links).
-export async function updateCategory(slug: string, formData: FormData): Promise<void> {
+export async function updateCategory(
+  slug: string,
+  _prevState: FormActionState,
+  formData: FormData
+): Promise<FormActionState> {
+  return runFormAction(async () => {
   await requireAdminSession();
   const fields = parseCategoryFormData(formData);
   const supabase = createAdminClient();
@@ -818,6 +883,7 @@ export async function updateCategory(slug: string, formData: FormData): Promise<
   revalidatePath(`/admin/categories/${slug}/edit`);
   revalidatePublicSite();
   redirect(`/admin/categories?updated=${encodeURIComponent(slug)}`);
+  });
 }
 
 export async function replaceCategoryImage(slug: string, formData: FormData): Promise<string | null> {
@@ -931,7 +997,12 @@ async function generateUniqueSubcategorySlug(
 // for the required image upload can be built before the row exists — same
 // reasoning as brands, just one step earlier since subcategories don't use
 // their slug as the Storage folder name (slugs collide across categories).
-export async function createSubcategory(categorySlug: string, formData: FormData): Promise<void> {
+export async function createSubcategory(
+  categorySlug: string,
+  _prevState: FormActionState,
+  formData: FormData
+): Promise<FormActionState> {
+  return runFormAction(async () => {
   await requireAdminSession();
   const fields = parseSubcategoryFormData(formData);
   const file = formData.get("image");
@@ -961,9 +1032,16 @@ export async function createSubcategory(categorySlug: string, formData: FormData
   revalidatePath(`/admin/categories/${categorySlug}/subcategories`);
   revalidatePublicSite();
   redirect(`/admin/categories/${categorySlug}/subcategories?created=${encodeURIComponent(slug)}`);
+  });
 }
 
-export async function updateSubcategory(categorySlug: string, subSlug: string, formData: FormData): Promise<void> {
+export async function updateSubcategory(
+  categorySlug: string,
+  subSlug: string,
+  _prevState: FormActionState,
+  formData: FormData
+): Promise<FormActionState> {
+  return runFormAction(async () => {
   await requireAdminSession();
   const fields = parseSubcategoryFormData(formData);
   const supabase = createAdminClient();
@@ -979,6 +1057,7 @@ export async function updateSubcategory(categorySlug: string, subSlug: string, f
   revalidatePath(`/admin/categories/${categorySlug}/subcategories/${subSlug}/edit`);
   revalidatePublicSite();
   redirect(`/admin/categories/${categorySlug}/subcategories?updated=${encodeURIComponent(subSlug)}`);
+  });
 }
 
 export async function replaceSubcategoryImage(subcategoryId: string, formData: FormData): Promise<string | null> {
@@ -1119,7 +1198,11 @@ function parseVehicleTypeFormData(formData: FormData): VehicleTypeFormFields {
 
 // No logo/country, unlike brands — vehicle type is just a name/slug tag, so
 // create/update are plain-field actions with no Storage involved at all.
-export async function createVehicleType(formData: FormData): Promise<void> {
+export async function createVehicleType(
+  _prevState: FormActionState,
+  formData: FormData
+): Promise<FormActionState> {
+  return runFormAction(async () => {
   await requireAdminSession();
   const fields = parseVehicleTypeFormData(formData);
   const supabase = createAdminClient();
@@ -1139,9 +1222,15 @@ export async function createVehicleType(formData: FormData): Promise<void> {
   revalidatePath("/admin/vehicle-types");
   revalidatePublicSite();
   redirect(`/admin/vehicle-types?created=${encodeURIComponent(slug)}`);
+  });
 }
 
-export async function updateVehicleType(slug: string, formData: FormData): Promise<void> {
+export async function updateVehicleType(
+  slug: string,
+  _prevState: FormActionState,
+  formData: FormData
+): Promise<FormActionState> {
+  return runFormAction(async () => {
   await requireAdminSession();
   const fields = parseVehicleTypeFormData(formData);
   const supabase = createAdminClient();
@@ -1153,6 +1242,7 @@ export async function updateVehicleType(slug: string, formData: FormData): Promi
   revalidatePath(`/admin/vehicle-types/${slug}/edit`);
   revalidatePublicSite();
   redirect(`/admin/vehicle-types?updated=${encodeURIComponent(slug)}`);
+  });
 }
 
 export async function deleteVehicleType(slug: string): Promise<void> {

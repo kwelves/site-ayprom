@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useState } from "react";
 import { createSubcategory, updateSubcategory, deleteSubcategory, replaceSubcategoryImage } from "@/lib/admin/actions";
+import type { FormActionState } from "@/lib/admin/actions";
 import { slugify } from "@/lib/admin/slugify";
 import { compressFileInput } from "@/lib/admin/compress-image";
 import { useImageReplace } from "@/lib/admin/use-image-replace";
@@ -11,6 +12,7 @@ import { SubmitButton } from "@/components/admin/ui/SubmitButton";
 import { FormField } from "@/components/admin/ui/FormField";
 import { Input } from "@/components/admin/ui/Input";
 import { Textarea } from "@/components/admin/ui/Textarea";
+import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import type { AdminSubcategory } from "@/lib/admin/queries";
 
 interface SubcategoryFormProps {
@@ -25,6 +27,7 @@ export function SubcategoryForm({ mode, categorySlug, categoryName, subcategory 
   const [slug, setSlug] = useState(subcategory?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(false);
   const [image, setImage] = useState(subcategory?.image ?? "");
+  const [dismissedError, setDismissedError] = useState<FormActionState>(null);
   const { isUploading: isUploadingImage, handleReplace: handleImageReplace } = useImageReplace(
     (formData) => replaceSubcategoryImage(subcategory!.id, formData),
     setImage
@@ -49,16 +52,18 @@ export function SubcategoryForm({ mode, categorySlug, categoryName, subcategory 
     deleteSubcategory(subcategory.id);
   }
 
-  const action =
+  const boundAction =
     mode === "create"
       ? createSubcategory.bind(null, categorySlug)
       : updateSubcategory.bind(null, categorySlug, subcategory!.slug);
+  const [formState, formAction] = useActionState(boundAction, null);
+  const actionError = formState !== dismissedError ? (formState?.error ?? null) : null;
 
   return (
     <div className="max-w-xl">
       <BackLink href={`/admin/categories/${categorySlug}/subcategories`} label="Подкатегории" />
 
-      <form action={action} className="mt-4 space-y-6">
+      <form action={formAction} className="mt-4 space-y-6">
         <div>
           <p className="text-sm text-muted-foreground">{categoryName}</p>
           <h1 className="text-xl font-semibold text-foreground">
@@ -147,6 +152,7 @@ export function SubcategoryForm({ mode, categorySlug, categoryName, subcategory 
           )}
         </div>
       </form>
+      <AdminActionFeedback message={actionError} onDismiss={() => setDismissedError(formState)} />
     </div>
   );
 }
