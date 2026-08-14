@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
+import { Reveal } from "@/components/motion/Reveal";
 import { ProductCard } from "@/components/catalog/ProductCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { cn } from "@/lib/utils";
@@ -50,7 +50,7 @@ function Pagination({
         href={pageHref(action, Math.max(1, page - 1), query)}
         aria-disabled={page <= 1}
         className={cn(
-          "rounded-md border border-border px-3 py-2 text-sm font-medium",
+          "rounded-md border border-border px-3 py-2 text-sm font-medium transition-colors duration-fast ease-ui",
           page <= 1 ? "pointer-events-none opacity-40" : "hover:bg-accent",
         )}
       >
@@ -65,7 +65,7 @@ function Pagination({
               href={pageHref(action, candidate, query)}
               aria-current={candidate === page ? "page" : undefined}
               className={cn(
-                "min-w-10 rounded-md border px-3 py-2 text-center text-sm font-medium",
+                "min-w-10 rounded-md border px-3 py-2 text-center text-sm font-medium transition-colors duration-fast ease-ui",
                 candidate === page
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-border hover:bg-accent",
@@ -80,7 +80,7 @@ function Pagination({
         href={pageHref(action, Math.min(totalPages, page + 1), query)}
         aria-disabled={page >= totalPages}
         className={cn(
-          "rounded-md border border-border px-3 py-2 text-sm font-medium",
+          "rounded-md border border-border px-3 py-2 text-sm font-medium transition-colors duration-fast ease-ui",
           page >= totalPages ? "pointer-events-none opacity-40" : "hover:bg-accent",
         )}
       >
@@ -121,20 +121,18 @@ export function ProductGridWithSearch({
         {query && (
           <Link
             href={action}
-            className="rounded-full border border-border-interactive bg-accent px-3 py-1.5 font-medium text-primary hover:bg-accent-strong"
+            className="rounded-full border border-border-interactive bg-accent px-3 py-1.5 font-medium text-primary transition-colors duration-fast ease-ui hover:bg-accent-strong"
           >
             Поиск: «{query}» ×
           </Link>
         )}
       </div>
 
-      <StaggerGroup className={gridClassName}>
+      <Reveal className={gridClassName}>
         {products.map((product) => (
-          <StaggerItem key={product.slug}>
-            <ProductCard product={product} href={href(product)} />
-          </StaggerItem>
+          <ProductCard key={product.slug} product={product} href={href(product)} />
         ))}
-      </StaggerGroup>
+      </Reveal>
 
       <Pagination action={action} page={page} totalPages={totalPages} query={query} />
     </>

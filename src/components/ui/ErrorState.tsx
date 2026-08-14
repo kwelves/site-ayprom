@@ -26,14 +26,14 @@ export function ErrorState({
           <button
             type="button"
             onClick={retry}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-[background-color,scale] duration-fast ease-ui hover:scale-[1.02] hover:bg-primary-hover active:scale-[0.98]"
           >
             Повторить
           </button>
         )}
         <Link
           href={homeHref}
-          className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors duration-fast ease-ui hover:bg-accent"
         >
           На главную
         </Link>

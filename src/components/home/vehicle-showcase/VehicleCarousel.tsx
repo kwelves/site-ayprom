@@ -3,12 +3,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { motion, type PanInfo } from "framer-motion";
+import { DURATION } from "@/lib/motion";
 import { CarouselLamp } from "./CarouselLamp";
 
 const SWIPE_THRESHOLD = 40;
 // How the dim-flash on a click-driven switch stays in sync with
 // CarouselLamp's own opacity transition duration (see CarouselLamp.tsx).
-const FLASH_MS = 280;
+const FLASH_MS = DURATION.slow * 1000;
 // How many slots are visible on each side of the active one. With 5 real
 // vehicles this exactly covers all of them (0 = active, ±1 = near, ±2 =
 // the ones fading into the edge) — no vehicle is ever rendered twice.

@@ -153,7 +153,7 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
                 href={item.href}
                 onClick={(event) => handleHashClick(item.href, event)}
                 className={cn(
-                  "rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "rounded-md px-3 py-2 text-sm font-medium transition-colors duration-fast ease-ui",
                   overPhoto
                     ? "text-inverse-foreground hover:bg-inverse-foreground/10"
                     : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
@@ -181,22 +181,25 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
           ref={toggleButtonRef}
           type="button"
           className={cn(
-            "inline-flex h-11 w-11 items-center justify-center rounded-md transition-colors md:hidden",
+            "inline-flex h-11 w-11 items-center justify-center rounded-md transition-[color,scale] duration-fast ease-ui active:scale-90 md:hidden",
             overPhoto ? "text-inverse-foreground" : "text-muted-foreground"
           )}
           onClick={() => (open ? closeMenu() : setOpen(true))}
           aria-label="Открыть меню"
           aria-expanded={open}
         >
-          <motion.span
-            key={open ? "close" : "open"}
-            initial={{ rotate: -90, opacity: 0 }}
-            animate={{ rotate: 0, opacity: 1 }}
-            transition={{ duration: DURATION.fast, ease: EASE_UI }}
-            className="flex"
-          >
-            {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </motion.span>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.span
+              key={open ? "close" : "open"}
+              initial={{ rotate: -90, opacity: 0 }}
+              animate={{ rotate: 0, opacity: 1 }}
+              exit={{ rotate: 90, opacity: 0 }}
+              transition={{ duration: DURATION.fast, ease: EASE_UI }}
+              className="flex"
+            >
+              {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </motion.span>
+          </AnimatePresence>
         </button>
       </Container>
 
@@ -271,7 +274,7 @@ function MobileNavItem({
     }
     event.preventDefault();
     onNavigate();
-    window.setTimeout(() => handleHashClick(href, event), 300);
+    window.setTimeout(() => handleHashClick(href, event), DURATION.base * 1000);
   };
 
   if (!item.dropdown) {
@@ -279,7 +282,7 @@ function MobileNavItem({
       <Link
         href={item.href}
         onClick={(event) => handleMobileNavClick(event, item.href)}
-        className="rounded-md flex min-h-11 items-center px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-primary"
+        className="rounded-md flex min-h-11 items-center px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors duration-fast ease-ui hover:bg-muted hover:text-primary"
       >
         {item.label}
       </Link>
@@ -292,14 +295,14 @@ function MobileNavItem({
         <Link
           href={item.href}
           onClick={(event) => handleMobileNavClick(event, item.href)}
-          className="flex-1 rounded-md flex min-h-11 items-center px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-primary"
+          className="flex-1 rounded-md flex min-h-11 items-center px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors duration-fast ease-ui hover:bg-muted hover:text-primary"
         >
           {item.label}
         </Link>
         <button
           type="button"
           onClick={onToggleExpand}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-primary"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors duration-fast ease-ui hover:bg-muted hover:text-primary"
           aria-expanded={isExpanded}
           aria-label={`Показать подраздел «${item.label}»`}
         >
@@ -328,7 +331,7 @@ function MobileNavItem({
                   key={sub.href}
                   href={sub.href}
                   onClick={onNavigate}
-                  className="flex items-start gap-3 rounded-lg p-2 hover:bg-muted"
+                  className="flex items-start gap-3 rounded-lg p-2 transition-colors duration-fast ease-ui hover:bg-muted"
                 >
                   <span
                     className={cn(

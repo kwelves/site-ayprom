@@ -47,7 +47,7 @@ export function NavDropdown({ label, href, items, light, fixedSingleColumn, scro
         href={href}
         onClick={(event) => handleHashClick(href, event)}
         className={cn(
-          "flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+          "flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-fast ease-ui",
           light
             ? "text-inverse-foreground hover:bg-inverse-foreground/10"
             : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
@@ -90,14 +90,14 @@ export function NavDropdown({ label, href, items, light, fixedSingleColumn, scro
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="group flex items-start gap-3 rounded-lg p-2.5 transition-colors hover:bg-accent/60"
+                    className="group flex items-start gap-3 rounded-lg p-2.5 transition-colors duration-fast ease-ui hover:bg-accent/60"
                   >
                     <span
                       className={cn(
                         "flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg",
                         item.logo
                           ? "border border-border bg-card"
-                          : "bg-accent text-accent-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground"
+                          : "bg-accent text-accent-foreground transition-colors duration-fast ease-ui group-hover:bg-primary group-hover:text-primary-foreground"
                       )}
                     >
                       {item.logo ? (

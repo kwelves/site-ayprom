@@ -94,7 +94,7 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
               type="button"
               onClick={() => goTo(index - 1)}
               aria-label="Предыдущее фото"
-              className="absolute left-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              className="absolute left-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-[background-color,scale] duration-fast ease-ui hover:bg-primary-hover active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             >
               <ChevronLeft aria-hidden="true" className="h-5 w-5" />
             </button>
@@ -102,7 +102,7 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
               type="button"
               onClick={() => goTo(index + 1)}
               aria-label="Следующее фото"
-              className="absolute right-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              className="absolute right-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-[background-color,scale] duration-fast ease-ui hover:bg-primary-hover active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             >
               <ChevronRight aria-hidden="true" className="h-5 w-5" />
             </button>
@@ -122,7 +122,7 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
               onClick={() => goTo(i)}
               aria-label={`Показать фото ${i + 1}`}
               aria-current={i === index}
-              className="p-2.5"
+              className="p-2.5 transition-transform duration-fast ease-ui active:scale-90"
             >
               {/* Ширина у всех точек одинаковая, сжимается только сама точка:
                   анимировать `width` значило бы пересчитывать раскладку каждый

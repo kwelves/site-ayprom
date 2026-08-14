@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { DURATION, EASE_UI, fadeUp } from "@/lib/motion";
 
 interface RevealProps {
@@ -12,9 +12,12 @@ interface RevealProps {
 // Остаётся на framer-motion: нужен IntersectionObserver (whileInView), а
 // чисто-CSS аналог (`animation-timeline: view()`) пока только в Chromium.
 // Анимация одноразовая (once: true), после срабатывания аниматор снимается.
+//
+// prefers-reduced-motion не проверяется здесь вручную: `MotionConfig
+// reducedMotion="user"` в MotionPreferences.tsx уже отключает transform-часть
+// (`y: 16` из fadeUp) при этой настройке ОС, но оставляет плавный fade по
+// opacity — обнулять duration тут значило бы убрать и его тоже.
 export function Reveal({ children, className, delay = 0 }: RevealProps) {
-  const shouldReduceMotion = useReducedMotion();
-
   return (
     <motion.div
       className={className}
@@ -22,9 +25,7 @@ export function Reveal({ children, className, delay = 0 }: RevealProps) {
       initial="hidden"
       whileInView="visible"
       viewport={{ once: true, margin: "-64px" }}
-      transition={
-        shouldReduceMotion ? { duration: 0 } : { delay, duration: DURATION.reveal, ease: EASE_UI }
-      }
+      transition={{ delay, duration: DURATION.reveal, ease: EASE_UI }}
     >
       {children}
     </motion.div>

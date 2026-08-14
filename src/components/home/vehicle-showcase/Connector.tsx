@@ -54,7 +54,7 @@ export function Connector({ paths, onConnected }: ConnectorProps) {
           strokeLinejoin="round"
           initial={{ pathLength: 0 }}
           animate={{ pathLength: 1 }}
-          exit={{ pathLength: 0, transition: { duration: shouldReduceMotion ? 0 : 0.25, ease: "easeIn" } }}
+          exit={{ pathLength: 0, transition: { duration: shouldReduceMotion ? 0 : 0.25, ease: DRAW_EASE } }}
           transition={{ duration: stemDuration, ease: DRAW_EASE }}
           onAnimationComplete={hasBranches ? undefined : handleBranchesComplete}
         />
@@ -69,7 +69,7 @@ export function Connector({ paths, onConnected }: ConnectorProps) {
               strokeLinejoin="round"
               initial={{ pathLength: 0 }}
               animate={{ pathLength: 1 }}
-              exit={{ pathLength: 0, transition: { duration: shouldReduceMotion ? 0 : 0.25, ease: "easeIn" } }}
+              exit={{ pathLength: 0, transition: { duration: shouldReduceMotion ? 0 : 0.25, ease: DRAW_EASE } }}
               transition={{ duration: branchDuration, delay: stemDuration, ease: DRAW_EASE }}
             />
             <motion.path
@@ -81,7 +81,7 @@ export function Connector({ paths, onConnected }: ConnectorProps) {
               strokeLinejoin="round"
               initial={{ pathLength: 0 }}
               animate={{ pathLength: 1 }}
-              exit={{ pathLength: 0, transition: { duration: shouldReduceMotion ? 0 : 0.25, ease: "easeIn" } }}
+              exit={{ pathLength: 0, transition: { duration: shouldReduceMotion ? 0 : 0.25, ease: DRAW_EASE } }}
               transition={{ duration: branchDuration, delay: stemDuration, ease: DRAW_EASE }}
               onAnimationComplete={handleBranchesComplete}
             />

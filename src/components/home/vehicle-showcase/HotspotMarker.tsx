@@ -75,7 +75,7 @@ export const HotspotMarker = forwardRef<HTMLButtonElement, HotspotMarkerProps>(f
         // guarantees the tooltip you're actually looking at paints over
         // the marker it happens to overlap, instead of DOM order deciding
         // which one wins.
-        "group absolute z-20 grid h-11 w-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full outline-none transition-[transform,opacity] duration-300 ease-out hover:z-30 focus-visible:z-30 lg:h-8 lg:w-8",
+        "group absolute z-20 grid h-11 w-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full outline-none transition-[transform,opacity] duration-base ease-ui hover:z-30 focus-visible:z-30 lg:h-8 lg:w-8",
         popped ? "scale-100 opacity-100" : "scale-150 opacity-0",
         isActive && "z-30",
       )}
@@ -92,7 +92,7 @@ export const HotspotMarker = forwardRef<HTMLButtonElement, HotspotMarkerProps>(f
 
       <span
         className={cn(
-          "grid h-11 w-11 place-items-center rounded-full border transition-[transform,background-color,box-shadow] duration-150 ease-out lg:h-8 lg:w-8",
+          "grid h-11 w-11 place-items-center rounded-full border transition-[transform,background-color,box-shadow] duration-fast ease-ui lg:h-8 lg:w-8",
           isActive
             ? "scale-[1.08] border-white/28 bg-[#0a5edd] shadow-[0_0_0_8px_rgba(79,145,248,0.16),0_10px_24px_rgba(2,6,24,0.34)]"
             : "border-white/28 bg-[#084bb9] shadow-[0_0_0_0_rgba(79,145,248,0.35),0_8px_18px_rgba(2,6,24,0.28)] group-hover:scale-[1.08] group-hover:bg-[#0a5edd] group-hover:shadow-[0_0_0_8px_rgba(79,145,248,0.16),0_10px_24px_rgba(2,6,24,0.34)] group-focus-visible:scale-[1.08] group-focus-visible:bg-[#0a5edd] group-focus-visible:shadow-[0_0_0_8px_rgba(79,145,248,0.16),0_10px_24px_rgba(2,6,24,0.34)]",
@@ -103,7 +103,7 @@ export const HotspotMarker = forwardRef<HTMLButtonElement, HotspotMarkerProps>(f
             click this again to close" look like "this is already open". */}
         <Plus
           aria-hidden="true"
-          className={cn("h-[18px] w-[18px] text-white transition-transform duration-150 ease-out lg:h-[13px] lg:w-[13px]", isActive && "rotate-45")}
+          className={cn("h-[18px] w-[18px] text-white transition-transform duration-fast ease-ui lg:h-[13px] lg:w-[13px]", isActive && "rotate-45")}
           strokeWidth={1.8}
         />
       </span>
@@ -111,7 +111,7 @@ export const HotspotMarker = forwardRef<HTMLButtonElement, HotspotMarkerProps>(f
       <span
         role="tooltip"
         className={cn(
-          "pointer-events-none absolute hidden max-w-[180px] rounded-md border border-white/10 bg-[rgba(15,23,43,0.9)] px-[9px] py-[7px] text-[11px] leading-[1.2] whitespace-nowrap text-white opacity-0 transition-[opacity,transform] duration-150 ease-out sm:block",
+          "pointer-events-none absolute hidden max-w-[180px] rounded-md border border-white/10 bg-[rgba(15,23,43,0.9)] px-[9px] py-[7px] text-[11px] leading-[1.2] whitespace-nowrap text-white opacity-0 transition-[opacity,transform] duration-fast ease-ui sm:block",
           TOOLTIP_GAP_CLASS[tooltipGap][tooltipBelow ? "below" : "above"],
           tooltipAlign === "center" && "left-1/2 -translate-x-1/2",
           tooltipAlign === "start" && "left-0",

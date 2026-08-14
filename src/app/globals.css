@@ -167,14 +167,21 @@ a {
   scroll-margin-top: 5rem;
 }
 
+/*
+ * «Меньше и мягче» вместо «совсем без анимации»: длительность режется до
+ * едва заметной, а не до нуля, чтобы color/opacity-переходы (hover, фокус,
+ * появление панелей) всё ещё читались как плавные, а не как рывок. Крупные
+ * transform-анимации при такой длительности воспринимаются как статичное
+ * появление — этого и добивались.
+ */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     scroll-behavior: auto !important;
-    animation-duration: 0.01ms !important;
+    animation-duration: 120ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    transition-duration: 120ms !important;
   }
 }
 

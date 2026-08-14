@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { DURATION } from "@/lib/motion";
 
 // Compact, always-pinned recreation of Aceternity's "Lamp" beam-cluster —
 // twin conic beams + glow orb + core line converging on a fixed point,
@@ -19,7 +20,7 @@ export function CarouselLamp({ dimmed }: { dimmed: boolean }) {
         style={{ isolation: "isolate" }}
         initial={false}
         animate={{ opacity: dimmed ? 0 : 1 }}
-        transition={{ duration: 0.28 }}
+        transition={{ duration: DURATION.slow }}
       >
         <div
           className="absolute bottom-0 left-1/2 h-full w-[35px] -translate-x-full sm:w-32"
@@ -57,7 +58,7 @@ export function CarouselLamp({ dimmed }: { dimmed: boolean }) {
         }}
         initial={false}
         animate={{ opacity: dimmed ? 0 : 1, scaleX: dimmed ? 0.35 : 1 }}
-        transition={{ opacity: { duration: 0.28 }, scaleX: { duration: 0.4, ease: [0.22, 1, 0.36, 1] } }}
+        transition={{ opacity: { duration: DURATION.slow }, scaleX: { duration: 0.4, ease: [0.22, 1, 0.36, 1] } }}
       />
     </div>
   );

@@ -42,7 +42,7 @@ export function Footer({ categories, brands }: { categories: Category[]; brands:
                   <Link
                     href={link.href}
                     onClick={(event) => handleHashClick(link.href, event)}
-                    className="block py-2 text-sm text-inverse-foreground-muted transition-colors hover:text-inverse-accent"
+                    className="block py-2 text-sm text-inverse-foreground-muted transition-colors duration-fast ease-ui hover:text-inverse-accent"
                   >
                     {link.label}
                   </Link>
@@ -60,7 +60,7 @@ export function Footer({ categories, brands }: { categories: Category[]; brands:
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="h-4 w-4 shrink-0 text-inverse-accent" />
-                <a href="mailto:info@ayprom.kg" className="py-1.5 hover:text-inverse-accent">
+                <a href="mailto:info@ayprom.kg" className="py-1.5 transition-colors duration-fast ease-ui hover:text-inverse-accent">
                   info@ayprom.kg
                 </a>
               </li>
@@ -71,7 +71,7 @@ export function Footer({ categories, brands }: { categories: Category[]; brands:
                     href="https://instagram.com/ayprom.kg"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="py-1.5 hover:text-inverse-accent"
+                    className="py-1.5 transition-colors duration-fast ease-ui hover:text-inverse-accent"
                   >
                     Instagram
                   </a>
@@ -82,14 +82,14 @@ export function Footer({ categories, brands }: { categories: Category[]; brands:
                     href="https://tiktok.com/@ayprom.kg"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="py-1.5 hover:text-inverse-accent"
+                    className="py-1.5 transition-colors duration-fast ease-ui hover:text-inverse-accent"
                   >
                     TikTok
                   </a>
                 </span>
               </li>
               <li>
-                <Link href="/contacts" className="py-1.5 text-inverse-accent hover:underline">
+                <Link href="/contacts" className="py-1.5 text-inverse-accent transition-colors duration-fast ease-ui hover:underline">
                   Все контакты и телефоны →
                 </Link>
               </li>

@@ -87,7 +87,7 @@ export function ProductCard({ product, href }: { product: ProductListItem; href:
   };
 
   return (
-    <div className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-border-interactive hover:shadow-sm">
+    <div className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-[border-color,box-shadow] duration-fast ease-ui hover:border-border-interactive hover:shadow-sm">
       <Link
         href={href}
         aria-label={product.name}
@@ -134,7 +134,7 @@ export function ProductCard({ product, href }: { product: ProductListItem; href:
               type="button"
               onClick={handleArrowClick(index - 1)}
               aria-label="Предыдущее фото"
-              className="absolute left-2 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-card/80 text-primary opacity-70 shadow-sm backdrop-blur-sm transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="absolute left-2 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-card/80 text-primary opacity-70 shadow-sm backdrop-blur-sm transition-[opacity,scale] duration-fast ease-ui hover:opacity-100 active:scale-90 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <ChevronLeft aria-hidden="true" className="h-4 w-4" />
             </button>
@@ -142,7 +142,7 @@ export function ProductCard({ product, href }: { product: ProductListItem; href:
               type="button"
               onClick={handleArrowClick(index + 1)}
               aria-label="Следующее фото"
-              className="absolute right-2 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-card/80 text-primary opacity-70 shadow-sm backdrop-blur-sm transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="absolute right-2 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-card/80 text-primary opacity-70 shadow-sm backdrop-blur-sm transition-[opacity,scale] duration-fast ease-ui hover:opacity-100 active:scale-90 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <ChevronRight aria-hidden="true" className="h-4 w-4" />
             </button>
@@ -169,7 +169,7 @@ export function ProductCard({ product, href }: { product: ProductListItem; href:
               onClick={handleArrowClick(i)}
               aria-label={`Показать фото ${i + 1}`}
               aria-current={i === index}
-              className="p-2"
+              className="p-2 transition-transform duration-fast ease-ui active:scale-90"
             >
               {/* Ширина фиксированная, сжимается сама точка — см. ProductGallery. */}
               <span
