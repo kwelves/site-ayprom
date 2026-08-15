@@ -63,7 +63,7 @@ export function CategoryHoverGrid({ categories }: { categories: Category[] }) {
         {highlight && (
           <motion.span
             key="category-hover-highlight"
-            className="pointer-events-none absolute z-0 block rounded-2xl bg-primary/10"
+            className="pointer-events-none absolute z-0 block rounded-2xl bg-primary/25"
             initial={{ opacity: 0, x: highlight.x, y: highlight.y, width: highlight.width, height: highlight.height }}
             animate={{ opacity: 1, x: highlight.x, y: highlight.y, width: highlight.width, height: highlight.height }}
             exit={{ opacity: 0, transition: { duration: 0.15 } }}
@@ -81,7 +81,7 @@ export function CategoryHoverGrid({ categories }: { categories: Category[] }) {
               onPointerLeave={handlePointerLeave}
               className="relative block h-full w-full p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-[0.98]"
             >
-              <div className="relative z-10 flex h-full flex-col overflow-hidden rounded-xl border border-primary/10 bg-card">
+              <div className="relative z-10 flex h-full flex-col overflow-hidden rounded-xl border border-primary/25 bg-card">
                 <div className="relative aspect-4/3 w-full shrink-0 bg-muted/40">
                   <Image
                     src={category.image}
