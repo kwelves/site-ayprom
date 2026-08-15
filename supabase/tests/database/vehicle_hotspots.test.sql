@@ -1,0 +1,254 @@
+begin;
+
+select plan(16);
+
+insert into public.products (
+  slug, name, category_slug, short_description, article, published, "order"
+)
+values
+  ('vehicle-showcase-test-available', 'Vehicle showcase available product', 'hydraulic-pumps', 'Hotspot test fixture', 'VH-AVAILABLE', true, 91001),
+  ('vehicle-showcase-test-reserved', 'Vehicle showcase reserved product', 'hydraulic-pumps', 'Hotspot test fixture', 'VH-RESERVED', true, 91002),
+  ('vehicle-showcase-test-hidden', 'Vehicle showcase hidden product', 'hydraulic-pumps', 'Hotspot test fixture', 'VH-HIDDEN', false, 91003);
+
+create function pg_temp.hotspot_updates(
+  target_slug text,
+  first_label text default null,
+  first_product_slug text default null
+)
+returns jsonb
+language sql
+as $function$
+  select jsonb_agg(
+    jsonb_build_object(
+      'id', hotspot.id,
+      'label', case when hotspot.hotspot_number = 1 and first_label is not null then first_label else hotspot.label end,
+      'productId', case
+        when hotspot.hotspot_number = 1 and first_product_slug is not null then (
+          select product.id from public.products as product where product.slug = first_product_slug
+        )
+        else hotspot.product_id
+      end
+    )
+    order by hotspot.hotspot_number
+  )
+  from public.vehicle_hotspots as hotspot
+  where hotspot.vehicle_type_slug = target_slug;
+$function$;
+
+create function pg_temp.duplicate_product_updates(target_slug text, product_slug text)
+returns jsonb
+language sql
+as $function$
+  select jsonb_agg(
+    jsonb_build_object(
+      'id', hotspot.id,
+      'label', hotspot.label,
+      'productId', case
+        when hotspot.hotspot_number in (1, 2) then (
+          select product.id from public.products as product where product.slug = product_slug
+        )
+        else null
+      end
+    )
+    order by hotspot.hotspot_number
+  )
+  from public.vehicle_hotspots as hotspot
+  where hotspot.vehicle_type_slug = target_slug;
+$function$;
+
+create function pg_temp.foreign_hotspot_updates(target_slug text)
+returns jsonb
+language sql
+as $function$
+  select jsonb_agg(
+    jsonb_build_object(
+      'id', case
+        when hotspot.hotspot_number = 5 then (
+          select foreign_hotspot.id
+          from public.vehicle_hotspots as foreign_hotspot
+          where foreign_hotspot.vehicle_type_slug = 'musorovoz'
+            and foreign_hotspot.hotspot_number = 1
+        )
+        else hotspot.id
+      end,
+      'label', hotspot.label,
+      'productId', null
+    )
+    order by hotspot.hotspot_number
+  )
+  from public.vehicle_hotspots as hotspot
+  where hotspot.vehicle_type_slug = target_slug;
+$function$;
+
+select is(
+  (
+    select count(*)
+    from public.vehicle_hotspots as hotspot
+    join public.products as product on product.id = hotspot.product_id
+    where product.slug = 'korobka-otbora-moschnosti-zf-1'
+  ),
+  0::bigint,
+  'the former showcase product is no longer pinned to a hotspot'
+);
+
+select ok(
+  to_regclass('public.vehicle_hotspots_product_id_unique') is not null,
+  'a partial unique index protects assigned products'
+);
+
+select is(
+  (
+    select count(*)
+    from (
+      select product_id
+      from public.vehicle_hotspots
+      where product_id is not null
+      group by product_id
+      having count(*) > 1
+    ) as duplicate_product
+  ),
+  0::bigint,
+  'migration leaves no duplicate product assignments'
+);
+
+select has_function(
+  'public',
+  'update_vehicle_hotspots',
+  array['text', 'jsonb'],
+  'batch hotspot update RPC exists'
+);
+
+select ok(
+  has_function_privilege('service_role', 'public.update_vehicle_hotspots(text, jsonb)', 'EXECUTE'),
+  'service role can execute the hotspot batch RPC'
+);
+
+select ok(
+  not has_function_privilege('anon', 'public.update_vehicle_hotspots(text, jsonb)', 'EXECUTE'),
+  'anonymous users cannot execute the hotspot batch RPC'
+);
+
+set local role service_role;
+
+select lives_ok(
+  $$select public.update_vehicle_hotspots(
+      'kran-manipulyator',
+      pg_temp.hotspot_updates(
+        'kran-manipulyator',
+        'Hydraulic tank updated',
+        'vehicle-showcase-test-available'
+      )
+    )$$,
+  'a complete valid vehicle batch is saved'
+);
+
+select is(
+  (
+    select label
+    from public.vehicle_hotspots
+    where vehicle_type_slug = 'kran-manipulyator' and hotspot_number = 1
+  ),
+  'Hydraulic tank updated',
+  'batch save updates the hotspot label'
+);
+
+select is(
+  (
+    select product_id
+    from public.vehicle_hotspots
+    where vehicle_type_slug = 'kran-manipulyator' and hotspot_number = 1
+  ),
+  (
+    select id from public.products where slug = 'vehicle-showcase-test-available'
+  ),
+  'batch save assigns a published product'
+);
+
+select ok(
+  exists (
+    select 1
+    from public.admin_audit_log as audit
+    where audit.entity_type = 'vehicle_hotspots'
+      and audit.entity_key = (
+        select id::text
+        from public.vehicle_hotspots
+        where vehicle_type_slug = 'kran-manipulyator' and hotspot_number = 1
+      )
+      and audit.action = 'UPDATE'
+      and audit.changed_fields @> array['label', 'product_id']::text[]
+  ),
+  'direct hotspot edits are written to the audit log'
+);
+
+select throws_ok(
+  $$select public.update_vehicle_hotspots(
+      'kran-manipulyator',
+      pg_temp.hotspot_updates('kran-manipulyator', null, 'vehicle-showcase-test-hidden')
+    )$$,
+  'P0001',
+  'Every selected product must be published',
+  'an unpublished product cannot be assigned'
+);
+
+select throws_ok(
+  $$select public.update_vehicle_hotspots(
+      'kran-manipulyator',
+      pg_temp.foreign_hotspot_updates('kran-manipulyator')
+    )$$,
+  'P0001',
+  'Submitted hotspot ids must exactly match the selected vehicle type',
+  'a hotspot from another vehicle cannot be saved in this batch'
+);
+
+select throws_ok(
+  $$select public.update_vehicle_hotspots(
+      'kran-manipulyator',
+      pg_temp.duplicate_product_updates('kran-manipulyator', 'vehicle-showcase-test-available')
+    )$$,
+  'P0001',
+  'A product may be assigned to only one hotspot',
+  'a product cannot be assigned twice inside one batch'
+);
+
+update public.vehicle_hotspots
+set product_id = (
+  select id from public.products where slug = 'vehicle-showcase-test-reserved'
+)
+where vehicle_type_slug = 'musorovoz' and hotspot_number = 1;
+
+select throws_ok(
+  $$select public.update_vehicle_hotspots(
+      'kran-manipulyator',
+      pg_temp.hotspot_updates('kran-manipulyator', null, 'vehicle-showcase-test-reserved')
+    )$$,
+  'P0001',
+  'A selected product is already assigned to another hotspot',
+  'a product assigned outside the submitted five is rejected'
+);
+
+select throws_ok(
+  $$update public.vehicle_hotspots
+    set product_id = (select id from public.products where slug = 'vehicle-showcase-test-reserved')
+    where vehicle_type_slug = 'kran-manipulyator' and hotspot_number = 2$$,
+  '23505',
+  'duplicate key value violates unique constraint "vehicle_hotspots_product_id_unique"',
+  'the database uniquely constrains non-NULL product assignments'
+);
+
+update public.products
+set published = false
+where slug = 'vehicle-showcase-test-available';
+
+select is(
+  (
+    select product_id
+    from public.vehicle_hotspots
+    where vehicle_type_slug = 'kran-manipulyator' and hotspot_number = 1
+  ),
+  null::uuid,
+  'unpublishing a product automatically detaches its hotspot'
+);
+
+reset role;
+select * from finish();
+rollback;

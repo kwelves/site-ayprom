@@ -15,6 +15,8 @@ import { slugify } from "@/lib/admin/slugify";
 import { constantTimePasswordEqual, registerLoginAttempt } from "@/lib/admin/login-rate-limit";
 import { MAX_PRODUCT_IMAGES, validateProductImage } from "@/lib/admin/image-validation";
 import type { CategoryIcon } from "@/types/catalog";
+import type { AdminAvailableProduct } from "@/lib/admin/queries";
+import { normalizeHotspotProductSearchQuery, selectAvailableHotspotProducts } from "@/lib/admin/hotspot-product-search";
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -174,6 +176,53 @@ async function resolveSubcategoryId(
     throw new Error("Выбранная подкатегория не принадлежит выбранной категории.");
   }
   return data.id;
+}
+
+// Relation mutations below replace the submitted associations after the
+// product row is written. Check every foreign key first, so a malformed
+// direct Server Action request cannot publish/unpublish the product (and fire
+// the hotspot-detach trigger) before an invalid association fails later.
+async function validateProductReferences(
+  supabase: ReturnType<typeof createAdminClient>,
+  fields: ProductFormFields,
+  subcategoryId: string | null
+): Promise<void> {
+  if (new Set(fields.compatibleBrands).size !== fields.compatibleBrands.length) {
+    throw new Error("Один бренд нельзя выбрать несколько раз.");
+  }
+  if (new Set(fields.vehicleTypes).size !== fields.vehicleTypes.length) {
+    throw new Error("Один тип техники нельзя выбрать несколько раз.");
+  }
+
+  const [
+    { data: category, error: categoryError },
+    { data: brands, error: brandsError },
+    { data: vehicleTypes, error: vehicleTypesError },
+  ] = await Promise.all([
+    supabase.from("categories").select("slug").eq("slug", fields.categorySlug).maybeSingle(),
+    fields.compatibleBrands.length > 0
+      ? supabase.from("brands").select("slug").in("slug", fields.compatibleBrands)
+      : Promise.resolve({ data: [], error: null }),
+    fields.vehicleTypes.length > 0
+      ? supabase.from("vehicle_types").select("slug").in("slug", fields.vehicleTypes)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (categoryError) throw categoryError;
+  if (brandsError) throw brandsError;
+  if (vehicleTypesError) throw vehicleTypesError;
+  if (!category) throw new Error("Выбранная категория не найдена.");
+  if ((brands?.length ?? 0) !== fields.compatibleBrands.length) {
+    throw new Error("Один из выбранных брендов не найден.");
+  }
+  if ((vehicleTypes?.length ?? 0) !== fields.vehicleTypes.length) {
+    throw new Error("Один из выбранных типов техники не найден.");
+  }
+  // resolveSubcategoryId has already established that a present subcategory
+  // belongs to the selected category; keeping this explicit documents that it
+  // was validated before the product's publication state can change.
+  if (fields.subcategorySlug && !subcategoryId) {
+    throw new Error("Выбранная подкатегория не найдена.");
+  }
 }
 
 // Shared by every create action's "append at the end" ordering: the next
@@ -341,6 +390,7 @@ export async function updateProduct(
   if (!existing) throw new Error("Товар не найден.");
 
   const subcategoryId = await resolveSubcategoryId(supabase, fields.categorySlug, fields.subcategorySlug);
+  await validateProductReferences(supabase, fields, subcategoryId);
 
   const { error: updateError } = await supabase
     .from("products")
@@ -1266,4 +1316,176 @@ export async function reorderVehicleTypes(orderedSlugs: string[]): Promise<void>
   if (error) throw error;
   revalidatePath("/admin/vehicle-types");
   revalidatePublicSite();
+}
+
+const HOTSPOTS_PER_VEHICLE = 5;
+const HOTSPOT_PRODUCT_SEARCH_LIMIT = 8;
+
+interface VehicleHotspotFormUpdate {
+  id: string;
+  label: string;
+  productId: string | null;
+}
+
+interface VehicleHotspotRow {
+  id: string;
+}
+
+interface HotspotProductRow {
+  id: string;
+  published: boolean;
+}
+
+function parseVehicleHotspotUpdates(formData: FormData): VehicleHotspotFormUpdate[] {
+  const rawUpdates = formData.get("hotspots");
+  if (typeof rawUpdates !== "string") {
+    throw new Error("Не удалось прочитать изменения хотспотов.");
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawUpdates);
+  } catch {
+    throw new Error("Изменения хотспотов имеют неверный формат.");
+  }
+  if (!Array.isArray(parsed) || parsed.length !== HOTSPOTS_PER_VEHICLE) {
+    throw new Error(`Нужно сохранить ровно ${HOTSPOTS_PER_VEHICLE} хотспотов.`);
+  }
+
+  const updates = parsed.map((entry): VehicleHotspotFormUpdate => {
+    if (typeof entry !== "object" || entry === null) {
+      throw new Error("Одна из строк хотспота имеет неверный формат.");
+    }
+    const { id, label, productId } = entry as Record<string, unknown>;
+    if (typeof id !== "string" || !id || typeof label !== "string") {
+      throw new Error("У каждого хотспота должны быть идентификатор и название.");
+    }
+    if (productId !== null && (typeof productId !== "string" || !productId)) {
+      throw new Error("Товар хотспота имеет неверный формат.");
+    }
+
+    const normalizedLabel = label.trim();
+    if (!normalizedLabel) {
+      throw new Error("Заполните названия всех хотспотов.");
+    }
+    return { id, label: normalizedLabel, productId };
+  });
+
+  if (new Set(updates.map((update) => update.id)).size !== updates.length) {
+    throw new Error("Один и тот же хотспот передан несколько раз.");
+  }
+  const productIds = updates.flatMap((update) => (update.productId ? [update.productId] : []));
+  if (new Set(productIds).size !== productIds.length) {
+    throw new Error("Один товар нельзя закрепить за несколькими хотспотами.");
+  }
+  return updates;
+}
+
+// Server Actions are callable outside the rendered admin page, so the same
+// validation that helps the form must happen here as well. The final write is
+// delegated to a database RPC, which performs this transition in one
+// transaction and closes the gap between validation and assignment.
+export async function saveVehicleHotspots(
+  vehicleTypeSlug: string,
+  _prevState: FormActionState,
+  formData: FormData
+): Promise<FormActionState> {
+  return runFormAction(async () => {
+    await requireAdminSession();
+    const normalizedVehicleTypeSlug = vehicleTypeSlug.trim();
+    if (!normalizedVehicleTypeSlug) throw new Error("Не выбран тип спецтехники.");
+
+    const updates = parseVehicleHotspotUpdates(formData);
+    const supabase = createAdminClient();
+    const [{ data: hotspots, error: hotspotsError }, { data: vehicleType, error: vehicleTypeError }] = await Promise.all([
+      supabase.from("vehicle_hotspots").select("id").eq("vehicle_type_slug", normalizedVehicleTypeSlug),
+      supabase.from("vehicle_types").select("slug").eq("slug", normalizedVehicleTypeSlug).maybeSingle(),
+    ]);
+    if (hotspotsError) throw hotspotsError;
+    if (vehicleTypeError) throw vehicleTypeError;
+    if (!vehicleType) throw new Error("Тип спецтехники не найден.");
+
+    const hotspotIds = new Set((hotspots as VehicleHotspotRow[]).map((hotspot) => hotspot.id));
+    if (hotspotIds.size !== HOTSPOTS_PER_VEHICLE || updates.some((update) => !hotspotIds.has(update.id))) {
+      throw new Error("Можно изменять только пять хотспотов выбранной техники.");
+    }
+
+    const productIds = updates.flatMap((update) => (update.productId ? [update.productId] : []));
+    if (productIds.length > 0) {
+      const { data: products, error: productsError } = await supabase
+        .from("products")
+        .select("id, published")
+        .in("id", productIds);
+      if (productsError) throw productsError;
+      const productsById = new Map((products as HotspotProductRow[]).map((product) => [product.id, product]));
+      if (
+        productsById.size !== productIds.length ||
+        productIds.some((productId) => productsById.get(productId)?.published !== true)
+      ) {
+        throw new Error("Закрепить можно только существующий опубликованный товар.");
+      }
+    }
+
+    const { error: saveError } = await supabase.rpc("update_vehicle_hotspots", {
+      target_vehicle_type_slug: normalizedVehicleTypeSlug,
+      hotspot_updates: updates,
+    });
+    if (saveError) throw saveError;
+
+    revalidatePath("/admin/vehicle-showcase");
+    revalidatePublicSite();
+  });
+}
+
+function escapeILikeTerm(term: string): string {
+  return term.replace(/[\\%_]/g, "\\\\$&");
+}
+
+// Kept as a Server Action (rather than importing a service-role query into a
+// Client Component) because product names/articles and assignment state are
+// admin-only lookup data. The final save validates again in case a result is
+// claimed by another admin between this search and submission.
+export async function searchAvailableHotspotProducts(
+  query: string,
+  currentHotspotId?: string
+): Promise<AdminAvailableProduct[]> {
+  await requireAdminSession();
+  const term = normalizeHotspotProductSearchQuery(query);
+  if (!term) return [];
+
+  const supabase = createAdminClient();
+  const pattern = `%${escapeILikeTerm(term)}%`;
+  const [{ data: nameMatches, error: nameError }, { data: articleMatches, error: articleError }] = await Promise.all([
+    supabase
+      .from("products")
+      .select("id, slug, name, article, published")
+      .eq("published", true)
+      .ilike("name", pattern)
+      .order("name")
+      .limit(HOTSPOT_PRODUCT_SEARCH_LIMIT),
+    supabase
+      .from("products")
+      .select("id, slug, name, article, published")
+      .eq("published", true)
+      .ilike("article", pattern)
+      .order("name")
+      .limit(HOTSPOT_PRODUCT_SEARCH_LIMIT),
+  ]);
+  if (nameError) throw nameError;
+  if (articleError) throw articleError;
+
+  const candidateIds = [...(nameMatches ?? []), ...(articleMatches ?? [])].map((product) => product.id);
+  const { data: assignments, error: assignmentsError } =
+    candidateIds.length > 0
+      ? await supabase.from("vehicle_hotspots").select("id, product_id").in("product_id", candidateIds)
+      : { data: [], error: null };
+  if (assignmentsError) throw assignmentsError;
+
+  return selectAvailableHotspotProducts({
+    nameMatches: (nameMatches ?? []) as Parameters<typeof selectAvailableHotspotProducts>[0]["nameMatches"],
+    articleMatches: (articleMatches ?? []) as Parameters<typeof selectAvailableHotspotProducts>[0]["articleMatches"],
+    assignments: (assignments ?? []) as Parameters<typeof selectAvailableHotspotProducts>[0]["assignments"],
+    currentHotspotId,
+    limit: HOTSPOT_PRODUCT_SEARCH_LIMIT,
+  });
 }

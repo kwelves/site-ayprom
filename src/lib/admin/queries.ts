@@ -186,6 +186,10 @@ export interface AdminProduct {
   vehicleTypes: string[];
   images: { id: string; url: string; order: number; scale: number | null }[];
   characteristics: { id: string; attribute: string; value: string; order: number }[];
+  /** Number of Special equipment hotspots currently showing this product.
+   * The product form uses it to warn before an unpublish operation clears
+   * those assignments in the database. */
+  hotspotCount: number;
 }
 
 const ADMIN_PRODUCT_SELECT = `
@@ -228,6 +232,12 @@ export async function getAdminProduct(slug: string): Promise<AdminProduct | null
   if (error) throw error;
   if (!data) return null;
 
+  const { count: hotspotCount, error: hotspotCountError } = await supabase
+    .from("vehicle_hotspots")
+    .select("id", { count: "exact", head: true })
+    .eq("product_id", data.id);
+  if (hotspotCountError) throw hotspotCountError;
+
   const row = data as unknown as AdminProductRow;
   return {
     id: row.id,
@@ -243,7 +253,64 @@ export async function getAdminProduct(slug: string): Promise<AdminProduct | null
     vehicleTypes: row.product_vehicle_types.map((pvt) => pvt.vehicle_type_slug),
     images: [...row.product_images].sort((a, b) => a.order - b.order),
     characteristics: [...row.product_characteristics].sort((a, b) => a.order - b.order),
+    hotspotCount: hotspotCount ?? 0,
   };
+}
+
+export interface AdminAvailableProduct {
+  id: string;
+  slug: string;
+  name: string;
+  article?: string;
+}
+
+export interface AdminVehicleHotspot {
+  id: string;
+  vehicleTypeSlug: string;
+  hotspotNumber: number;
+  label: string;
+  product: AdminAvailableProduct | null;
+}
+
+interface AdminVehicleHotspotRow {
+  id: string;
+  vehicle_type_slug: string;
+  hotspot_number: number;
+  label: string;
+  products: {
+    id: string;
+    slug: string;
+    name: string;
+    article: string | null;
+  } | null;
+}
+
+// The geometry and numbering of these rows are authored in migrations and
+// deliberately not exposed to this admin surface. It only reads the five
+// editable fields for a selected vehicle type.
+export async function getAdminVehicleHotspots(vehicleTypeSlug: string): Promise<AdminVehicleHotspot[]> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("vehicle_hotspots")
+    .select("id, vehicle_type_slug, hotspot_number, label, products(id, slug, name, article)")
+    .eq("vehicle_type_slug", vehicleTypeSlug)
+    .order("hotspot_number");
+  if (error) throw error;
+
+  return (data as unknown as AdminVehicleHotspotRow[]).map((row) => ({
+    id: row.id,
+    vehicleTypeSlug: row.vehicle_type_slug,
+    hotspotNumber: row.hotspot_number,
+    label: row.label,
+    product: row.products
+      ? {
+          id: row.products.id,
+          slug: row.products.slug,
+          name: row.products.name,
+          article: row.products.article ?? undefined,
+        }
+      : null,
+  }));
 }
 
 export interface AdminBrand {

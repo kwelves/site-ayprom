@@ -22,6 +22,7 @@ export const AUDIT_ENTITY_LABELS: Record<string, string> = {
   brands: "Бренды",
   category_brands: "Бренды категорий",
   vehicle_types: "Типы техники",
+  vehicle_hotspots: "Хотспоты спецтехники",
 };
 
 export function auditActionLabel(action: string): string {

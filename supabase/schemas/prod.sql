@@ -122,6 +122,23 @@ $$;
 ALTER FUNCTION "public"."record_admin_mutation"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."detach_vehicle_hotspots_from_unpublished_product"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    SET "search_path" TO ''
+    AS $$
+begin
+  update public.vehicle_hotspots
+  set product_id = null
+  where product_id = new.id;
+
+  return new;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."detach_vehicle_hotspots_from_unpublished_product"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."refresh_product_search_from_brand"() RETURNS "trigger"
     LANGUAGE "plpgsql"
     SET "search_path" TO ''
@@ -555,6 +572,157 @@ $$;
 
 
 ALTER FUNCTION "public"."reorder_category_brands"("target_category_slug" "text", "ordered_brand_slugs" "text"[]) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."update_vehicle_hotspots"("target_vehicle_type_slug" "text", "hotspot_updates" "jsonb") RETURNS "void"
+    LANGUAGE "plpgsql"
+    SET "search_path" TO ''
+    AS $$
+declare
+  target_hotspot_count integer;
+  submitted_count integer;
+  distinct_submitted_count integer;
+  matching_count integer;
+  blank_label_count integer;
+  duplicate_product_count integer;
+  invalid_product_count integer;
+  outside_assignment_count integer;
+begin
+  if nullif(btrim(target_vehicle_type_slug), '') is null then
+    raise exception 'Vehicle type is required' using errcode = 'P0001';
+  end if;
+
+  if jsonb_typeof(hotspot_updates) is distinct from 'array' then
+    raise exception 'Hotspot updates must be an array' using errcode = 'P0001';
+  end if;
+
+  perform 1
+  from public.vehicle_hotspots as hotspot
+  where hotspot.vehicle_type_slug = target_vehicle_type_slug
+  for update;
+
+  select count(*)
+  into target_hotspot_count
+  from public.vehicle_hotspots as hotspot
+  where hotspot.vehicle_type_slug = target_vehicle_type_slug;
+
+  if target_hotspot_count <> 5 then
+    raise exception 'Vehicle type must have exactly five hotspots' using errcode = 'P0001';
+  end if;
+
+  with submitted as (
+    select
+      (entry.value ->> 'id')::uuid as id,
+      entry.value ->> 'label' as label,
+      nullif(entry.value ->> 'productId', '')::uuid as product_id
+    from jsonb_array_elements(hotspot_updates) as entry(value)
+  )
+  select
+    count(*),
+    count(distinct submitted.id),
+    count(*) filter (where nullif(btrim(submitted.label), '') is null)
+  into submitted_count, distinct_submitted_count, blank_label_count
+  from submitted;
+
+  if submitted_count <> 5 or distinct_submitted_count <> 5 then
+    raise exception 'Exactly five distinct hotspot ids are required' using errcode = 'P0001';
+  end if;
+
+  if blank_label_count <> 0 then
+    raise exception 'Hotspot labels cannot be blank' using errcode = 'P0001';
+  end if;
+
+  with submitted as (
+    select (entry.value ->> 'id')::uuid as id
+    from jsonb_array_elements(hotspot_updates) as entry(value)
+  )
+  select count(*)
+  into matching_count
+  from public.vehicle_hotspots as hotspot
+  join submitted on submitted.id = hotspot.id
+  where hotspot.vehicle_type_slug = target_vehicle_type_slug;
+
+  if matching_count <> 5 then
+    raise exception 'Submitted hotspot ids must exactly match the selected vehicle type' using errcode = 'P0001';
+  end if;
+
+  with submitted as (
+    select nullif(entry.value ->> 'productId', '')::uuid as product_id
+    from jsonb_array_elements(hotspot_updates) as entry(value)
+  )
+  select count(*)
+  into duplicate_product_count
+  from (
+    select submitted.product_id
+    from submitted
+    where submitted.product_id is not null
+    group by submitted.product_id
+    having count(*) > 1
+  ) as duplicate_product;
+
+  if duplicate_product_count <> 0 then
+    raise exception 'A product may be assigned to only one hotspot' using errcode = 'P0001';
+  end if;
+
+  with submitted as (
+    select nullif(entry.value ->> 'productId', '')::uuid as product_id
+    from jsonb_array_elements(hotspot_updates) as entry(value)
+  )
+  select count(*)
+  into invalid_product_count
+  from submitted
+  left join public.products as product on product.id = submitted.product_id
+  where submitted.product_id is not null
+    and (product.id is null or product.published is false);
+
+  if invalid_product_count <> 0 then
+    raise exception 'Every selected product must be published' using errcode = 'P0001';
+  end if;
+
+  with submitted as (
+    select
+      (entry.value ->> 'id')::uuid as id,
+      nullif(entry.value ->> 'productId', '')::uuid as product_id
+    from jsonb_array_elements(hotspot_updates) as entry(value)
+  )
+  select count(*)
+  into outside_assignment_count
+  from public.vehicle_hotspots as assigned_hotspot
+  join submitted on submitted.product_id = assigned_hotspot.product_id
+  where assigned_hotspot.product_id is not null
+    and not exists (
+      select 1
+      from submitted as submitted_hotspot
+      where submitted_hotspot.id = assigned_hotspot.id
+    );
+
+  if outside_assignment_count <> 0 then
+    raise exception 'A selected product is already assigned to another hotspot' using errcode = 'P0001';
+  end if;
+
+  update public.vehicle_hotspots as hotspot
+  set product_id = null
+  where hotspot.vehicle_type_slug = target_vehicle_type_slug
+    and hotspot.product_id is not null;
+
+  with submitted as (
+    select
+      (entry.value ->> 'id')::uuid as id,
+      btrim(entry.value ->> 'label') as label,
+      nullif(entry.value ->> 'productId', '')::uuid as product_id
+    from jsonb_array_elements(hotspot_updates) as entry(value)
+  )
+  update public.vehicle_hotspots as hotspot
+  set
+    label = submitted.label,
+    product_id = submitted.product_id
+  from submitted
+  where hotspot.id = submitted.id;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."update_vehicle_hotspots"("target_vehicle_type_slug" "text", "hotspot_updates" "jsonb") OWNER TO "postgres";
 
 
 -- Пакетный импорт из CSV (админка, /admin/import). Каждая строка построчно
@@ -1007,10 +1175,11 @@ CREATE INDEX "vehicle_hotspots_vehicle_type_slug_idx" ON "public"."vehicle_hotsp
 
 
 
--- Второй внешний ключ без покрывающего индекса (unindexed_foreign_keys).
--- Здесь он ещё и функционально нужен: удаление товара каскадом чистит
--- vehicle_hotspots, а hotspot'ы читаются вместе с карточкой товара.
-CREATE INDEX "vehicle_hotspots_product_id_idx" ON "public"."vehicle_hotspots" USING "btree" ("product_id");
+-- Один товар закрепляется максимум за одной точкой. Исторические дубли
+-- очищаются детерминированно в миграции 20260815102954 до создания индекса;
+-- частичный индекс не индексирует заглушки (NULL), но покрывает все реальные
+-- product_id.
+CREATE UNIQUE INDEX "vehicle_hotspots_product_id_unique" ON "public"."vehicle_hotspots" USING "btree" ("product_id") WHERE ("product_id" IS NOT NULL);
 
 
 
@@ -1054,6 +1223,10 @@ CREATE OR REPLACE TRIGGER "audit_vehicle_types" AFTER INSERT OR DELETE OR UPDATE
 
 
 
+CREATE OR REPLACE TRIGGER "audit_vehicle_hotspots" AFTER INSERT OR DELETE OR UPDATE ON "public"."vehicle_hotspots" FOR EACH ROW EXECUTE FUNCTION "public"."record_admin_mutation"();
+
+
+
 CREATE OR REPLACE TRIGGER "brands_refresh_product_search_text" AFTER UPDATE OF "name", "aliases" ON "public"."brands" FOR EACH ROW EXECUTE FUNCTION "public"."refresh_product_search_from_brand"();
 
 
@@ -1071,6 +1244,10 @@ CREATE OR REPLACE TRIGGER "product_characteristics_refresh_search_text" AFTER IN
 
 
 CREATE OR REPLACE TRIGGER "products_refresh_search_text" AFTER INSERT OR UPDATE OF "name", "article", "short_description", "description", "category_slug", "subcategory_id" ON "public"."products" FOR EACH ROW EXECUTE FUNCTION "public"."refresh_product_search_from_product"();
+
+
+
+CREATE OR REPLACE TRIGGER "products_detach_vehicle_hotspots_when_unpublished" AFTER UPDATE OF "published" ON "public"."products" FOR EACH ROW WHEN ((("old"."published" IS TRUE) AND ("new"."published" IS FALSE))) EXECUTE FUNCTION "public"."detach_vehicle_hotspots_from_unpublished_product"();
 
 
 
@@ -1311,6 +1488,9 @@ GRANT ALL ON FUNCTION "public"."reorder_product_images"("ordered_ids" "uuid"[]) 
 
 REVOKE ALL ON FUNCTION "public"."reorder_category_brands"("target_category_slug" "text", "ordered_brand_slugs" "text"[]) FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."reorder_category_brands"("target_category_slug" "text", "ordered_brand_slugs" "text"[]) TO "service_role";
+
+REVOKE ALL ON FUNCTION "public"."update_vehicle_hotspots"("target_vehicle_type_slug" "text", "hotspot_updates" "jsonb") FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."update_vehicle_hotspots"("target_vehicle_type_slug" "text", "hotspot_updates" "jsonb") TO "service_role";
 
 REVOKE ALL ON FUNCTION "public"."import_products_batch"("rows" "jsonb") FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."import_products_batch"("rows" "jsonb") TO "service_role";

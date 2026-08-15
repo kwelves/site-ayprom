@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/admin/products", label: "Товары" },
+  { href: "/admin/vehicle-showcase", label: "Спецтехника" },
   { href: "/admin/brands", label: "Бренды" },
   { href: "/admin/vehicle-types", label: "Типы техники" },
   { href: "/admin/categories", label: "Категории" },

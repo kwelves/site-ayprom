@@ -4,6 +4,7 @@ import { auditActionLabel, auditEntityLabel, auditChangedFieldsLabel } from "@/l
 describe("auditEntityLabel", () => {
   it("переводит имя таблицы в термин админки", () => {
     expect(auditEntityLabel("product_characteristics")).toBe("Характеристики");
+    expect(auditEntityLabel("vehicle_hotspots")).toBe("Хотспоты спецтехники");
   });
 
   // Набор таблиц под аудитом задан триггерами в миграции и может измениться

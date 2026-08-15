@@ -54,6 +54,7 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
     (product?.characteristics ?? []).map((c) => ({ key: c.id, attribute: c.attribute, value: c.value }))
   );
   const [images, setImages] = useState(product?.images ?? []);
+  const [published, setPublished] = useState(product?.published ?? true);
   const [isUploading, setIsUploading] = useState(false);
   const [pendingPhotoCount, setPendingPhotoCount] = useState(0);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -309,12 +310,20 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
           <Input id="article" name="article" defaultValue={product?.article} />
         </FormField>
 
-        <Checkbox
-          id="published"
-          name="published"
-          label="Опубликован (виден на сайте)"
-          defaultChecked={product?.published ?? true}
-        />
+        <div>
+          <Checkbox
+            id="published"
+            name="published"
+            label="Опубликован (виден на сайте)"
+            checked={published}
+            onChange={(event) => setPublished(event.target.checked)}
+          />
+          {mode === "edit" && !published && (product?.hotspotCount ?? 0) > 0 && (
+            <p role="status" className="mt-2 rounded-md border border-warning-border bg-warning-surface px-3 py-2 text-sm text-warning">
+              Снятие с публикации отвяжет товар от {product!.hotspotCount} {product!.hotspotCount === 1 ? "хотспота" : "хотспотов"} в разделе «Спецтехника».
+            </p>
+          )}
+        </div>
 
         <div>
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Характеристики</h2>
