@@ -44,12 +44,15 @@ export function CategoryHoverGrid({ categories }: { categories: Category[] }) {
     if (!container) return;
     const containerRect = container.getBoundingClientRect();
     const cardRect = event.currentTarget.getBoundingClientRect();
+    // Подложка на 5px шире карточки с каждой стороны — сама карточка
+    // (её рамка и размер) при этом не трогается.
+    const overhang = 5;
     setHighlight({
       slug,
-      x: cardRect.left - containerRect.left,
-      y: cardRect.top - containerRect.top,
-      width: cardRect.width,
-      height: cardRect.height,
+      x: cardRect.left - containerRect.left - overhang,
+      y: cardRect.top - containerRect.top - overhang,
+      width: cardRect.width + overhang * 2,
+      height: cardRect.height + overhang * 2,
     });
   };
   const handlePointerLeave = (event: PointerEvent<HTMLAnchorElement>) => {
