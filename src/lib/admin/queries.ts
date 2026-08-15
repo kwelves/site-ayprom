@@ -14,6 +14,10 @@ export interface AdminProductListItem {
   name: string;
   categoryName: string;
   published: boolean;
+  /** Current number of Special equipment hotspots pinned to this product.
+   * The list uses it to require an explicit confirmation before an
+   * unpublish operation triggers automatic detachment. */
+  hotspotCount: number;
   order: number;
   coverImage: string | null;
 }
@@ -26,6 +30,7 @@ interface AdminProductListRow {
   order: number;
   categories: { name: string } | null;
   product_images: { url: string; order: number }[];
+  vehicle_hotspots: { id: string }[];
 }
 
 export interface AuditLogEntry {
@@ -135,7 +140,7 @@ export async function getAdminProducts(filters: AdminProductFilters = {}): Promi
 
   let query = supabase
     .from("products")
-    .select("id, slug, name, published, order, categories(name), product_images(url, order)", { count: "exact" })
+    .select("id, slug, name, published, order, categories(name), product_images(url, order), vehicle_hotspots(id)", { count: "exact" })
     .order("order")
     .range(from, from + pageSize - 1);
 
@@ -162,6 +167,7 @@ export async function getAdminProducts(filters: AdminProductFilters = {}): Promi
       name: row.name,
       categoryName: row.categories?.name ?? "—",
       published: row.published,
+      hotspotCount: row.vehicle_hotspots?.length ?? 0,
       order: row.order,
       coverImage: [...row.product_images].sort((a, b) => a.order - b.order)[0]?.url ?? null,
     })),

@@ -1,6 +1,6 @@
 begin;
 
-select plan(16);
+select plan(23);
 
 insert into public.products (
   slug, name, category_slug, short_description, article, published, "order"
@@ -118,14 +118,31 @@ select has_function(
   'batch hotspot update RPC exists'
 );
 
+select has_function(
+  'public',
+  'restore_vehicle_hotspots',
+  array['text', 'jsonb', 'jsonb'],
+  'versioned hotspot restore RPC exists'
+);
+
 select ok(
   has_function_privilege('service_role', 'public.update_vehicle_hotspots(text, jsonb)', 'EXECUTE'),
   'service role can execute the hotspot batch RPC'
 );
 
 select ok(
+  has_function_privilege('service_role', 'public.restore_vehicle_hotspots(text, jsonb, jsonb)', 'EXECUTE'),
+  'service role can execute the versioned hotspot restore RPC'
+);
+
+select ok(
   not has_function_privilege('anon', 'public.update_vehicle_hotspots(text, jsonb)', 'EXECUTE'),
   'anonymous users cannot execute the hotspot batch RPC'
+);
+
+select ok(
+  not has_function_privilege('anon', 'public.restore_vehicle_hotspots(text, jsonb, jsonb)', 'EXECUTE'),
+  'anonymous users cannot execute the versioned hotspot restore RPC'
 );
 
 set local role service_role;
@@ -178,6 +195,63 @@ select ok(
       and audit.changed_fields @> array['label', 'product_id']::text[]
   ),
   'direct hotspot edits are written to the audit log'
+);
+
+select lives_ok(
+  $$select public.restore_vehicle_hotspots(
+      'kran-manipulyator',
+      pg_temp.hotspot_updates(
+        'kran-manipulyator',
+        'Hydraulic tank updated',
+        'vehicle-showcase-test-available'
+      ),
+      pg_temp.hotspot_updates('kran-manipulyator', 'Hydraulic tank restored', null)
+    )$$,
+  'undo restores a matching saved snapshot'
+);
+
+select is(
+  (
+    select label
+    from public.vehicle_hotspots
+    where vehicle_type_slug = 'kran-manipulyator' and hotspot_number = 1
+  ),
+  'Hydraulic tank restored',
+  'undo restores the prior hotspot label'
+);
+
+select is(
+  (
+    select product_id
+    from public.vehicle_hotspots
+    where vehicle_type_slug = 'kran-manipulyator' and hotspot_number = 1
+  ),
+  null::uuid,
+  'undo restores the prior product assignment'
+);
+
+select throws_ok(
+  $$select public.restore_vehicle_hotspots(
+      'kran-manipulyator',
+      pg_temp.hotspot_updates(
+        'kran-manipulyator',
+        'Hydraulic tank updated',
+        'vehicle-showcase-test-available'
+      ),
+      pg_temp.hotspot_updates('kran-manipulyator', 'Hydraulic tank overwritten', null)
+    )$$,
+  'P0001',
+  'Hotspot state has changed since this batch was saved',
+  'stale undo does not overwrite another saved batch'
+);
+
+select public.update_vehicle_hotspots(
+  'kran-manipulyator',
+  pg_temp.hotspot_updates(
+    'kran-manipulyator',
+    'Hydraulic tank updated',
+    'vehicle-showcase-test-available'
+  )
 );
 
 select throws_ok(

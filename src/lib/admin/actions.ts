@@ -17,6 +17,13 @@ import { MAX_PRODUCT_IMAGES, validateProductImage } from "@/lib/admin/image-vali
 import type { CategoryIcon } from "@/types/catalog";
 import type { AdminAvailableProduct } from "@/lib/admin/queries";
 import { normalizeHotspotProductSearchQuery, selectAvailableHotspotProducts } from "@/lib/admin/hotspot-product-search";
+import {
+  HOTSPOTS_PER_VEHICLE,
+  parseSerializedVehicleHotspotUpdates,
+  parseVehicleHotspotUndoUpdates,
+  type VehicleHotspotActionState,
+  type VehicleHotspotUpdate,
+} from "@/lib/admin/vehicle-hotspot-updates";
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -383,7 +390,7 @@ export async function updateProduct(
 
   const { data: existing, error: findError } = await supabase
     .from("products")
-    .select("id")
+    .select("id, published")
     .eq("slug", slug)
     .maybeSingle();
   if (findError) throw findError;
@@ -401,7 +408,6 @@ export async function updateProduct(
       short_description: fields.shortDescription,
       description: fields.description,
       article: fields.article,
-      published: fields.published,
       updated_at: new Date().toISOString(),
     })
     .eq("id", existing.id);
@@ -447,6 +453,18 @@ export async function updateProduct(
     })(),
   ]);
 
+  // The unpublish trigger clears vehicle-showcase assignments. Publication is
+  // deliberately written only after every dependent relation succeeded, so a
+  // later relation failure cannot report an error while silently detaching a
+  // product from the public showcase.
+  if (existing.published !== fields.published) {
+    const { error: publicationError } = await supabase
+      .from("products")
+      .update({ published: fields.published, updated_at: new Date().toISOString() })
+      .eq("id", existing.id);
+    if (publicationError) throw publicationError;
+  }
+
   revalidatePath(`/admin/products/${slug}/edit`);
   revalidatePath("/admin/products");
   revalidatePublicSite();
@@ -491,10 +509,38 @@ export async function deleteProduct(slug: string): Promise<void> {
 // A quick from-the-list toggle for the products list's status pill — a
 // separate immediate action rather than routing through the full edit form,
 // same reasoning as reorderProducts/deleteProduct being their own actions.
-export async function toggleProductPublished(slug: string, published: boolean): Promise<void> {
+export async function toggleProductPublished(
+  slug: string,
+  published: boolean,
+  confirmedUnpublish = false,
+): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
-  const { error } = await supabase.from("products").update({ published }).eq("slug", slug);
+  const { data: product, error: findError } = await supabase
+    .from("products")
+    .select("id, published")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (findError) throw findError;
+  if (!product) throw new Error("Товар не найден или уже удалён.");
+
+  if (product.published && !published) {
+    const { count: hotspotCount, error: hotspotCountError } = await supabase
+      .from("vehicle_hotspots")
+      .select("id", { count: "exact", head: true })
+      .eq("product_id", product.id);
+    if (hotspotCountError) throw hotspotCountError;
+    if ((hotspotCount ?? 0) > 0 && !confirmedUnpublish) {
+      throw new Error(
+        `Подтвердите снятие с публикации: товар будет отвязан от ${hotspotCount} ${hotspotCount === 1 ? "хотспота" : "хотспотов"}.`,
+      );
+    }
+  }
+
+  const { error } = await supabase
+    .from("products")
+    .update({ published, updated_at: new Date().toISOString() })
+    .eq("id", product.id);
   if (error) throw error;
   revalidatePath("/admin/products");
   revalidatePath(`/admin/products/${slug}/edit`);
@@ -1318,14 +1364,7 @@ export async function reorderVehicleTypes(orderedSlugs: string[]): Promise<void>
   revalidatePublicSite();
 }
 
-const HOTSPOTS_PER_VEHICLE = 5;
 const HOTSPOT_PRODUCT_SEARCH_LIMIT = 8;
-
-interface VehicleHotspotFormUpdate {
-  id: string;
-  label: string;
-  productId: string | null;
-}
 
 interface VehicleHotspotRow {
   id: string;
@@ -1336,48 +1375,80 @@ interface HotspotProductRow {
   published: boolean;
 }
 
-function parseVehicleHotspotUpdates(formData: FormData): VehicleHotspotFormUpdate[] {
+function parseVehicleHotspotUpdates(formData: FormData): VehicleHotspotUpdate[] {
   const rawUpdates = formData.get("hotspots");
-  if (typeof rawUpdates !== "string") {
-    throw new Error("Не удалось прочитать изменения хотспотов.");
-  }
+  return parseSerializedVehicleHotspotUpdates(rawUpdates);
+}
 
-  let parsed: unknown;
+async function runVehicleHotspotAction(
+  fn: () => Promise<VehicleHotspotUpdate[]>,
+): Promise<VehicleHotspotActionState> {
   try {
-    parsed = JSON.parse(rawUpdates);
-  } catch {
-    throw new Error("Изменения хотспотов имеют неверный формат.");
+    const savedUpdates = await fn();
+    return { success: true, savedUpdates };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { error: getErrorMessage(error, "Не удалось сохранить изменения хотспотов.") };
   }
-  if (!Array.isArray(parsed) || parsed.length !== HOTSPOTS_PER_VEHICLE) {
-    throw new Error(`Нужно сохранить ровно ${HOTSPOTS_PER_VEHICLE} хотспотов.`);
+}
+
+async function persistVehicleHotspotUpdates(
+  vehicleTypeSlug: string,
+  updates: VehicleHotspotUpdate[],
+  expectedUpdates?: VehicleHotspotUpdate[],
+): Promise<VehicleHotspotUpdate[]> {
+  const normalizedVehicleTypeSlug = vehicleTypeSlug.trim();
+  if (!normalizedVehicleTypeSlug) throw new Error("Не выбран тип спецтехники.");
+
+  const supabase = createAdminClient();
+  const [{ data: hotspots, error: hotspotsError }, { data: vehicleType, error: vehicleTypeError }] = await Promise.all([
+    supabase.from("vehicle_hotspots").select("id").eq("vehicle_type_slug", normalizedVehicleTypeSlug),
+    supabase.from("vehicle_types").select("slug").eq("slug", normalizedVehicleTypeSlug).maybeSingle(),
+  ]);
+  if (hotspotsError) throw hotspotsError;
+  if (vehicleTypeError) throw vehicleTypeError;
+  if (!vehicleType) throw new Error("Тип спецтехники не найден.");
+
+  const hotspotIds = new Set((hotspots as VehicleHotspotRow[]).map((hotspot) => hotspot.id));
+  if (hotspotIds.size !== HOTSPOTS_PER_VEHICLE || updates.some((update) => !hotspotIds.has(update.id))) {
+    throw new Error("Можно изменять только пять хотспотов выбранной техники.");
   }
 
-  const updates = parsed.map((entry): VehicleHotspotFormUpdate => {
-    if (typeof entry !== "object" || entry === null) {
-      throw new Error("Одна из строк хотспота имеет неверный формат.");
-    }
-    const { id, label, productId } = entry as Record<string, unknown>;
-    if (typeof id !== "string" || !id || typeof label !== "string") {
-      throw new Error("У каждого хотспота должны быть идентификатор и название.");
-    }
-    if (productId !== null && (typeof productId !== "string" || !productId)) {
-      throw new Error("Товар хотспота имеет неверный формат.");
-    }
-
-    const normalizedLabel = label.trim();
-    if (!normalizedLabel) {
-      throw new Error("Заполните названия всех хотспотов.");
-    }
-    return { id, label: normalizedLabel, productId };
-  });
-
-  if (new Set(updates.map((update) => update.id)).size !== updates.length) {
-    throw new Error("Один и тот же хотспот передан несколько раз.");
-  }
   const productIds = updates.flatMap((update) => (update.productId ? [update.productId] : []));
-  if (new Set(productIds).size !== productIds.length) {
-    throw new Error("Один товар нельзя закрепить за несколькими хотспотами.");
+  if (productIds.length > 0) {
+    const { data: products, error: productsError } = await supabase
+      .from("products")
+      .select("id, published")
+      .in("id", productIds);
+    if (productsError) throw productsError;
+    const productsById = new Map((products as HotspotProductRow[]).map((product) => [product.id, product]));
+    if (
+      productsById.size !== productIds.length ||
+      productIds.some((productId) => productsById.get(productId)?.published !== true)
+    ) {
+      throw new Error("Закрепить можно только существующий опубликованный товар.");
+    }
   }
+
+  const { error: saveError } = expectedUpdates
+    ? await supabase.rpc("restore_vehicle_hotspots", {
+        target_vehicle_type_slug: normalizedVehicleTypeSlug,
+        expected_hotspot_updates: expectedUpdates,
+        prior_hotspot_updates: updates,
+      })
+    : await supabase.rpc("update_vehicle_hotspots", {
+        target_vehicle_type_slug: normalizedVehicleTypeSlug,
+        hotspot_updates: updates,
+      });
+  if (saveError) {
+    if (expectedUpdates && saveError.message === "Hotspot state has changed since this batch was saved") {
+      throw new Error("Данные хотспотов изменены другим администратором. Обновите страницу и повторите действие.");
+    }
+    throw saveError;
+  }
+
+  revalidatePath("/admin/vehicle-showcase");
+  revalidatePublicSite();
   return updates;
 }
 
@@ -1387,53 +1458,34 @@ function parseVehicleHotspotUpdates(formData: FormData): VehicleHotspotFormUpdat
 // transaction and closes the gap between validation and assignment.
 export async function saveVehicleHotspots(
   vehicleTypeSlug: string,
-  _prevState: FormActionState,
+  _prevState: VehicleHotspotActionState,
   formData: FormData
-): Promise<FormActionState> {
-  return runFormAction(async () => {
+): Promise<VehicleHotspotActionState> {
+  return runVehicleHotspotAction(async () => {
     await requireAdminSession();
-    const normalizedVehicleTypeSlug = vehicleTypeSlug.trim();
-    if (!normalizedVehicleTypeSlug) throw new Error("Не выбран тип спецтехники.");
-
     const updates = parseVehicleHotspotUpdates(formData);
-    const supabase = createAdminClient();
-    const [{ data: hotspots, error: hotspotsError }, { data: vehicleType, error: vehicleTypeError }] = await Promise.all([
-      supabase.from("vehicle_hotspots").select("id").eq("vehicle_type_slug", normalizedVehicleTypeSlug),
-      supabase.from("vehicle_types").select("slug").eq("slug", normalizedVehicleTypeSlug).maybeSingle(),
-    ]);
-    if (hotspotsError) throw hotspotsError;
-    if (vehicleTypeError) throw vehicleTypeError;
-    if (!vehicleType) throw new Error("Тип спецтехники не найден.");
+    return persistVehicleHotspotUpdates(vehicleTypeSlug, updates);
+  });
+}
 
-    const hotspotIds = new Set((hotspots as VehicleHotspotRow[]).map((hotspot) => hotspot.id));
-    if (hotspotIds.size !== HOTSPOTS_PER_VEHICLE || updates.some((update) => !hotspotIds.has(update.id))) {
-      throw new Error("Можно изменять только пять хотспотов выбранной техники.");
+// Undo is a direct Client Component invocation, not a form post. The snapshot
+// is therefore untrusted serialized input and goes through the exact same
+// parser, product validation, transactional RPC, and cache invalidation as a
+// normal save. If another admin claimed a product or it was unpublished in the
+// meantime, the final RPC rejects the restore without partially changing rows.
+export async function restoreVehicleHotspots(
+  vehicleTypeSlug: string,
+  priorUpdates: unknown,
+  expectedSavedUpdates?: unknown,
+): Promise<VehicleHotspotActionState> {
+  return runVehicleHotspotAction(async () => {
+    await requireAdminSession();
+    const updates = parseVehicleHotspotUndoUpdates(priorUpdates);
+    if (expectedSavedUpdates === undefined) {
+      throw new Error("Не удалось подтвердить актуальность сохранённых данных. Обновите страницу и повторите действие.");
     }
-
-    const productIds = updates.flatMap((update) => (update.productId ? [update.productId] : []));
-    if (productIds.length > 0) {
-      const { data: products, error: productsError } = await supabase
-        .from("products")
-        .select("id, published")
-        .in("id", productIds);
-      if (productsError) throw productsError;
-      const productsById = new Map((products as HotspotProductRow[]).map((product) => [product.id, product]));
-      if (
-        productsById.size !== productIds.length ||
-        productIds.some((productId) => productsById.get(productId)?.published !== true)
-      ) {
-        throw new Error("Закрепить можно только существующий опубликованный товар.");
-      }
-    }
-
-    const { error: saveError } = await supabase.rpc("update_vehicle_hotspots", {
-      target_vehicle_type_slug: normalizedVehicleTypeSlug,
-      hotspot_updates: updates,
-    });
-    if (saveError) throw saveError;
-
-    revalidatePath("/admin/vehicle-showcase");
-    revalidatePublicSite();
+    const expectedUpdates = parseVehicleHotspotUndoUpdates(expectedSavedUpdates);
+    return persistVehicleHotspotUpdates(vehicleTypeSlug, updates, expectedUpdates);
   });
 }
 

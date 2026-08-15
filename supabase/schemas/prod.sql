@@ -725,6 +725,71 @@ $$;
 ALTER FUNCTION "public"."update_vehicle_hotspots"("target_vehicle_type_slug" "text", "hotspot_updates" "jsonb") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."restore_vehicle_hotspots"("target_vehicle_type_slug" "text", "expected_hotspot_updates" "jsonb", "prior_hotspot_updates" "jsonb") RETURNS "void"
+    LANGUAGE "plpgsql"
+    SET "search_path" TO ''
+    AS $$
+declare
+  expected_count integer;
+  distinct_expected_count integer;
+  matching_count integer;
+begin
+  if nullif(btrim(target_vehicle_type_slug), '') is null then
+    raise exception 'Vehicle type is required' using errcode = 'P0001';
+  end if;
+
+  if jsonb_typeof(expected_hotspot_updates) is distinct from 'array' then
+    raise exception 'Expected hotspot updates must be an array' using errcode = 'P0001';
+  end if;
+
+  perform 1
+  from public.vehicle_hotspots as hotspot
+  where hotspot.vehicle_type_slug = target_vehicle_type_slug
+  for update;
+
+  with expected as (
+    select
+      (entry.value ->> 'id')::uuid as id,
+      entry.value ->> 'label' as label,
+      nullif(entry.value ->> 'productId', '')::uuid as product_id
+    from jsonb_array_elements(expected_hotspot_updates) as entry(value)
+  )
+  select count(*), count(distinct expected.id)
+  into expected_count, distinct_expected_count
+  from expected;
+
+  if expected_count <> 5 or distinct_expected_count <> 5 then
+    raise exception 'Expected hotspot snapshot must contain exactly five distinct rows' using errcode = 'P0001';
+  end if;
+
+  with expected as (
+    select
+      (entry.value ->> 'id')::uuid as id,
+      entry.value ->> 'label' as label,
+      nullif(entry.value ->> 'productId', '')::uuid as product_id
+    from jsonb_array_elements(expected_hotspot_updates) as entry(value)
+  )
+  select count(*)
+  into matching_count
+  from public.vehicle_hotspots as hotspot
+  join expected
+    on expected.id = hotspot.id
+    and expected.label = hotspot.label
+    and expected.product_id is not distinct from hotspot.product_id
+  where hotspot.vehicle_type_slug = target_vehicle_type_slug;
+
+  if matching_count <> 5 then
+    raise exception 'Hotspot state has changed since this batch was saved' using errcode = 'P0001';
+  end if;
+
+  perform public.update_vehicle_hotspots(target_vehicle_type_slug, prior_hotspot_updates);
+end;
+$$;
+
+
+ALTER FUNCTION "public"."restore_vehicle_hotspots"("target_vehicle_type_slug" "text", "expected_hotspot_updates" "jsonb", "prior_hotspot_updates" "jsonb") OWNER TO "postgres";
+
+
 -- Пакетный импорт из CSV (админка, /admin/import). Каждая строка построчно
 -- изолирована собственным EXCEPTION-блоком: одна некорректная строка не
 -- откатывает весь пакет и не прерывает остальные — вместо этого попадает в
@@ -1491,6 +1556,9 @@ GRANT ALL ON FUNCTION "public"."reorder_category_brands"("target_category_slug" 
 
 REVOKE ALL ON FUNCTION "public"."update_vehicle_hotspots"("target_vehicle_type_slug" "text", "hotspot_updates" "jsonb") FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."update_vehicle_hotspots"("target_vehicle_type_slug" "text", "hotspot_updates" "jsonb") TO "service_role";
+
+REVOKE ALL ON FUNCTION "public"."restore_vehicle_hotspots"("target_vehicle_type_slug" "text", "expected_hotspot_updates" "jsonb", "prior_hotspot_updates" "jsonb") FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."restore_vehicle_hotspots"("target_vehicle_type_slug" "text", "expected_hotspot_updates" "jsonb", "prior_hotspot_updates" "jsonb") TO "service_role";
 
 REVOKE ALL ON FUNCTION "public"."import_products_batch"("rows" "jsonb") FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."import_products_batch"("rows" "jsonb") TO "service_role";
