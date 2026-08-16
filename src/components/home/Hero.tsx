@@ -86,6 +86,11 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
           <source
             src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/site-media/hero/2026-08-16-hq/hero-background-desktop.mp4`}
             type="video/mp4"
+            media="(min-width: 2560px)"
+          />
+          <source
+            src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/site-media/hero/2026-08-16-balanced/hero-background-desktop.mp4`}
+            type="video/mp4"
           />
         </video>
         {/* Directional gradient instead of a flat overlay: the top of the video
