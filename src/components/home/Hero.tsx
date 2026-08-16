@@ -20,8 +20,13 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const recoveryTimerRef = useRef<number | null>(null);
   const recoveryAttemptsRef = useRef(0);
+  const playbackAttemptRef = useRef<Promise<void> | null>(null);
+  const playbackResyncAfterAttemptRef = useRef(false);
+  const syncVideoPlaybackRef = useRef<() => void>(() => undefined);
+  const heroIsVisibleRef = useRef(true);
+  const pageIsHiddenRef = useRef(false);
+  const videoFailedRef = useRef(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
-  const [videoFailed, setVideoFailed] = useState(false);
   const prefersReducedMotion = useReducedMotion();
   const { revealVideo, revealHeader, contentVisible } = useHomeEntrySequence();
 
@@ -33,20 +38,75 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
     if ((videoRef.current?.readyState ?? 0) >= 2) setVideoLoaded(true);
   }, []);
 
-  const recoverVideo = useCallback(() => {
-    if (recoveryAttemptsRef.current >= MAX_VIDEO_RECOVERY_ATTEMPTS) return;
+  // The video is useful only while its section is on screen. Keep that state
+  // in refs so every browser lifecycle event makes the same decision without
+  // recreating observers or leaving a stale `videoFailed` closure behind.
+  const isHeroPlaybackContextActive = useCallback(
+    () => document.visibilityState === "visible" && heroIsVisibleRef.current && !pageIsHiddenRef.current,
+    [],
+  );
+
+  const canPlayVideo = useCallback(
+    () => isHeroPlaybackContextActive() && !videoFailedRef.current,
+    [isHeroPlaybackContextActive],
+  );
+
+  const syncVideoPlayback = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
 
+    if (!canPlayVideo()) {
+      video.pause();
+      return;
+    }
+
+    // `play()` is asynchronous. Do not stack calls while a source is loading:
+    // repeated play/pause pairs are a common source of AbortError noise and a
+    // visibly stalled first frame when returning to the tab.
+    if (!video.paused) return;
+
+    if (playbackAttemptRef.current !== null) {
+      // `play()` can reject after a lifecycle pause. If the tab or BFCache
+      // page returns before that promise settles, remember one contextual
+      // retry so the visible video cannot remain paused behind a stale
+      // in-flight attempt. The flag is consumed before the retry starts,
+      // which prevents a rejected retry from looping indefinitely.
+      playbackResyncAfterAttemptRef.current = true;
+      return;
+    }
+
+    const playbackAttempt = video.play();
+    playbackAttemptRef.current = playbackAttempt;
+    void playbackAttempt.catch(() => undefined).finally(() => {
+      if (playbackAttemptRef.current !== playbackAttempt) return;
+
+      playbackAttemptRef.current = null;
+      if (!playbackResyncAfterAttemptRef.current) return;
+
+      playbackResyncAfterAttemptRef.current = false;
+      // Use the latest callback rather than closing over this callback in
+      // itself. The explicit one-time flag above avoids recursive retries.
+      syncVideoPlaybackRef.current();
+    });
+  }, [canPlayVideo]);
+
+  useEffect(() => {
+    syncVideoPlaybackRef.current = syncVideoPlayback;
+  }, [syncVideoPlayback]);
+
+  const recoverVideo = useCallback(() => {
+    if (recoveryAttemptsRef.current >= MAX_VIDEO_RECOVERY_ATTEMPTS) return;
+    const video = videoRef.current;
+    if (!video || !isHeroPlaybackContextActive()) return;
+
     recoveryAttemptsRef.current += 1;
-    setVideoFailed(false);
+    videoFailedRef.current = false;
     video.load();
-    void video.play().catch(() => undefined);
-  }, []);
+  }, [isHeroPlaybackContextActive]);
 
   const handleVideoError = useCallback(() => {
     setVideoLoaded(false);
-    setVideoFailed(true);
+    videoFailedRef.current = true;
     // A missing stream must never keep navigation or the page inaccessible.
     // There is intentionally no poster: the inverse base remains in place
     // while one bounded, low-pressure recovery attempt is made.
@@ -59,20 +119,9 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
     }, prefersReducedMotion ? 0 : VIDEO_RECOVERY_DELAY_MS);
   }, [prefersReducedMotion, recoverVideo, revealHeader]);
 
-  useEffect(() => {
-    const recoverWhenVisible = () => {
-      if (document.visibilityState === "visible" && videoFailed) recoverVideo();
-    };
-
-    document.addEventListener("visibilitychange", recoverWhenVisible);
-    return () => {
-      document.removeEventListener("visibilitychange", recoverWhenVisible);
-    };
-  }, [recoverVideo, videoFailed]);
-
-  // Keep the bounded retry alive when `videoFailed` changes. The visibility
-  // listener above intentionally re-subscribes to that state; clearing the
-  // timer from its cleanup would otherwise cancel the just-scheduled retry.
+  // Clear only on unmount. Lifecycle listeners are stable, so an error-driven
+  // retry remains scheduled until it runs or a recovered `loadeddata` cancels
+  // it.
   useEffect(
     () => () => {
       if (recoveryTimerRef.current !== null) window.clearTimeout(recoveryTimerRef.current);
@@ -109,28 +158,54 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
   }, [prefersReducedMotion, revealHeader, revealVideo, videoLoaded]);
 
   // The backdrop is fixed, but it does not need to keep decoding beneath the
-  // rest of the page. Pause it as soon as Hero leaves the viewport so this
-  // video and lower section backgrounds never compete for playback resources.
+  // rest of the page. A single gate handles document visibility, BFCache
+  // restoration, and Hero intersection so the video resumes promptly only
+  // when a person can see it.
   useEffect(() => {
     const section = sectionRef.current;
-    const video = videoRef.current;
+    if (!section) return;
 
-    if (!section || !video || prefersReducedMotion) return;
+    const recoverOrSyncPlayback = () => {
+      if (isHeroPlaybackContextActive() && videoFailedRef.current) {
+        recoverVideo();
+      } else {
+        syncVideoPlayback();
+      }
+    };
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) {
-          void video.play().catch(() => undefined);
-        } else {
-          video.pause();
-        }
+        heroIsVisibleRef.current = entry.isIntersecting;
+        recoverOrSyncPlayback();
       },
-      { threshold: 0.05 },
+      // A frame must keep playing until the Hero is actually gone. This
+      // prevents a briefly visible final strip of video from looking frozen.
+      { threshold: 0 },
     );
 
+    const pauseForPageHide = () => {
+      pageIsHiddenRef.current = true;
+      videoRef.current?.pause();
+    };
+
+    const resumeAfterPageShow = () => {
+      pageIsHiddenRef.current = false;
+      recoverOrSyncPlayback();
+    };
+
     observer.observe(section);
-    return () => observer.disconnect();
-  }, [prefersReducedMotion]);
+    document.addEventListener("visibilitychange", recoverOrSyncPlayback);
+    window.addEventListener("pageshow", resumeAfterPageShow);
+    window.addEventListener("pagehide", pauseForPageHide);
+    syncVideoPlayback();
+
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", recoverOrSyncPlayback);
+      window.removeEventListener("pageshow", resumeAfterPageShow);
+      window.removeEventListener("pagehide", pauseForPageHide);
+    };
+  }, [isHeroPlaybackContextActive, recoverVideo, syncVideoPlayback]);
 
   // Not a plain scrollIntoView({block: "start"}) — that aligns the next
   // section's top edge with the very top of the viewport, but the sticky
@@ -163,8 +238,10 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
               window.clearTimeout(recoveryTimerRef.current);
               recoveryTimerRef.current = null;
             }
-            setVideoFailed(false);
+            videoFailedRef.current = false;
+            recoveryAttemptsRef.current = 0;
             setVideoLoaded(true);
+            syncVideoPlayback();
           }}
           // There is intentionally no static poster. If the CDN stream fails,
           // do not leave navigation and content inaccessible behind a blank
