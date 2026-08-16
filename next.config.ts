@@ -8,7 +8,7 @@ const contentSecurityPolicy = [
   `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
   `img-src 'self' data: blob: ${supabaseUrl.origin}`,
-  "media-src 'self'",
+  `media-src 'self' ${supabaseUrl.origin}`,
   // https://*.sentry.io covers every regional ingest host without needing to
   // hardcode the org-specific subdomain baked into the DSN.
   `connect-src 'self' ${supabaseUrl.origin} https://*.sentry.io`,

@@ -64,34 +64,30 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
     <section ref={sectionRef} className="relative flex min-h-[calc(100dvh-4rem)] items-end">
       {/* Fixed backdrop: the video stays pinned to the viewport while the page scrolls over it */}
       <div className="fixed inset-x-0 top-0 -z-10 h-dvh bg-inverse">
-        {prefersReducedMotion ? (
-          <div
-            className="h-full w-full bg-cover bg-center"
-            style={{ backgroundImage: "url('/images/under-hero-photo.webp')" }}
+        <video
+          ref={videoRef}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          onLoadedData={() => setVideoLoaded(true)}
+          // The hero intentionally has no static poster: it begins on the
+          // first decoded frame of the streamed video. `loadeddata` fires
+          // earlier than `canplay`, so a valid CDN stream becomes visible
+          // without waiting for a larger playback buffer.
+          className={`h-full w-full object-cover transition-opacity duration-1000 ${videoLoaded ? "opacity-100" : "opacity-0"}`}
+        >
+          <source
+            src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/site-media/hero/2026-08-16/hero-background-mobile.mp4`}
+            type="video/mp4"
+            media="(max-width: 767px)"
           />
-        ) : (
-          <video
-            ref={videoRef}
-            poster="/images/under-hero-photo.webp"
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            onCanPlay={() => setVideoLoaded(true)}
-            // Единственная длительность вне токенов, намеренно: это не отклик
-            // интерфейса, а проявление фона поверх постера — короткий токен
-            // превратил бы его в заметный скачок яркости.
-            className={`h-full w-full object-cover transition-opacity duration-1000 ${videoLoaded ? "opacity-100" : "opacity-0"}`}
-          >
-            <source
-              src="/videos/hero-background-mobile.mp4"
-              type="video/mp4"
-              media="(max-width: 767px)"
-            />
-            <source src="/videos/hero-background-desktop.mp4" type="video/mp4" />
-          </video>
-        )}
+          <source
+            src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/site-media/hero/2026-08-16/hero-background-desktop.mp4`}
+            type="video/mp4"
+          />
+        </video>
         {/* Directional gradient instead of a flat overlay: the top of the video
             stays bright (sky, the truck itself), darkening only toward the
             bottom where the text sits — guarantees contrast there regardless
