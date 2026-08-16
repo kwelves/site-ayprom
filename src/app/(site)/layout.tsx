@@ -10,6 +10,7 @@ import { getCategories } from "@/lib/queries/categories";
 import { getBrands } from "@/lib/queries/brands";
 import { StructuredData } from "@/components/seo/StructuredData";
 import { MotionPreferences } from "@/components/motion/MotionPreferences";
+import { HomeEntrySequence } from "@/components/home/HomeEntrySequence";
 import { getSiteUrl } from "@/lib/site-url";
 import "../globals.css";
 
@@ -56,6 +57,7 @@ export default async function RootLayout({
           Перейти к содержимому
         </a>
         <MotionPreferences>
+        <HomeEntrySequence>
         <StructuredData
           data={{
             "@context": "https://schema.org",
@@ -78,6 +80,7 @@ export default async function RootLayout({
         <main id="main-content" className="flex-1" tabIndex={-1}>{children}</main>
         <Footer categories={categories} brands={brands} />
         <WhatsAppBadge />
+        </HomeEntrySequence>
         </MotionPreferences>
         <SpeedInsights />
       </body>

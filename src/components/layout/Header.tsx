@@ -14,6 +14,7 @@ import { useScroll } from "@/lib/use-scroll";
 import { useHashNavClick } from "@/lib/use-hash-nav-click";
 import { DURATION, EASE_UI, EASE_UI_IN_OUT } from "@/lib/motion";
 import { cn } from "@/lib/utils";
+import { useHomeEntrySequence } from "@/components/home/HomeEntrySequence";
 import type { Brand, Category } from "@/types/catalog";
 
 export function Header({ categories, brands }: { categories: Category[]; brands: Brand[] }) {
@@ -28,6 +29,7 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
   const pathname = usePathname();
   const handleHashClick = useHashNavClick();
   const mainNav = buildMainNav(categories, brands);
+  const { headerVisible } = useHomeEntrySequence();
 
   // Closes the whole mobile menu and, in the same breath, whatever
   // dropdown was expanded inside it — used everywhere the panel closes
@@ -85,8 +87,11 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
 
   return (
     <header
+      aria-hidden={!headerVisible}
+      inert={!headerVisible}
       className={cn(
-        "sticky top-0 z-50 w-full border-b border-transparent transition-[background-color,backdrop-filter,border-color] duration-base ease-ui",
+        "sticky top-0 z-50 w-full border-b border-transparent transition-[opacity,translate,background-color,backdrop-filter,border-color] duration-base ease-ui",
+        headerVisible ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0",
         overPhoto ? "bg-transparent" : pathname === "/" ? undefined : "bg-muted",
         scrolled && "border-border bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60",
         !scrolled && open && "bg-background"

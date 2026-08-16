@@ -7,6 +7,8 @@ import { useReducedMotion } from "framer-motion";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { useHashNavClick } from "@/lib/use-hash-nav-click";
+import { useHomeEntrySequence } from "@/components/home/HomeEntrySequence";
+import { DURATION } from "@/lib/motion";
 import type { VehicleType } from "@/types/catalog";
 
 export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
@@ -15,6 +17,7 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoLoaded, setVideoLoaded] = useState(false);
   const prefersReducedMotion = useReducedMotion();
+  const { revealHeader, contentVisible } = useHomeEntrySequence();
 
   // The video can reach readyState >= 3 (autoplay starts) before React
   // hydrates and attaches onCanPlay, so that event fires on the bare DOM
@@ -22,6 +25,15 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
   useEffect(() => {
     if (!prefersReducedMotion && (videoRef.current?.readyState ?? 0) >= 3) setVideoLoaded(true);
   }, [prefersReducedMotion]);
+
+  // A real decoded frame, not merely the request start, opens the first-view
+  // sequence. Give that frame one fast composited beat to become perceptible,
+  // then reveal the header; the provider reveals the rest after the header.
+  useEffect(() => {
+    if (!videoLoaded) return;
+    const timer = window.setTimeout(revealHeader, prefersReducedMotion ? 0 : DURATION.fast * 1000);
+    return () => window.clearTimeout(timer);
+  }, [prefersReducedMotion, revealHeader, videoLoaded]);
 
   // The backdrop is fixed, but it does not need to keep decoding beneath the
   // rest of the page. Pause it as soon as Hero leaves the viewport so this
@@ -72,6 +84,10 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
           playsInline
           preload="metadata"
           onLoadedData={() => setVideoLoaded(true)}
+          // There is intentionally no static poster. If the CDN stream fails,
+          // do not leave navigation and content inaccessible behind a blank
+          // video layer; the site can still be used while the browser retries.
+          onError={revealHeader}
           // The hero intentionally has no static poster: it begins on the
           // first decoded frame of the streamed video. `loadeddata` fires
           // earlier than `canplay`, so a valid CDN stream becomes visible
@@ -112,8 +128,11 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
           загрузка и исполнение JS, и лишь потом появление. Класс же работает
           с первого отрисованного кадра. Задержки заменяют каскад вариантов,
           `prefers-reduced-motion` глушится общим правилом в globals.css. */}
-      <Container className="pb-24 sm:pb-28 lg:pb-32">
-        <div className="max-w-2xl">
+      <Container
+        aria-hidden={!contentVisible}
+        className={`pb-24 transition-[opacity,translate] duration-reveal ease-ui sm:pb-28 lg:pb-32 ${contentVisible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-2 opacity-0"}`}
+      >
+        <div inert={!contentVisible} className="max-w-2xl">
           <h1 className="animate-fade-up text-shadow-md text-balance text-3xl font-bold tracking-tight text-inverse-foreground sm:text-4xl lg:text-5xl">
             Каталог гидрооборудования и запчастей для спецтехники
           </h1>
@@ -184,7 +203,11 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
           главная, в том числе когда первый экран уже прокручен. Обёртка нужна,
           чтобы центрирование (`-translate-x-1/2`) и анимация не спорили за
           свойство `translate`. */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+      <div
+        aria-hidden={!contentVisible}
+        inert={!contentVisible}
+        className={`absolute bottom-4 left-1/2 -translate-x-1/2 transition-[opacity,translate] duration-reveal ease-ui ${contentVisible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-2 opacity-0"}`}
+      >
         <button
           type="button"
           onClick={scrollToNextSection}

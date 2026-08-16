@@ -10,6 +10,7 @@ import { Connector } from "./Connector";
 import { useContainRect } from "./useContainRect";
 import { buildConnectorPaths, buildVerticalConnectorPath, type ConnectorPaths, type Rect } from "./connector-geometry";
 import type { VehicleShowcaseEntry } from "@/lib/queries/vehicle-hotspots";
+import { DURATION } from "@/lib/motion";
 
 export interface VehicleVisual {
   image: string;
@@ -142,6 +143,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
   const [isCardRevealed, setIsCardRevealed] = useState(false);
   const [entered, setEntered] = useState(false);
   const [revealed, setRevealed] = useState(false);
+  const [vehicleImageLoaded, setVehicleImageLoaded] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [connectorPaths, setConnectorPaths] = useState<ConnectorPaths | null>(null);
   const [verticalPath, setVerticalPath] = useState<{ stem: string; terminal: { x: number; y: number } } | null>(null);
@@ -178,10 +180,13 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
   }, []);
 
   useEffect(() => {
-    if (!entered) return;
-    const timer = setTimeout(() => setRevealed(true), shouldReduceMotion ? 0 : 700);
+    if (!entered || !vehicleImageLoaded) return;
+    // Hotspots must never race ahead of the vehicle image. Their existing
+    // cascade, connector, card and carousel animations stay untouched; this
+    // only waits until the physical vehicle is actually ready to read first.
+    const timer = setTimeout(() => setRevealed(true), shouldReduceMotion ? 0 : DURATION.base * 1000);
     return () => clearTimeout(timer);
-  }, [entered, shouldReduceMotion]);
+  }, [entered, shouldReduceMotion, vehicleImageLoaded]);
 
   const clearConnector = () => {
     setConnectorPaths(null);
@@ -283,6 +288,8 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
           height={Math.round(containRect.height)}
           sizes="(max-width: 1023px) 90vw, 55vw"
           priority
+          onLoad={() => setVehicleImageLoaded(true)}
+          onError={() => setVehicleImageLoaded(true)}
           className="pointer-events-none absolute max-w-none"
           style={{ left: containRect.left, top: containRect.top, width: containRect.width, height: containRect.height }}
         />
