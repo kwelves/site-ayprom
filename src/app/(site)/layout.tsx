@@ -50,12 +50,6 @@ export default async function RootLayout({
   return (
     <html lang="ru" className={`${geistSans.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col bg-background text-foreground">
-        <a
-          href="#main-content"
-          className="fixed left-3 top-3 z-[100] -translate-y-24 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-lg transition-transform focus-visible:translate-y-0"
-        >
-          Перейти к содержимому
-        </a>
         <MotionPreferences>
         <HomeEntrySequence>
         <StructuredData

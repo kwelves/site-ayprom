@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Search, ChevronDown } from "lucide-react";
 import { useReducedMotion } from "framer-motion";
@@ -11,29 +11,102 @@ import { useHomeEntrySequence } from "@/components/home/HomeEntrySequence";
 import { DURATION } from "@/lib/motion";
 import type { VehicleType } from "@/types/catalog";
 
+const VIDEO_RECOVERY_DELAY_MS = 1_000;
+const MAX_VIDEO_RECOVERY_ATTEMPTS = 1;
+
 export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
   const handleHashClick = useHashNavClick();
   const sectionRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const recoveryTimerRef = useRef<number | null>(null);
+  const recoveryAttemptsRef = useRef(0);
   const [videoLoaded, setVideoLoaded] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
   const prefersReducedMotion = useReducedMotion();
-  const { revealHeader, contentVisible } = useHomeEntrySequence();
+  const { revealVideo, revealHeader, contentVisible } = useHomeEntrySequence();
 
-  // The video can reach readyState >= 3 (autoplay starts) before React
-  // hydrates and attaches onCanPlay, so that event fires on the bare DOM
-  // node and never reaches our handler — check on mount as a fallback.
+  // `loadeddata` can fire before React hydrates and attaches its handler.
+  // HAVE_CURRENT_DATA (2) is already a decoded current frame, which is the
+  // exact readiness criterion for the boot overlay — do not wait for the
+  // larger playback buffer at readyState 3 on a warm repeat visit.
   useEffect(() => {
-    if (!prefersReducedMotion && (videoRef.current?.readyState ?? 0) >= 3) setVideoLoaded(true);
-  }, [prefersReducedMotion]);
+    if ((videoRef.current?.readyState ?? 0) >= 2) setVideoLoaded(true);
+  }, []);
+
+  const recoverVideo = useCallback(() => {
+    if (recoveryAttemptsRef.current >= MAX_VIDEO_RECOVERY_ATTEMPTS) return;
+    const video = videoRef.current;
+    if (!video) return;
+
+    recoveryAttemptsRef.current += 1;
+    setVideoFailed(false);
+    video.load();
+    void video.play().catch(() => undefined);
+  }, []);
+
+  const handleVideoError = useCallback(() => {
+    setVideoLoaded(false);
+    setVideoFailed(true);
+    // A missing stream must never keep navigation or the page inaccessible.
+    // There is intentionally no poster: the inverse base remains in place
+    // while one bounded, low-pressure recovery attempt is made.
+    revealHeader();
+
+    if (recoveryAttemptsRef.current >= MAX_VIDEO_RECOVERY_ATTEMPTS || recoveryTimerRef.current !== null) return;
+    recoveryTimerRef.current = window.setTimeout(() => {
+      recoveryTimerRef.current = null;
+      recoverVideo();
+    }, prefersReducedMotion ? 0 : VIDEO_RECOVERY_DELAY_MS);
+  }, [prefersReducedMotion, recoverVideo, revealHeader]);
+
+  useEffect(() => {
+    const recoverWhenVisible = () => {
+      if (document.visibilityState === "visible" && videoFailed) recoverVideo();
+    };
+
+    document.addEventListener("visibilitychange", recoverWhenVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", recoverWhenVisible);
+    };
+  }, [recoverVideo, videoFailed]);
+
+  // Keep the bounded retry alive when `videoFailed` changes. The visibility
+  // listener above intentionally re-subscribes to that state; clearing the
+  // timer from its cleanup would otherwise cancel the just-scheduled retry.
+  useEffect(
+    () => () => {
+      if (recoveryTimerRef.current !== null) window.clearTimeout(recoveryTimerRef.current);
+    },
+    [],
+  );
 
   // A real decoded frame, not merely the request start, opens the first-view
-  // sequence. Give that frame one fast composited beat to become perceptible,
-  // then reveal the header; the provider reveals the rest after the header.
+  // sequence. Let its short opacity transition finish under the opaque boot
+  // layer, then fade the layer and only then reveal the header. That keeps the
+  // intended visual order: video → header → content.
   useEffect(() => {
     if (!videoLoaded) return;
-    const timer = window.setTimeout(revealHeader, prefersReducedMotion ? 0 : DURATION.fast * 1000);
-    return () => window.clearTimeout(timer);
-  }, [prefersReducedMotion, revealHeader, videoLoaded]);
+    if (prefersReducedMotion) {
+      revealVideo();
+      revealHeader();
+      return;
+    }
+
+    let videoTimer: number | undefined;
+    let headerTimer: number | undefined;
+    const frame = window.requestAnimationFrame(() => {
+      videoTimer = window.setTimeout(() => {
+        revealVideo();
+        headerTimer = window.setTimeout(revealHeader, DURATION.base * 1000);
+      }, DURATION.fast * 1000);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      if (videoTimer !== undefined) window.clearTimeout(videoTimer);
+      if (headerTimer !== undefined) window.clearTimeout(headerTimer);
+    };
+  }, [prefersReducedMotion, revealHeader, revealVideo, videoLoaded]);
 
   // The backdrop is fixed, but it does not need to keep decoding beneath the
   // rest of the page. Pause it as soon as Hero leaves the viewport so this
@@ -83,16 +156,25 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
           loop
           playsInline
           preload="metadata"
-          onLoadedData={() => setVideoLoaded(true)}
+          onLoadedData={() => {
+            // A recovered stream can decode before its scheduled retry runs.
+            // Cancel that retry so `load()` cannot restart a healthy playback.
+            if (recoveryTimerRef.current !== null) {
+              window.clearTimeout(recoveryTimerRef.current);
+              recoveryTimerRef.current = null;
+            }
+            setVideoFailed(false);
+            setVideoLoaded(true);
+          }}
           // There is intentionally no static poster. If the CDN stream fails,
           // do not leave navigation and content inaccessible behind a blank
           // video layer; the site can still be used while the browser retries.
-          onError={revealHeader}
+          onError={handleVideoError}
           // The hero intentionally has no static poster: it begins on the
           // first decoded frame of the streamed video. `loadeddata` fires
           // earlier than `canplay`, so a valid CDN stream becomes visible
           // without waiting for a larger playback buffer.
-          className={`h-full w-full object-cover transition-opacity duration-1000 ${videoLoaded ? "opacity-100" : "opacity-0"}`}
+          className={`h-full w-full object-cover transition-opacity duration-fast ${videoLoaded ? "opacity-100" : "opacity-0"}`}
         >
           <source
             src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/site-media/hero/2026-08-16-hq/hero-background-mobile.mp4`}
