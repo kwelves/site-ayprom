@@ -8,9 +8,12 @@ import { VehicleCarousel } from "./VehicleCarousel";
 import { ProductPanel } from "./ProductPanel";
 import { Connector } from "./Connector";
 import { useContainRect } from "./useContainRect";
+import { VehicleImageWarmup } from "./VehicleImageWarmup";
+import { VEHICLE_STAGE_IMAGE_SIZES } from "./image-sizes";
 import { buildConnectorPaths, buildVerticalConnectorPath, type ConnectorPaths, type Rect } from "./connector-geometry";
 import type { VehicleShowcaseEntry } from "@/lib/queries/vehicle-hotspots";
 import { DURATION, EASE_UI } from "@/lib/motion";
+import { useHomeEntrySequence } from "@/components/home/HomeEntrySequence";
 
 export interface VehicleVisual {
   image: string;
@@ -103,6 +106,19 @@ interface VehicleShowcaseInteractiveProps {
   defaultSlug: string;
 }
 
+/**
+ * The background queue may only receive stage photos. Product previews are
+ * loaded on demand by ProductPanel, so opening the site never warms a
+ * hotspot's linked product image.
+ */
+export function collectVehicleImageWarmupCandidates(entries: VehicleShowcaseEntry[], visuals: Record<string, VehicleVisual>) {
+  return entries.flatMap((entry) => {
+    const candidateVisual = visuals[entry.vehicleType.slug];
+    if (!candidateVisual) return [];
+    return [{ slug: entry.vehicleType.slug, ...candidateVisual }];
+  });
+}
+
 type VehicleTransitionPhase =
   | "idle"
   | "preloading"
@@ -131,6 +147,7 @@ function toRect(domRect: DOMRect, containerRect: DOMRect): Rect {
 
 export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: VehicleShowcaseInteractiveProps) {
   const shouldReduceMotion = useReducedMotion();
+  const { contentVisible } = useHomeEntrySequence();
   const sectionRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -156,6 +173,8 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
   const [isCardRevealed, setIsCardRevealed] = useState(false);
   const [entered, setEntered] = useState(false);
   const [revealed, setRevealed] = useState(false);
+  const [firstViewSettled, setFirstViewSettled] = useState(false);
+  const [initialVehicleReady, setInitialVehicleReady] = useState(false);
   const [transitionPhase, setTransitionPhase] = useState<VehicleTransitionPhase>("idle");
   const [isDesktop, setIsDesktop] = useState(false);
   const [connectorPaths, setConnectorPaths] = useState<ConnectorPaths | null>(null);
@@ -192,26 +211,6 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
   }, []);
 
   useEffect(() => {
-    // This component mounts with the home route while its branded loading
-    // screen is still covering the page. Warm every asset the interactive
-    // showcase can need (all five full vehicles plus the first preview for
-    // every linked product) at background priority, so neither a switch nor
-    // the first card open has to start a fresh image request.
-    const sources = new Set([
-      ...Object.values(visuals).map((item) => item.image),
-      ...entries.flatMap((entry) => entry.hotspots.map((hotspot) => hotspot.product?.images[0]?.url)),
-    ]);
-
-    for (const src of sources) {
-      if (!src) continue;
-      const image = new window.Image();
-      image.decoding = "async";
-      image.fetchPriority = "low";
-      image.src = src;
-    }
-  }, [entries, visuals]);
-
-  useEffect(() => {
     const node = sectionRef.current;
     if (!node) return;
     const observer = new IntersectionObserver(
@@ -236,6 +235,31 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
     const timer = setTimeout(() => setRevealed(true), shouldReduceMotion ? 0 : 700);
     return () => clearTimeout(timer);
   }, [entered, shouldReduceMotion]);
+
+  useEffect(() => {
+    // The idle queue may use an otherwise quiet main thread only after the
+    // hero's own reveal has settled. If the showcase enters view, pause it
+    // through the vehicle/hotspot choreography and resume once that scene
+    // has completed too.
+    if (!contentVisible || transitionPhase !== "idle" || (entered && !revealed)) {
+      // Keep this out of the synchronous effect body: the derived `enabled`
+      // expression below already blocks a same-frame warmup, while the
+      // microtask resets the next settled scene's idle delay.
+      let cancelled = false;
+      queueMicrotask(() => {
+        if (!cancelled) setFirstViewSettled(false);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const timer = window.setTimeout(
+      () => setFirstViewSettled(true),
+      shouldReduceMotion ? 0 : (DURATION.reveal + DURATION.base) * 1000,
+    );
+    return () => window.clearTimeout(timer);
+  }, [contentVisible, entered, revealed, shouldReduceMotion, transitionPhase]);
 
   const clearConnector = () => {
     setConnectorPaths(null);
@@ -377,6 +401,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
       })),
     [entries, visuals],
   );
+  const imageWarmupCandidates = useMemo(() => collectVehicleImageWarmupCandidates(entries, visuals), [entries, visuals]);
 
   if (!activeEntry || !visual) return null;
 
@@ -390,7 +415,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
 
   const stage = (
     <div ref={stageRef} className={`relative w-full lg:overflow-hidden ${STAGE_ASPECT_CLASS}`}>
-      {containRect.width > 0 && (
+      {contentVisible && containRect.width > 0 && (
         // Not `fill` — `scale` on VehicleVisual can push the photo past
         // strict contain-fit on purpose, and `fill` always clamps to the
         // parent box. Explicit width/height (from the same scaled rect
@@ -417,8 +442,16 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
                 alt={activeEntry.vehicleType.name}
                 width={Math.round(containRect.width)}
                 height={Math.round(containRect.height)}
-                sizes="(max-width: 1023px) 90vw, 55vw"
-                priority
+                sizes={VEHICLE_STAGE_IMAGE_SIZES}
+                loading="eager"
+                onLoad={() => {
+                  if (activeEntry.vehicleType.slug === entries[defaultIndex]?.vehicleType.slug) setInitialVehicleReady(true);
+                }}
+                onError={() => {
+                  // A missing non-critical image must not keep the rest of
+                  // the idle queue behind a perpetual loading state.
+                  if (activeEntry.vehicleType.slug === entries[defaultIndex]?.vehicleType.slug) setInitialVehicleReady(true);
+                }}
                 className="absolute max-w-none"
                 style={{ left: containRect.left, top: containRect.top, width: containRect.width, height: containRect.height }}
               />
@@ -438,7 +471,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
           aria-hidden="true"
           width={Math.round(pendingContainRect.width)}
           height={Math.round(pendingContainRect.height)}
-          sizes="(max-width: 1023px) 90vw, 55vw"
+          sizes={VEHICLE_STAGE_IMAGE_SIZES}
           loading="eager"
           onLoad={startPreparedTransition}
           onError={startPreparedTransition}
@@ -446,6 +479,13 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
           style={{ left: pendingContainRect.left, top: pendingContainRect.top, width: pendingContainRect.width, height: pendingContainRect.height }}
         />
       )}
+
+      <VehicleImageWarmup
+        candidates={imageWarmupCandidates}
+        defaultSlug={entries[defaultIndex]?.vehicleType.slug ?? defaultSlug}
+        enabled={firstViewSettled && initialVehicleReady && transitionPhase === "idle" && (!entered || revealed)}
+        sizes={VEHICLE_STAGE_IMAGE_SIZES}
+      />
 
       {revealed &&
         containRect.width > 0 &&
