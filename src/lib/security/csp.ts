@@ -5,8 +5,7 @@ type ContentSecurityPolicyOptions = {
 
 /**
  * Builds the site's static CSP. Keeping this policy free of request-specific
- * nonces preserves Next's static rendering and CDN cacheability. SRI verifies
- * emitted external framework scripts in production.
+ * nonces preserves Next's static rendering and CDN cacheability.
  *
  * Next's App Router still emits executable inline Flight payload scripts. A
  * nonce would require dynamic rendering, so the narrowly scoped script
@@ -19,10 +18,10 @@ export function buildContentSecurityPolicy({
   return [
     "default-src 'self'",
     `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""}`,
-    "style-src 'self'",
-    // React uses style attributes for measured and animated geometry. Keep
-    // this narrowly scoped exception until those values can move to CSS.
-    "style-src-attr 'unsafe-inline'",
+    // React and several framework integrations insert runtime style rules.
+    // `style-src-attr` is not sufficient for those `<style>` elements, so
+    // preserve this compatibility exception while keeping scripts strict.
+    "style-src 'self' 'unsafe-inline'",
     `img-src 'self' data: blob: ${supabaseOrigin}`,
     `media-src 'self' ${supabaseOrigin}`,
     // https://*.sentry.io covers regional ingest without baking an

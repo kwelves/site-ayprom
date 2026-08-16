@@ -13,13 +13,6 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   },
-  experimental: {
-    // SRI hashes emitted JavaScript at build time without nonce middleware
-    // forcing static routes to become dynamic.
-    sri: {
-      algorithm: "sha256",
-    },
-  },
   images: {
     remotePatterns: [
       {

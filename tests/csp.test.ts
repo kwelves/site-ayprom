@@ -25,8 +25,7 @@ describe("buildContentSecurityPolicy", () => {
     expect(directive(policy, "connect-src")).toContain("https://*.sentry.io");
     expect(directive(policy, "img-src")).toContain(supabaseOrigin);
     expect(directive(policy, "media-src")).toContain(supabaseOrigin);
-    expect(directive(policy, "style-src")).toBe("style-src 'self'");
-    expect(directive(policy, "style-src-attr")).toBe("style-src-attr 'unsafe-inline'");
+    expect(directive(policy, "style-src")).toBe("style-src 'self' 'unsafe-inline'");
   });
 
   it("permits the eval-based Next development overlay without weakening scripts in production", () => {
