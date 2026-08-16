@@ -4,6 +4,7 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/motion/Reveal";
 import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
 import { CategoryCard } from "@/components/home/CategoryCard";
+import { CatalogPageShell } from "@/components/catalog/CatalogPageShell";
 import { getBrand } from "@/lib/queries/brands";
 import { getCategory } from "@/lib/queries/categories";
 import { getBrandSubcategories } from "@/lib/queries/subcategories";
@@ -51,22 +52,34 @@ export default async function BrandCategoryPage({ params }: BrandCategoryPagePro
 
   if (subcategories.length === 0) {
     return (
-      <Reveal>
-        <div className="text-center">
-          <p className="text-sm font-semibold uppercase tracking-wide text-primary">{brand.name}</p>
-          <h1 className="mt-3 text-2xl font-bold text-foreground sm:text-3xl">{category.name}</h1>
-          <p className="mt-3 text-muted-foreground">
-            У бренда «{brand.name}» пока нет товаров в категории «{category.name}».
-          </p>
-        </div>
-      </Reveal>
+      <CatalogPageShell
+        items={[
+          { label: brand.name, href: `/catalog/brand/${slug}` },
+          { label: category.name },
+        ]}
+      >
+        <Reveal>
+          <div className="text-center">
+            <p className="text-sm font-semibold uppercase tracking-wide text-primary">{brand.name}</p>
+            <h1 className="mt-3 text-2xl font-bold text-foreground sm:text-3xl">{category.name}</h1>
+            <p className="mt-3 text-muted-foreground">
+              У бренда «{brand.name}» пока нет товаров в категории «{category.name}».
+            </p>
+          </div>
+        </Reveal>
+      </CatalogPageShell>
     );
   }
 
   const sizing = getCategoryGridSizing(subcategories.length);
 
   return (
-    <>
+    <CatalogPageShell
+      items={[
+        { label: brand.name, href: `/catalog/brand/${slug}` },
+        { label: category.name },
+      ]}
+    >
       <Reveal>
         <SectionHeading
           as="h1"
@@ -92,6 +105,6 @@ export default async function BrandCategoryPage({ params }: BrandCategoryPagePro
           </StaggerItem>
         ))}
       </StaggerGroup>
-    </>
+    </CatalogPageShell>
   );
 }

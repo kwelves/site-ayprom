@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ProductDetail } from "@/components/catalog/ProductDetail";
+import { CatalogPageShell } from "@/components/catalog/CatalogPageShell";
 import { StructuredData } from "@/components/seo/StructuredData";
+import { getCategory } from "@/lib/queries/categories";
 import { getSubcategory } from "@/lib/queries/subcategories";
 import { getProduct } from "@/lib/queries/products";
 import { buildProductStructuredData } from "@/lib/product-structured-data";
@@ -42,20 +44,30 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
 
 export default async function SubcategoryProductPage({ params }: ProductPageProps) {
   const { slug, subSlug, productSlug } = await params;
-  const [subcategory, product] = await Promise.all([getSubcategory(slug, subSlug), getProduct(productSlug)]);
+  const [category, subcategory, product] = await Promise.all([
+    getCategory(slug),
+    getSubcategory(slug, subSlug),
+    getProduct(productSlug),
+  ]);
 
   // The product must actually belong to this exact category + subcategory —
   // otherwise a mismatched path (e.g. a pump under a tanks URL) 404s instead
   // of rendering the product under a wrong breadcrumb.
-  if (!subcategory || !product || product.category !== slug || product.subcategory !== subSlug) {
+  if (!category || !subcategory || !product || product.category !== slug || product.subcategory !== subSlug) {
     notFound();
   }
 
   const canonicalPath = `/catalog/category/${slug}/subcategory/${subSlug}/${productSlug}`;
   return (
-    <>
+    <CatalogPageShell
+      items={[
+        { label: category.name, href: `/catalog/category/${slug}` },
+        { label: subcategory.name, href: `/catalog/category/${slug}/subcategory/${subSlug}` },
+        { label: product.name },
+      ]}
+    >
       <StructuredData data={buildProductStructuredData(product, canonicalPath)} />
       <ProductDetail product={product} />
-    </>
+    </CatalogPageShell>
   );
 }

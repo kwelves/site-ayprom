@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ProductDetail } from "@/components/catalog/ProductDetail";
+import { CatalogPageShell } from "@/components/catalog/CatalogPageShell";
 import { StructuredData } from "@/components/seo/StructuredData";
 import { getCategoryBrands } from "@/lib/queries/category-brands";
+import { getCategory } from "@/lib/queries/categories";
 import { getProduct } from "@/lib/queries/products";
 import { buildProductStructuredData } from "@/lib/product-structured-data";
 
@@ -42,12 +44,17 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
 
 export default async function BrandProductPage({ params }: ProductPageProps) {
   const { slug, brandSlug, productSlug } = await params;
-  const [categoryBrands, product] = await Promise.all([getCategoryBrands(slug), getProduct(productSlug)]);
+  const [category, categoryBrands, product] = await Promise.all([
+    getCategory(slug),
+    getCategoryBrands(slug),
+    getProduct(productSlug),
+  ]);
   const brandInCategory = categoryBrands.find((item) => item.slug === brandSlug);
 
   // The product must belong to this category and actually list this brand as
   // compatible — otherwise the path is invalid and 404s.
   if (
+    !category ||
     !brandInCategory ||
     !product ||
     product.category !== slug ||
@@ -58,9 +65,15 @@ export default async function BrandProductPage({ params }: ProductPageProps) {
 
   const canonicalPath = `/catalog/category/${slug}/brand/${brandSlug}/${productSlug}`;
   return (
-    <>
+    <CatalogPageShell
+      items={[
+        { label: category.name, href: `/catalog/category/${slug}` },
+        { label: brandInCategory.name, href: `/catalog/category/${slug}/brand/${brandSlug}` },
+        { label: product.name },
+      ]}
+    >
       <StructuredData data={buildProductStructuredData(product, canonicalPath)} />
       <ProductDetail product={product} />
-    </>
+    </CatalogPageShell>
   );
 }

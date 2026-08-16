@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Reveal } from "@/components/motion/Reveal";
 import { ProductSearchForm } from "@/components/catalog/ProductSearchForm";
 import { ProductGridWithSearch } from "@/components/catalog/ProductGridWithSearch";
+import { CatalogPageShell } from "@/components/catalog/CatalogPageShell";
 import { getCategory } from "@/lib/queries/categories";
 import { getCategoryBrands } from "@/lib/queries/category-brands";
 import { getProducts, parseCatalogPage } from "@/lib/queries/products";
@@ -42,7 +43,12 @@ export default async function BrandInCategoryPage({ params, searchParams }: Bran
   const action = `/catalog/category/${slug}/brand/${brandSlug}`;
 
   return (
-    <>
+    <CatalogPageShell
+      items={[
+        { label: category.name, href: `/catalog/category/${slug}` },
+        { label: brand.name },
+      ]}
+    >
       <Reveal>
         <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
           <p className="text-sm font-semibold uppercase tracking-wide text-primary">{category.name}</p>
@@ -83,6 +89,6 @@ export default async function BrandInCategoryPage({ params, searchParams }: Bran
         href={(product) => `/catalog/category/${slug}/brand/${brandSlug}/${product.slug}`}
         emptyLabel="Для этого бренда пока нет товаров. Скоро они здесь появятся."
       />
-    </>
+    </CatalogPageShell>
   );
 }

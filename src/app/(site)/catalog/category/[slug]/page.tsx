@@ -5,6 +5,7 @@ import { Reveal } from "@/components/motion/Reveal";
 import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
 import { CategoryCard } from "@/components/home/CategoryCard";
 import { BrandCard } from "@/components/home/BrandCard";
+import { CatalogPageShell } from "@/components/catalog/CatalogPageShell";
 import { getCategory, getCategories } from "@/lib/queries/categories";
 import { getSubcategories } from "@/lib/queries/subcategories";
 import { getCategoryBrands } from "@/lib/queries/category-brands";
@@ -75,7 +76,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     // default CategoryCard/BrandCard sizing) so brand cards are pixel-for-pixel
     // the same size as the homepage catalog cards at every breakpoint.
     return (
-      <>
+      <CatalogPageShell items={[{ label: category.name }]}>
         <Reveal>
           <SectionHeading as="h1" className="mx-auto max-w-2xl text-center" title={category.name} />
         </Reveal>
@@ -89,7 +90,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
               : "Выберите бренд, чтобы быстро найти нужные детали."}
           </p>
         </Reveal>
-      </>
+      </CatalogPageShell>
     );
   }
 
@@ -97,22 +98,24 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
   if (subcategories.length === 0) {
     return (
-      <Reveal>
-        <div className="text-center">
-          <p className="text-sm font-semibold uppercase tracking-wide text-primary">Каталог</p>
-          <h1 className="mt-3 text-2xl font-bold text-foreground sm:text-3xl">{category.name}</h1>
-          <p className="mt-3 text-muted-foreground">
-            Раздел в разработке. Скоро здесь появится каталог этой категории.
-          </p>
-        </div>
-      </Reveal>
+      <CatalogPageShell items={[{ label: category.name }]}>
+        <Reveal>
+          <div className="text-center">
+            <p className="text-sm font-semibold uppercase tracking-wide text-primary">Каталог</p>
+            <h1 className="mt-3 text-2xl font-bold text-foreground sm:text-3xl">{category.name}</h1>
+            <p className="mt-3 text-muted-foreground">
+              Раздел в разработке. Скоро здесь появится каталог этой категории.
+            </p>
+          </div>
+        </Reveal>
+      </CatalogPageShell>
     );
   }
 
   const sizing = getCategoryGridSizing(subcategories.length);
 
   return (
-    <>
+    <CatalogPageShell items={[{ label: category.name }]}>
       <Reveal>
         <SectionHeading
           as="h1"
@@ -140,6 +143,6 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
           </StaggerItem>
         ))}
       </StaggerGroup>
-    </>
+    </CatalogPageShell>
   );
 }

@@ -4,6 +4,8 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/motion/Reveal";
 import { ProductSearchForm } from "@/components/catalog/ProductSearchForm";
 import { ProductGridWithSearch } from "@/components/catalog/ProductGridWithSearch";
+import { CatalogPageShell } from "@/components/catalog/CatalogPageShell";
+import { getCategory } from "@/lib/queries/categories";
 import { getSubcategory } from "@/lib/queries/subcategories";
 import { getProducts, parseCatalogPage } from "@/lib/queries/products";
 
@@ -30,9 +32,9 @@ export default async function SubcategoryProductsPage({ params, searchParams }: 
   const { slug, subSlug } = await params;
   const { q, page: pageParam } = await searchParams;
   const page = parseCatalogPage(pageParam);
-  const subcategory = await getSubcategory(slug, subSlug);
+  const [category, subcategory] = await Promise.all([getCategory(slug), getSubcategory(slug, subSlug)]);
 
-  if (!subcategory) {
+  if (!category || !subcategory) {
     notFound();
   }
 
@@ -40,7 +42,12 @@ export default async function SubcategoryProductsPage({ params, searchParams }: 
   const action = `/catalog/category/${slug}/subcategory/${subSlug}`;
 
   return (
-    <>
+    <CatalogPageShell
+      items={[
+        { label: category.name, href: `/catalog/category/${slug}` },
+        { label: subcategory.name },
+      ]}
+    >
       <Reveal>
         <SectionHeading as="h1" className="mx-auto max-w-2xl text-center" title={subcategory.name} />
       </Reveal>
@@ -70,6 +77,6 @@ export default async function SubcategoryProductsPage({ params, searchParams }: 
           <p className="mx-auto mt-14 max-w-2xl text-center text-muted-foreground">{subcategory.intro}</p>
         </Reveal>
       )}
-    </>
+    </CatalogPageShell>
   );
 }

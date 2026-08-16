@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Reveal } from "@/components/motion/Reveal";
 import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
 import { CategoryCard } from "@/components/home/CategoryCard";
+import { CatalogPageShell } from "@/components/catalog/CatalogPageShell";
 import { getBrand, getBrands } from "@/lib/queries/brands";
 import { getBrandCategories } from "@/lib/queries/categories";
 import { getCardGridSizing } from "@/lib/category-grid";
@@ -70,7 +71,7 @@ export default async function BrandPage({ params }: BrandPageProps) {
   const sizing = getCardGridSizing(categories.length);
 
   return (
-    <>
+    <CatalogPageShell items={[{ label: brand.name }]}>
       <BrandHeader brand={brand} />
 
       {categories.length === 0 ? (
@@ -101,6 +102,6 @@ export default async function BrandPage({ params }: BrandPageProps) {
           </StaggerGroup>
         </>
       )}
-    </>
+    </CatalogPageShell>
   );
 }

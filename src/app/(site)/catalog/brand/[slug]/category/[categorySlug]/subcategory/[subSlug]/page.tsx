@@ -4,6 +4,7 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/motion/Reveal";
 import { ProductSearchForm } from "@/components/catalog/ProductSearchForm";
 import { ProductGridWithSearch } from "@/components/catalog/ProductGridWithSearch";
+import { CatalogPageShell } from "@/components/catalog/CatalogPageShell";
 import { getBrand } from "@/lib/queries/brands";
 import { getCategory } from "@/lib/queries/categories";
 import { getSubcategory } from "@/lib/queries/subcategories";
@@ -52,7 +53,13 @@ export default async function BrandSubcategoryPage({ params, searchParams }: Bra
   const action = `/catalog/brand/${slug}/category/${categorySlug}/subcategory/${subSlug}`;
 
   return (
-    <>
+    <CatalogPageShell
+      items={[
+        { label: brand.name, href: `/catalog/brand/${slug}` },
+        { label: category.name, href: `/catalog/brand/${slug}/category/${categorySlug}` },
+        { label: subcategory.name },
+      ]}
+    >
       <Reveal>
         <SectionHeading
           as="h1"
@@ -81,6 +88,6 @@ export default async function BrandSubcategoryPage({ params, searchParams }: Bra
         href={(product) => `/catalog/category/${categorySlug}/subcategory/${subSlug}/${product.slug}`}
         emptyLabel={`Для «${brand.name}» пока нет товаров в разделе «${subcategory.name}». Скоро они здесь появятся.`}
       />
-    </>
+    </CatalogPageShell>
   );
 }
