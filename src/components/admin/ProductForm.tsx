@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { useActionState, useRef, useState, useTransition } from "react";
 import {
   createProduct,
   updateProduct,
@@ -22,6 +22,7 @@ import { Select } from "@/components/admin/ui/Select";
 import { Checkbox } from "@/components/admin/ui/Checkbox";
 import { SortableList } from "@/components/admin/SortableList";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
+import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
 import type { Category, Subcategory, Brand, VehicleType } from "@/types/catalog";
 import type { AdminProduct } from "@/lib/admin/queries";
 
@@ -61,9 +62,6 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
   const [dismissedFormError, setDismissedFormError] = useState<FormActionState>(null);
   const [isUnpublishDialogOpen, setIsUnpublishDialogOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const cancelUnpublishButtonRef = useRef<HTMLButtonElement>(null);
-  const submitTriggerRef = useRef<HTMLElement | null>(null);
   const unpublishConfirmedRef = useRef(false);
   const [, startTransition] = useTransition();
 
@@ -71,10 +69,6 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
   const categorySubcategories = subcategories.filter((s) => s.categorySlug === categorySlug);
   const hotspotCount = product?.hotspotCount ?? 0;
   const requiresUnpublishConfirmation = mode === "edit" && product?.published === true && !published && hotspotCount > 0;
-
-  useEffect(() => {
-    if (isUnpublishDialogOpen) cancelUnpublishButtonRef.current?.focus();
-  }, [isUnpublishDialogOpen]);
 
   function handleNameChange(value: string) {
     setName(value);
@@ -202,7 +196,6 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
 
   function closeUnpublishDialog() {
     setIsUnpublishDialogOpen(false);
-    requestAnimationFrame(() => submitTriggerRef.current?.focus());
   }
 
   function confirmUnpublish() {
@@ -219,29 +212,7 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
     if (!requiresUnpublishConfirmation) return;
 
     event.preventDefault();
-    submitTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setIsUnpublishDialogOpen(true);
-  }
-
-  function handleUnpublishDialogKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      closeUnpublishDialog();
-      return;
-    }
-    if (event.key !== "Tab") return;
-
-    const buttons = dialogRef.current?.querySelectorAll<HTMLButtonElement>("button:not([disabled])");
-    if (!buttons || buttons.length === 0) return;
-    const first = buttons[0];
-    const last = buttons[buttons.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
   }
 
   const boundAction = mode === "create" ? createProduct : updateProduct.bind(null, product!.slug);
@@ -511,44 +482,21 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
           setDismissedFormError(formState);
         }}
       />
-      {isUnpublishDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
-          <div
-            ref={dialogRef}
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="unpublish-hotspots-title"
-            aria-describedby="unpublish-hotspots-description"
-            onKeyDown={handleUnpublishDialogKeyDown}
-            className="w-full max-w-md rounded-lg border border-warning-border bg-card p-5 shadow-lg"
-          >
-            <h2 id="unpublish-hotspots-title" className="text-base font-semibold text-card-foreground">
-              Снять товар с публикации?
-            </h2>
-            <p id="unpublish-hotspots-description" className="mt-2 text-sm text-muted-foreground">
-              Товар будет отвязан от {hotspotCount} {hotspotCount === 1 ? "хотспота" : "хотспотов"} в разделе «Спецтехника».
-              На сайте вместо него появится заглушка.
-            </p>
-            <div className="mt-5 flex flex-wrap justify-end gap-3">
-              <button
-                ref={cancelUnpublishButtonRef}
-                type="button"
-                onClick={closeUnpublishDialog}
-                className="rounded-md border border-border px-4 py-2 text-sm font-medium text-card-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              >
-                Отмена
-              </button>
-              <button
-                type="button"
-                onClick={confirmUnpublish}
-                className="rounded-md border border-danger-border bg-danger-surface px-4 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger"
-              >
-                Снять с публикации
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={isUnpublishDialogOpen}
+        title="Снять товар с публикации?"
+        description={
+          <>
+            Товар будет отвязан от {hotspotCount} {hotspotCount === 1 ? "хотспота" : "хотспотов"} в разделе «Спецтехника». На
+            сайте вместо него появится заглушка.
+          </>
+        }
+        cancelLabel="Отмена"
+        confirmLabel="Снять с публикации"
+        tone="danger"
+        onCancel={closeUnpublishDialog}
+        onConfirm={confirmUnpublish}
+      />
     </div>
   );
 }

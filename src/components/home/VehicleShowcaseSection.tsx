@@ -34,11 +34,11 @@ import { VehicleShowcaseInteractive, type VehicleVisual } from "./vehicle-showca
 // big on phones: kran-manipulyator/musorovoz/avtovoz/samosval 2 → 1.8.
 // Тонар (tyagach) wasn't mentioned, so its 1.6 is untouched.
 const VEHICLE_VISUALS: Record<string, VehicleVisual> = {
-  "kran-manipulyator": { image: "/images/vehicle-showcase/kran-manipulyator.png", naturalWidth: 1086, naturalHeight: 1448, scale: 1.8, desktopScale: 1.37 },
-  musorovoz: { image: "/images/vehicle-showcase/musorovoz.png", naturalWidth: 1024, naturalHeight: 1536, scale: 1.8, desktopScale: 1.38 },
-  avtovoz: { image: "/images/vehicle-showcase/avtovoz.png", naturalWidth: 1086, naturalHeight: 1448, scale: 1.8, desktopScale: 1.39 },
-  samosval: { image: "/images/vehicle-showcase/samosval.png", naturalWidth: 1086, naturalHeight: 1448, scale: 1.8, desktopScale: 1.34 },
-  tyagach: { image: "/images/vehicle-showcase/tyagach.png", naturalWidth: 1086, naturalHeight: 1448, scale: 1.6, desktopScale: 1.12 },
+  "kran-manipulyator": { image: "/images/vehicle-showcase/kran-manipulyator.png", naturalWidth: 1086, naturalHeight: 1448, scale: 1.8, desktopScale: 1.507 },
+  musorovoz: { image: "/images/vehicle-showcase/musorovoz.png", naturalWidth: 1024, naturalHeight: 1536, scale: 1.8, desktopScale: 1.518 },
+  avtovoz: { image: "/images/vehicle-showcase/avtovoz.png", naturalWidth: 1086, naturalHeight: 1448, scale: 1.8, desktopScale: 1.529 },
+  samosval: { image: "/images/vehicle-showcase/samosval.png", naturalWidth: 1086, naturalHeight: 1448, scale: 1.8, desktopScale: 1.474 },
+  tyagach: { image: "/images/vehicle-showcase/tyagach.png", naturalWidth: 1086, naturalHeight: 1448, scale: 1.6, desktopScale: 1.232 },
 };
 
 export async function VehicleShowcaseSection() {
@@ -48,7 +48,7 @@ export async function VehicleShowcaseSection() {
   return (
     <section
       id="vehicle-showcase"
-      className="relative scroll-mt-16 overflow-hidden bg-[#060b16] py-16 sm:py-20 lg:flex lg:h-[calc(100dvh-4rem)] lg:flex-col lg:py-6"
+      className="relative scroll-mt-16 overflow-hidden bg-[#060b16] py-16 sm:py-20 lg:flex lg:h-[calc(100dvh-4rem+6rem)] lg:flex-col lg:py-6"
     >
       {/* Faint circuit-board grid — pure CSS, no image asset needed */}
       <div

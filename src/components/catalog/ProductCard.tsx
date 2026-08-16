@@ -134,25 +134,25 @@ export function ProductCard({ product, href }: { product: ProductListItem; href:
               type="button"
               onClick={handleArrowClick(index - 1)}
               aria-label="Предыдущее фото"
-              className="absolute left-2 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-card/80 text-primary opacity-70 shadow-sm backdrop-blur-sm transition-[opacity,scale] duration-fast ease-ui hover:opacity-100 active:scale-90 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="absolute left-2 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-card/80 text-primary opacity-70 shadow-sm backdrop-blur-sm transition-[opacity,scale] duration-fast ease-ui hover:opacity-100 active:scale-90 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
-              <ChevronLeft aria-hidden="true" className="h-4 w-4" />
+              <ChevronLeft aria-hidden="true" className="h-5 w-5" />
             </button>
             <button
               type="button"
               onClick={handleArrowClick(index + 1)}
               aria-label="Следующее фото"
-              className="absolute right-2 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-card/80 text-primary opacity-70 shadow-sm backdrop-blur-sm transition-[opacity,scale] duration-fast ease-ui hover:opacity-100 active:scale-90 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="absolute right-2 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-card/80 text-primary opacity-70 shadow-sm backdrop-blur-sm transition-[opacity,scale] duration-fast ease-ui hover:opacity-100 active:scale-90 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
-              <ChevronRight aria-hidden="true" className="h-4 w-4" />
+              <ChevronRight aria-hidden="true" className="h-5 w-5" />
             </button>
           </>
         )}
       </motion.div>
 
       <div className="flex flex-1 flex-col px-4 pt-4 pb-5">
-        <span className="text-sm font-semibold text-card-foreground">{product.name}</span>
-        <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+        <span className="text-base font-semibold text-card-foreground">{product.name}</span>
+        <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
           {product.shortDescription}
         </p>
       </div>
@@ -160,16 +160,17 @@ export function ProductCard({ product, href }: { product: ProductListItem; href:
       {hasMultiple && (
         <div className="relative z-10 flex items-center justify-center pb-4">
           {product.images.map((image, i) => (
-            // p-2 padding around the dot enlarges the actual tap target well
-            // past its 6px visual size, without making the indicator itself
-            // look oversized — the dot stays small, only the hit area grows.
+            // py-[19px] brings the tap target's height to the 44px minimum;
+            // horizontal padding stays tighter (px-2) so several dots still
+            // fit side by side on a narrow card — the dot stays small, only
+            // the hit area grows.
             <button
               key={`${image.url}-${i}`}
               type="button"
               onClick={handleArrowClick(i)}
               aria-label={`Показать фото ${i + 1}`}
               aria-current={i === index}
-              className="p-2 transition-transform duration-fast ease-ui active:scale-90"
+              className="px-2 py-[19px] transition-transform duration-fast ease-ui active:scale-90"
             >
               {/* Ширина фиксированная, сжимается сама точка — см. ProductGallery. */}
               <span

@@ -30,6 +30,12 @@ export async function compressImage(file: File): Promise<File> {
       bitmap.close();
       return file;
     }
+    // A fresh canvas defaults to transparent black. JPEG has no alpha
+    // channel, so encoding straight to "image/jpeg" bakes that black in
+    // wherever the source had transparency (e.g. background-removed product
+    // photos) instead of the white the catalog actually shows the photo on.
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
     ctx.drawImage(bitmap, 0, 0, width, height);
     bitmap.close();
 

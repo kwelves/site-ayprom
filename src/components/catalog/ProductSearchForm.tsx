@@ -25,7 +25,7 @@ export function ProductSearchForm({ action, defaultValue, placeholder }: Product
         autoComplete="off"
         defaultValue={defaultValue}
         placeholder={`${placeholder}…`}
-        className="h-10 w-full border-0 bg-transparent text-sm text-foreground outline-none placeholder:text-faint-foreground"
+        className="h-10 w-full border-0 bg-transparent text-base text-foreground outline-none placeholder:text-faint-foreground"
       />
       <Button type="submit" className="shrink-0">
         Найти

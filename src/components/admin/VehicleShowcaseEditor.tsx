@@ -6,6 +6,7 @@ import { restoreVehicleHotspots, saveVehicleHotspots, searchAvailableHotspotProd
 import type { VehicleHotspotActionState, VehicleHotspotUpdate } from "@/lib/admin/vehicle-hotspot-updates";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import { AdminUndoToast } from "@/components/admin/ui/AdminUndoToast";
+import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
 import { Input } from "@/components/admin/ui/Input";
 import { SubmitButton } from "@/components/admin/ui/SubmitButton";
 import type { AdminAvailableProduct, AdminVehicleHotspot } from "@/lib/admin/queries";
@@ -77,9 +78,6 @@ export function VehicleShowcaseEditor({ vehicleTypeSlug, vehicleTypeName, hotspo
   const pendingSaveSnapshot = useRef<EditableHotspot[] | null>(null);
   const handledSaveState = useRef<VehicleHotspotActionState>(null);
   const toastId = useRef(0);
-  const confirmationDialogRef = useRef<HTMLDivElement>(null);
-  const confirmationCancelButtonRef = useRef<HTMLButtonElement>(null);
-  const confirmationTriggerRef = useRef<HTMLElement | null>(null);
   const [, startSearchTransition] = useTransition();
   const [isUndoPending, startUndoTransition] = useTransition();
   const boundAction = saveVehicleHotspots.bind(null, vehicleTypeSlug);
@@ -91,10 +89,6 @@ export function VehicleShowcaseEditor({ vehicleTypeSlug, vehicleTypeName, hotspo
   const isEditorMutationPending = isSavePending || isUndoPending;
 
   const dismissUndoToast = useCallback(() => setUndoToast(null), []);
-
-  useEffect(() => {
-    if (confirmation) confirmationCancelButtonRef.current?.focus();
-  }, [confirmation]);
 
   const clearLocalEditorState = useCallback(() => {
     setQueries({});
@@ -213,34 +207,11 @@ export function VehicleShowcaseEditor({ vehicleTypeSlug, vehicleTypeName, hotspo
   }
 
   function openConfirmation(nextConfirmation: Exclude<EditorConfirmation, null>) {
-    confirmationTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setConfirmation(nextConfirmation);
   }
 
   function closeConfirmation() {
     setConfirmation(null);
-    requestAnimationFrame(() => confirmationTriggerRef.current?.focus());
-  }
-
-  function handleConfirmationKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      closeConfirmation();
-      return;
-    }
-    if (event.key !== "Tab") return;
-
-    const buttons = confirmationDialogRef.current?.querySelectorAll<HTMLButtonElement>("button:not([disabled])");
-    if (!buttons || buttons.length === 0) return;
-    const first = buttons[0];
-    const last = buttons[buttons.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
   }
 
   const payload = hotspots.map((hotspot) => ({
@@ -458,45 +429,19 @@ export function VehicleShowcaseEditor({ vehicleTypeSlug, vehicleTypeName, hotspo
         </button>
         </div>
       </fieldset>
-      {confirmation && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
-          <div
-            ref={confirmationDialogRef}
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="vehicle-showcase-confirmation-title"
-            aria-describedby="vehicle-showcase-confirmation-description"
-            onKeyDown={handleConfirmationKeyDown}
-            className="w-full max-w-md rounded-lg border border-border bg-card p-5 shadow-lg"
-          >
-            <h2 id="vehicle-showcase-confirmation-title" className="text-base font-semibold text-card-foreground">
-              {isUndoConfirmation ? "Отменить сохранённые изменения?" : "Отменить несохранённые изменения?"}
-            </h2>
-            <p id="vehicle-showcase-confirmation-description" className="mt-2 text-sm text-muted-foreground">
-              {isUndoConfirmation
-                ? "Несохранённые правки будут отменены, а хотспоты вернутся к состоянию до последнего сохранения."
-                : "Все изменения названий и закреплённых товаров будут возвращены к последнему сохранённому состоянию."}
-            </p>
-            <div className="mt-5 flex flex-wrap justify-end gap-3">
-              <button
-                ref={confirmationCancelButtonRef}
-                type="button"
-                onClick={closeConfirmation}
-                className="rounded-md border border-border px-4 py-2 text-sm font-medium text-card-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              >
-                Продолжить редактирование
-              </button>
-              <button
-                type="button"
-                onClick={confirmAction}
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-              >
-                {isUndoConfirmation ? "Отменить сохранение" : "Отменить изменения"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={confirmation !== null}
+        title={isUndoConfirmation ? "Отменить сохранённые изменения?" : "Отменить несохранённые изменения?"}
+        description={
+          isUndoConfirmation
+            ? "Несохранённые правки будут отменены, а хотспоты вернутся к состоянию до последнего сохранения."
+            : "Все изменения названий и закреплённых товаров будут возвращены к последнему сохранённому состоянию."
+        }
+        cancelLabel="Продолжить редактирование"
+        confirmLabel={isUndoConfirmation ? "Отменить сохранение" : "Отменить изменения"}
+        onCancel={closeConfirmation}
+        onConfirm={confirmAction}
+      />
       <AdminActionFeedback
         message={displayedError}
         onDismiss={() => {

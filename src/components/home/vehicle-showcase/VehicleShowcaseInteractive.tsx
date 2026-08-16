@@ -127,6 +127,10 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
   const stageRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const hotspotRefs = useRef(new Map<string, HTMLButtonElement>());
+  // An outgoing connector can finish its animation after the user has
+  // already selected another hotspot. Keep the currently expected id in a
+  // ref so that stale completion callbacks never reveal the wrong card.
+  const activeHotspotIdRef = useRef<string | null>(null);
 
   const defaultIndex = Math.max(
     0,
@@ -135,6 +139,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
 
   const [activeVehicleIndex, setActiveVehicleIndex] = useState(defaultIndex);
   const [activeHotspotId, setActiveHotspotId] = useState<string | null>(null);
+  const [isCardRevealed, setIsCardRevealed] = useState(false);
   const [entered, setEntered] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
@@ -188,18 +193,29 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
   // wrong photo, so drop back to the centered no-selection state instead.
   const selectVehicle = (index: number) => {
     setActiveVehicleIndex(index);
+    activeHotspotIdRef.current = null;
     setActiveHotspotId(null);
+    setIsCardRevealed(false);
     clearConnector();
   };
 
   const selectHotspot = (id: string) => {
+    setIsCardRevealed(false);
     setActiveHotspotId((current) => {
       if (current === id) {
+        activeHotspotIdRef.current = null;
         clearConnector();
         return null;
       }
+      activeHotspotIdRef.current = id;
       return id;
     });
+  };
+
+  const revealCard = (hotspotId: string) => {
+    if (activeHotspotIdRef.current === hotspotId) {
+      setIsCardRevealed(true);
+    }
   };
 
   useLayoutEffect(() => {
@@ -296,6 +312,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
               tooltipGap={placement?.gap}
               label={hotspot.label}
               isActive={hotspot.id === activeHotspotId}
+              size={activeEntry.vehicleType.slug === "tyagach" ? "tonar" : "standard"}
               revealDelay={hotspot.hotspotNumber * 0.08}
               onClick={() => selectHotspot(hotspot.id)}
             />
@@ -323,7 +340,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
       <div
         ref={containerRef}
         data-testid="vehicle-showcase-grid"
-        className={`relative mt-3 grid grid-cols-1 gap-6 lg:min-h-0 lg:flex-1 lg:overflow-hidden ${revealed ? "mx-auto lg:mx-0 lg:grid-cols-[1.3fr_1fr] lg:gap-10" : "mx-auto max-w-2xl"}`}
+        className={`relative mt-3 grid grid-cols-1 gap-6 lg:min-h-0 lg:flex-1 lg:overflow-hidden lg:p-1 ${revealed ? "mx-auto lg:mx-0 lg:grid-cols-[1.3fr_1fr] lg:gap-10" : "mx-auto max-w-2xl"}`}
       >
         {stage}
 
@@ -331,17 +348,28 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
           // Ref target for the connector measurement — stays mounted
           // across both hotspot switches and the hint↔card swap so it's
           // never a stale/removed node when geometry is (re)computed.
-          <div ref={cardRef} data-testid="vehicle-card" className="min-h-[220px] lg:min-h-0">
+          // Leave a one-step runway above the card: the connector traces its
+          // top edge and the pulse needs unclipped space to remain legible.
+          // This is on the measured wrapper, so both card height and SVG
+          // geometry move together.
+          <div ref={cardRef} data-testid="vehicle-card" className="min-h-[220px] lg:mt-4 lg:h-[calc(100%-1rem)] lg:min-h-0">
             <AnimatePresence mode="wait">
               {activeHotspot ? (
                 <motion.div
                   key={activeHotspot.id}
-                  initial={{ opacity: 0, x: 16 }}
-                  animate={{ opacity: 1, x: 0 }}
+                  initial={{ opacity: 0, x: shouldReduceMotion ? 0 : 16 }}
+                  animate={{ opacity: isCardRevealed ? 1 : 0, x: isCardRevealed || shouldReduceMotion ? 0 : 16 }}
                   exit={{ opacity: 0, x: 16 }}
                   transition={{ duration: 0.25, ease: "easeOut" }}
+                  aria-hidden={!isCardRevealed}
+                  inert={!isCardRevealed}
+                  className={`lg:h-full ${isCardRevealed ? "pointer-events-auto" : "pointer-events-none"}`}
                 >
-                  <ProductPanel label={activeHotspot.label} product={activeHotspot.product} />
+                  <ProductPanel
+                    label={activeHotspot.label}
+                    product={activeHotspot.product}
+                    vehicleTypeSlug={activeEntry.vehicleType.slug}
+                  />
                 </motion.div>
               ) : (
                 <motion.div
@@ -372,11 +400,11 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
               key={activeHotspotId}
               aria-hidden="true"
               data-testid="vehicle-connector-svg"
-              className="pointer-events-none absolute inset-0 z-10"
+              className="pointer-events-none absolute inset-0 z-10 overflow-visible"
               width={svgSize.width}
               height={svgSize.height}
             >
-              <Connector paths={activePaths} />
+              <Connector paths={activePaths} onConnected={() => revealCard(activeHotspotId!)} />
             </svg>
           )}
         </AnimatePresence>

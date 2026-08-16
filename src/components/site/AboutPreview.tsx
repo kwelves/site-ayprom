@@ -92,17 +92,29 @@ export function AboutPreview() {
           </Link>
         </div>
 
-        {/* The truck is now the dominant visual (not a corner decoration
-            peeking off a contact card), so it lives inside this panel rather
-            than bleeding past it — no viewport-relative clipping math needed. */}
-        <div className="relative hidden min-h-[360px] overflow-hidden rounded-2xl border border-border-accent bg-accent/50 lg:block">
+        {/* The hydraulic cylinder close-up is the dominant visual (not a
+            corner decoration peeking off a contact card), so it lives inside
+            this panel rather than bleeding past it — no viewport-relative
+            clipping math needed. Flush to the panel's own edges (not
+            floating, no drop-shadow): the source photo has a transparent
+            background but hard, straight-cut edges, so `rounded-b-2xl`
+            matching the panel's own radius is applied directly on the image
+            — the parent's `overflow-hidden` alone clips to the same curve,
+            but the explicit radius keeps the bottom corners rounded even if
+            the image is ever swapped for one that fully fills the box. */}
+        {/* One step darker than the standard accent wash (bg-accent/50,
+            border-border-accent) — that pair reads as almost white here, so
+            the panel is bumped to the next token in the same blue scale
+            (blue-50→blue-100 fill, blue-100→blue-200 border) instead of a
+            one-off opacity tweak. */}
+        <div className="relative hidden min-h-[360px] overflow-hidden rounded-2xl border border-border-interactive bg-accent-strong/60 lg:block">
           <Image
-            src="/about-samosval.png"
-            alt="Самосвал"
-            width={612}
-            height={408}
+            src="/about-hydraulic-arm.png"
+            alt="Гидроцилиндр стрелы спецтехники"
+            width={1200}
+            height={800}
             sizes="480px"
-            className="pointer-events-none absolute inset-x-0 bottom-0 mx-auto w-[78%] max-w-[440px] drop-shadow-xl"
+            className="pointer-events-none absolute inset-x-0 bottom-0 w-full rounded-b-2xl"
           />
 
           <div className="absolute inset-x-4 top-4 z-10 flex flex-col gap-4 rounded-xl border border-border-accent bg-card/95 p-4 backdrop-blur-sm">

@@ -20,6 +20,10 @@ const CLEARANCE = 34;
 // from the card's real rounded corner, reading as a second, sharper-edged
 // box ghosting behind it.
 const CORNER_MAX = 16;
+// The traced outline intentionally sits outside the real card. Keeping this
+// in geometry (rather than translating the SVG) gives it the same 2px air
+// gap along straight edges and around the rounded corners.
+const CARD_OUTLINE_GAP = 2;
 const OBSTACLE_RADIUS = 22;
 const Y_CANDIDATES = [76, 116, 46, 156, 26, 196];
 
@@ -73,13 +77,14 @@ export function buildConnectorPaths(hotspot: Rect, card: Rect, obstacles: Rect[]
   const startX = hx + (radius + 3) * Math.cos(startAngle);
   const startY = hy + (radius + 3) * Math.sin(startAngle);
 
-  const entryX = card.left;
+  const cardLeft = card.left - CARD_OUTLINE_GAP;
+  const cardRight = card.left + card.width + CARD_OUTLINE_GAP;
+  const cardTop = card.top - CARD_OUTLINE_GAP;
+  const cardBottom = card.top + card.height + CARD_OUTLINE_GAP;
+  const entryX = cardLeft;
   const entryY = endY;
-  const cornerR = Math.min(CORNER_MAX, card.width / 2, card.height / 2);
-  const cardRight = card.left + card.width;
-  const cardTop = card.top;
-  const cardBottom = card.top + card.height;
-  const oppositeY = card.top + card.height - (entryY - card.top);
+  const cornerR = Math.min(CORNER_MAX + CARD_OUTLINE_GAP, (cardRight - cardLeft) / 2, (cardBottom - cardTop) / 2);
+  const oppositeY = cardTop + cardBottom - entryY;
 
   const stem = `M ${startX} ${startY} L ${bendX} ${endY} L ${entryX} ${entryY}`;
 
@@ -98,7 +103,9 @@ export function buildVerticalConnectorPath(hotspot: Rect, card: Rect): { stem: s
   const hy = hotspot.top + hotspot.height / 2;
   const radius = hotspot.width / 2;
   const entryX = card.left + card.width / 2;
-  const entryY = card.top;
+  // The stacked mobile connector ends 2px above the card. It does not wrap
+  // the sides because the card spans the full row at this breakpoint.
+  const entryY = card.top - CARD_OUTLINE_GAP;
   const bendY = Math.max(hy + radius + 24, entryY - 40);
 
   const stem = `M ${hx} ${hy + radius + 3} L ${hx} ${bendY} L ${entryX} ${entryY}`;

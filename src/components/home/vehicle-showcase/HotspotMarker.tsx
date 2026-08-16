@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type TooltipAlign = "start" | "center" | "end";
+type HotspotSize = "standard" | "tonar";
 
 // Literal, complete class strings per gap — Tailwind's scanner needs the
 // full arbitrary-value class present verbatim in source, so this can't be
@@ -17,11 +18,30 @@ const TOOLTIP_GAP_CLASS: Record<9 | 16 | 24 | 32, { below: string; above: string
   32: { below: "top-[calc(100%+32px)]", above: "bottom-[calc(100%+32px)]" },
 };
 
+// The marker's center is always its measured hotspot coordinate. Only its
+// visual diameter changes per vehicle, so connector routing and tooltip
+// anchors stay stable while the larger hit target remains centered.
+const HOTSPOT_SIZE_CLASS: Record<HotspotSize, { marker: string; pulse: string; core: string; icon: string }> = {
+  standard: {
+    marker: "h-[48.4px] w-[48.4px] lg:h-[35.2px] lg:w-[35.2px]",
+    pulse: "inset-[-8.8px] lg:inset-[-5.5px]",
+    core: "h-[48.4px] w-[48.4px] lg:h-[35.2px] lg:w-[35.2px]",
+    icon: "h-[19.8px] w-[19.8px] lg:h-[14.3px] lg:w-[14.3px]",
+  },
+  tonar: {
+    marker: "h-[46.2px] w-[46.2px] lg:h-[33.6px] lg:w-[33.6px]",
+    pulse: "inset-[-8.4px] lg:inset-[-5.25px]",
+    core: "h-[46.2px] w-[46.2px] lg:h-[33.6px] lg:w-[33.6px]",
+    icon: "h-[18.9px] w-[18.9px] lg:h-[13.65px] lg:w-[13.65px]",
+  },
+};
+
 interface HotspotMarkerProps {
   left: number;
   top: number;
   label: string;
   isActive: boolean;
+  size: HotspotSize;
   /** Which edge has room — computed by the parent from the hotspot's pixel
    * position against the actual stage bounds, since with the vehicle now
    * scaled beyond strict contain-fit a hotspot can sit close to (or past)
@@ -39,11 +59,12 @@ interface HotspotMarkerProps {
 }
 
 export const HotspotMarker = forwardRef<HTMLButtonElement, HotspotMarkerProps>(function HotspotMarker(
-  { left, top, label, isActive, tooltipBelow, tooltipAlign, tooltipGap = 9, revealDelay, onClick },
+  { left, top, label, isActive, size, tooltipBelow, tooltipAlign, tooltipGap = 9, revealDelay, onClick },
   ref,
 ) {
   const shouldReduceMotion = useReducedMotion();
   const [popped, setPopped] = useState(shouldReduceMotion ?? false);
+  const sizeClass = HOTSPOT_SIZE_CLASS[size];
 
   useEffect(() => {
     if (shouldReduceMotion) {
@@ -75,7 +96,8 @@ export const HotspotMarker = forwardRef<HTMLButtonElement, HotspotMarkerProps>(f
         // guarantees the tooltip you're actually looking at paints over
         // the marker it happens to overlap, instead of DOM order deciding
         // which one wins.
-        "group absolute z-20 grid h-11 w-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full outline-none transition-[transform,opacity] duration-base ease-ui hover:z-30 focus-visible:z-30 lg:h-8 lg:w-8",
+        "group absolute z-20 grid -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full outline-none transition-[transform,opacity] duration-base ease-ui hover:z-30 focus-visible:z-30",
+        sizeClass.marker,
         popped ? "scale-100 opacity-100" : "scale-150 opacity-0",
         isActive && "z-30",
       )}
@@ -84,7 +106,7 @@ export const HotspotMarker = forwardRef<HTMLButtonElement, HotspotMarkerProps>(f
       {!shouldReduceMotion && (
         <motion.span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-[-8px] rounded-full border border-[rgba(120,170,250,0.4)] lg:inset-[-5px]"
+          className={cn("pointer-events-none absolute rounded-full border border-[rgba(120,170,250,0.4)]", sizeClass.pulse)}
           animate={{ scale: [0.72, 1.75], opacity: [0.55, 0] }}
           transition={{ duration: 1.9, repeat: Number.POSITIVE_INFINITY, ease: "easeOut" }}
         />
@@ -92,7 +114,8 @@ export const HotspotMarker = forwardRef<HTMLButtonElement, HotspotMarkerProps>(f
 
       <span
         className={cn(
-          "grid h-11 w-11 place-items-center rounded-full border transition-[transform,background-color,box-shadow] duration-fast ease-ui lg:h-8 lg:w-8",
+          "grid place-items-center rounded-full border transition-[transform,background-color,box-shadow] duration-fast ease-ui",
+          sizeClass.core,
           isActive
             ? "scale-[1.08] border-white/28 bg-[#0a5edd] shadow-[0_0_0_8px_rgba(79,145,248,0.16),0_10px_24px_rgba(2,6,24,0.34)]"
             : "border-white/28 bg-[#084bb9] shadow-[0_0_0_0_rgba(79,145,248,0.35),0_8px_18px_rgba(2,6,24,0.28)] group-hover:scale-[1.08] group-hover:bg-[#0a5edd] group-hover:shadow-[0_0_0_8px_rgba(79,145,248,0.16),0_10px_24px_rgba(2,6,24,0.34)] group-focus-visible:scale-[1.08] group-focus-visible:bg-[#0a5edd] group-focus-visible:shadow-[0_0_0_8px_rgba(79,145,248,0.16),0_10px_24px_rgba(2,6,24,0.34)]",
@@ -103,7 +126,7 @@ export const HotspotMarker = forwardRef<HTMLButtonElement, HotspotMarkerProps>(f
             click this again to close" look like "this is already open". */}
         <Plus
           aria-hidden="true"
-          className={cn("h-[18px] w-[18px] text-white transition-transform duration-fast ease-ui lg:h-[13px] lg:w-[13px]", isActive && "rotate-45")}
+          className={cn("text-white transition-transform duration-fast ease-ui", sizeClass.icon, isActive && "rotate-45")}
           strokeWidth={1.8}
         />
       </span>

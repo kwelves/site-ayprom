@@ -12,7 +12,7 @@ import { requireServerEnv } from "@/lib/env";
 export const SESSION_COOKIE_NAME = "admin_session";
 export const SESSION_DURATION_SECONDS = 60 * 60 * 8; // 8 hours
 export const SESSION_REFRESH_THRESHOLD_SECONDS = 60 * 60; // refresh during the final hour
-const SESSION_ABSOLUTE_DURATION_SECONDS = 60 * 60 * 24; // force a new login after 24 hours
+const SESSION_ABSOLUTE_DURATION_SECONDS = 60 * 60 * 24 * 30; // force a new login after 30 days
 
 interface SessionPayload {
   iat: number;

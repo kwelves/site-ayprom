@@ -204,7 +204,8 @@ const ADMIN_PRODUCT_SELECT = `
   product_images(id, url, "order", scale),
   product_characteristics(id, attribute, value, "order"),
   product_brands(brand_slug),
-  product_vehicle_types(vehicle_type_slug)
+  product_vehicle_types(vehicle_type_slug),
+  vehicle_hotspots(id)
 `;
 
 interface AdminProductRow {
@@ -221,6 +222,7 @@ interface AdminProductRow {
   product_characteristics: { id: string; attribute: string; value: string; order: number }[];
   product_brands: { brand_slug: string }[];
   product_vehicle_types: { vehicle_type_slug: string }[];
+  vehicle_hotspots: { id: string }[];
 }
 
 // Full detail for the edit form — same nested shape as the public
@@ -238,12 +240,6 @@ export async function getAdminProduct(slug: string): Promise<AdminProduct | null
   if (error) throw error;
   if (!data) return null;
 
-  const { count: hotspotCount, error: hotspotCountError } = await supabase
-    .from("vehicle_hotspots")
-    .select("id", { count: "exact", head: true })
-    .eq("product_id", data.id);
-  if (hotspotCountError) throw hotspotCountError;
-
   const row = data as unknown as AdminProductRow;
   return {
     id: row.id,
@@ -259,7 +255,7 @@ export async function getAdminProduct(slug: string): Promise<AdminProduct | null
     vehicleTypes: row.product_vehicle_types.map((pvt) => pvt.vehicle_type_slug),
     images: [...row.product_images].sort((a, b) => a.order - b.order),
     characteristics: [...row.product_characteristics].sort((a, b) => a.order - b.order),
-    hotspotCount: hotspotCount ?? 0,
+    hotspotCount: row.vehicle_hotspots?.length ?? 0,
   };
 }
 

@@ -63,6 +63,19 @@
   --animate-pop-in: pop-in var(--transition-duration-reveal) var(--ease-ui) both;
   /* Подсказка «прокрути вниз» под первым экраном. */
   --animate-nudge-down: nudge-down 1.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  /* Бесконечное пульсирующее кольцо вокруг закреплённой кнопки WhatsApp. */
+  --animate-whatsapp-pulse: whatsapp-pulse 2.2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  /* Медленное дышащее кольцо вокруг иконки блока "Внимание" на странице
+     товара — должно заинтересовать взгляд, а не тревожить, поэтому заметно
+     медленнее и мягче, чем whatsapp-pulse. */
+  --animate-attention-pulse: attention-pulse 3.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+
+  /*
+   * WhatsApp — фирменный зелёный самого мессенджера, вне синей палитры сайта.
+   * Используется только для закреплённой кнопки чата (WhatsAppBadge.tsx).
+   */
+  --color-whatsapp-500: #25d366;
+  --color-whatsapp-600: #1da851;
 }
 
 @theme inline {
@@ -147,6 +160,11 @@
    * Brand blue matches the recolored logo assets and primary actions.
    */
   --color-brand: var(--color-blue-600);
+
+  /* --- Messenger badge (fixed WhatsApp link, brand-mandated color) --- */
+  --color-whatsapp: var(--color-whatsapp-500);
+  --color-whatsapp-hover: var(--color-whatsapp-600);
+  --color-whatsapp-foreground: var(--color-white);
 }
 
 html {
@@ -212,6 +230,39 @@ a {
   }
   50% {
     translate: 0 8px;
+  }
+}
+
+/*
+ * Кольцо, расходящееся от кнопки WhatsApp — привлекает взгляд к
+ * закреплённой кнопке, не требуя от неё самой терять видимость. Анимируются
+ * только opacity/scale, как и остальные токены движения выше.
+ */
+@keyframes whatsapp-pulse {
+  0% {
+    opacity: 0.55;
+    scale: 1;
+  }
+  70%,
+  100% {
+    opacity: 0;
+    scale: 1.9;
+  }
+}
+
+/*
+ * Медленное расходящееся кольцо вокруг иконки "i" в блоке "Внимание" на
+ * странице товара КОМ — держит взгляд, но не выглядит срочным предупреждением.
+ */
+@keyframes attention-pulse {
+  0% {
+    opacity: 0.5;
+    scale: 1;
+  }
+  70%,
+  100% {
+    opacity: 0;
+    scale: 1.7;
   }
 }
 

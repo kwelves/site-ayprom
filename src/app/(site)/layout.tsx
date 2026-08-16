@@ -3,6 +3,7 @@ import { Geist } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { WhatsAppBadge } from "@/components/site/WhatsAppBadge";
 import { ScrollToHash } from "@/components/layout/ScrollToHash";
 import { ResetScrollOnNavigate } from "@/components/layout/ResetScrollOnNavigate";
 import { getCategories } from "@/lib/queries/categories";
@@ -77,6 +78,7 @@ export default async function RootLayout({
         <Header categories={categories} brands={brands} />
         <main id="main-content" className="flex-1" tabIndex={-1}>{children}</main>
         <Footer categories={categories} brands={brands} />
+        <WhatsAppBadge />
         </MotionPreferences>
         <SpeedInsights />
       </body>

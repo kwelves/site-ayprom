@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import type { ConnectorPaths } from "./connector-geometry";
 
@@ -31,6 +31,9 @@ interface ConnectorProps {
 // draw from scratch and erase the previous line via its exit animation,
 // instead of just re-pointing the same persistent path at new coordinates.
 export function Connector({ paths, onConnected }: ConnectorProps) {
+  const pulseId = useId().replace(/:/g, "");
+  const glassGradientId = `connector-glass-${pulseId}`;
+  const glassFilterId = `connector-glass-filter-${pulseId}`;
   const shouldReduceMotion = useReducedMotion();
   const [constructed, setConstructed] = useState(false);
   const stemDuration = shouldReduceMotion ? 0 : 0.4;
@@ -44,6 +47,26 @@ export function Connector({ paths, onConnected }: ConnectorProps) {
 
   return (
     <>
+      <defs>
+        <linearGradient id={glassGradientId} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#5ba4ff" />
+          <stop offset="0.36" stopColor="#f8fcff" />
+          <stop offset="0.58" stopColor="#8fc2ff" />
+          <stop offset="1" stopColor="#3e8cff" />
+        </linearGradient>
+        <filter id={glassFilterId} x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="1.1" result="bloom" />
+          <feSpecularLighting in="bloom" surfaceScale="1.5" specularConstant="0.7" specularExponent="18" lightingColor="#ffffff" result="highlight">
+            <feDistantLight azimuth="225" elevation="58" />
+          </feSpecularLighting>
+          <feComposite in="highlight" in2="SourceAlpha" operator="in" result="glassHighlight" />
+          <feMerge>
+            <feMergeNode in="bloom" />
+            <feMergeNode in="SourceGraphic" />
+            <feMergeNode in="glassHighlight" />
+          </feMerge>
+        </filter>
+      </defs>
       <g style={{ filter: "drop-shadow(0 0 5px rgba(20,116,255,0.28))" }}>
         <motion.path
           d={paths.stem}
@@ -97,31 +120,46 @@ export function Connector({ paths, onConnected }: ConnectorProps) {
           <motion.path
             d={paths.stem}
             fill="none"
-            stroke="#b9dcff"
-            strokeWidth={3.5}
+            stroke={`url(#${glassGradientId})`}
+            strokeWidth={6}
             strokeLinecap="round"
+            opacity={0.24}
+            filter={`url(#${glassFilterId})`}
+            initial={{ pathLength: 0.08, pathOffset: 0, opacity: 0.24 }}
+            animate={{ pathOffset: 0.95, opacity: [0.24, 0.24, 0] }}
+            transition={{ duration: stemDuration, ease: DRAW_EASE }}
+          />
+          <motion.path
+            d={paths.stem}
+            fill="none"
+            stroke={`url(#${glassGradientId})`}
+            strokeWidth={3.25}
+            strokeLinecap="round"
+            filter={`url(#${glassFilterId})`}
             initial={{ pathLength: 0.08, pathOffset: 0, opacity: 1 }}
             animate={{ pathOffset: 0.95, opacity: [1, 1, 0] }}
             transition={{ duration: stemDuration, ease: DRAW_EASE }}
           />
           {hasBranches && (
             <>
-              <motion.path
-                d={paths.topBranch}
-                fill="none"
-                stroke="#b9dcff"
-                strokeWidth={3.5}
-                strokeLinecap="round"
+            <motion.path
+              d={paths.topBranch}
+              fill="none"
+              stroke={`url(#${glassGradientId})`}
+              strokeWidth={3.25}
+              strokeLinecap="round"
+              filter={`url(#${glassFilterId})`}
                 initial={{ pathLength: 0.08, pathOffset: 0, opacity: 1 }}
                 animate={{ pathOffset: 0.95, opacity: [1, 1, 0] }}
                 transition={{ duration: branchDuration, delay: stemDuration, ease: DRAW_EASE }}
               />
-              <motion.path
-                d={paths.bottomBranch}
-                fill="none"
-                stroke="#b9dcff"
-                strokeWidth={3.5}
-                strokeLinecap="round"
+            <motion.path
+              d={paths.bottomBranch}
+              fill="none"
+              stroke={`url(#${glassGradientId})`}
+              strokeWidth={3.25}
+              strokeLinecap="round"
+              filter={`url(#${glassFilterId})`}
                 initial={{ pathLength: 0.08, pathOffset: 0, opacity: 1 }}
                 animate={{ pathOffset: 0.95, opacity: [1, 1, 0] }}
                 transition={{ duration: branchDuration, delay: stemDuration, ease: DRAW_EASE }}
@@ -141,9 +179,22 @@ export function Connector({ paths, onConnected }: ConnectorProps) {
           <motion.path
             d={paths.topBranch}
             fill="none"
-            stroke="#b9dcff"
-            strokeWidth={3}
+            stroke={`url(#${glassGradientId})`}
+            strokeWidth={5.5}
             strokeLinecap="round"
+            opacity={0.22}
+            filter={`url(#${glassFilterId})`}
+            initial={{ pathLength: 0.1, pathOffset: 0 }}
+            animate={{ pathOffset: 1 }}
+            transition={{ duration: 2, ease: "linear", repeat: Number.POSITIVE_INFINITY }}
+          />
+          <motion.path
+            d={paths.topBranch}
+            fill="none"
+            stroke={`url(#${glassGradientId})`}
+            strokeWidth={2.8}
+            strokeLinecap="round"
+            filter={`url(#${glassFilterId})`}
             initial={{ pathLength: 0.1, pathOffset: 0 }}
             animate={{ pathOffset: 1 }}
             transition={{ duration: 2, ease: "linear", repeat: Number.POSITIVE_INFINITY }}
@@ -151,9 +202,22 @@ export function Connector({ paths, onConnected }: ConnectorProps) {
           <motion.path
             d={paths.bottomBranch}
             fill="none"
-            stroke="#b9dcff"
-            strokeWidth={3}
+            stroke={`url(#${glassGradientId})`}
+            strokeWidth={5.5}
             strokeLinecap="round"
+            opacity={0.22}
+            filter={`url(#${glassFilterId})`}
+            initial={{ pathLength: 0.1, pathOffset: 0 }}
+            animate={{ pathOffset: 1 }}
+            transition={{ duration: 2, ease: "linear", repeat: Number.POSITIVE_INFINITY }}
+          />
+          <motion.path
+            d={paths.bottomBranch}
+            fill="none"
+            stroke={`url(#${glassGradientId})`}
+            strokeWidth={2.8}
+            strokeLinecap="round"
+            filter={`url(#${glassFilterId})`}
             initial={{ pathLength: 0.1, pathOffset: 0 }}
             animate={{ pathOffset: 1 }}
             transition={{ duration: 2, ease: "linear", repeat: Number.POSITIVE_INFINITY }}

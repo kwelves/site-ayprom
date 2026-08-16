@@ -1,6 +1,7 @@
 import { Reveal } from "@/components/motion/Reveal";
 import { ProductGallery } from "@/components/catalog/ProductGallery";
 import { ProductCard } from "@/components/catalog/ProductCard";
+import { PtoNameplateGuide } from "@/components/catalog/PtoNameplateGuide";
 import { getProducts } from "@/lib/queries/products";
 import { getCategoryBrandSlugs } from "@/lib/queries/category-brands";
 import { getProductHref } from "@/lib/product-href";
@@ -64,6 +65,8 @@ export async function ProductDetail({ product }: { product: Product }) {
           </div>
         </Reveal>
       </div>
+
+      {product.category === "pto" && <PtoNameplateGuide />}
 
       {relatedProducts.length > 0 && (
         <section className="mt-16 border-t border-border pt-10" aria-labelledby="related-products-title">

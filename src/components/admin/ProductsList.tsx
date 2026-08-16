@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { SortableList } from "@/components/admin/SortableList";
 import { Toast } from "@/components/admin/ui/Toast";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
+import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
 import { reorderProducts, deleteProduct, toggleProductPublished } from "@/lib/admin/actions";
 import { useAdminList } from "@/lib/admin/use-admin-list";
 import { DURATION, EASE_UI } from "@/lib/motion";
@@ -25,9 +26,6 @@ interface ProductsListProps {
 // значений order, поэтому выборка перестраивается, не задевая каталог.
 export function ProductsList({ products: initialProducts, flashSlug, flashAction }: ProductsListProps) {
   const [unpublishProduct, setUnpublishProduct] = useState<AdminProductListItem | null>(null);
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const cancelButtonRef = useRef<HTMLButtonElement>(null);
-  const toggleTriggerRef = useRef<HTMLElement | null>(null);
   const {
     items: products,
     setItems: setProducts,
@@ -50,10 +48,6 @@ export function ProductsList({ products: initialProducts, flashSlug, flashAction
       flashSlug,
       flashAction,
     });
-
-  useEffect(() => {
-    if (unpublishProduct) cancelButtonRef.current?.focus();
-  }, [unpublishProduct]);
 
   function handleDelete(product: AdminProductListItem) {
     if (!confirm(`Удалить товар «${product.name}»? Это действие необратимо.`)) return;
@@ -81,9 +75,8 @@ export function ProductsList({ products: initialProducts, flashSlug, flashAction
     });
   }
 
-  function handleTogglePublished(product: AdminProductListItem, nextPublished: boolean, trigger: HTMLElement) {
+  function handleTogglePublished(product: AdminProductListItem, nextPublished: boolean) {
     if (product.published && !nextPublished && product.hotspotCount > 0) {
-      toggleTriggerRef.current = trigger;
       setUnpublishProduct(product);
       return;
     }
@@ -92,34 +85,12 @@ export function ProductsList({ products: initialProducts, flashSlug, flashAction
 
   function closeUnpublishDialog() {
     setUnpublishProduct(null);
-    requestAnimationFrame(() => toggleTriggerRef.current?.focus());
   }
 
   function confirmUnpublish() {
     if (!unpublishProduct) return;
     applyPublishedToggle(unpublishProduct, false, true);
     setUnpublishProduct(null);
-  }
-
-  function handleUnpublishDialogKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      closeUnpublishDialog();
-      return;
-    }
-    if (event.key !== "Tab") return;
-
-    const buttons = dialogRef.current?.querySelectorAll<HTMLButtonElement>("button:not([disabled])");
-    if (!buttons || buttons.length === 0) return;
-    const first = buttons[0];
-    const last = buttons[buttons.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
   }
 
   return (
@@ -144,7 +115,7 @@ export function ProductsList({ products: initialProducts, flashSlug, flashAction
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                onClick={(event) => handleTogglePublished(product, !product.published, event.currentTarget)}
+                onClick={() => handleTogglePublished(product, !product.published)}
                 aria-pressed={product.published}
                 aria-label={`Переключить публикацию товара «${product.name}»`}
                 className={cn(
@@ -189,43 +160,24 @@ export function ProductsList({ products: initialProducts, flashSlug, flashAction
         message={actionError}
         onDismiss={dismissActionError}
       />
-      {unpublishProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
-          <div
-            ref={dialogRef}
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="unpublish-product-title"
-            aria-describedby="unpublish-product-description"
-            onKeyDown={handleUnpublishDialogKeyDown}
-            className="w-full max-w-md rounded-lg border border-warning-border bg-card p-5 shadow-lg"
-          >
-            <h2 id="unpublish-product-title" className="text-base font-semibold text-card-foreground">
-              Снять товар с публикации?
-            </h2>
-            <p id="unpublish-product-description" className="mt-2 text-sm text-muted-foreground">
-              Товар «{unpublishProduct.name}» будет отвязан от {unpublishProduct.hotspotCount} {unpublishProduct.hotspotCount === 1 ? "хотспота" : "хотспотов"} в разделе «Спецтехника». На сайте вместо него появится заглушка.
-            </p>
-            <div className="mt-5 flex flex-wrap justify-end gap-3">
-              <button
-                ref={cancelButtonRef}
-                type="button"
-                onClick={closeUnpublishDialog}
-                className="rounded-md border border-border px-4 py-2 text-sm font-medium text-card-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              >
-                Отмена
-              </button>
-              <button
-                type="button"
-                onClick={confirmUnpublish}
-                className="rounded-md border border-danger-border bg-danger-surface px-4 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger"
-              >
-                Снять с публикации
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={unpublishProduct !== null}
+        title="Снять товар с публикации?"
+        description={
+          unpublishProduct ? (
+            <>
+              Товар «{unpublishProduct.name}» будет отвязан от {unpublishProduct.hotspotCount}{" "}
+              {unpublishProduct.hotspotCount === 1 ? "хотспота" : "хотспотов"} в разделе «Спецтехника». На сайте вместо него
+              появится заглушка.
+            </>
+          ) : null
+        }
+        cancelLabel="Отмена"
+        confirmLabel="Снять с публикации"
+        tone="danger"
+        onCancel={closeUnpublishDialog}
+        onConfirm={confirmUnpublish}
+      />
     </>
   );
 }

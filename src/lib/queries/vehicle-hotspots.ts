@@ -6,7 +6,7 @@ export interface HotspotProduct {
   slug: string;
   name: string;
   shortDescription: string;
-  image?: { url: string; scale?: number };
+  images: { url: string; scale?: number }[];
 }
 
 export interface VehicleHotspot {
@@ -40,7 +40,11 @@ interface HotspotRow {
 
 function mapHotspot(row: HotspotRow): VehicleHotspot {
   const product = row.products;
-  const cover = product ? [...product.product_images].sort((a, b) => a.order - b.order)[0] : undefined;
+  const images = product
+    ? [...product.product_images]
+        .sort((a, b) => a.order - b.order)
+        .map((image) => ({ url: image.url, scale: image.scale ?? undefined }))
+    : [];
   return {
     id: row.id,
     hotspotNumber: row.hotspot_number,
@@ -52,7 +56,7 @@ function mapHotspot(row: HotspotRow): VehicleHotspot {
           slug: product.slug,
           name: product.name,
           shortDescription: product.short_description,
-          image: cover ? { url: cover.url, scale: cover.scale ?? undefined } : undefined,
+          images,
         }
       : null,
   };
