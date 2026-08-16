@@ -55,11 +55,32 @@ interface HotspotMarkerProps {
   tooltipGap?: 9 | 16 | 24 | 32;
   /** Seconds to wait before popping in, staggered by hotspot number. */
   revealDelay: number;
+  /** Keeps the marker's own positioned DOM node in place while a vehicle
+   * switch fades its complete hotspot layer out and back in. */
+  visible?: boolean;
+  /** A switch enters from a subtle scale instead of the stronger initial
+   * section-pop, preserving the original intro while keeping switches calm. */
+  switching?: boolean;
+  disabled?: boolean;
   onClick: () => void;
 }
 
 export const HotspotMarker = forwardRef<HTMLButtonElement, HotspotMarkerProps>(function HotspotMarker(
-  { left, top, label, isActive, size, tooltipBelow, tooltipAlign, tooltipGap = 9, revealDelay, onClick },
+  {
+    left,
+    top,
+    label,
+    isActive,
+    size,
+    tooltipBelow,
+    tooltipAlign,
+    tooltipGap = 9,
+    revealDelay,
+    visible = true,
+    switching = false,
+    disabled = false,
+    onClick,
+  },
   ref,
 ) {
   const shouldReduceMotion = useReducedMotion();
@@ -67,13 +88,17 @@ export const HotspotMarker = forwardRef<HTMLButtonElement, HotspotMarkerProps>(f
   const sizeClass = HOTSPOT_SIZE_CLASS[size];
 
   useEffect(() => {
+    if (!visible) {
+      setPopped(false);
+      return;
+    }
     if (shouldReduceMotion) {
       setPopped(true);
       return;
     }
     const timer = setTimeout(() => setPopped(true), revealDelay * 1000);
     return () => clearTimeout(timer);
-  }, [revealDelay, shouldReduceMotion]);
+  }, [revealDelay, shouldReduceMotion, visible]);
 
   return (
     // Positioning (pixel left/top + the -1/2 translate) lives on this button
@@ -86,9 +111,11 @@ export const HotspotMarker = forwardRef<HTMLButtonElement, HotspotMarkerProps>(f
     <button
       ref={ref}
       type="button"
+      disabled={disabled || !visible}
       onClick={onClick}
       aria-label={label}
       aria-pressed={isActive}
+      aria-hidden={!visible}
       className={cn(
         // z-30 on hover/focus/active is the safety net for hotspots too
         // tightly clustered for any placement to fully dodge a neighbor
@@ -96,9 +123,9 @@ export const HotspotMarker = forwardRef<HTMLButtonElement, HotspotMarkerProps>(f
         // guarantees the tooltip you're actually looking at paints over
         // the marker it happens to overlap, instead of DOM order deciding
         // which one wins.
-        "group absolute z-20 grid -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full outline-none transition-[transform,opacity] duration-base ease-ui hover:z-30 focus-visible:z-30",
+        "group absolute z-20 grid -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full outline-none transition-[transform,opacity] duration-base ease-ui hover:z-30 focus-visible:z-30 disabled:pointer-events-none",
         sizeClass.marker,
-        popped ? "scale-100 opacity-100" : "scale-150 opacity-0",
+        visible && popped ? "scale-100 opacity-100" : switching || !visible ? "scale-[0.96] opacity-0" : "scale-150 opacity-0",
         isActive && "z-30",
       )}
       style={{ left, top }}

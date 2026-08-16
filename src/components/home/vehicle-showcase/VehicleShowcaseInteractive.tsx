@@ -10,7 +10,7 @@ import { Connector } from "./Connector";
 import { useContainRect } from "./useContainRect";
 import { buildConnectorPaths, buildVerticalConnectorPath, type ConnectorPaths, type Rect } from "./connector-geometry";
 import type { VehicleShowcaseEntry } from "@/lib/queries/vehicle-hotspots";
-import { DURATION } from "@/lib/motion";
+import { DURATION, EASE_UI } from "@/lib/motion";
 
 export interface VehicleVisual {
   image: string;
@@ -103,6 +103,14 @@ interface VehicleShowcaseInteractiveProps {
   defaultSlug: string;
 }
 
+type VehicleTransitionPhase =
+  | "idle"
+  | "preloading"
+  | "hotspots-exiting"
+  | "vehicle-exiting"
+  | "vehicle-entering"
+  | "hotspots-entering";
+
 // One fixed shape for every vehicle so switching vehicles never resizes the
 // section — only the vehicle drawing (via object-contain) scales to fit
 // inside it, and the whole thing is always fully visible, never cropped.
@@ -138,22 +146,42 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
     entries.findIndex((entry) => entry.vehicleType.slug === defaultSlug),
   );
 
-  const [activeVehicleIndex, setActiveVehicleIndex] = useState(defaultIndex);
+  // The carousel can acknowledge a choice immediately while the stage keeps
+  // rendering the previously displayed vehicle until the incoming large image
+  // is decoded. Keeping those states separate prevents new geometry and
+  // hotspots from briefly sitting over the old truck.
+  const [selectedVehicleIndex, setSelectedVehicleIndex] = useState(defaultIndex);
+  const [displayedVehicleIndex, setDisplayedVehicleIndex] = useState(defaultIndex);
   const [activeHotspotId, setActiveHotspotId] = useState<string | null>(null);
   const [isCardRevealed, setIsCardRevealed] = useState(false);
   const [entered, setEntered] = useState(false);
   const [revealed, setRevealed] = useState(false);
-  const [vehicleImageLoaded, setVehicleImageLoaded] = useState(false);
+  const [transitionPhase, setTransitionPhase] = useState<VehicleTransitionPhase>("idle");
   const [isDesktop, setIsDesktop] = useState(false);
   const [connectorPaths, setConnectorPaths] = useState<ConnectorPaths | null>(null);
   const [verticalPath, setVerticalPath] = useState<{ stem: string; terminal: { x: number; y: number } } | null>(null);
   const [svgSize, setSvgSize] = useState({ width: 0, height: 0 });
 
-  const activeEntry = entries[activeVehicleIndex];
+  const transitionPhaseRef = useRef<VehicleTransitionPhase>("idle");
+  const pendingVehicleIndexRef = useRef<number | null>(null);
+  const switchingRef = useRef(false);
+
+  const activeEntry = entries[displayedVehicleIndex];
   const activeHotspot = activeEntry?.hotspots.find((hotspot) => hotspot.id === activeHotspotId) ?? null;
   const visual = visuals[activeEntry?.vehicleType.slug ?? ""];
   const effectiveScale = isDesktop ? (visual?.desktopScale ?? visual?.scale ?? 1) : (visual?.scale ?? 1);
   const containRect = useContainRect(stageRef, visual?.naturalWidth ?? 1, visual?.naturalHeight ?? 1, effectiveScale);
+  const pendingEntry = entries[selectedVehicleIndex];
+  const pendingVisual = visuals[pendingEntry?.vehicleType.slug ?? ""];
+  const pendingScale = isDesktop
+    ? (pendingVisual?.desktopScale ?? pendingVisual?.scale ?? 1)
+    : (pendingVisual?.scale ?? 1);
+  const pendingContainRect = useContainRect(
+    stageRef,
+    pendingVisual?.naturalWidth ?? 1,
+    pendingVisual?.naturalHeight ?? 1,
+    pendingScale,
+  );
 
   useEffect(() => {
     const query = window.matchMedia("(min-width: 1024px)");
@@ -162,6 +190,26 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
     query.addEventListener("change", update);
     return () => query.removeEventListener("change", update);
   }, []);
+
+  useEffect(() => {
+    // This component mounts with the home route while its branded loading
+    // screen is still covering the page. Warm every asset the interactive
+    // showcase can need (all five full vehicles plus the first preview for
+    // every linked product) at background priority, so neither a switch nor
+    // the first card open has to start a fresh image request.
+    const sources = new Set([
+      ...Object.values(visuals).map((item) => item.image),
+      ...entries.flatMap((entry) => entry.hotspots.map((hotspot) => hotspot.product?.images[0]?.url)),
+    ]);
+
+    for (const src of sources) {
+      if (!src) continue;
+      const image = new window.Image();
+      image.decoding = "async";
+      image.fetchPriority = "low";
+      image.src = src;
+    }
+  }, [entries, visuals]);
 
   useEffect(() => {
     const node = sectionRef.current;
@@ -180,28 +228,91 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
   }, []);
 
   useEffect(() => {
-    if (!entered || !vehicleImageLoaded) return;
-    // Hotspots must never race ahead of the vehicle image. Their existing
-    // cascade, connector, card and carousel animations stay untouched; this
-    // only waits until the physical vehicle is actually ready to read first.
-    const timer = setTimeout(() => setRevealed(true), shouldReduceMotion ? 0 : DURATION.base * 1000);
+    if (!entered) return;
+    // The stage needs its revealed desktop layout before its measured image
+    // rectangle exists. This proven initial beat keeps the vehicle first and
+    // avoids waiting on an <Image> that is not mounted until that geometry is
+    // available.
+    const timer = setTimeout(() => setRevealed(true), shouldReduceMotion ? 0 : 700);
     return () => clearTimeout(timer);
-  }, [entered, shouldReduceMotion, vehicleImageLoaded]);
+  }, [entered, shouldReduceMotion]);
 
   const clearConnector = () => {
     setConnectorPaths(null);
     setVerticalPath(null);
   };
 
-  // Switching vehicle shows a fresh set of hotspots for different equipment
-  // — keeping a stale selection open would point the connector at the
-  // wrong photo, so drop back to the centered no-selection state instead.
-  const selectVehicle = (index: number) => {
-    setActiveVehicleIndex(index);
+  const startPreparedTransition = () => {
+    if (transitionPhaseRef.current !== "preloading") return;
+
+    transitionPhaseRef.current = "hotspots-exiting";
     activeHotspotIdRef.current = null;
     setActiveHotspotId(null);
     setIsCardRevealed(false);
     clearConnector();
+    setTransitionPhase("hotspots-exiting");
+  };
+
+  // Selecting another vehicle is a short, locked state machine rather than a
+  // single active-index update. The hidden <Image> below confirms the exact
+  // large source is ready before this transition starts.
+  const selectVehicle = (index: number) => {
+    if (switchingRef.current || index === selectedVehicleIndex) return;
+
+    switchingRef.current = true;
+    pendingVehicleIndexRef.current = index;
+    transitionPhaseRef.current = "preloading";
+    setSelectedVehicleIndex(index);
+    setTransitionPhase("preloading");
+  };
+
+  useEffect(() => {
+    if (transitionPhase !== "hotspots-exiting") return;
+    const timer = window.setTimeout(
+      () => {
+        transitionPhaseRef.current = "vehicle-exiting";
+        setTransitionPhase("vehicle-exiting");
+      },
+      shouldReduceMotion ? 0 : DURATION.base * 1000,
+    );
+    return () => window.clearTimeout(timer);
+  }, [shouldReduceMotion, transitionPhase]);
+
+  useEffect(() => {
+    if (transitionPhase !== "hotspots-entering") return;
+    const finalHotspotDelay = Math.max(0, ...activeEntry.hotspots.map((hotspot) => hotspot.hotspotNumber * 80));
+    const timer = window.setTimeout(
+      () => {
+        transitionPhaseRef.current = "idle";
+        pendingVehicleIndexRef.current = null;
+        switchingRef.current = false;
+        setTransitionPhase("idle");
+      },
+      shouldReduceMotion ? 0 : DURATION.base * 1000 + finalHotspotDelay,
+    );
+    return () => window.clearTimeout(timer);
+  }, [activeEntry.hotspots, shouldReduceMotion, transitionPhase]);
+
+  const completeVehicleExit = () => {
+    if (transitionPhaseRef.current !== "vehicle-exiting") return;
+    const nextIndex = pendingVehicleIndexRef.current;
+    if (nextIndex === null) return;
+
+    setDisplayedVehicleIndex(nextIndex);
+    if (shouldReduceMotion) {
+      transitionPhaseRef.current = "hotspots-entering";
+      setTransitionPhase("hotspots-entering");
+      return;
+    }
+
+    transitionPhaseRef.current = "vehicle-entering";
+    setTransitionPhase("vehicle-entering");
+  };
+
+  const completeVehicleEnter = () => {
+    if (transitionPhaseRef.current !== "vehicle-entering") return;
+    transitionPhaseRef.current = "hotspots-entering";
+    setTransitionPhase("hotspots-entering");
   };
 
   const selectHotspot = (id: string) => {
@@ -271,6 +382,11 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
 
   const hotspotCount = activeEntry.hotspots.length;
   const activePaths = connectorPaths ?? verticalPath;
+  const hotspotsVisible =
+    transitionPhase !== "hotspots-exiting" &&
+    transitionPhase !== "vehicle-exiting" &&
+    transitionPhase !== "vehicle-entering";
+  const switchingHotspots = transitionPhase === "hotspots-exiting" || transitionPhase === "hotspots-entering";
 
   const stage = (
     <div ref={stageRef} className={`relative w-full lg:overflow-hidden ${STAGE_ASPECT_CLASS}`}>
@@ -281,17 +397,53 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
         // hotspots use) lets it actually overflow; `max-w-none` beats
         // the global img{max-width:100%} reset that would otherwise shrink
         // it straight back down.
+        <AnimatePresence mode="wait" initial={false} onExitComplete={completeVehicleExit}>
+          {transitionPhase !== "vehicle-exiting" && (
+            <motion.div
+              key={activeEntry.vehicleType.slug}
+              initial={
+                transitionPhase === "vehicle-entering" && !shouldReduceMotion
+                  ? { opacity: 0, scale: 0.96 }
+                  : false
+              }
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: shouldReduceMotion ? 1 : 0.96 }}
+              transition={{ duration: shouldReduceMotion ? 0 : DURATION.base, ease: EASE_UI }}
+              onAnimationComplete={completeVehicleEnter}
+              className="pointer-events-none absolute inset-0"
+            >
+              <Image
+                src={visual.image}
+                alt={activeEntry.vehicleType.name}
+                width={Math.round(containRect.width)}
+                height={Math.round(containRect.height)}
+                sizes="(max-width: 1023px) 90vw, 55vw"
+                priority
+                className="absolute max-w-none"
+                style={{ left: containRect.left, top: containRect.top, width: containRect.width, height: containRect.height }}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
+
+      {/* Uses the same responsive Image source as the visible stage, but is
+          transparent. Its completed request is the permission to begin the
+          outgoing animation, so a slow image can never expose new hotspots
+          over the old vehicle. */}
+      {transitionPhase === "preloading" && pendingVisual && pendingContainRect.width > 0 && (
         <Image
-          src={visual.image}
-          alt={activeEntry.vehicleType.name}
-          width={Math.round(containRect.width)}
-          height={Math.round(containRect.height)}
+          src={pendingVisual.image}
+          alt=""
+          aria-hidden="true"
+          width={Math.round(pendingContainRect.width)}
+          height={Math.round(pendingContainRect.height)}
           sizes="(max-width: 1023px) 90vw, 55vw"
-          priority
-          onLoad={() => setVehicleImageLoaded(true)}
-          onError={() => setVehicleImageLoaded(true)}
-          className="pointer-events-none absolute max-w-none"
-          style={{ left: containRect.left, top: containRect.top, width: containRect.width, height: containRect.height }}
+          loading="eager"
+          onLoad={startPreparedTransition}
+          onError={startPreparedTransition}
+          className="pointer-events-none absolute max-w-none opacity-0"
+          style={{ left: pendingContainRect.left, top: pendingContainRect.top, width: pendingContainRect.width, height: pendingContainRect.height }}
         />
       )}
 
@@ -321,7 +473,12 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
               isActive={hotspot.id === activeHotspotId}
               size={activeEntry.vehicleType.slug === "tyagach" ? "tonar" : "standard"}
               revealDelay={hotspot.hotspotNumber * 0.08}
-              onClick={() => selectHotspot(hotspot.id)}
+              visible={hotspotsVisible}
+              switching={switchingHotspots}
+              disabled={transitionPhase !== "idle"}
+              onClick={() => {
+                if (transitionPhase === "idle") selectHotspot(hotspot.id);
+              }}
             />
           );
         })}
@@ -424,7 +581,12 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
           transition={{ duration: shouldReduceMotion ? 0 : 0.4, ease: [0.39, 0.575, 0.565, 1] }}
           className="mt-8 shrink-0 lg:mt-4"
         >
-          <VehicleCarousel items={vehicleItems} activeIndex={activeVehicleIndex} onSelect={selectVehicle} />
+          <VehicleCarousel
+            items={vehicleItems}
+            activeIndex={selectedVehicleIndex}
+            disabled={transitionPhase !== "idle"}
+            onSelect={selectVehicle}
+          />
         </motion.div>
       )}
     </div>

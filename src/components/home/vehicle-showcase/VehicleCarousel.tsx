@@ -55,6 +55,7 @@ interface VehicleCarouselItem {
 interface VehicleCarouselProps {
   items: VehicleCarouselItem[];
   activeIndex: number;
+  disabled?: boolean;
   onSelect: (index: number) => void;
 }
 
@@ -100,7 +101,7 @@ function shiftSlots(prevSlots: Slot[], delta: number, newActiveIndex: number, co
   return filled;
 }
 
-export function VehicleCarousel({ items, activeIndex, onSelect }: VehicleCarouselProps) {
+export function VehicleCarousel({ items, activeIndex, disabled = false, onSelect }: VehicleCarouselProps) {
   const maskRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const didDragRef = useRef(false);
@@ -124,6 +125,7 @@ export function VehicleCarousel({ items, activeIndex, onSelect }: VehicleCarouse
   useEffect(() => () => clearTimeout(flashTimeoutRef.current), []);
 
   const navigate = (delta: number, newActiveIndex: number) => {
+    if (disabled) return;
     setSlots((prev) => shiftSlots(prev, delta, newActiveIndex, items.length, nextKeyRef));
     onSelect(newActiveIndex);
   };
@@ -139,6 +141,7 @@ export function VehicleCarousel({ items, activeIndex, onSelect }: VehicleCarouse
 
   const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     setIsDragging(false);
+    if (disabled) return;
     if (info.offset.x < -SWIPE_THRESHOLD) {
       navigate(1, mod(activeIndex + 1, items.length));
     } else if (info.offset.x > SWIPE_THRESHOLD) {
@@ -165,10 +168,11 @@ export function VehicleCarousel({ items, activeIndex, onSelect }: VehicleCarouse
         <motion.div
           ref={trackRef}
           className="absolute inset-0 touch-pan-y"
-          drag="x"
+          drag={disabled ? false : "x"}
           dragConstraints={{ left: 0, right: 0 }}
           dragElastic={0.15}
           onDragStart={() => {
+            if (disabled) return;
             didDragRef.current = true;
             setIsDragging(true);
           }}
@@ -184,15 +188,16 @@ export function VehicleCarousel({ items, activeIndex, onSelect }: VehicleCarouse
               <motion.button
                 key={slot.key}
                 type="button"
+                disabled={disabled}
                 onClick={() => {
-                  if (!didDragRef.current && slot.position !== 0) {
+                  if (!disabled && !didDragRef.current && slot.position !== 0) {
                     navigate(slot.position, slot.semanticIndex);
                     flashLamp();
                   }
                 }}
                 aria-label={item.name}
                 aria-current={isActive}
-                className="absolute bottom-0 left-1/2 h-[77px] w-[134px] -translate-x-1/2 outline-none sm:h-20 sm:w-32 lg:h-16 lg:w-28"
+                className="absolute bottom-0 left-1/2 h-[77px] w-[134px] -translate-x-1/2 outline-none disabled:cursor-wait sm:h-20 sm:w-32 lg:h-16 lg:w-28"
                 initial={{ x: slot.position * slotWidth, opacity: 0 }}
                 animate={{
                   x: slot.position * slotWidth,
