@@ -79,12 +79,12 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
           className={`h-full w-full object-cover transition-opacity duration-1000 ${videoLoaded ? "opacity-100" : "opacity-0"}`}
         >
           <source
-            src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/site-media/hero/2026-08-16/hero-background-mobile.mp4`}
+            src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/site-media/hero/2026-08-16-hq/hero-background-mobile.mp4`}
             type="video/mp4"
             media="(max-width: 767px)"
           />
           <source
-            src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/site-media/hero/2026-08-16/hero-background-desktop.mp4`}
+            src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/site-media/hero/2026-08-16-hq/hero-background-desktop.mp4`}
             type="video/mp4"
           />
         </video>
