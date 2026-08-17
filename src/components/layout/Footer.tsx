@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { AtSign, Mail, MapPin } from "lucide-react";
 import { Container } from "@/components/ui/Container";
-import { DottedSurface } from "@/components/ui/DottedSurface";
+import { FooterBackground } from "@/components/layout/FooterBackground";
 import { Reveal } from "@/components/motion/Reveal";
 import { buildMainNav } from "@/lib/navigation";
 import { useHashNavClick } from "@/lib/use-hash-nav-click";
@@ -16,7 +16,7 @@ export function Footer({ categories, brands }: { categories: Category[]; brands:
 
   return (
     <footer id="contacts" className="relative scroll-mt-16 overflow-hidden bg-inverse text-inverse-foreground-muted">
-      <DottedSurface opacity={0.6} />
+      <FooterBackground opacity={0.6} />
       <div className="relative z-10">
         <Reveal>
           <Container className="grid gap-10 py-12 sm:grid-cols-2 lg:grid-cols-3 lg:py-16">
