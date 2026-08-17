@@ -20,7 +20,8 @@
     "check": "npm run lint && npm run typecheck && npm run check:colors && npm run test",
     "check:colors": "node scripts/check-color-tokens.mjs",
     "schema:check": "node scripts/check-supabase-schema.mjs",
-    "photos:enhance": "node scripts/enhance-product-photos.mjs"
+    "photos:enhance": "node scripts/enhance-product-photos.mjs",
+    "images:vehicle-webp": "node scripts/generate-vehicle-webp.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

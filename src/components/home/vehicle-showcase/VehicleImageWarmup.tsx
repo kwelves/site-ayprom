@@ -15,7 +15,6 @@ interface VehicleImageWarmupProps {
   defaultSlug: string;
   /** The visible scene is stable and can spare an idle slot. */
   enabled: boolean;
-  sizes: string;
 }
 
 interface NetworkConnection {
@@ -49,7 +48,7 @@ function hasConstrainedConnection() {
  * mounted while scrolling, hotspot choreography, or a vehicle transition is
  * in progress.
  */
-export function VehicleImageWarmup({ candidates, defaultSlug, enabled, sizes }: VehicleImageWarmupProps) {
+export function VehicleImageWarmup({ candidates, defaultSlug, enabled }: VehicleImageWarmupProps) {
   const queue = useMemo(() => candidates.filter((candidate) => candidate.slug !== defaultSlug), [candidates, defaultSlug]);
   const [cursor, setCursor] = useState(0);
   const [activeSlug, setActiveSlug] = useState<string | null>(null);
@@ -193,14 +192,18 @@ export function VehicleImageWarmup({ candidates, defaultSlug, enabled, sizes }: 
     alt: "",
     width: activeCandidate.naturalWidth,
     height: activeCandidate.naturalHeight,
-    sizes,
+    // These five vehicle photos are pre-converted static .webp files (see
+    // scripts/generate-vehicle-webp.mjs), so this warms the exact same
+    // direct URL the visible stage requests — no next/image optimizer
+    // round trip to skip a first-request cost from in the first place.
+    unoptimized: true,
     loading: "eager",
     decoding: "async",
   });
 
   return (
-    // getImageProps intentionally exposes the optimized CDN URL and srcset
-    // used by next/image. A regular Image component cannot be cancelled
+    // getImageProps still gives a cancellable <img>, matching the real
+    // stage's src exactly. A regular Image component cannot be cancelled
     // between queue entries without also creating its own loading state.
     // eslint-disable-next-line @next/next/no-img-element
     <img

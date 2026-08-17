@@ -33,12 +33,18 @@ import { VehicleShowcaseInteractive, type VehicleVisual } from "./vehicle-showca
 // takes over instead) dropped 10% per user feedback that these 4 read too
 // big on phones: kran-manipulyator/musorovoz/avtovoz/samosval 2 → 1.8.
 // Тонар (tyagach) wasn't mentioned, so its 1.6 is untouched.
+// .webp instead of .png: these five photos are pre-converted static assets
+// (see scripts/generate-vehicle-webp.mjs) served directly, bypassing
+// next/image's on-demand optimizer — that per-request resize+encode step is
+// what made the very first request for any given vehicle noticeably slower
+// than later ones. The PNG masters stay in the same folder as the source of
+// truth for regeneration; only the reference here changed.
 const VEHICLE_VISUALS: Record<string, VehicleVisual> = {
-  "kran-manipulyator": { image: "/images/vehicle-showcase/kran-manipulyator.png", naturalWidth: 1086, naturalHeight: 1448, scale: 1.8, desktopScale: 1.507 },
-  musorovoz: { image: "/images/vehicle-showcase/musorovoz.png", naturalWidth: 1024, naturalHeight: 1536, scale: 1.8, desktopScale: 1.518 },
-  avtovoz: { image: "/images/vehicle-showcase/avtovoz.png", naturalWidth: 1086, naturalHeight: 1448, scale: 1.8, desktopScale: 1.529 },
-  samosval: { image: "/images/vehicle-showcase/samosval.png", naturalWidth: 1086, naturalHeight: 1448, scale: 1.8, desktopScale: 1.474 },
-  tyagach: { image: "/images/vehicle-showcase/tyagach.png", naturalWidth: 1086, naturalHeight: 1448, scale: 1.6, desktopScale: 1.232 },
+  "kran-manipulyator": { image: "/images/vehicle-showcase/kran-manipulyator.webp", naturalWidth: 1086, naturalHeight: 1448, scale: 1.8, desktopScale: 1.507 },
+  musorovoz: { image: "/images/vehicle-showcase/musorovoz.webp", naturalWidth: 1024, naturalHeight: 1536, scale: 1.8, desktopScale: 1.518 },
+  avtovoz: { image: "/images/vehicle-showcase/avtovoz.webp", naturalWidth: 1086, naturalHeight: 1448, scale: 1.8, desktopScale: 1.529 },
+  samosval: { image: "/images/vehicle-showcase/samosval.webp", naturalWidth: 1086, naturalHeight: 1448, scale: 1.8, desktopScale: 1.474 },
+  tyagach: { image: "/images/vehicle-showcase/tyagach.webp", naturalWidth: 1086, naturalHeight: 1448, scale: 1.6, desktopScale: 1.232 },
 };
 
 export async function VehicleShowcaseSection() {

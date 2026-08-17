@@ -7,17 +7,16 @@ import { collectVehicleImageWarmupCandidates, type VehicleVisual } from "@/compo
 import type { VehicleShowcaseEntry } from "@/lib/queries/vehicle-hotspots";
 
 const imageApi = vi.hoisted(() => ({
-  getImageProps: vi.fn(
-    ({ src, sizes }: { src: string; sizes: string }) => ({
-      props: {
-        src: `/_next/image?url=${encodeURIComponent(src)}&w=1080&q=75`,
-        srcSet: `/_next/image?url=${encodeURIComponent(src)}&w=640&q=75 640w, /_next/image?url=${encodeURIComponent(src)}&w=1080&q=75 1080w`,
-        sizes,
-        loading: "eager",
-        decoding: "async",
-      },
-    }),
-  ),
+  // Mirrors real next/image behavior for `unoptimized: true`: the raw src
+  // passes through untouched, with no `/_next/image` proxy URL and no
+  // generated srcSet.
+  getImageProps: vi.fn(({ src }: { src: string }) => ({
+    props: {
+      src,
+      loading: "eager",
+      decoding: "async",
+    },
+  })),
 }));
 
 vi.mock("next/image", () => ({
@@ -53,7 +52,7 @@ function runOneIdleCallback() {
 }
 
 function renderWarmup(enabled = true) {
-  return render(<VehicleImageWarmup candidates={candidates} defaultSlug="default" enabled={enabled} sizes="(max-width: 1023px) 90vw, 55vw" />);
+  return render(<VehicleImageWarmup candidates={candidates} defaultSlug="default" enabled={enabled} />);
 }
 
 beforeEach(() => {
@@ -74,7 +73,7 @@ afterEach(() => {
 });
 
 describe("VehicleImageWarmup", () => {
-  it("прогревает только одну следующую технику и только оптимизированным URL", () => {
+  it("прогревает только одну следующую технику по тому же прямому URL, что и видимая сцена", () => {
     const view = renderWarmup();
     expect(requestIdleCallback).toHaveBeenCalledTimes(1);
     expect(view.container.querySelectorAll("img")).toHaveLength(0);
@@ -82,8 +81,7 @@ describe("VehicleImageWarmup", () => {
     runOneIdleCallback();
     const first = view.container.querySelector("img");
     expect(first).not.toBeNull();
-    expect(first?.getAttribute("src")).toBe("/_next/image?url=%2Fimages%2Fvehicle-showcase%2Fsecond.png&w=1080&q=75");
-    expect(first?.getAttribute("src")).not.toBe(candidates[1].image);
+    expect(first?.getAttribute("src")).toBe(candidates[1].image);
     expect(first?.getAttribute("fetchpriority")).toBe("low");
     expect(view.container.querySelectorAll("img")).toHaveLength(1);
 
@@ -93,7 +91,7 @@ describe("VehicleImageWarmup", () => {
 
     runOneIdleCallback();
     const second = view.container.querySelector("img");
-    expect(second?.getAttribute("src")).toContain(encodeURIComponent(candidates[2].image));
+    expect(second?.getAttribute("src")).toBe(candidates[2].image);
     expect(view.container.querySelectorAll("img")).toHaveLength(1);
   });
 
@@ -135,9 +133,7 @@ describe("VehicleImageWarmup", () => {
     const transitionView = renderWarmup();
     runOneIdleCallback();
     expect(transitionView.container.querySelector("img")).not.toBeNull();
-    transitionView.rerender(
-      <VehicleImageWarmup candidates={candidates} defaultSlug="default" enabled={false} sizes="(max-width: 1023px) 90vw, 55vw" />,
-    );
+    transitionView.rerender(<VehicleImageWarmup candidates={candidates} defaultSlug="default" enabled={false} />);
     expect(transitionView.container.querySelector("img")).toBeNull();
   });
 

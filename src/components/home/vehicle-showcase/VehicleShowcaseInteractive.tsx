@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import { Loader2 } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { HotspotMarker, type TooltipAlign } from "./HotspotMarker";
 import { VehicleCarousel } from "./VehicleCarousel";
@@ -9,7 +10,6 @@ import { ProductPanel } from "./ProductPanel";
 import { Connector } from "./Connector";
 import { useContainRect } from "./useContainRect";
 import { VehicleImageWarmup } from "./VehicleImageWarmup";
-import { VEHICLE_STAGE_IMAGE_SIZES } from "./image-sizes";
 import { buildConnectorPaths, buildVerticalConnectorPath, type ConnectorPaths, type Rect } from "./connector-geometry";
 import type { VehicleShowcaseEntry } from "@/lib/queries/vehicle-hotspots";
 import { DURATION, EASE_UI } from "@/lib/motion";
@@ -176,6 +176,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
   const [firstViewSettled, setFirstViewSettled] = useState(false);
   const [initialVehicleReady, setInitialVehicleReady] = useState(false);
   const [transitionPhase, setTransitionPhase] = useState<VehicleTransitionPhase>("idle");
+  const [showPreloadingIndicator, setShowPreloadingIndicator] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [connectorPaths, setConnectorPaths] = useState<ConnectorPaths | null>(null);
   const [verticalPath, setVerticalPath] = useState<{ stem: string; terminal: { x: number; y: number } } | null>(null);
@@ -260,6 +261,24 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
     );
     return () => window.clearTimeout(timer);
   }, [contentVisible, entered, revealed, shouldReduceMotion, transitionPhase]);
+
+  // A safety net for the rare cold request the static image warmup didn't
+  // finish in time for: only surfaces after a short delay, so an ordinary
+  // (now near-instant, pre-converted-image) switch never flashes it.
+  useEffect(() => {
+    if (transitionPhase !== "preloading") {
+      let cancelled = false;
+      queueMicrotask(() => {
+        if (!cancelled) setShowPreloadingIndicator(false);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const timer = window.setTimeout(() => setShowPreloadingIndicator(true), 180);
+    return () => window.clearTimeout(timer);
+  }, [transitionPhase]);
 
   const clearConnector = () => {
     setConnectorPaths(null);
@@ -442,7 +461,12 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
                 alt={activeEntry.vehicleType.name}
                 width={Math.round(containRect.width)}
                 height={Math.round(containRect.height)}
-                sizes={VEHICLE_STAGE_IMAGE_SIZES}
+                // These five vehicle photos are pre-converted static .webp
+                // files (see scripts/generate-vehicle-webp.mjs), so skipping
+                // next/image's on-demand optimizer avoids the per-request
+                // resize+encode cost that made a fresh (vehicle, width) pair
+                // slower to first request than a cached one.
+                unoptimized
                 loading="eager"
                 onLoad={() => {
                   if (activeEntry.vehicleType.slug === entries[defaultIndex]?.vehicleType.slug) setInitialVehicleReady(true);
@@ -471,7 +495,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
           aria-hidden="true"
           width={Math.round(pendingContainRect.width)}
           height={Math.round(pendingContainRect.height)}
-          sizes={VEHICLE_STAGE_IMAGE_SIZES}
+          unoptimized
           loading="eager"
           onLoad={startPreparedTransition}
           onError={startPreparedTransition}
@@ -480,11 +504,21 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
         />
       )}
 
+      {/* Only for the rare cold path the static-file switch didn't avoid —
+          a visible sign the switch is in progress instead of a frozen-looking
+          stage. Delayed mount (see the effect above) keeps it from flashing
+          on the now-typical instant switch. */}
+      {showPreloadingIndicator && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center" role="status" aria-live="polite">
+          <Loader2 aria-hidden="true" className="h-8 w-8 animate-spin text-white/70" />
+          <span className="sr-only">Загрузка техники</span>
+        </div>
+      )}
+
       <VehicleImageWarmup
         candidates={imageWarmupCandidates}
         defaultSlug={entries[defaultIndex]?.vehicleType.slug ?? defaultSlug}
         enabled={firstViewSettled && initialVehicleReady && transitionPhase === "idle" && (!entered || revealed)}
-        sizes={VEHICLE_STAGE_IMAGE_SIZES}
       />
 
       {revealed &&
