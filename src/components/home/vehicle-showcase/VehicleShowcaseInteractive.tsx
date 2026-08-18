@@ -169,6 +169,12 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
   // hotspots from briefly sitting over the old truck.
   const [selectedVehicleIndex, setSelectedVehicleIndex] = useState(defaultIndex);
   const [displayedVehicleIndex, setDisplayedVehicleIndex] = useState(defaultIndex);
+  // Which vehicle the hidden probe <Image> below is currently confirming is
+  // ready. Only meaningful during "preloading" — separate from
+  // `selectedVehicleIndex` (which the carousel highlight follows on every
+  // click, even mid-transition) so a rapid re-click can retarget the probe
+  // without touching whatever the visible stage is already committed to.
+  const [preloadTargetIndex, setPreloadTargetIndex] = useState<number | null>(null);
   const [activeHotspotId, setActiveHotspotId] = useState<string | null>(null);
   const [isCardRevealed, setIsCardRevealed] = useState(false);
   const [entered, setEntered] = useState(false);
@@ -183,24 +189,30 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
   const [svgSize, setSvgSize] = useState({ width: 0, height: 0 });
 
   const transitionPhaseRef = useRef<VehicleTransitionPhase>("idle");
-  const pendingVehicleIndexRef = useRef<number | null>(null);
-  const switchingRef = useRef(false);
+  // The single most recent choice, updated on every click regardless of
+  // what's currently in flight — the source of truth for "what should
+  // eventually be on screen."
+  const desiredVehicleIndexRef = useRef(defaultIndex);
+  // What the *currently in-flight* exit/enter cycle is committed to
+  // displaying, once its probe image has actually confirmed ready.
+  // Immutable for the rest of that one cycle — see completeVehicleExit.
+  const committedTargetRef = useRef<number | null>(null);
 
   const activeEntry = entries[displayedVehicleIndex];
   const activeHotspot = activeEntry?.hotspots.find((hotspot) => hotspot.id === activeHotspotId) ?? null;
   const visual = visuals[activeEntry?.vehicleType.slug ?? ""];
   const effectiveScale = isDesktop ? (visual?.desktopScale ?? visual?.scale ?? 1) : (visual?.scale ?? 1);
   const containRect = useContainRect(stageRef, visual?.naturalWidth ?? 1, visual?.naturalHeight ?? 1, effectiveScale);
-  const pendingEntry = entries[selectedVehicleIndex];
-  const pendingVisual = visuals[pendingEntry?.vehicleType.slug ?? ""];
-  const pendingScale = isDesktop
-    ? (pendingVisual?.desktopScale ?? pendingVisual?.scale ?? 1)
-    : (pendingVisual?.scale ?? 1);
-  const pendingContainRect = useContainRect(
+  const preloadEntry = preloadTargetIndex !== null ? entries[preloadTargetIndex] : undefined;
+  const preloadVisual = visuals[preloadEntry?.vehicleType.slug ?? ""];
+  const preloadScale = isDesktop
+    ? (preloadVisual?.desktopScale ?? preloadVisual?.scale ?? 1)
+    : (preloadVisual?.scale ?? 1);
+  const preloadContainRect = useContainRect(
     stageRef,
-    pendingVisual?.naturalWidth ?? 1,
-    pendingVisual?.naturalHeight ?? 1,
-    pendingScale,
+    preloadVisual?.naturalWidth ?? 1,
+    preloadVisual?.naturalHeight ?? 1,
+    preloadScale,
   );
 
   useEffect(() => {
@@ -286,8 +298,12 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
   };
 
   const startPreparedTransition = () => {
-    if (transitionPhaseRef.current !== "preloading") return;
+    if (transitionPhaseRef.current !== "preloading" || preloadTargetIndex === null) return;
 
+    // The point of no return for this cycle: once its probe image has
+    // confirmed ready, what gets displayed is locked in, even if the user
+    // keeps clicking around while it plays out.
+    committedTargetRef.current = preloadTargetIndex;
     transitionPhaseRef.current = "hotspots-exiting";
     activeHotspotIdRef.current = null;
     setActiveHotspotId(null);
@@ -296,17 +312,46 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
     setTransitionPhase("hotspots-exiting");
   };
 
-  // Selecting another vehicle is a short, locked state machine rather than a
-  // single active-index update. The hidden <Image> below confirms the exact
-  // large source is ready before this transition starts.
-  const selectVehicle = (index: number) => {
-    if (switchingRef.current || index === selectedVehicleIndex) return;
-
-    switchingRef.current = true;
-    pendingVehicleIndexRef.current = index;
+  const beginPreload = (index: number) => {
     transitionPhaseRef.current = "preloading";
-    setSelectedVehicleIndex(index);
     setTransitionPhase("preloading");
+    setPreloadTargetIndex(index);
+  };
+
+  // Selecting another vehicle never waits for the carousel to go quiet
+  // first — every click is acknowledged immediately. The hidden <Image>
+  // below still confirms the exact large source is ready before anything
+  // visible changes; a click that lands mid-animation is remembered and
+  // chained in automatically once the vehicle already in flight finishes,
+  // rather than interrupting a cycle whose image is already committed and
+  // showing (see the "hotspots-entering" effect below).
+  const selectVehicle = (index: number) => {
+    if (index === desiredVehicleIndexRef.current) return;
+    desiredVehicleIndexRef.current = index;
+    setSelectedVehicleIndex(index);
+
+    if (transitionPhaseRef.current === "idle") {
+      beginPreload(index);
+      return;
+    }
+
+    if (transitionPhaseRef.current === "preloading") {
+      if (index === displayedVehicleIndex) {
+        // Changed their mind back to what's already on screen — cancel the
+        // in-flight probe instead of loading it just to throw it away.
+        setPreloadTargetIndex(null);
+        transitionPhaseRef.current = "idle";
+        setTransitionPhase("idle");
+        return;
+      }
+      setPreloadTargetIndex(index);
+      return;
+    }
+
+    // Any later phase (hotspots-exiting … hotspots-entering): recorded via
+    // desiredVehicleIndexRef only. That cycle's committed target already
+    // has a confirmed-loaded image and is mid-animation — interrupting it
+    // risks showing an unconfirmed image, so it finishes normally instead.
   };
 
   useEffect(() => {
@@ -326,19 +371,26 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
     const finalHotspotDelay = Math.max(0, ...activeEntry.hotspots.map((hotspot) => hotspot.hotspotNumber * 80));
     const timer = window.setTimeout(
       () => {
+        committedTargetRef.current = null;
+        const desired = desiredVehicleIndexRef.current;
+        if (desired !== displayedVehicleIndex) {
+          // A newer click landed while this cycle's hotspots were still
+          // settling in — chain straight into it instead of dropping back
+          // to idle first, so that click never gets silently dropped.
+          beginPreload(desired);
+          return;
+        }
         transitionPhaseRef.current = "idle";
-        pendingVehicleIndexRef.current = null;
-        switchingRef.current = false;
         setTransitionPhase("idle");
       },
       shouldReduceMotion ? 0 : DURATION.base * 1000 + finalHotspotDelay,
     );
     return () => window.clearTimeout(timer);
-  }, [activeEntry.hotspots, shouldReduceMotion, transitionPhase]);
+  }, [activeEntry.hotspots, displayedVehicleIndex, shouldReduceMotion, transitionPhase]);
 
   const completeVehicleExit = () => {
     if (transitionPhaseRef.current !== "vehicle-exiting") return;
-    const nextIndex = pendingVehicleIndexRef.current;
+    const nextIndex = committedTargetRef.current;
     if (nextIndex === null) return;
 
     setDisplayedVehicleIndex(nextIndex);
@@ -484,23 +536,24 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
         </AnimatePresence>
       )}
 
-      {/* Uses the same responsive Image source as the visible stage, but is
-          transparent. Its completed request is the permission to begin the
-          outgoing animation, so a slow image can never expose new hotspots
-          over the old vehicle. */}
-      {transitionPhase === "preloading" && pendingVisual && pendingContainRect.width > 0 && (
+      {/* Uses the same source as the visible stage, but is transparent. Its
+          completed request is the permission to begin the outgoing
+          animation, so a slow image can never expose new hotspots over the
+          old vehicle. Re-clicking during "preloading" retargets this same
+          probe (its src just changes) rather than mounting a second one. */}
+      {transitionPhase === "preloading" && preloadVisual && preloadContainRect.width > 0 && (
         <Image
-          src={pendingVisual.image}
+          src={preloadVisual.image}
           alt=""
           aria-hidden="true"
-          width={Math.round(pendingContainRect.width)}
-          height={Math.round(pendingContainRect.height)}
+          width={Math.round(preloadContainRect.width)}
+          height={Math.round(preloadContainRect.height)}
           unoptimized
           loading="eager"
           onLoad={startPreparedTransition}
           onError={startPreparedTransition}
           className="pointer-events-none absolute max-w-none opacity-0"
-          style={{ left: pendingContainRect.left, top: pendingContainRect.top, width: pendingContainRect.width, height: pendingContainRect.height }}
+          style={{ left: preloadContainRect.left, top: preloadContainRect.top, width: preloadContainRect.width, height: preloadContainRect.height }}
         />
       )}
 
@@ -655,12 +708,10 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
           transition={{ duration: shouldReduceMotion ? 0 : 0.4, ease: [0.39, 0.575, 0.565, 1] }}
           className="mt-8 shrink-0 lg:mt-4"
         >
-          <VehicleCarousel
-            items={vehicleItems}
-            activeIndex={selectedVehicleIndex}
-            disabled={transitionPhase !== "idle"}
-            onSelect={selectVehicle}
-          />
+          {/* No longer gated on transitionPhase !== "idle": every click is
+              acknowledged immediately (see selectVehicle above) instead of
+              being dropped while a previous switch is still animating. */}
+          <VehicleCarousel items={vehicleItems} activeIndex={selectedVehicleIndex} onSelect={selectVehicle} />
         </motion.div>
       )}
     </div>
