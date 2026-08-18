@@ -221,9 +221,13 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
   };
 
   return (
-    <section ref={sectionRef} className="relative flex min-h-[calc(100dvh-4rem)] items-end">
-      {/* Fixed backdrop: the video stays pinned to the viewport while the page scrolls over it */}
-      <div className="fixed inset-x-0 top-0 -z-10 h-dvh bg-inverse">
+    <section ref={sectionRef} className="relative flex min-h-[calc(100svh-4rem)] items-end">
+      {/* Fixed backdrop: the video stays pinned to the viewport while the page scrolls over it.
+          `inset-0` instead of `top-0 h-dvh` — a fixed element's box already tracks the visual
+          viewport natively, so this needs no explicit height. Sizing it off `dvh` instead made
+          the browser recompute (and repaint) this full-screen layer on every tick of the
+          address-bar show/hide animation during mobile scroll, which read as jitter/flicker. */}
+      <div className="fixed inset-0 -z-10 bg-inverse">
         <video
           ref={videoRef}
           autoPlay
