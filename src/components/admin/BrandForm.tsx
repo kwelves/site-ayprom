@@ -104,7 +104,11 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
           )}
           {mode === "create" ? (
             <div className="mt-3">
+              <label htmlFor="logo" className="sr-only">
+                Логотип
+              </label>
               <input
+                id="logo"
                 type="file"
                 name="logo"
                 accept="image/*"

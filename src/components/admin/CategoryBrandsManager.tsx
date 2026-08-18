@@ -156,6 +156,7 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
       {available.length > 0 && (
         <div className="mt-6 flex items-center gap-2 border-t border-border pt-6">
           <Select
+            aria-label="Добавить бренд"
             value={selectedBrandToAdd}
             onChange={(e) => setSelectedBrandToAdd(e.target.value)}
             className="max-w-xs"

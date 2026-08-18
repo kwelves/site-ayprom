@@ -120,8 +120,8 @@ function ImportPreviewPanel({
       </div>
 
       {preview.errors.length > 0 && (
-        <div className="max-h-64 overflow-y-auto rounded-md border border-danger-border">
-          <table className="w-full text-left text-sm">
+        <div className="max-h-64 overflow-x-auto overflow-y-auto rounded-md border border-danger-border">
+          <table className="w-full min-w-[28rem] text-left text-sm">
             <thead className="sticky top-0 bg-danger-surface text-danger">
               <tr>
                 <th className="px-3 py-2 font-medium">Строка</th>
@@ -141,8 +141,8 @@ function ImportPreviewPanel({
       )}
 
       {preview.validRows.length > 0 && (
-        <div className="max-h-96 overflow-y-auto rounded-md border border-border">
-          <table className="w-full text-left text-sm">
+        <div className="max-h-96 overflow-x-auto overflow-y-auto rounded-md border border-border">
+          <table className="w-full min-w-[36rem] text-left text-sm">
             <thead className="sticky top-0 bg-muted/40">
               <tr>
                 <th className="px-3 py-2 font-medium text-muted-foreground">Строка</th>
@@ -213,8 +213,8 @@ function ImportResultPanel({ result, onReset }: { result: ImportCommitResult; on
       </div>
 
       {result.errors.length > 0 && (
-        <div className="max-h-64 overflow-y-auto rounded-md border border-danger-border">
-          <table className="w-full text-left text-sm">
+        <div className="max-h-64 overflow-x-auto overflow-y-auto rounded-md border border-danger-border">
+          <table className="w-full min-w-[36rem] text-left text-sm">
             <thead className="sticky top-0 bg-danger-surface text-danger">
               <tr>
                 <th className="px-3 py-2 font-medium">Строка</th>

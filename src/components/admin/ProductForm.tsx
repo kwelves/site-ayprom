@@ -343,8 +343,9 @@ export function ProductForm({
           </FormField>
         )}
 
-        <FormField label="Совместимые бренды" htmlFor="compatibleBrands-list">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <fieldset>
+          <legend className="text-sm font-medium text-card-foreground">Совместимые бренды</legend>
+          <div className="mt-1.5 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {brands.map((brand) => (
               <Checkbox
                 key={brand.slug}
@@ -357,10 +358,12 @@ export function ProductForm({
               />
             ))}
           </div>
-        </FormField>
+        </fieldset>
 
-        <FormField label="Тип спецтехники" htmlFor="vehicleTypes-list" description="На какую технику подходит товар.">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <fieldset>
+          <legend className="text-sm font-medium text-card-foreground">Тип спецтехники</legend>
+          <p className="mt-0.5 text-xs text-muted-foreground">На какую технику подходит товар.</p>
+          <div className="mt-1.5 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {vehicleTypes.map((vehicleType) => (
               <Checkbox
                 key={vehicleType.slug}
@@ -373,7 +376,7 @@ export function ProductForm({
               />
             ))}
           </div>
-        </FormField>
+        </fieldset>
 
         <FormField label="Краткое описание" htmlFor="shortDescription" description="Показывается в карточке товара.">
           <Textarea id="shortDescription" name="shortDescription" required rows={2} defaultValue={product?.shortDescription} />

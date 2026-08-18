@@ -157,7 +157,11 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
           )}
           {mode === "create" ? (
             <div className="mt-3">
+              <label htmlFor="image" className="sr-only">
+                Изображение
+              </label>
               <input
+                id="image"
                 type="file"
                 name="image"
                 accept="image/*"
