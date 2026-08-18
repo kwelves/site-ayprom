@@ -271,6 +271,12 @@ export interface AdminVehicleHotspot {
   vehicleTypeSlug: string;
   hotspotNumber: number;
   label: string;
+  /** Read-only reference coordinates (percent of the source photo) — for
+   * rendering VehicleHotspotPreview only. Position and numbering are still
+   * authored exclusively in migrations; nothing in this admin surface writes
+   * these two fields back. */
+  xPct: number;
+  yPct: number;
   product: AdminAvailableProduct | null;
 }
 
@@ -279,6 +285,8 @@ interface AdminVehicleHotspotRow {
   vehicle_type_slug: string;
   hotspot_number: number;
   label: string;
+  x_pct: number;
+  y_pct: number;
   products: {
     id: string;
     slug: string;
@@ -288,13 +296,14 @@ interface AdminVehicleHotspotRow {
 }
 
 // The geometry and numbering of these rows are authored in migrations and
-// deliberately not exposed to this admin surface. It only reads the five
-// editable fields for a selected vehicle type.
+// deliberately not editable from this admin surface — x_pct/y_pct are read
+// here only so VehicleHotspotPreview can show admins where each point
+// actually sits; the editor form below it still only writes label/product.
 export async function getAdminVehicleHotspots(vehicleTypeSlug: string): Promise<AdminVehicleHotspot[]> {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("vehicle_hotspots")
-    .select("id, vehicle_type_slug, hotspot_number, label, products(id, slug, name, article)")
+    .select("id, vehicle_type_slug, hotspot_number, label, x_pct, y_pct, products(id, slug, name, article)")
     .eq("vehicle_type_slug", vehicleTypeSlug)
     .order("hotspot_number");
   if (error) throw error;
@@ -304,6 +313,8 @@ export async function getAdminVehicleHotspots(vehicleTypeSlug: string): Promise<
     vehicleTypeSlug: row.vehicle_type_slug,
     hotspotNumber: row.hotspot_number,
     label: row.label,
+    xPct: row.x_pct,
+    yPct: row.y_pct,
     product: row.products
       ? {
           id: row.products.id,

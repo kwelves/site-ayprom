@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { VehicleHotspotPreview } from "@/components/admin/VehicleHotspotPreview";
 import { VehicleShowcaseEditor } from "@/components/admin/VehicleShowcaseEditor";
 import { getAdminVehicleHotspots, getAdminVehicleTypes } from "@/lib/admin/queries";
 
@@ -32,7 +33,8 @@ export default async function AdminVehicleShowcasePage({ searchParams }: AdminVe
     <div className="max-w-3xl">
       <h1 className="text-xl font-semibold text-foreground">Спецтехника</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Изменяйте подписи и закреплённые товары. Положение и нумерация точек остаются прежними.
+        Изменяйте подписи и закреплённые товары. Положение и нумерация точек остаются прежними — фото ниже показывает,
+        где они сейчас находятся.
       </p>
 
       <nav aria-label="Выбор типа техники" className="mt-6 flex flex-wrap gap-2">
@@ -63,12 +65,17 @@ export default async function AdminVehicleShowcasePage({ searchParams }: AdminVe
           </p>
         </div>
       ) : (
-        <VehicleShowcaseEditor
-          key={selectedVehicle.slug}
-          vehicleTypeSlug={selectedVehicle.slug}
-          vehicleTypeName={selectedVehicle.name}
-          hotspots={hotspots}
-        />
+        <>
+          <div className="mt-6">
+            <VehicleHotspotPreview vehicleTypeSlug={selectedVehicle.slug} hotspots={hotspots} />
+          </div>
+          <VehicleShowcaseEditor
+            key={selectedVehicle.slug}
+            vehicleTypeSlug={selectedVehicle.slug}
+            vehicleTypeName={selectedVehicle.name}
+            hotspots={hotspots}
+          />
+        </>
       )}
     </div>
   );
