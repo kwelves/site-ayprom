@@ -16,7 +16,7 @@ export function WhatsAppBadge() {
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Написать в WhatsApp"
-      className="fixed z-[60] flex size-[clamp(44px,12vw,50px)] items-center justify-center rounded-full bg-whatsapp text-whatsapp-foreground shadow-lg transition-colors hover:bg-whatsapp-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      className="fixed z-[60] flex size-[clamp(44px,12vw,50px)] items-center justify-center rounded-full bg-whatsapp text-whatsapp-foreground shadow-lg transition-[background-color,scale] hover:bg-whatsapp-hover active:scale-90 active:bg-whatsapp-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       style={{
         right: "max(1rem, env(safe-area-inset-right))",
         bottom: "max(1rem, env(safe-area-inset-bottom))",

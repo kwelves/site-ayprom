@@ -87,7 +87,7 @@ export function ProductCard({ product, href }: { product: ProductListItem; href:
   };
 
   return (
-    <div className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-[border-color,box-shadow] duration-fast ease-ui hover:border-border-interactive hover:shadow-sm">
+    <div className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-[border-color,box-shadow,scale] duration-fast ease-ui hover:border-border-interactive hover:shadow-sm active:scale-[0.98] active:border-border-interactive active:shadow-sm">
       <Link
         href={href}
         aria-label={product.name}
