@@ -5,7 +5,7 @@
       "source": "emilkowalski/skill",
       "sourceType": "github",
       "skillPath": "skills/animate/SKILL.md",
-      "computedHash": "95a455620074de0cd5e57f74bf276645198d04b67ddcd33c783aa51d24063346"
+      "computedHash": "6e463bf11705d1929a4a398b108dfdd1e099bd9cbf4cfe031da08df97b929e37"
     },
     "animation-vocabulary": {
       "source": "emilkowalski/skill",
@@ -131,19 +131,19 @@
       "source": "Graphify-Labs/graphify",
       "sourceType": "github",
       "skillPath": "graphify/SKILL.md",
-      "computedHash": "34a264bf9c6704d43f9abea898a4144b77ee3ea6a87ee781648aece763b7d917"
+      "computedHash": "43e590c5fb5527760cb9faa4eb6600b53cb8fbdfa2fe9e39720f4b68a72608be"
     },
     "grill-me": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "skillPath": "skills/productivity/grill-me/SKILL.md",
-      "computedHash": "7edd436132b43ea2973710f0c28a9879c9b0910651eb89a991a7e98cb6dbbacb"
+      "computedHash": "5e0c683385eafd83f106ac6c9d67dfbbfe5aa4b3fe65aad114eb1055a99c818f"
     },
     "grilling": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "skillPath": "skills/productivity/grilling/SKILL.md",
-      "computedHash": "ac63b22655a6fa4a59468dda21415b773c0aaf5a7e2e27e2259eaabf02a840bc"
+      "computedHash": "89c8165a058f123865181a09bd13fe6a0429e47e02a699ceccc1f80308e44a1a"
     },
     "high-end-visual-design": {
       "source": "Leonxlnx/taste-skill",
@@ -281,7 +281,7 @@
       "source": "remotion-dev/skills",
       "sourceType": "github",
       "skillPath": "skills/remotion-best-practices/SKILL.md",
-      "computedHash": "b686e5a37aba0283e3607fade477a7566ab178295ca9621be32961312158ec84"
+      "computedHash": "0d8e9c4d5ac485239c5c6863069c4bc09fe1be37f9537bbb99617ae6b04478b6"
     },
     "responsive-design": {
       "source": "wshobson/agents",
@@ -317,7 +317,7 @@
       "source": "supabase/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/supabase/SKILL.md",
-      "computedHash": "c4cbf2d313f6afb1ff810623b732961752bb64638f648c7a355449eb6aac9530"
+      "computedHash": "a6260582f48df8ba53380bb9b9e870ed2ae5fe147799e90ed783b8aa25167d50"
     },
     "supabase-postgres-best-practices": {
       "source": "supabase/agent-skills",
@@ -341,7 +341,7 @@
       "source": "nextlevelbuilder/ui-ux-pro-max-skill",
       "sourceType": "github",
       "skillPath": ".claude/skills/ui-ux-pro-max/SKILL.md",
-      "computedHash": "ce0af583006d2fd4731663adc50c0a5df1121f0d49a5bb9c308eca4ee295c60a"
+      "computedHash": "d1de8ff8d228cd4204bf06eb959ef4317d5b927908d9f42765971e33e80c8a7e"
     },
     "version-bump": {
       "source": "thedotmack/claude-mem",
@@ -353,7 +353,7 @@
       "source": "thedotmack/claude-mem",
       "sourceType": "github",
       "skillPath": "plugin/skills/weekly-digests/SKILL.md",
-      "computedHash": "792aebfb3752084374353c5f176356ff808c7298caf963a5f930a4977a04d154"
+      "computedHash": "7f7c19f47354e23952205ed63e828f4b953d830a24f0d93d45e119d9db6e87d5"
     },
     "what-the": {
       "source": "thedotmack/claude-mem",
