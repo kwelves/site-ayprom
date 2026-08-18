@@ -13,6 +13,15 @@ import {
 import type { FormActionState } from "@/lib/admin/actions";
 import { slugify } from "@/lib/admin/slugify";
 import { compressImage, compressFileListInput } from "@/lib/admin/compress-image";
+import { hasAlphaChannel } from "@/lib/admin/image-validation";
+import {
+  DEFAULT_PRODUCT_PHOTO_MODE,
+  PRODUCT_PHOTO_MODE_COOKIE,
+  PRODUCT_PHOTO_MODE_COOKIE_MAX_AGE,
+  usesScriptProcessing,
+  usesWebpOutput,
+  type ProductPhotoMode,
+} from "@/lib/admin/product-photo-mode";
 import { SubmitButton } from "@/components/admin/ui/SubmitButton";
 import { BackLink } from "@/components/admin/ui/BackLink";
 import { FormField } from "@/components/admin/ui/FormField";
@@ -23,6 +32,7 @@ import { Checkbox } from "@/components/admin/ui/Checkbox";
 import { SortableList } from "@/components/admin/SortableList";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
+import { ProductPhotoModeSelect } from "@/components/admin/ProductPhotoModeSelect";
 import type { Category, Subcategory, Brand, VehicleType } from "@/types/catalog";
 import type { AdminProduct } from "@/lib/admin/queries";
 
@@ -33,6 +43,22 @@ interface ProductFormProps {
   subcategories: (Subcategory & { categorySlug: string })[];
   brands: Brand[];
   vehicleTypes: VehicleType[];
+  /** Server-read cookie value — only used in `mode: "create"`. */
+  initialPhotoMode?: ProductPhotoMode;
+}
+
+// Best-effort, client-side only: flags photos with no detectable alpha
+// channel before they're sent to a script-processing mode, since that
+// pipeline crops to the bounding box of non-transparent pixels and does
+// nothing useful without one. Never blocks the upload — see
+// hasAlphaChannel's own doc comment for why a `null` (undetermined) result
+// must not trigger this either.
+async function anyFileLacksAlpha(files: FileList): Promise<boolean> {
+  for (const file of Array.from(files)) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (hasAlphaChannel(bytes, file.type) === false) return true;
+  }
+  return false;
 }
 
 interface CharacteristicRow {
@@ -41,7 +67,15 @@ interface CharacteristicRow {
   value: string;
 }
 
-export function ProductForm({ mode, product, categories, subcategories, brands, vehicleTypes }: ProductFormProps) {
+export function ProductForm({
+  mode,
+  product,
+  categories,
+  subcategories,
+  brands,
+  vehicleTypes,
+  initialPhotoMode,
+}: ProductFormProps) {
   const [name, setName] = useState(product?.name ?? "");
   const [slug, setSlug] = useState(product?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(false);
@@ -58,6 +92,9 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
   const [published, setPublished] = useState(product?.published ?? true);
   const [isUploading, setIsUploading] = useState(false);
   const [pendingPhotoCount, setPendingPhotoCount] = useState(0);
+  const [photoMode, setPhotoMode] = useState<ProductPhotoMode>(initialPhotoMode ?? DEFAULT_PRODUCT_PHOTO_MODE);
+  const [photoAlphaWarning, setPhotoAlphaWarning] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [dismissedFormError, setDismissedFormError] = useState<FormActionState>(null);
   const [isUnpublishDialogOpen, setIsUnpublishDialogOpen] = useState(false);
@@ -80,6 +117,18 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
   function handleCategoryChange(value: string) {
     setCategorySlug(value);
     setSubcategorySlug("");
+  }
+
+  function handlePhotoModeChange(nextMode: ProductPhotoMode) {
+    setPhotoMode(nextMode);
+    document.cookie = `${PRODUCT_PHOTO_MODE_COOKIE}=${nextMode}; path=/; max-age=${PRODUCT_PHOTO_MODE_COOKIE_MAX_AGE}; SameSite=Lax`;
+
+    const files = photoInputRef.current?.files;
+    if (usesScriptProcessing(nextMode) && files && files.length > 0) {
+      anyFileLacksAlpha(files).then(setPhotoAlphaWarning);
+    } else {
+      setPhotoAlphaWarning(false);
+    }
   }
 
   function toggleBrand(brandSlug: string) {
@@ -446,9 +495,23 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
               Необязательно: товар без фото поддерживается и будет показан с нейтральной заглушкой. До 10 файлов JPEG,
               PNG, WebP или AVIF, не более 8 МБ каждый.
             </p>
+
+            <div className="mt-3 max-w-xs">
+              <ProductPhotoModeSelect value={photoMode} onChange={handlePhotoModeChange} />
+            </div>
+            <input type="hidden" name="photoMode" value={photoMode} />
+
+            {photoAlphaWarning && (
+              <p role="status" className="mt-3 rounded-md border border-warning-border bg-warning-surface px-3 py-2 text-sm text-warning">
+                Похоже, у одного или нескольких выбранных фото нет прозрачного фона. Обрезка по границе детали в этом
+                режиме может сработать некорректно — но загрузку это не блокирует.
+              </p>
+            )}
+
             <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-input px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary">
               {pendingPhotoCount > 0 ? `Выбрано фото: ${pendingPhotoCount}` : "Выбрать фото"}
               <input
+                ref={photoInputRef}
                 type="file"
                 name="photos"
                 accept="image/jpeg,image/png,image/webp,image/avif"
@@ -456,7 +519,17 @@ export function ProductForm({ mode, product, categories, subcategories, brands, 
                 className="hidden"
                 onChange={async (e) => {
                   const input = e.target;
-                  await compressFileListInput(input);
+                  const files = input.files;
+
+                  if (usesScriptProcessing(photoMode)) {
+                    // The server-side enhance pipeline needs the original
+                    // file's own alpha channel (see actions.ts) — skip the
+                    // client-side JPEG/WebP re-encode that would flatten it.
+                    setPhotoAlphaWarning(files && files.length > 0 ? await anyFileLacksAlpha(files) : false);
+                  } else {
+                    setPhotoAlphaWarning(false);
+                    await compressFileListInput(input, usesWebpOutput(photoMode) ? "image/webp" : "image/jpeg");
+                  }
                   setPendingPhotoCount(input.files?.length ?? 0);
                 }}
               />

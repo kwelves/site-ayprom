@@ -14,6 +14,14 @@ import { requireServerEnv } from "@/lib/env";
 import { slugify } from "@/lib/admin/slugify";
 import { constantTimePasswordEqual, registerLoginAttempt } from "@/lib/admin/login-rate-limit";
 import { MAX_PRODUCT_IMAGES, validateProductImage } from "@/lib/admin/image-validation";
+import { convertBufferToWebp, enhanceProductPhotoBuffer } from "@/lib/admin/enhance-product-photo";
+import {
+  DEFAULT_PRODUCT_PHOTO_MODE,
+  isProductPhotoMode,
+  usesScriptProcessing,
+  usesWebpOutput,
+  type ProductPhotoMode,
+} from "@/lib/admin/product-photo-mode";
 import type { CategoryIcon } from "@/types/catalog";
 import type { AdminAvailableProduct } from "@/lib/admin/queries";
 import { normalizeHotspotProductSearchQuery, selectAvailableHotspotProducts } from "@/lib/admin/hotspot-product-search";
@@ -278,6 +286,42 @@ async function generateUniqueSlug(
   }
 }
 
+function parsePhotoMode(formData: FormData): ProductPhotoMode {
+  const raw = formData.get("photoMode");
+  return typeof raw === "string" && isProductPhotoMode(raw) ? raw : DEFAULT_PRODUCT_PHOTO_MODE;
+}
+
+// "normal"/"webp" arrive already finished — the client did the resizing and
+// (for "webp") the re-encode before submitting (see compress-image.ts /
+// ProductForm.tsx). Only the two script-processing modes have work left:
+// the enhance-product-photo pipeline (crop to the alpha bounding box, tone
+// correction, watermark), then an optional WebP re-encode of its output.
+async function applyPhotoMode(file: File, photoMode: ProductPhotoMode): Promise<File> {
+  if (!usesScriptProcessing(photoMode)) return file;
+
+  const enhanced = await enhanceProductPhotoBuffer(Buffer.from(await file.arrayBuffer()));
+  const toWebp = usesWebpOutput(photoMode);
+  const finalBuffer = toWebp ? await convertBufferToWebp(enhanced) : enhanced;
+  const extension = toWebp ? "webp" : "png";
+  const newName = file.name.replace(/\.[^./]+$/, "") + "." + extension;
+  // Buffer's ArrayBufferLike is wider than BlobPart's ArrayBuffer-only view —
+  // wrapping in a plain Uint8Array satisfies the type without copying data.
+  return new File([new Uint8Array(finalBuffer)], newName, { type: toWebp ? "image/webp" : "image/png" });
+}
+
+// Sequential on purpose: each script-processing photo runs several
+// CPU-bound sharp passes (tone correction, two raw-pixel scans, resize,
+// composite) — running up to MAX_PRODUCT_IMAGES of those concurrently would
+// contend for the same CPU budget for no speed benefit in a serverless
+// function, and makes the already-real execution-time risk worse.
+async function applyPhotoModeToAll(photos: File[], photoMode: ProductPhotoMode): Promise<File[]> {
+  const processed: File[] = [];
+  for (const file of photos) {
+    processed.push(await applyPhotoMode(file, photoMode));
+  }
+  return processed;
+}
+
 export async function createProduct(
   _prevState: FormActionState,
   formData: FormData
@@ -287,11 +331,13 @@ export async function createProduct(
   const fields = parseProductFormData(formData);
   const supabase = createAdminClient();
   const photos = formData.getAll("photos").filter((file): file is File => file instanceof File && file.size > 0);
+  const photoMode = parsePhotoMode(formData);
 
   if (photos.length > MAX_PRODUCT_IMAGES) {
     throw new Error(`Можно загрузить не более ${MAX_PRODUCT_IMAGES} фотографий товара.`);
   }
   await Promise.all(photos.map(validateProductImage));
+  const processedPhotos = photos.length > 0 ? await applyPhotoModeToAll(photos, photoMode) : [];
 
   const [slug, subcategoryId, nextOrder] = await Promise.all([
     generateUniqueSlug(supabase, "products", fields.slugSeed, "product"),
@@ -345,8 +391,8 @@ export async function createProduct(
             if (vehicleTypeError) throw vehicleTypeError;
           })
       : Promise.resolve(),
-    photos.length > 0
-      ? Promise.all(photos.map((file, i) => insertProductImage(supabase, product.id, slug, file, i)))
+    processedPhotos.length > 0
+      ? Promise.all(processedPhotos.map((file, i) => insertProductImage(supabase, product.id, slug, file, i)))
       : Promise.resolve(),
   ]);
   const failedOperation = results.find((result) => result.status === "rejected");

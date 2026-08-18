@@ -101,6 +101,41 @@ function readAvifDimensions(bytes: Uint8Array): ImageDimensions | null {
   return largest;
 }
 
+// Whether the file's own alpha channel is present — best-effort, and only
+// meant to drive a soft warning (never a hard block) before running the
+// "upload via script" photo mode: that pipeline crops to the bounding box of
+// non-transparent pixels, which does nothing useful on a photo whose
+// background hasn't actually been removed. `null` means "couldn't tell" (an
+// unsupported/malformed format) and should not trigger the warning either —
+// only a confident `false` should.
+export function hasAlphaChannel(bytes: Uint8Array, mimeType: string): boolean | null {
+  if (mimeType === "image/jpeg") return false; // JPEG has no alpha channel, ever.
+
+  if (mimeType === "image/png" && bytes.length >= 26) {
+    const colorType = bytes[25];
+    return colorType === 4 || colorType === 6; // greyscale+alpha, truecolor+alpha
+  }
+
+  if (mimeType === "image/webp") {
+    const chunkType = text(bytes, 12, 4);
+    if (chunkType === "VP8X" && bytes.length >= 21) {
+      return (bytes[20] & 0x10) !== 0; // ALPH flag bit in the feature flags byte
+    }
+    if (chunkType === "VP8L" && bytes.length >= 25 && bytes[20] === 0x2f) {
+      // 14 bits width-1, 14 bits height-1, 1 bit alpha_is_used, 3 bits version,
+      // packed little-endian across the 4 bytes right after the signature byte.
+      const bits = bytes[21] | (bytes[22] << 8) | (bytes[23] << 16) | (bytes[24] << 24);
+      return ((bits >>> 28) & 0x1) === 1;
+    }
+    if (chunkType === "VP8 ") return false; // lossy WebP without an ALPH chunk
+    return null;
+  }
+
+  // AVIF alpha detection would need a fuller box parser than dimension
+  // sniffing does here — skip the warning rather than guess.
+  return null;
+}
+
 export function readRasterImageDimensions(bytes: Uint8Array, mimeType: string): ImageDimensions | null {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 

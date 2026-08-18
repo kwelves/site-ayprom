@@ -11,9 +11,22 @@
 
 const MAX_DIMENSION = 1920;
 const JPEG_QUALITY = 0.82;
+const WEBP_QUALITY = 0.82;
 const SKIP_BELOW_BYTES = 300_000;
 
-export async function compressImage(file: File): Promise<File> {
+export type CompressOutputFormat = "image/jpeg" | "image/webp";
+
+const FORMAT_EXTENSION: Record<CompressOutputFormat, string> = {
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+};
+
+const FORMAT_QUALITY: Record<CompressOutputFormat, number> = {
+  "image/jpeg": JPEG_QUALITY,
+  "image/webp": WEBP_QUALITY,
+};
+
+export async function compressImage(file: File, outputFormat: CompressOutputFormat = "image/jpeg"): Promise<File> {
   if (file.type === "image/svg+xml" || file.size < SKIP_BELOW_BYTES) return file;
 
   try {
@@ -30,20 +43,22 @@ export async function compressImage(file: File): Promise<File> {
       bitmap.close();
       return file;
     }
-    // A fresh canvas defaults to transparent black. JPEG has no alpha
-    // channel, so encoding straight to "image/jpeg" bakes that black in
-    // wherever the source had transparency (e.g. background-removed product
-    // photos) instead of the white the catalog actually shows the photo on.
+    // A fresh canvas defaults to transparent black. Neither JPEG nor the way
+    // this catalog displays WebP output expects that, so it's baked to white
+    // here regardless of target format — same reasoning as the JPEG-only
+    // version this replaced, just no longer tied to one specific encoder.
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, width, height);
     ctx.drawImage(bitmap, 0, 0, width, height);
     bitmap.close();
 
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY));
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, outputFormat, FORMAT_QUALITY[outputFormat]),
+    );
     if (!blob || blob.size >= file.size) return file;
 
-    const newName = file.name.replace(/\.[^./]+$/, "") + ".jpg";
-    return new File([blob], newName, { type: "image/jpeg" });
+    const newName = file.name.replace(/\.[^./]+$/, "") + "." + FORMAT_EXTENSION[outputFormat];
+    return new File([blob], newName, { type: outputFormat });
   } catch {
     return file;
   }
@@ -54,10 +69,10 @@ export async function compressImage(file: File): Promise<File> {
 // to intercept form submission — replaces the input's FileList in place so
 // whatever reads it next (including the native submit) sees the compressed
 // version.
-export async function compressFileInput(input: HTMLInputElement): Promise<void> {
+export async function compressFileInput(input: HTMLInputElement, outputFormat?: CompressOutputFormat): Promise<void> {
   const file = input.files?.[0];
   if (!file) return;
-  const compressed = await compressImage(file);
+  const compressed = await compressImage(file, outputFormat);
   if (compressed === file) return;
 
   const dataTransfer = new DataTransfer();
@@ -68,11 +83,11 @@ export async function compressFileInput(input: HTMLInputElement): Promise<void> 
 // Same trick as compressFileInput, but for a `multiple` file input — used by
 // the product create form's photo picker, since photos there are attached to
 // the same submission as the rest of the row instead of uploaded separately.
-export async function compressFileListInput(input: HTMLInputElement): Promise<void> {
+export async function compressFileListInput(input: HTMLInputElement, outputFormat?: CompressOutputFormat): Promise<void> {
   const files = input.files;
   if (!files || files.length === 0) return;
 
-  const compressed = await Promise.all(Array.from(files).map(compressImage));
+  const compressed = await Promise.all(Array.from(files).map((file) => compressImage(file, outputFormat)));
   const dataTransfer = new DataTransfer();
   for (const file of compressed) dataTransfer.items.add(file);
   input.files = dataTransfer.files;
