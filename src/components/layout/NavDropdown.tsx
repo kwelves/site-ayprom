@@ -92,25 +92,16 @@ export function NavDropdown({ label, href, items, light, fixedSingleColumn, scro
                     href={item.href}
                     className="group flex items-start gap-3 rounded-lg p-2.5 transition-colors duration-fast ease-ui hover:bg-accent/60"
                   >
-                    <span
-                      className={cn(
-                        "flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg",
-                        item.logo
-                          ? "border border-border bg-card"
-                          : "bg-accent text-accent-foreground transition-colors duration-fast ease-ui group-hover:bg-primary group-hover:text-primary-foreground"
-                      )}
-                    >
-                      {item.logo ? (
-                        // eslint-disable-next-line @next/next/no-img-element -- local brand SVGs; next/image blocks them without dangerouslyAllowSVG
+                    {item.logo ? (
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-card">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- local brand SVGs; next/image blocks them without dangerouslyAllowSVG */}
                         <img
                           src={item.logo}
                           alt=""
                           className="h-full w-full object-contain p-1"
                         />
-                      ) : item.icon ? (
-                        <item.icon className="h-4 w-4" />
-                      ) : null}
-                    </span>
+                      </span>
+                    ) : null}
                     <span className="flex flex-col">
                       <span className="text-sm font-semibold text-card-foreground">{item.label}</span>
                       <span className="text-xs text-muted-foreground">{item.description}</span>

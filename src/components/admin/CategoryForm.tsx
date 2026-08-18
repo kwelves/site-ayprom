@@ -18,14 +18,6 @@ import { Textarea } from "@/components/admin/ui/Textarea";
 import { Select } from "@/components/admin/ui/Select";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import type { AdminCategory } from "@/lib/admin/queries";
-import type { CategoryIcon } from "@/types/catalog";
-
-const ICON_OPTIONS: { value: CategoryIcon; label: string }[] = [
-  { value: "hydraulic-pump", label: "Гидронасос" },
-  { value: "pto", label: "КОМ (коробка отбора мощности)" },
-  { value: "pto-shaft", label: "ВОМ (вал отбора мощности)" },
-  { value: "tank", label: "Бак" },
-];
 
 interface CategoryFormProps {
   mode: "create" | "edit";
@@ -100,16 +92,6 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
             <Input id="slug-display" value={category?.slug ?? ""} disabled />
           </FormField>
         )}
-
-        <FormField label="Иконка" htmlFor="icon">
-          <Select id="icon" name="icon" defaultValue={category?.icon ?? ICON_OPTIONS[0].value}>
-            {ICON_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
-        </FormField>
 
         {mode === "create" ? (
           <FormField

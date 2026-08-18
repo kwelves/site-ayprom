@@ -338,19 +338,12 @@ function MobileNavItem({
                   onClick={onNavigate}
                   className="flex items-start gap-3 rounded-lg p-2 transition-colors duration-fast ease-ui hover:bg-muted"
                 >
-                  <span
-                    className={cn(
-                      "flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg",
-                      sub.logo ? "border border-border bg-card" : "bg-accent text-accent-foreground"
-                    )}
-                  >
-                    {sub.logo ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- local brand SVGs; next/image blocks them without dangerouslyAllowSVG
+                  {sub.logo ? (
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-card">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- local brand SVGs; next/image blocks them without dangerouslyAllowSVG */}
                       <img src={sub.logo} alt="" className="h-full w-full object-contain p-1" />
-                    ) : sub.icon ? (
-                      <sub.icon className="h-4 w-4" />
-                    ) : null}
-                  </span>
+                    </span>
+                  ) : null}
                   <span className="flex flex-col">
                     <span className="text-sm font-medium text-card-foreground">{sub.label}</span>
                     <span className="text-xs text-muted-foreground">{sub.description}</span>
