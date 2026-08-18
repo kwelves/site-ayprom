@@ -13,11 +13,12 @@ export const metadata: Metadata = {
 export const revalidate = 0;
 
 interface AdminProductsPageProps {
-  searchParams: Promise<{ q?: string; category?: string; page?: string; created?: string; updated?: string }>;
+  searchParams: Promise<{ q?: string; category?: string; page?: string; created?: string; updated?: string; photoError?: string }>;
 }
 
 export default async function AdminProductsPage({ searchParams }: AdminProductsPageProps) {
-  const { q, category, page, created, updated } = await searchParams;
+  const { q, category, page, created, updated, photoError } = await searchParams;
+  const photoErrorCount = Number(photoError);
   const isFiltered = Boolean(q?.trim() || category);
   const currentPage = parseAdminPage(page);
 
@@ -39,6 +40,14 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
       </div>
 
       <ProductsFilterBar categories={categories.map((c) => ({ slug: c.slug, name: c.name }))} />
+
+      {Number.isInteger(photoErrorCount) && photoErrorCount > 0 && (
+        <p className="mt-3 rounded-md bg-warning-surface px-3 py-2 text-sm text-warning">
+          Товар создан, но {photoErrorCount}{" "}
+          {photoErrorCount === 1 ? "фотографию" : "фотографий"} не удалось загрузить. Добавьте{" "}
+          {photoErrorCount === 1 ? "её" : "их"} через редактирование товара.
+        </p>
+      )}
 
       {productPage.total > 0 && (
         <p className="mt-3 text-xs text-muted-foreground">

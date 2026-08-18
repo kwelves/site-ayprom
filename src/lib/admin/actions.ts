@@ -14,6 +14,7 @@ import { requireServerEnv } from "@/lib/env";
 import { slugify } from "@/lib/admin/slugify";
 import { constantTimePasswordEqual, registerLoginAttempt } from "@/lib/admin/login-rate-limit";
 import { MAX_PRODUCT_IMAGES, validateProductImage } from "@/lib/admin/image-validation";
+import { ADMIN_PAGE_SIZE } from "@/lib/admin/pagination";
 import { convertBufferToWebp, enhanceProductPhotoBuffer } from "@/lib/admin/enhance-product-photo";
 import {
   DEFAULT_PRODUCT_PHOTO_MODE,
@@ -363,11 +364,15 @@ export async function createProduct(
     .single();
   if (error) throw error;
 
-  // Photos can be attached right in the create form (an uncontrolled multi-file
-  // input, same submission as the rest of the row) now that the product row
-  // — and so its id/slug — exists. The four blocks below touch separate child
-  // tables with no cross-dependency, so they run concurrently.
-  const results = await Promise.allSettled([
+  // Characteristics/brands/vehicle-types are fast metadata writes over values
+  // already checked by validateProductReferences above — a failure here means
+  // something is actually wrong, so it still rolls back the whole product.
+  // Photos are handled separately below, after this succeeds: uploading is
+  // the slow, network/CPU-heavy step, and one failed photo shouldn't discard
+  // an otherwise-valid product (that's exactly what edit mode avoids — see
+  // uploadProductImage — by persisting each photo against an already-saved
+  // product instead of bundling it into an all-or-nothing submission).
+  const metadataResults = await Promise.allSettled([
     fields.characteristics.length > 0
       ? supabase
           .from("product_characteristics")
@@ -392,36 +397,54 @@ export async function createProduct(
             if (vehicleTypeError) throw vehicleTypeError;
           })
       : Promise.resolve(),
-    processedPhotos.length > 0
-      ? Promise.all(processedPhotos.map((file, i) => insertProductImage(supabase, product.id, slug, file, i)))
-      : Promise.resolve(),
   ]);
-  const failedOperation = results.find((result) => result.status === "rejected");
+  const failedMetadata = metadataResults.find((result) => result.status === "rejected");
 
-  if (failedOperation?.status === "rejected") {
-    const cleanupProblems: string[] = [];
+  if (failedMetadata?.status === "rejected") {
     const { error: rollbackError } = await supabase.from("products").delete().eq("id", product.id);
-    if (rollbackError) cleanupProblems.push(`не удалось удалить неполную запись: ${rollbackError.message}`);
-
-    const { data: files, error: listError } = await supabase.storage.from("product-images").list(slug);
-    if (listError) {
-      cleanupProblems.push(`не удалось проверить загруженные файлы: ${listError.message}`);
-    } else if (files.length > 0) {
-      const { error: removeError } = await supabase.storage
-        .from("product-images")
-        .remove(files.map((file) => `${slug}/${file.name}`));
-      if (removeError) cleanupProblems.push(`не удалось очистить файлы: ${removeError.message}`);
-    }
-
-    const cleanupSuffix = cleanupProblems.length > 0 ? ` Очистка: ${cleanupProblems.join("; ")}.` : "";
+    const cleanupSuffix = rollbackError ? ` Очистка: не удалось удалить неполную запись: ${rollbackError.message}.` : "";
     throw new Error(
-      `Товар не создан: ${getErrorMessage(failedOperation.reason, "ошибка сохранения связанных данных")}.${cleanupSuffix}`,
+      `Товар не создан: ${getErrorMessage(failedMetadata.reason, "ошибка сохранения связанных данных")}.${cleanupSuffix}`,
     );
+  }
+
+  // Each photo uploads and inserts independently (allSettled, not all): a
+  // failed photo is reported to the admin via the redirect's photoError
+  // count, not treated as fatal — the product and every photo that did
+  // succeed stay saved, and any missing photo can be added from the edit
+  // page exactly like edit mode's own per-photo upload already works today.
+  let photoErrorCount = 0;
+  if (processedPhotos.length > 0) {
+    const photoResults = await Promise.allSettled(
+      processedPhotos.map((file, i) => insertProductImage(supabase, product.id, slug, file, i))
+    );
+    photoErrorCount = photoResults.filter((result) => result.status === "rejected").length;
+    if (photoErrorCount > 0) {
+      console.error("Не удалось загрузить часть фотографий при создании товара", {
+        productId: product.id,
+        slug,
+        failed: photoErrorCount,
+        total: processedPhotos.length,
+        reasons: photoResults
+          .filter((result): result is PromiseRejectedResult => result.status === "rejected")
+          .map((result) => getErrorMessage(result.reason, "неизвестная ошибка")),
+      });
+    }
   }
 
   revalidatePath("/admin/products");
   revalidatePublicSite();
-  redirect(`/admin/products?created=${encodeURIComponent(slug)}`);
+  const photoWarning = photoErrorCount > 0 ? `&photoError=${photoErrorCount}` : "";
+  // New rows always sort last (getNextOrder appends past the current max), so
+  // once the catalog passes one page the plain "?created=slug" redirect would
+  // land back on page 1 — the row exists, but sits on the last page and never
+  // shows (no error, just silently missing, and the flash highlight never
+  // fires since the row isn't in view). Send the admin straight to the page
+  // that actually contains it.
+  const { count: totalAfterCreate } = await supabase.from("products").select("id", { count: "exact", head: true });
+  const targetPage = Math.max(1, Math.ceil((totalAfterCreate ?? 1) / ADMIN_PAGE_SIZE));
+  const pageParam = targetPage > 1 ? `&page=${targetPage}` : "";
+  redirect(`/admin/products?created=${encodeURIComponent(slug)}${photoWarning}${pageParam}`);
   });
 }
 
