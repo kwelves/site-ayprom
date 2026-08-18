@@ -17,6 +17,13 @@ import { useHomeEntrySequence } from "@/components/home/HomeEntrySequence";
 
 export interface VehicleVisual {
   image: string;
+  /** Smaller pre-built variant for viewports below the `lg` breakpoint (see
+   * scripts/generate-vehicle-webp.mjs's `-mobile.webp` output). The stage
+   * shows the photo noticeably smaller there, so the full-resolution file is
+   * wasted bytes — falls back to `image` when absent. `naturalWidth`/
+   * `naturalHeight` below describe the source crop's aspect ratio only, not
+   * which file is fetched, so they stay the same regardless of this pick. */
+  imageMobile?: string;
   naturalWidth: number;
   naturalHeight: number;
   /** How far beyond strict contain-fit to inflate the photo (1 = fits
@@ -106,16 +113,26 @@ interface VehicleShowcaseInteractiveProps {
   defaultSlug: string;
 }
 
+/** Picks the file actually worth fetching for the current breakpoint — see
+ * `VehicleVisual.imageMobile`. */
+function pickVisualImage(visual: VehicleVisual, isDesktop: boolean): string {
+  return isDesktop ? visual.image : (visual.imageMobile ?? visual.image);
+}
+
 /**
  * The background queue may only receive stage photos. Product previews are
  * loaded on demand by ProductPanel, so opening the site never warms a
  * hotspot's linked product image.
  */
-export function collectVehicleImageWarmupCandidates(entries: VehicleShowcaseEntry[], visuals: Record<string, VehicleVisual>) {
+export function collectVehicleImageWarmupCandidates(
+  entries: VehicleShowcaseEntry[],
+  visuals: Record<string, VehicleVisual>,
+  isDesktop: boolean,
+) {
   return entries.flatMap((entry) => {
     const candidateVisual = visuals[entry.vehicleType.slug];
     if (!candidateVisual) return [];
-    return [{ slug: entry.vehicleType.slug, ...candidateVisual }];
+    return [{ slug: entry.vehicleType.slug, ...candidateVisual, image: pickVisualImage(candidateVisual, isDesktop) }];
   });
 }
 
@@ -472,7 +489,10 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
       })),
     [entries, visuals],
   );
-  const imageWarmupCandidates = useMemo(() => collectVehicleImageWarmupCandidates(entries, visuals), [entries, visuals]);
+  const imageWarmupCandidates = useMemo(
+    () => collectVehicleImageWarmupCandidates(entries, visuals, isDesktop),
+    [entries, visuals, isDesktop],
+  );
 
   if (!activeEntry || !visual) return null;
 
@@ -509,7 +529,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
               className="pointer-events-none absolute inset-0"
             >
               <Image
-                src={visual.image}
+                src={pickVisualImage(visual, isDesktop)}
                 alt={activeEntry.vehicleType.name}
                 width={Math.round(containRect.width)}
                 height={Math.round(containRect.height)}
@@ -543,7 +563,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
           probe (its src just changes) rather than mounting a second one. */}
       {transitionPhase === "preloading" && preloadVisual && preloadContainRect.width > 0 && (
         <Image
-          src={preloadVisual.image}
+          src={pickVisualImage(preloadVisual, isDesktop)}
           alt=""
           aria-hidden="true"
           width={Math.round(preloadContainRect.width)}

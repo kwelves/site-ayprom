@@ -39,12 +39,19 @@ import { VehicleShowcaseInteractive, type VehicleVisual } from "./vehicle-showca
 // what made the very first request for any given vehicle noticeably slower
 // than later ones. The PNG masters stay in the same folder as the source of
 // truth for regeneration; only the reference here changed.
+// imageMobile: a second, smaller pre-built file for viewports below `lg`
+// (VehicleShowcaseInteractive picks between the two) — the stage shows the
+// photo noticeably smaller there, so the full-resolution file was pure waste
+// (Lighthouse flagged ~60-99 КБ per photo on mobile before this existed).
+// naturalWidth/naturalHeight describe the source crop's aspect ratio only —
+// they're the coordinate system hotspot x_pct/y_pct are measured against,
+// unrelated to which file gets fetched, so both stay the same either way.
 const VEHICLE_VISUALS: Record<string, VehicleVisual> = {
-  "kran-manipulyator": { image: "/images/vehicle-showcase/kran-manipulyator.webp", naturalWidth: 1086, naturalHeight: 1448, scale: 1.8, desktopScale: 1.507 },
-  musorovoz: { image: "/images/vehicle-showcase/musorovoz.webp", naturalWidth: 1024, naturalHeight: 1536, scale: 1.8, desktopScale: 1.518 },
-  avtovoz: { image: "/images/vehicle-showcase/avtovoz.webp", naturalWidth: 1086, naturalHeight: 1448, scale: 1.8, desktopScale: 1.529 },
-  samosval: { image: "/images/vehicle-showcase/samosval.webp", naturalWidth: 1086, naturalHeight: 1448, scale: 1.8, desktopScale: 1.474 },
-  tyagach: { image: "/images/vehicle-showcase/tyagach.webp", naturalWidth: 1086, naturalHeight: 1448, scale: 1.6, desktopScale: 1.232 },
+  "kran-manipulyator": { image: "/images/vehicle-showcase/kran-manipulyator.webp", imageMobile: "/images/vehicle-showcase/kran-manipulyator-mobile.webp", naturalWidth: 1086, naturalHeight: 1448, scale: 1.8, desktopScale: 1.507 },
+  musorovoz: { image: "/images/vehicle-showcase/musorovoz.webp", imageMobile: "/images/vehicle-showcase/musorovoz-mobile.webp", naturalWidth: 1024, naturalHeight: 1536, scale: 1.8, desktopScale: 1.518 },
+  avtovoz: { image: "/images/vehicle-showcase/avtovoz.webp", imageMobile: "/images/vehicle-showcase/avtovoz-mobile.webp", naturalWidth: 1086, naturalHeight: 1448, scale: 1.8, desktopScale: 1.529 },
+  samosval: { image: "/images/vehicle-showcase/samosval.webp", imageMobile: "/images/vehicle-showcase/samosval-mobile.webp", naturalWidth: 1086, naturalHeight: 1448, scale: 1.8, desktopScale: 1.474 },
+  tyagach: { image: "/images/vehicle-showcase/tyagach.webp", imageMobile: "/images/vehicle-showcase/tyagach-mobile.webp", naturalWidth: 1086, naturalHeight: 1448, scale: 1.6, desktopScale: 1.232 },
 };
 
 export async function VehicleShowcaseSection() {

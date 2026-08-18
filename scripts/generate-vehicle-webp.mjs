@@ -13,11 +13,17 @@
  * WebP всегда перегенерируется из них заново, а не пересжимается сам из себя,
  * чтобы повторные запуски не теряли качество на повторном lossy-сжатии.
  *
- * Разрешение сохраняется как у исходника (без ресайза): апскейл выше
- * исходных пикселей всё равно не добавляет детализации, а даунскейл вручную
- * не нужен — эти фото и так уже компактные (около 1000–1100px по ширине).
+ * Полноразмерный .webp сохраняет разрешение исходника (без ресайза) — эти
+ * фото и так уже компактные (около 1000–1100px по ширине), апскейл смысла
+ * не имеет. Дополнительно генерируется уменьшенный `-mobile.webp` того же
+ * кадра: на телефоне сцена показывает фото заметно мельче, чем на десктопе
+ * (подтверждено Lighthouse: ~60-99 КБ "лишних" на мобильном при полноразмерном
+ * файле), а `naturalWidth`/`naturalHeight` в VEHICLE_VISUALS (см.
+ * VehicleShowcaseSection.tsx) остаются равны исходнику независимо от того,
+ * какой файл реально отдаётся — это чисто система координат для хотспотов,
+ * выбор файла на неё не влияет.
  *
- * Использование: node scripts/generate-vehicle-webp.mjs [--quality=85]
+ * Использование: node scripts/generate-vehicle-webp.mjs [--quality=85] [--mobile-width=560]
  */
 
 import { promises as fs } from "node:fs";
@@ -26,19 +32,24 @@ import sharp from "sharp";
 
 const SOURCE_DIR = path.resolve("public/images/vehicle-showcase");
 const DEFAULT_QUALITY = 85;
+const DEFAULT_MOBILE_WIDTH = 560;
 
-function parseQuality(args) {
-  const flag = args.find((arg) => arg.startsWith("--quality="));
-  if (!flag) return DEFAULT_QUALITY;
+function parseNumberFlag(args, name, fallback) {
+  const flag = args.find((arg) => arg.startsWith(`--${name}=`));
+  if (!flag) return fallback;
   const value = Number(flag.split("=")[1]);
-  if (!Number.isFinite(value) || value <= 0 || value > 100) {
-    throw new Error(`Некорректное значение --quality: ${flag}`);
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error(`Некорректное значение --${name}: ${flag}`);
   }
   return value;
 }
 
 async function main() {
-  const quality = parseQuality(process.argv.slice(2));
+  const args = process.argv.slice(2);
+  const quality = parseNumberFlag(args, "quality", DEFAULT_QUALITY);
+  if (quality > 100) throw new Error(`Некорректное значение --quality: ${quality}`);
+  const mobileWidth = parseNumberFlag(args, "mobile-width", DEFAULT_MOBILE_WIDTH);
+
   const entries = await fs.readdir(SOURCE_DIR);
   const pngFiles = entries.filter((name) => name.toLowerCase().endsWith(".png"));
 
@@ -49,15 +60,30 @@ async function main() {
 
   for (const fileName of pngFiles) {
     const sourcePath = path.join(SOURCE_DIR, fileName);
-    const targetPath = path.join(SOURCE_DIR, fileName.replace(/\.png$/i, ".webp"));
+    const fullTargetPath = path.join(SOURCE_DIR, fileName.replace(/\.png$/i, ".webp"));
+    const mobileTargetPath = path.join(SOURCE_DIR, fileName.replace(/\.png$/i, "-mobile.webp"));
 
     const sourceStat = await fs.stat(sourcePath);
-    await sharp(sourcePath).webp({ quality, alphaQuality: 100 }).toFile(targetPath);
-    const targetStat = await fs.stat(targetPath);
+
+    await sharp(sourcePath).webp({ quality, alphaQuality: 100 }).toFile(fullTargetPath);
+    const fullStat = await fs.stat(fullTargetPath);
+
+    // Ресайз всегда из PNG-мастера (не из только что созданного полноразмерного
+    // webp) — та же причина, что и выше: не терять качество на повторном
+    // lossy-сжатии уже сжатого файла.
+    await sharp(sourcePath)
+      .resize({ width: mobileWidth, withoutEnlargement: true })
+      .webp({ quality, alphaQuality: 100 })
+      .toFile(mobileTargetPath);
+    const mobileStat = await fs.stat(mobileTargetPath);
 
     const beforeKb = (sourceStat.size / 1024).toFixed(0);
-    const afterKb = (targetStat.size / 1024).toFixed(0);
-    console.log(`${fileName} -> ${path.basename(targetPath)}: ${beforeKb} КБ -> ${afterKb} КБ`);
+    const fullKb = (fullStat.size / 1024).toFixed(0);
+    const mobileKb = (mobileStat.size / 1024).toFixed(0);
+    console.log(
+      `${fileName} -> ${path.basename(fullTargetPath)}: ${beforeKb} КБ -> ${fullKb} КБ` +
+        `  |  ${path.basename(mobileTargetPath)}: ${mobileKb} КБ`,
+    );
   }
 }
 

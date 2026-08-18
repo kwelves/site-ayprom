@@ -162,8 +162,29 @@ describe("VehicleImageWarmup", () => {
       "vehicle-a": { image: "/images/vehicle-showcase/vehicle-a.png", naturalWidth: 1086, naturalHeight: 1448 },
     };
 
-    expect(collectVehicleImageWarmupCandidates(entries, visuals)).toEqual([
+    expect(collectVehicleImageWarmupCandidates(entries, visuals, true)).toEqual([
       { slug: "vehicle-a", image: "/images/vehicle-showcase/vehicle-a.png", naturalWidth: 1086, naturalHeight: 1448 },
     ]);
+  });
+
+  it("на мобильных ширинах ставит в очередь уменьшенный файл, если он задан", () => {
+    const entries = [
+      { vehicleType: { slug: "vehicle-a", name: "Техника" }, hotspots: [] },
+    ] as unknown as VehicleShowcaseEntry[];
+    const visuals: Record<string, VehicleVisual> = {
+      "vehicle-a": {
+        image: "/images/vehicle-showcase/vehicle-a.webp",
+        imageMobile: "/images/vehicle-showcase/vehicle-a-mobile.webp",
+        naturalWidth: 1086,
+        naturalHeight: 1448,
+      },
+    };
+
+    expect(collectVehicleImageWarmupCandidates(entries, visuals, false)[0]?.image).toBe(
+      "/images/vehicle-showcase/vehicle-a-mobile.webp",
+    );
+    expect(collectVehicleImageWarmupCandidates(entries, visuals, true)[0]?.image).toBe(
+      "/images/vehicle-showcase/vehicle-a.webp",
+    );
   });
 });
