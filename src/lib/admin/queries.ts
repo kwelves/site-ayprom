@@ -349,12 +349,25 @@ interface BrandRow {
   order: number;
 }
 
+// brandSlug narrows both scans to one brand — used by getAdminBrand, which
+// otherwise paid for 2 full-table scans just to count usage for a single
+// row (getAdminBrands legitimately needs the unfiltered counts, since it
+// computes them for every brand at once). Same pattern as
+// getCategoryUsageCounts above.
 async function getBrandUsageCounts(
-  supabase: ReturnType<typeof createAdminClient>
+  supabase: ReturnType<typeof createAdminClient>,
+  brandSlug?: string
 ): Promise<{ productCounts: Map<string, number>; categoryCounts: Map<string, number> }> {
+  let productBrandsQuery = supabase.from("product_brands").select("brand_slug");
+  let categoryBrandsQuery = supabase.from("category_brands").select("brand_slug");
+  if (brandSlug) {
+    productBrandsQuery = productBrandsQuery.eq("brand_slug", brandSlug);
+    categoryBrandsQuery = categoryBrandsQuery.eq("brand_slug", brandSlug);
+  }
+
   const [{ data: productBrands, error: pbError }, { data: categoryBrands, error: cbError }] = await Promise.all([
-    supabase.from("product_brands").select("brand_slug"),
-    supabase.from("category_brands").select("brand_slug"),
+    productBrandsQuery,
+    categoryBrandsQuery,
   ]);
   if (pbError) throw pbError;
   if (cbError) throw cbError;
@@ -402,7 +415,7 @@ export async function getAdminBrand(slug: string): Promise<AdminBrand | null> {
   const supabase = createAdminClient();
   const [{ data, error }, { productCounts, categoryCounts }] = await Promise.all([
     supabase.from("brands").select("*").eq("slug", slug).maybeSingle(),
-    getBrandUsageCounts(supabase),
+    getBrandUsageCounts(supabase, slug),
   ]);
   if (error) throw error;
   return data ? mapBrand(data as BrandRow, productCounts, categoryCounts) : null;
@@ -618,10 +631,15 @@ interface VehicleTypeRow {
   order: number;
 }
 
+// vehicleTypeSlug narrows the scan to one vehicle type — used by
+// getAdminVehicleType, same reasoning as getBrandUsageCounts above.
 async function getVehicleTypeUsageCounts(
-  supabase: ReturnType<typeof createAdminClient>
+  supabase: ReturnType<typeof createAdminClient>,
+  vehicleTypeSlug?: string
 ): Promise<Map<string, number>> {
-  const { data, error } = await supabase.from("product_vehicle_types").select("vehicle_type_slug");
+  let query = supabase.from("product_vehicle_types").select("vehicle_type_slug");
+  if (vehicleTypeSlug) query = query.eq("vehicle_type_slug", vehicleTypeSlug);
+  const { data, error } = await query;
   if (error) throw error;
 
   const productCounts = new Map<string, number>();
@@ -655,7 +673,7 @@ export async function getAdminVehicleType(slug: string): Promise<AdminVehicleTyp
   const supabase = createAdminClient();
   const [{ data, error }, productCounts] = await Promise.all([
     supabase.from("vehicle_types").select("*").eq("slug", slug).maybeSingle(),
-    getVehicleTypeUsageCounts(supabase),
+    getVehicleTypeUsageCounts(supabase, slug),
   ]);
   if (error) throw error;
   return data ? mapVehicleType(data as VehicleTypeRow, productCounts) : null;

@@ -344,6 +344,7 @@ export async function createProduct(
     resolveSubcategoryId(supabase, fields.categorySlug, fields.subcategorySlug),
     getNextOrder(supabase, "products"),
   ]);
+  await validateProductReferences(supabase, fields, subcategoryId);
 
   const { data: product, error } = await supabase
     .from("products")
@@ -828,7 +829,11 @@ export async function createBrand(
     logo_scale: fields.logoScale,
     order: nextOrder,
   });
-  if (error) throw error;
+  if (error) {
+    const path = extractStoragePath(logoUrl, "brand-logos");
+    if (path) await supabase.storage.from("brand-logos").remove([path]);
+    throw error;
+  }
 
   revalidatePath("/admin/brands");
   revalidatePublicSite();
@@ -893,10 +898,14 @@ export async function deleteBrand(slug: string): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
 
-  const { data: brand } = await supabase.from("brands").select("logo").eq("slug", slug).maybeSingle();
+  const { data: brand, error: brandLookupError } = await supabase.from("brands").select("logo").eq("slug", slug).maybeSingle();
+  if (brandLookupError) throw brandLookupError;
   if (brand?.logo) {
     const path = extractStoragePath(brand.logo, "brand-logos");
-    if (path) await supabase.storage.from("brand-logos").remove([path]);
+    if (path) {
+      const { error: removeError } = await supabase.storage.from("brand-logos").remove([path]);
+      if (removeError) throw removeError;
+    }
   }
 
   // Cascades clean up product_brands/category_brands associations — the
@@ -992,7 +1001,11 @@ export async function createCategory(
     type: fields.type,
     order: nextOrder,
   });
-  if (error) throw error;
+  if (error) {
+    const path = extractStoragePath(imageUrl, "category-images");
+    if (path) await supabase.storage.from("category-images").remove([path]);
+    throw error;
+  }
 
   revalidatePath("/admin/categories");
   revalidatePublicSite();
@@ -1056,21 +1069,39 @@ export async function deleteCategory(slug: string): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
 
-  const { data: files } = await supabase.storage.from("category-images").list(slug);
+  const { data: files, error: listError } = await supabase.storage.from("category-images").list(slug);
+  if (listError) throw listError;
   if (files && files.length > 0) {
-    await supabase.storage.from("category-images").remove(files.map((file) => `${slug}/${file.name}`));
+    const { error: removeError } = await supabase.storage
+      .from("category-images")
+      .remove(files.map((file) => `${slug}/${file.name}`));
+    if (removeError) throw removeError;
   }
 
   // Subcategory images live in their own sub-{id} folders, not nested under
   // this category's — the DB cascade below clears subcategory rows but
   // wouldn't reach their Storage files, so remove those folders first.
-  const { data: subcategories } = await supabase.from("subcategories").select("id").eq("category_slug", slug);
-  for (const sub of subcategories ?? []) {
-    const { data: subFiles } = await supabase.storage.from("category-images").list(`sub-${sub.id}`);
-    if (subFiles && subFiles.length > 0) {
-      await supabase.storage.from("category-images").remove(subFiles.map((file) => `sub-${sub.id}/${file.name}`));
-    }
-  }
+  // Parallel, not sequential: a category can have many subcategories, and
+  // each is an independent list+remove round trip with nothing to serialize.
+  const { data: subcategories, error: subcategoriesError } = await supabase
+    .from("subcategories")
+    .select("id")
+    .eq("category_slug", slug);
+  if (subcategoriesError) throw subcategoriesError;
+  await Promise.all(
+    (subcategories ?? []).map(async (sub) => {
+      const { data: subFiles, error: subListError } = await supabase.storage
+        .from("category-images")
+        .list(`sub-${sub.id}`);
+      if (subListError) throw subListError;
+      if (subFiles && subFiles.length > 0) {
+        const { error: subRemoveError } = await supabase.storage
+          .from("category-images")
+          .remove(subFiles.map((file) => `sub-${sub.id}/${file.name}`));
+        if (subRemoveError) throw subRemoveError;
+      }
+    }),
+  );
 
   // Cascades clean up subcategories/category_brands; products.category_slug
   // has no cascade, so this throws (FK violation) if any product still
@@ -1169,7 +1200,11 @@ export async function createSubcategory(
     intro: fields.intro,
     order: nextOrder,
   });
-  if (error) throw error;
+  if (error) {
+    const path = extractStoragePath(imageUrl, "category-images");
+    if (path) await supabase.storage.from("category-images").remove([path]);
+    throw error;
+  }
 
   revalidatePath(`/admin/categories/${categorySlug}/subcategories`);
   revalidatePublicSite();
@@ -1208,11 +1243,12 @@ export async function replaceSubcategoryImage(subcategoryId: string, formData: F
   if (!(file instanceof File) || file.size === 0) return null;
 
   const supabase = createAdminClient();
-  const { data: existing } = await supabase
+  const { data: existing, error: lookupError } = await supabase
     .from("subcategories")
     .select("image, category_slug")
     .eq("id", subcategoryId)
     .maybeSingle();
+  if (lookupError) throw lookupError;
   if (!existing) return null;
 
   const newImageUrl = await uploadCategoryImage(supabase, `sub-${subcategoryId}`, file);
@@ -1234,16 +1270,23 @@ export async function deleteSubcategory(subcategoryId: string): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
 
-  const { data: existing } = await supabase
+  const { data: existing, error: lookupError } = await supabase
     .from("subcategories")
     .select("category_slug")
     .eq("id", subcategoryId)
     .maybeSingle();
+  if (lookupError) throw lookupError;
   if (!existing) return;
 
-  const { data: files } = await supabase.storage.from("category-images").list(`sub-${subcategoryId}`);
+  const { data: files, error: listError } = await supabase.storage
+    .from("category-images")
+    .list(`sub-${subcategoryId}`);
+  if (listError) throw listError;
   if (files && files.length > 0) {
-    await supabase.storage.from("category-images").remove(files.map((file) => `sub-${subcategoryId}/${file.name}`));
+    const { error: removeError } = await supabase.storage
+      .from("category-images")
+      .remove(files.map((file) => `sub-${subcategoryId}/${file.name}`));
+    if (removeError) throw removeError;
   }
 
   // products.subcategory_id has no cascade, so this throws (FK violation) if
@@ -1536,7 +1579,7 @@ export async function restoreVehicleHotspots(
 }
 
 function escapeILikeTerm(term: string): string {
-  return term.replace(/[\\%_]/g, "\\\\$&");
+  return term.replace(/[\\%_]/g, "\\$&");
 }
 
 // Kept as a Server Action (rather than importing a service-role query into a

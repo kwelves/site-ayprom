@@ -7,6 +7,8 @@ export const metadata: Metadata = {
   title: "Новая подкатегория — Админка AYPROM",
 };
 
+export const revalidate = 0;
+
 interface NewSubcategoryPageProps {
   params: Promise<{ slug: string }>;
 }
