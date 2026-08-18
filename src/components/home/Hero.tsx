@@ -253,18 +253,17 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
           // without waiting for a larger playback buffer.
           className={`h-full w-full object-cover transition-opacity duration-fast ${videoLoaded ? "opacity-100" : "opacity-0"}`}
         >
+          {/* Перекодировано по качеству (CRF), а не фиксированным битрейтом
+              (см. scripts/generate-hero-video.mjs) — теперь это настоящий 2K
+              (2560x1440 / 1440x2560) для ВСЕХ экранов, а не только для
+              редких мониторов шире 2560px, как было раньше. */}
           <source
-            src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/site-media/hero/2026-08-16-hq/hero-background-mobile.mp4`}
+            src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/site-media/hero/2026-08-18-2k/hero-background-mobile.mp4`}
             type="video/mp4"
             media="(max-width: 767px)"
           />
           <source
-            src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/site-media/hero/2026-08-16-hq/hero-background-desktop.mp4`}
-            type="video/mp4"
-            media="(min-width: 2560px)"
-          />
-          <source
-            src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/site-media/hero/2026-08-16-balanced/hero-background-desktop.mp4`}
+            src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/site-media/hero/2026-08-18-2k/hero-background-desktop.mp4`}
             type="video/mp4"
           />
         </video>

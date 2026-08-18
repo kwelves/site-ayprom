@@ -46,9 +46,18 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const [categories, brands] = await Promise.all([getCategories(), getBrands()]);
+  const supabaseOrigin = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin;
 
   return (
     <html lang="ru" className={`${geistSans.variable} h-full antialiased`}>
+      {/* Hero-видео на главной запрашивается с Supabase Storage сразу при
+          заходе на сайт. Next не хоистит resource hints автоматически для
+          media-запросов, поэтому DNS/TLS к этому origin иначе начинаются
+          только в момент, когда браузер доходит до <video><source>, — этот
+          preconnect убирает эту задержку с критического пути. Next хоистит
+          любой <link>, отрисованный в дереве, в <head> сам. */}
+      <link rel="preconnect" href={supabaseOrigin} crossOrigin="anonymous" />
+      <link rel="dns-prefetch" href={supabaseOrigin} />
       <body className="flex min-h-full flex-col bg-background text-foreground">
         <MotionPreferences>
         <HomeEntrySequence>

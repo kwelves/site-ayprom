@@ -21,7 +21,9 @@
     "check:colors": "node scripts/check-color-tokens.mjs",
     "schema:check": "node scripts/check-supabase-schema.mjs",
     "photos:enhance": "node scripts/enhance-product-photos.mjs",
-    "images:vehicle-webp": "node scripts/generate-vehicle-webp.mjs"
+    "images:vehicle-webp": "node scripts/generate-vehicle-webp.mjs",
+    "video:hero": "node scripts/generate-hero-video.mjs",
+    "video:hero:upload": "node scripts/upload-hero-video.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
