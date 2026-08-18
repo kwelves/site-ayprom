@@ -14,6 +14,7 @@ interface ImageFallbackProps {
   quality?: number;
   style?: React.CSSProperties;
   fallbackLabel?: string;
+  onLoad?: () => void;
 }
 
 export function ImageFallback({
@@ -25,6 +26,7 @@ export function ImageFallback({
   quality,
   style,
   fallbackLabel = "Фотография пока не добавлена",
+  onLoad,
 }: ImageFallbackProps) {
   const [failed, setFailed] = useState(false);
 
@@ -52,6 +54,7 @@ export function ImageFallback({
       quality={quality}
       style={style}
       onError={() => setFailed(true)}
+      onLoad={onLoad}
       draggable={false}
     />
   );
