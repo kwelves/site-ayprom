@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { SortableList } from "@/components/admin/SortableList";
@@ -105,8 +106,7 @@ export function ProductsList({ products: initialProducts, flashSlug, flashAction
         <div className="flex items-start gap-3">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/40">
             {product.coverImage && (
-              // eslint-disable-next-line @next/next/no-img-element -- admin thumbnails can come from Supabase Storage (external host), simpler than configuring next/image remotePatterns for an internal tool
-              <img src={product.coverImage} alt="" className="h-full w-full object-contain" />
+              <Image src={product.coverImage} alt="" width={48} height={48} className="h-full w-full object-contain" />
             )}
           </div>
           <div className="min-w-0 flex-1">

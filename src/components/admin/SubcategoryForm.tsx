@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Image from "next/image";
 import { createSubcategory, updateSubcategory, deleteSubcategory, replaceSubcategoryImage } from "@/lib/admin/actions";
 import type { FormActionState } from "@/lib/admin/actions";
 import { slugify } from "@/lib/admin/slugify";
@@ -109,8 +110,7 @@ export function SubcategoryForm({ mode, categorySlug, categoryName, subcategory 
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Изображение</h2>
           {mode === "edit" && image && (
             <div className="mt-3 flex h-24 w-40 items-center justify-center overflow-hidden rounded-md border border-border bg-muted/40">
-              {/* eslint-disable-next-line @next/next/no-img-element -- possibly hosted on Supabase Storage (external host) */}
-              <img src={image} alt="" className="h-full w-full object-cover" />
+              <Image src={image} alt="" width={160} height={96} className="h-full w-full object-cover" />
             </div>
           )}
           {mode === "create" ? (

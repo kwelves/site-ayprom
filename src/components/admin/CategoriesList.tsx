@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { SortableList } from "@/components/admin/SortableList";
 import { Toast } from "@/components/admin/ui/Toast";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
@@ -53,8 +54,7 @@ export function CategoriesList({ categories: initialCategories, flashSlug, flash
       renderItem={(category) => (
         <div className="flex items-start gap-3">
           <div className="flex h-12 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/40">
-            {/* eslint-disable-next-line @next/next/no-img-element -- possibly hosted on Supabase Storage (external host) */}
-            <img src={category.image} alt="" className="h-full w-full object-cover" />
+            <Image src={category.image} alt="" width={64} height={48} className="h-full w-full object-cover" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-card-foreground">{category.name}</p>

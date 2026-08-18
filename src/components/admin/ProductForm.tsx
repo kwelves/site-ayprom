@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useState, useTransition } from "react";
+import Image from "next/image";
 import {
   createProduct,
   updateProduct,
@@ -452,8 +453,13 @@ export function ProductForm({
                 onReorder={handleImageReorder}
                 renderItem={(img) => (
                   <div className="flex items-center gap-3">
-                    {/* eslint-disable-next-line @next/next/no-img-element -- Supabase Storage is an external host, simpler than configuring next/image remotePatterns for an internal tool */}
-                    <img src={img.url} alt="" className="h-12 w-12 rounded-md bg-muted/40 object-contain" />
+                    <Image
+                      src={img.url}
+                      alt=""
+                      width={48}
+                      height={48}
+                      className="h-12 w-12 rounded-md bg-muted/40 object-contain"
+                    />
                     <span className="flex-1 truncate text-xs text-muted-foreground">{img.url}</span>
                     <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
                       Масштаб
