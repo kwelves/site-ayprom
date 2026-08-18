@@ -42,7 +42,7 @@ export async function ProductDetail({ product }: { product: Product }) {
 
         <Reveal>
           <div>
-            <h1 className="text-2xl font-bold text-foreground sm:text-3xl">{product.name}</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{product.name}</h1>
             <p className="mt-3 text-muted-foreground">{product.shortDescription}</p>
 
             <div className="mt-6">
@@ -73,7 +73,7 @@ export async function ProductDetail({ product }: { product: Product }) {
           <h2 id="related-products-title" className="text-xl font-semibold text-foreground">
             Похожие товары
           </h2>
-          <div className="mt-6 grid grid-cols-2 gap-5 lg:grid-cols-4">
+          <div className="mt-6 grid grid-cols-2 gap-5 md:grid-cols-3 lg:grid-cols-4">
             {relatedProducts.map((relatedProduct) => (
               <ProductCard
                 key={relatedProduct.slug}

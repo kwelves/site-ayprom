@@ -5,7 +5,7 @@ export function LoadingSkeleton({ className }: { className?: string }) {
     <div className={cn("animate-pulse", className)} aria-busy="true" aria-label="Загрузка">
       <div className="h-7 w-48 rounded bg-surface-strong" />
       <div className="mt-3 h-4 w-full max-w-xl rounded bg-surface-strong" />
-      <div className="mt-8 grid grid-cols-2 gap-5 lg:grid-cols-4">
+      <div className="mt-8 grid grid-cols-2 gap-5 md:grid-cols-3 lg:grid-cols-4">
         {Array.from({ length: 8 }, (_, index) => (
           <div key={index} className="overflow-hidden rounded-xl border border-border bg-card">
             <div className="aspect-square bg-surface-strong" />

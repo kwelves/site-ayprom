@@ -17,7 +17,7 @@ interface ProductGridWithSearchProps {
   emptyLabel: string;
 }
 
-const gridClassName = "mt-6 grid grid-cols-2 gap-5 lg:grid-cols-4";
+const gridClassName = "mt-6 grid grid-cols-2 gap-5 md:grid-cols-3 lg:grid-cols-4";
 
 function pageHref(action: string, page: number, query?: string): string {
   const params = new URLSearchParams();
