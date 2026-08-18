@@ -10,7 +10,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical } from "lucide-react";
+import { ChevronDown, ChevronUp, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SortableListProps<T> {
@@ -30,6 +30,12 @@ interface SortableListProps<T> {
   // without an extra lookup). Defaults to getId when the two coincide.
   getFlashKey?: (item: T) => string;
   highlightedKey?: string | null;
+  // Adds ▲▼ buttons next to the drag handle, visible only below the `md`
+  // breakpoint — a guaranteed-reachable reorder path on touch, since drag
+  // itself works via PointerSensor but has no visible affordance on a
+  // screen with no hover state. Reuses the exact same onReorder(arrayMove(...))
+  // call as a drag, so there is no separate reorder code path to keep in sync.
+  enableStepButtons?: boolean;
 }
 
 // Generic drag-and-drop reorderable list (@dnd-kit) — reused for the
@@ -52,16 +58,23 @@ export function SortableList<T>({
   disabled,
   getFlashKey,
   highlightedKey,
+  enableStepButtons,
 }: SortableListProps<T>) {
   const [mounted, setMounted] = useState(false);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate hasMounted flip to skip SSR for DndContext (see comment above); there's no external state to synchronize, just "is this the client yet".
   useEffect(() => setMounted(true), []);
   const flashKeyOf = getFlashKey ?? getId;
 
+  function moveStep(index: number, direction: -1 | 1) {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= items.length) return;
+    onReorder(arrayMove(items, index, targetIndex));
+  }
+
   if (!mounted || disabled) {
     return (
       <div className={cn("flex flex-col gap-2", className)}>
-        {items.map((item) => (
+        {items.map((item, index) => (
           <div
             key={getId(item)}
             data-flash-key={flashKeyOf(item)}
@@ -70,6 +83,14 @@ export function SortableList<T>({
               highlightedKey === flashKeyOf(item) && "border-border-interactive bg-accent"
             )}
           >
+            {enableStepButtons && !disabled && (
+              <StepButtons
+                onMoveUp={() => moveStep(index, -1)}
+                onMoveDown={() => moveStep(index, 1)}
+                disabledUp={index === 0}
+                disabledDown={index === items.length - 1}
+              />
+            )}
             <div className="min-w-0 flex-1">{renderItem(item)}</div>
           </div>
         ))}
@@ -86,7 +107,45 @@ export function SortableList<T>({
       className={className}
       getFlashKey={getFlashKey}
       highlightedKey={highlightedKey}
+      enableStepButtons={enableStepButtons}
     />
+  );
+}
+
+// Visible only below `md` — on pointer/mouse the drag handle already has a
+// clear affordance, and doubling the controls there is just noise.
+function StepButtons({
+  onMoveUp,
+  onMoveDown,
+  disabledUp,
+  disabledDown,
+}: {
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  disabledUp: boolean;
+  disabledDown: boolean;
+}) {
+  return (
+    <div className="flex shrink-0 flex-col md:hidden">
+      <button
+        type="button"
+        onClick={onMoveUp}
+        disabled={disabledUp}
+        aria-label="Переместить выше"
+        className="rounded p-1 text-faint-foreground transition-colors hover:text-muted-foreground disabled:pointer-events-none disabled:opacity-30"
+      >
+        <ChevronUp className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        onClick={onMoveDown}
+        disabled={disabledDown}
+        aria-label="Переместить ниже"
+        className="rounded p-1 text-faint-foreground transition-colors hover:text-muted-foreground disabled:pointer-events-none disabled:opacity-30"
+      >
+        <ChevronDown className="h-4 w-4" />
+      </button>
+    </div>
   );
 }
 
@@ -98,6 +157,7 @@ function SortableListClient<T>({
   className,
   getFlashKey,
   highlightedKey,
+  enableStepButtons,
 }: SortableListProps<T>) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -116,16 +176,27 @@ function SortableListClient<T>({
     onReorder(arrayMove(items, oldIndex, newIndex));
   }
 
+  function moveStep(index: number, direction: -1 | 1) {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= items.length) return;
+    onReorder(arrayMove(items, index, targetIndex));
+  }
+
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={items.map(getId)} strategy={verticalListSortingStrategy}>
         <div className={cn("flex flex-col gap-2", className)}>
-          {items.map((item) => (
+          {items.map((item, index) => (
             <SortableRow
               key={getId(item)}
               id={getId(item)}
               flashKey={flashKeyOf(item)}
               highlighted={highlightedKey === flashKeyOf(item)}
+              stepButtons={
+                enableStepButtons
+                  ? { onMoveUp: () => moveStep(index, -1), onMoveDown: () => moveStep(index, 1), disabledUp: index === 0, disabledDown: index === items.length - 1 }
+                  : undefined
+              }
             >
               {renderItem(item)}
             </SortableRow>
@@ -140,11 +211,13 @@ function SortableRow({
   id,
   flashKey,
   highlighted,
+  stepButtons,
   children,
 }: {
   id: string;
   flashKey: string;
   highlighted: boolean;
+  stepButtons?: { onMoveUp: () => void; onMoveDown: () => void; disabledUp: boolean; disabledDown: boolean };
   children: React.ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
@@ -161,6 +234,14 @@ function SortableRow({
         highlighted && "border-border-interactive bg-accent"
       )}
     >
+      {stepButtons && (
+        <StepButtons
+          onMoveUp={stepButtons.onMoveUp}
+          onMoveDown={stepButtons.onMoveDown}
+          disabledUp={stepButtons.disabledUp}
+          disabledDown={stepButtons.disabledDown}
+        />
+      )}
       <button
         type="button"
         {...attributes}

@@ -61,6 +61,9 @@
      дожидаясь гидратации (Hero, экран входа в админку). */
   --animate-fade-up: fade-up var(--transition-duration-reveal) var(--ease-ui) both;
   --animate-pop-in: pop-in var(--transition-duration-reveal) var(--ease-ui) both;
+  /* Вход выдвижной панели (QuickViewPanel) — та же кривая входа, что и у
+     остальных панелей/дропдаунов. */
+  --animate-slide-in-right: slide-in-right var(--transition-duration-base) var(--ease-ui) both;
   /* Подсказка «прокрути вниз» под первым экраном. */
   --animate-nudge-down: nudge-down 1.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
   /* Бесконечное пульсирующее кольцо вокруг закреплённой кнопки WhatsApp. */
@@ -222,6 +225,13 @@ a {
   from {
     opacity: 0;
     scale: 0.94;
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    translate: 24px 0;
+    opacity: 0;
   }
 }
 

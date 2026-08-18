@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { getAdminProducts, getAdminCategories } from "@/lib/admin/queries";
+import { getAdminProducts, getAdminCategories, type AdminProductSort } from "@/lib/admin/queries";
 import { parseAdminPage } from "@/lib/admin/pagination";
+import { isProductAvailability } from "@/lib/admin/product-availability";
 import { ProductsList } from "@/components/admin/ProductsList";
 import { ProductsFilterBar } from "@/components/admin/ProductsFilterBar";
 import { AdminPagination } from "@/components/admin/AdminPagination";
@@ -12,18 +13,42 @@ export const metadata: Metadata = {
 
 export const revalidate = 0;
 
+const VALID_SORTS: readonly AdminProductSort[] = ["order", "name", "updated"];
+
 interface AdminProductsPageProps {
-  searchParams: Promise<{ q?: string; category?: string; page?: string; created?: string; updated?: string; photoError?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    category?: string;
+    sort?: string;
+    status?: string;
+    availability?: string;
+    page?: string;
+    created?: string;
+    updated?: string;
+    photoError?: string;
+  }>;
 }
 
 export default async function AdminProductsPage({ searchParams }: AdminProductsPageProps) {
-  const { q, category, page, created, updated, photoError } = await searchParams;
+  const { q, category, sort, status, availability, page, created, updated, photoError } = await searchParams;
   const photoErrorCount = Number(photoError);
-  const isFiltered = Boolean(q?.trim() || category);
+  const resolvedSort: AdminProductSort = VALID_SORTS.includes(sort as AdminProductSort)
+    ? (sort as AdminProductSort)
+    : "order";
+  const resolvedPublished = status === "published" ? true : status === "draft" ? false : undefined;
+  const resolvedAvailability = isProductAvailability(availability) ? availability : undefined;
+  const isFiltered = Boolean(q?.trim() || category || resolvedPublished !== undefined || resolvedAvailability);
   const currentPage = parseAdminPage(page);
 
   const [productPage, categories] = await Promise.all([
-    getAdminProducts({ q, categorySlug: category, page: currentPage }),
+    getAdminProducts({
+      q,
+      categorySlug: category,
+      sort: resolvedSort,
+      published: resolvedPublished,
+      availability: resolvedAvailability,
+      page: currentPage,
+    }),
     getAdminCategories(),
   ]);
 
@@ -67,8 +92,9 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
               уже занятых ими значений order, а не нумерует подряд от нуля,
               поэтому позиции товаров вне текущей выборки не сдвигаются. */}
           <ProductsList
-            key={`${q ?? ""}:${category ?? ""}:${productPage.page}`}
+            key={`${q ?? ""}:${category ?? ""}:${resolvedSort}:${productPage.page}`}
             products={productPage.items}
+            reorderDisabled={resolvedSort !== "order"}
             flashSlug={created ?? updated}
             flashAction={created ? "created" : updated ? "updated" : undefined}
           />

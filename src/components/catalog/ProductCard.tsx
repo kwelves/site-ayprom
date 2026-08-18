@@ -152,9 +152,9 @@ export function ProductCard({ product, href }: { product: ProductListItem; href:
 
       <div className="flex flex-1 flex-col px-4 pt-4 pb-5">
         <span className="text-base font-semibold text-card-foreground">{product.name}</span>
-        <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
-          {product.shortDescription}
-        </p>
+        {product.shortDescription && (
+          <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{product.shortDescription}</p>
+        )}
       </div>
 
       {hasMultiple && (

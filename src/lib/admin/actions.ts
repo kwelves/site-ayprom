@@ -25,6 +25,16 @@ import {
 } from "@/lib/admin/product-photo-mode";
 import type { CategoryIcon } from "@/types/catalog";
 import type { AdminAvailableProduct } from "@/lib/admin/queries";
+import {
+  DEFAULT_PRODUCT_AVAILABILITY,
+  isProductAvailability,
+  type ProductAvailability,
+} from "@/lib/admin/product-availability";
+import {
+  buildBulkProductUpdateFields,
+  normalizeBulkProductSlugs,
+  type BulkProductPatch,
+} from "@/lib/admin/bulk-product-update";
 import { normalizeHotspotProductSearchQuery, selectAvailableHotspotProducts } from "@/lib/admin/hotspot-product-search";
 import {
   HOTSPOTS_PER_VEHICLE,
@@ -127,6 +137,9 @@ interface ProductFormFields {
   description: string | null;
   article: string | null;
   published: boolean;
+  availability: ProductAvailability;
+  metaTitle: string | null;
+  metaDescription: string | null;
   characteristics: { attribute: string; value: string }[];
 }
 
@@ -146,18 +159,27 @@ function parseProductFormData(formData: FormData): ProductFormFields {
   const subcategorySlug = String(formData.get("subcategorySlug") ?? "").trim() || null;
   const compatibleBrands = formData.getAll("compatibleBrands").map(String);
   const vehicleTypes = formData.getAll("vehicleTypes").map(String);
+  // Краткое описание необязательно (PROJECT_BRIEF) — карточка товара на
+  // публичном сайте уже отображает пустую строку без ошибки, если поле не
+  // заполнено.
   const shortDescription = String(formData.get("shortDescription") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim() || null;
   const article = String(formData.get("article") ?? "").trim() || null;
   const published = formData.get("published") === "on";
+  const availabilityRaw = formData.get("availability");
+  const availability = isProductAvailability(String(availabilityRaw ?? ""))
+    ? (availabilityRaw as ProductAvailability)
+    : DEFAULT_PRODUCT_AVAILABILITY;
+  const metaTitle = String(formData.get("metaTitle") ?? "").trim() || null;
+  const metaDescription = String(formData.get("metaDescription") ?? "").trim() || null;
   const attributes = formData.getAll("characteristicAttribute").map(String);
   const values = formData.getAll("characteristicValue").map(String);
   const characteristics = attributes
     .map((attribute, i) => ({ attribute: attribute.trim(), value: (values[i] ?? "").trim() }))
     .filter((c) => c.attribute && c.value);
 
-  if (!name || !categorySlug || !shortDescription) {
-    throw new Error("Заполните обязательные поля: название, категория, краткое описание.");
+  if (!name || !categorySlug) {
+    throw new Error("Заполните обязательные поля: название, категория.");
   }
 
   return {
@@ -171,6 +193,9 @@ function parseProductFormData(formData: FormData): ProductFormFields {
     description,
     article,
     published,
+    availability,
+    metaTitle,
+    metaDescription,
     characteristics,
   };
 }
@@ -358,6 +383,9 @@ export async function createProduct(
       description: fields.description,
       article: fields.article,
       published: fields.published,
+      availability: fields.availability,
+      meta_title: fields.metaTitle,
+      meta_description: fields.metaDescription,
       order: nextOrder,
     })
     .select("id")
@@ -478,6 +506,9 @@ export async function updateProduct(
       short_description: fields.shortDescription,
       description: fields.description,
       article: fields.article,
+      availability: fields.availability,
+      meta_title: fields.metaTitle,
+      meta_description: fields.metaDescription,
       updated_at: new Date().toISOString(),
     })
     .eq("id", existing.id);
@@ -614,6 +645,51 @@ export async function toggleProductPublished(
   if (error) throw error;
   revalidatePath("/admin/products");
   revalidatePath(`/admin/products/${slug}/edit`);
+  revalidatePublicSite();
+}
+
+// A quick from-the-list toggle for the products list's availability
+// control — separate from toggleProductPublished on purpose: availability is
+// a purely informational badge (PROJECT_BRIEF), it never touches vehicle
+// hotspot assignments, so it carries none of that action's confirmation
+// logic.
+export async function toggleProductAvailability(slug: string, availability: ProductAvailability): Promise<void> {
+  await requireAdminSession();
+  if (!isProductAvailability(availability)) {
+    throw new Error("Недопустимый статус наличия.");
+  }
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("products")
+    .update({ availability, updated_at: new Date().toISOString() })
+    .eq("slug", slug);
+  if (error) throw error;
+  revalidatePath("/admin/products");
+  revalidatePath(`/admin/products/${slug}/edit`);
+  revalidatePublicSite();
+}
+
+// v1 bulk scope is deliberately narrow (PROJECT_BRIEF): only published and
+// availability. One update(...).in(...) instead of N per-row calls — same
+// reasoning as reorderProducts moving off N parallel requests.
+export async function bulkUpdateProducts(slugs: string[], patch: BulkProductPatch): Promise<void> {
+  await requireAdminSession();
+  const uniqueSlugs = normalizeBulkProductSlugs(slugs);
+  if (uniqueSlugs.length === 0) return;
+
+  const fields = buildBulkProductUpdateFields(patch);
+  if (!fields) return;
+  const update = { ...fields, updated_at: new Date().toISOString() };
+
+  const supabase = createAdminClient();
+  // Unpublishing detaches vehicle hotspots via a DB trigger regardless of how
+  // many rows a single UPDATE touches — bulk unpublish here intentionally
+  // skips the per-product hotspot confirmation the single-item toggle
+  // requires, since the admin already confirmed the bulk action itself in
+  // the UI before this action ran.
+  const { error } = await supabase.from("products").update(update).in("slug", uniqueSlugs);
+  if (error) throw error;
+  revalidatePath("/admin/products");
   revalidatePublicSite();
 }
 

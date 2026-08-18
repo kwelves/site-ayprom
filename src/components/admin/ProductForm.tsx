@@ -1,7 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState, useTransition } from "react";
-import Image from "next/image";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import {
   createProduct,
   updateProduct,
@@ -23,17 +22,19 @@ import {
   usesWebpOutput,
   type ProductPhotoMode,
 } from "@/lib/admin/product-photo-mode";
+import { DEFAULT_PRODUCT_AVAILABILITY, type ProductAvailability } from "@/lib/admin/product-availability";
 import { SubmitButton } from "@/components/admin/ui/SubmitButton";
 import { BackLink } from "@/components/admin/ui/BackLink";
-import { FormField } from "@/components/admin/ui/FormField";
-import { Input } from "@/components/admin/ui/Input";
-import { Textarea } from "@/components/admin/ui/Textarea";
-import { Select } from "@/components/admin/ui/Select";
-import { Checkbox } from "@/components/admin/ui/Checkbox";
-import { SortableList } from "@/components/admin/SortableList";
+import { Collapsible } from "@/components/admin/ui/Collapsible";
+import { StickyFormActions } from "@/components/admin/ui/StickyFormActions";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
-import { ProductPhotoModeSelect } from "@/components/admin/ProductPhotoModeSelect";
+import { ProductFormBasicSection } from "@/components/admin/product-form/ProductFormBasicSection";
+import { ProductFormCompatibilitySection } from "@/components/admin/product-form/ProductFormCompatibilitySection";
+import { ProductFormDescriptionsSection } from "@/components/admin/product-form/ProductFormDescriptionsSection";
+import { ProductFormCharacteristicsSection } from "@/components/admin/product-form/ProductFormCharacteristicsSection";
+import { ProductFormPhotosSection } from "@/components/admin/product-form/ProductFormPhotosSection";
+import { ProductFormSeoSection } from "@/components/admin/product-form/ProductFormSeoSection";
 import type { Category, Subcategory, Brand, VehicleType } from "@/types/catalog";
 import type { AdminProduct } from "@/lib/admin/queries";
 
@@ -86,6 +87,9 @@ export function ProductForm({
   const [selectedVehicleTypes, setSelectedVehicleTypes] = useState<Set<string>>(
     new Set(product?.vehicleTypes ?? [])
   );
+  const [availability, setAvailability] = useState<ProductAvailability>(
+    product?.availability ?? DEFAULT_PRODUCT_AVAILABILITY
+  );
   const [characteristics, setCharacteristics] = useState<CharacteristicRow[]>(
     (product?.characteristics ?? []).map((c) => ({ key: c.id, attribute: c.attribute, value: c.value }))
   );
@@ -115,6 +119,11 @@ export function ProductForm({
     }
   }
 
+  function handleSlugChange(value: string) {
+    setSlug(value);
+    setSlugTouched(true);
+  }
+
   function handleCategoryChange(value: string) {
     setCategorySlug(value);
     setSubcategorySlug("");
@@ -141,6 +150,10 @@ export function ProductForm({
     });
   }
 
+  function toggleAllBrands() {
+    setSelectedBrands((prev) => (prev.size === brands.length ? new Set() : new Set(brands.map((b) => b.slug))));
+  }
+
   function toggleVehicleType(vehicleTypeSlug: string) {
     setSelectedVehicleTypes((prev) => {
       const next = new Set(prev);
@@ -148,6 +161,12 @@ export function ProductForm({
       else next.add(vehicleTypeSlug);
       return next;
     });
+  }
+
+  function toggleAllVehicleTypes() {
+    setSelectedVehicleTypes((prev) =>
+      prev.size === vehicleTypes.length ? new Set() : new Set(vehicleTypes.map((v) => v.slug))
+    );
   }
 
   function addCharacteristic() {
@@ -236,6 +255,22 @@ export function ProductForm({
     });
   }
 
+  async function handleFileInputChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const input = event.target;
+    const files = input.files;
+
+    if (usesScriptProcessing(photoMode)) {
+      // The server-side enhance pipeline needs the original file's own
+      // alpha channel (see actions.ts) — skip the client-side JPEG/WebP
+      // re-encode that would flatten it.
+      setPhotoAlphaWarning(files && files.length > 0 ? await anyFileLacksAlpha(files) : false);
+    } else {
+      setPhotoAlphaWarning(false);
+      await compressFileListInput(input, usesWebpOutput(photoMode) ? "image/webp" : "image/jpeg");
+    }
+    setPendingPhotoCount(input.files?.length ?? 0);
+  }
+
   function handleDeleteProduct() {
     if (!product) return;
     if (!confirm(`Удалить товар «${product.name}»? Это действие необратимо.`)) return;
@@ -266,287 +301,107 @@ export function ProductForm({
   }
 
   const boundAction = mode === "create" ? createProduct : updateProduct.bind(null, product!.slug);
-  const [formState, formAction] = useActionState(boundAction, null);
+  const [formState, formAction, isSubmitting] = useActionState(boundAction, null);
   const displayedError =
     actionError ?? (formState !== dismissedFormError ? (formState?.error ?? null) : null);
 
+  // Cmd/Ctrl+S saves the form — the only hotkey besides Esc (which
+  // ConfirmDialog/QuickViewPanel already own) PROJECT_BRIEF calls for.
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        formRef.current?.requestSubmit();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-3xl pb-4">
       <BackLink href="/admin/products" label="Товары" />
 
-      <form ref={formRef} action={formAction} onSubmit={handleFormSubmit} className="mt-4 space-y-6">
+      <form ref={formRef} action={formAction} onSubmit={handleFormSubmit} className="mt-4 space-y-4">
         <h1 className="text-xl font-semibold text-foreground">
           {mode === "create" ? "Новый товар" : `Редактировать: ${product?.name}`}
         </h1>
 
-        <FormField label="Название" htmlFor="name">
-          <Input id="name" name="name" required value={name} onChange={(e) => handleNameChange(e.target.value)} />
-        </FormField>
-
-        {mode === "create" ? (
-          <FormField
-            label="Адрес (slug)"
-            htmlFor="slug"
-            description="Заполняется автоматически из названия, можно изменить."
-          >
-            <Input
-              id="slug"
-              name="slug"
-              value={slug}
-              onChange={(e) => {
-                setSlug(e.target.value);
-                setSlugTouched(true);
-              }}
-            />
-          </FormField>
-        ) : (
-          <FormField
-            label="Адрес (slug)"
-            htmlFor="slug-display"
-            description="Нельзя изменить — используется в ссылках на товар."
-          >
-            <Input id="slug-display" value={product?.slug ?? ""} disabled />
-          </FormField>
-        )}
-
-        <FormField label="Категория" htmlFor="categorySlug">
-          <Select
-            id="categorySlug"
-            name="categorySlug"
-            required
-            value={categorySlug}
-            onChange={(e) => handleCategoryChange(e.target.value)}
-          >
-            {categories.map((category) => (
-              <option key={category.slug} value={category.slug}>
-                {category.name}
-              </option>
-            ))}
-          </Select>
-        </FormField>
-
-        {selectedCategory?.type === "subcategory" && (
-          <FormField label="Подкатегория" htmlFor="subcategorySlug">
-            <Select
-              id="subcategorySlug"
-              name="subcategorySlug"
-              value={subcategorySlug}
-              onChange={(e) => setSubcategorySlug(e.target.value)}
-            >
-              <option value="">Без подкатегории</option>
-              {categorySubcategories.map((sub) => (
-                <option key={sub.slug} value={sub.slug}>
-                  {sub.name}
-                </option>
-              ))}
-            </Select>
-          </FormField>
-        )}
-
-        <fieldset>
-          <legend className="text-sm font-medium text-card-foreground">Совместимые бренды</legend>
-          <div className="mt-1.5 grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {brands.map((brand) => (
-              <Checkbox
-                key={brand.slug}
-                id={`brand-${brand.slug}`}
-                name="compatibleBrands"
-                value={brand.slug}
-                label={brand.name}
-                checked={selectedBrands.has(brand.slug)}
-                onChange={() => toggleBrand(brand.slug)}
-              />
-            ))}
-          </div>
-        </fieldset>
-
-        <fieldset>
-          <legend className="text-sm font-medium text-card-foreground">Тип спецтехники</legend>
-          <p className="mt-0.5 text-xs text-muted-foreground">На какую технику подходит товар.</p>
-          <div className="mt-1.5 grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {vehicleTypes.map((vehicleType) => (
-              <Checkbox
-                key={vehicleType.slug}
-                id={`vehicle-type-${vehicleType.slug}`}
-                name="vehicleTypes"
-                value={vehicleType.slug}
-                label={vehicleType.name}
-                checked={selectedVehicleTypes.has(vehicleType.slug)}
-                onChange={() => toggleVehicleType(vehicleType.slug)}
-              />
-            ))}
-          </div>
-        </fieldset>
-
-        <FormField label="Краткое описание" htmlFor="shortDescription" description="Показывается в карточке товара.">
-          <Textarea id="shortDescription" name="shortDescription" required rows={2} defaultValue={product?.shortDescription} />
-        </FormField>
-
-        <FormField label="Полное описание" htmlFor="description">
-          <Textarea id="description" name="description" rows={5} defaultValue={product?.description} />
-        </FormField>
-
-        <FormField label="Артикул" htmlFor="article">
-          <Input id="article" name="article" defaultValue={product?.article} />
-        </FormField>
-
-        <div>
-          <Checkbox
-            id="published"
-            name="published"
-            label="Опубликован (виден на сайте)"
-            checked={published}
-            onChange={(event) => setPublished(event.target.checked)}
+        <Collapsible title="Основное" defaultOpen>
+          <ProductFormBasicSection
+            mode={mode}
+            product={product}
+            name={name}
+            onNameChange={handleNameChange}
+            slug={slug}
+            onSlugChange={handleSlugChange}
+            categorySlug={categorySlug}
+            onCategoryChange={handleCategoryChange}
+            subcategorySlug={subcategorySlug}
+            onSubcategoryChange={setSubcategorySlug}
+            categories={categories}
+            categorySubcategories={categorySubcategories}
+            selectedCategory={selectedCategory}
+            published={published}
+            onPublishedChange={setPublished}
+            hotspotCount={hotspotCount}
+            availability={availability}
+            onAvailabilityChange={setAvailability}
           />
-          {mode === "edit" && !published && hotspotCount > 0 && (
-            <p role="status" className="mt-2 rounded-md border border-warning-border bg-warning-surface px-3 py-2 text-sm text-warning">
-              Снятие с публикации отвяжет товар от {hotspotCount} {hotspotCount === 1 ? "хотспота" : "хотспотов"} в разделе «Спецтехника».
-            </p>
-          )}
-        </div>
+        </Collapsible>
 
-        <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Характеристики</h2>
-          {characteristics.length > 0 && (
-            <SortableList
-              className="mt-3"
-              items={characteristics}
-              getId={(c) => c.key}
-              onReorder={setCharacteristics}
-              renderItem={(c) => (
-                <div className="flex items-center gap-2">
-                  <Input
-                    name="characteristicAttribute"
-                    placeholder="Атрибут"
-                    value={c.attribute}
-                    onChange={(e) => updateCharacteristic(c.key, "attribute", e.target.value)}
-                    className="flex-1"
-                  />
-                  <Input
-                    name="characteristicValue"
-                    placeholder="Значение"
-                    value={c.value}
-                    onChange={(e) => updateCharacteristic(c.key, "value", e.target.value)}
-                    className="flex-1"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeCharacteristic(c.key)}
-                    className="shrink-0 text-sm text-danger hover:underline"
-                  >
-                    Удалить
-                  </button>
-                </div>
-              )}
-            />
-          )}
-          <button type="button" onClick={addCharacteristic} className="mt-3 text-sm text-primary hover:underline">
-            + Добавить характеристику
-          </button>
-        </div>
+        <Collapsible title="Совместимость" description="Бренды и типы спецтехники" defaultOpen={false}>
+          <ProductFormCompatibilitySection
+            brands={brands}
+            selectedBrands={selectedBrands}
+            onToggleBrand={toggleBrand}
+            onToggleAllBrands={toggleAllBrands}
+            vehicleTypes={vehicleTypes}
+            selectedVehicleTypes={selectedVehicleTypes}
+            onToggleVehicleType={toggleVehicleType}
+            onToggleAllVehicleTypes={toggleAllVehicleTypes}
+          />
+        </Collapsible>
 
-        {mode === "edit" && product ? (
-          <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Фотографии</h2>
-            {images.length > 0 && (
-              <SortableList
-                className="mt-3"
-                items={images}
-                getId={(img) => img.id}
-                onReorder={handleImageReorder}
-                renderItem={(img) => (
-                  <div className="flex items-center gap-3">
-                    <Image
-                      src={img.url}
-                      alt=""
-                      width={48}
-                      height={48}
-                      className="h-12 w-12 rounded-md bg-muted/40 object-contain"
-                    />
-                    <span className="flex-1 truncate text-xs text-muted-foreground">{img.url}</span>
-                    <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
-                      Масштаб
-                      <Input
-                        type="number"
-                        step="0.05"
-                        defaultValue={img.scale ?? undefined}
-                        onBlur={(e) => handleImageScaleBlur(img.id, e.target.value)}
-                        className="w-20"
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => handleImageDelete(img.id)}
-                      className="shrink-0 text-sm text-danger hover:underline"
-                    >
-                      Удалить
-                    </button>
-                  </div>
-                )}
-              />
-            )}
-            <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-input px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary">
-              {isUploading ? "Загрузка…" : "Загрузить фото"}
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/avif"
-                multiple
-                className="hidden"
-                onChange={handleImageUpload}
-                disabled={isUploading}
-              />
-            </label>
-          </div>
-        ) : (
-          <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Фотографии</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Необязательно: товар без фото поддерживается и будет показан с нейтральной заглушкой. До 10 файлов JPEG,
-              PNG, WebP или AVIF, не более 8 МБ каждый.
-            </p>
+        <Collapsible title="Описания" defaultOpen={false}>
+          <ProductFormDescriptionsSection product={product} />
+        </Collapsible>
 
-            <div className="mt-3 max-w-xs">
-              <ProductPhotoModeSelect value={photoMode} onChange={handlePhotoModeChange} />
-            </div>
-            <input type="hidden" name="photoMode" value={photoMode} />
+        <Collapsible title="Характеристики" defaultOpen={false}>
+          <ProductFormCharacteristicsSection
+            characteristics={characteristics}
+            onReorder={setCharacteristics}
+            onUpdate={updateCharacteristic}
+            onRemove={removeCharacteristic}
+            onAdd={addCharacteristic}
+          />
+        </Collapsible>
 
-            {photoAlphaWarning && (
-              <p role="status" className="mt-3 rounded-md border border-warning-border bg-warning-surface px-3 py-2 text-sm text-warning">
-                Похоже, у одного или нескольких выбранных фото нет прозрачного фона. Обрезка по границе детали в этом
-                режиме может сработать некорректно — но загрузку это не блокирует.
-              </p>
-            )}
+        <Collapsible title="Фотографии" defaultOpen={false}>
+          <ProductFormPhotosSection
+            mode={mode}
+            product={product}
+            images={images}
+            onImageReorder={handleImageReorder}
+            onImageDelete={handleImageDelete}
+            onImageScaleBlur={handleImageScaleBlur}
+            isUploading={isUploading}
+            onImageUpload={handleImageUpload}
+            photoMode={photoMode}
+            onPhotoModeChange={handlePhotoModeChange}
+            photoAlphaWarning={photoAlphaWarning}
+            pendingPhotoCount={pendingPhotoCount}
+            photoInputRef={photoInputRef}
+            onFileInputChange={handleFileInputChange}
+            isSubmitting={isSubmitting}
+          />
+        </Collapsible>
 
-            <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-input px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary">
-              {pendingPhotoCount > 0 ? `Выбрано фото: ${pendingPhotoCount}` : "Выбрать фото"}
-              <input
-                ref={photoInputRef}
-                type="file"
-                name="photos"
-                accept="image/jpeg,image/png,image/webp,image/avif"
-                multiple
-                className="hidden"
-                onChange={async (e) => {
-                  const input = e.target;
-                  const files = input.files;
+        <Collapsible title="SEO" defaultOpen={false}>
+          <ProductFormSeoSection product={product} />
+        </Collapsible>
 
-                  if (usesScriptProcessing(photoMode)) {
-                    // The server-side enhance pipeline needs the original
-                    // file's own alpha channel (see actions.ts) — skip the
-                    // client-side JPEG/WebP re-encode that would flatten it.
-                    setPhotoAlphaWarning(files && files.length > 0 ? await anyFileLacksAlpha(files) : false);
-                  } else {
-                    setPhotoAlphaWarning(false);
-                    await compressFileListInput(input, usesWebpOutput(photoMode) ? "image/webp" : "image/jpeg");
-                  }
-                  setPendingPhotoCount(input.files?.length ?? 0);
-                }}
-              />
-            </label>
-          </div>
-        )}
-
-        <div className="flex items-center gap-4 border-t border-border pt-6">
+        <StickyFormActions>
           <SubmitButton pendingLabel={mode === "create" ? "Создание…" : "Сохранение…"}>
             {mode === "create" ? "Создать товар" : "Сохранить"}
           </SubmitButton>
@@ -555,7 +410,7 @@ export function ProductForm({
               Удалить товар
             </button>
           )}
-        </div>
+        </StickyFormActions>
       </form>
       <AdminActionFeedback
         message={displayedError}

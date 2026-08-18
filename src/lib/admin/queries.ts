@@ -7,18 +7,23 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ADMIN_PAGE_SIZE } from "@/lib/admin/pagination";
 import type { CategoryIcon } from "@/types/catalog";
+import type { ProductAvailability } from "@/lib/admin/product-availability";
 
 export interface AdminProductListItem {
   id: string;
   slug: string;
   name: string;
   categoryName: string;
+  article?: string;
+  shortDescription: string;
   published: boolean;
+  availability: ProductAvailability;
   /** Current number of Special equipment hotspots pinned to this product.
    * The list uses it to require an explicit confirmation before an
    * unpublish operation triggers automatic detachment. */
   hotspotCount: number;
   order: number;
+  updatedAt: string;
   coverImage: string | null;
 }
 
@@ -26,8 +31,12 @@ interface AdminProductListRow {
   id: string;
   slug: string;
   name: string;
+  article: string | null;
+  short_description: string;
   published: boolean;
+  availability: ProductAvailability;
   order: number;
+  updated_at: string;
   categories: { name: string } | null;
   product_images: { url: string; order: number }[];
   vehicle_hotspots: { id: string }[];
@@ -109,9 +118,14 @@ export async function getAuditLogEntityTypes(): Promise<string[]> {
   return [...new Set((data ?? []).map((row) => row.entity_type as string))].sort();
 }
 
+export type AdminProductSort = "order" | "name" | "updated";
+
 export interface AdminProductFilters {
   q?: string;
   categorySlug?: string;
+  published?: boolean;
+  availability?: ProductAvailability;
+  sort?: AdminProductSort;
   page?: number;
   pageSize?: number;
 }
@@ -140,12 +154,31 @@ export async function getAdminProducts(filters: AdminProductFilters = {}): Promi
 
   let query = supabase
     .from("products")
-    .select("id, slug, name, published, order, categories(name), product_images(url, order), vehicle_hotspots(id)", { count: "exact" })
-    .order("order")
+    .select(
+      "id, slug, name, article, short_description, published, availability, order, updated_at, categories(name), product_images(url, order), vehicle_hotspots(id)",
+      { count: "exact" },
+    )
     .range(from, from + pageSize - 1);
+
+  // Ручной порядок (drag-n-drop) осмыслен только для sort==="order" — иначе
+  // reorder_products переставлял бы товары внутри значений order, которые
+  // сейчас не определяют видимый порядок списка.
+  if (filters.sort === "name") {
+    query = query.order("name");
+  } else if (filters.sort === "updated") {
+    query = query.order("updated_at", { ascending: false });
+  } else {
+    query = query.order("order");
+  }
 
   if (filters.categorySlug) {
     query = query.eq("category_slug", filters.categorySlug);
+  }
+  if (filters.published !== undefined) {
+    query = query.eq("published", filters.published);
+  }
+  if (filters.availability) {
+    query = query.eq("availability", filters.availability);
   }
   if (filters.q?.trim()) {
     // PostgREST's or() parses commas/parens as filter syntax — strip them so a
@@ -165,10 +198,14 @@ export async function getAdminProducts(filters: AdminProductFilters = {}): Promi
       id: row.id,
       slug: row.slug,
       name: row.name,
+      article: row.article ?? undefined,
+      shortDescription: row.short_description,
       categoryName: row.categories?.name ?? "—",
       published: row.published,
+      availability: row.availability,
       hotspotCount: row.vehicle_hotspots?.length ?? 0,
       order: row.order,
+      updatedAt: row.updated_at,
       coverImage: [...row.product_images].sort((a, b) => a.order - b.order)[0]?.url ?? null,
     })),
     total,
@@ -188,6 +225,9 @@ export interface AdminProduct {
   description?: string;
   article?: string;
   published: boolean;
+  availability: ProductAvailability;
+  metaTitle?: string;
+  metaDescription?: string;
   compatibleBrands: string[];
   vehicleTypes: string[];
   images: { id: string; url: string; order: number; scale: number | null }[];
@@ -200,6 +240,7 @@ export interface AdminProduct {
 
 const ADMIN_PRODUCT_SELECT = `
   id, slug, name, category_slug, short_description, description, article, published,
+  availability, meta_title, meta_description,
   subcategories(slug),
   product_images(id, url, "order", scale),
   product_characteristics(id, attribute, value, "order"),
@@ -217,6 +258,9 @@ interface AdminProductRow {
   description: string | null;
   article: string | null;
   published: boolean;
+  availability: ProductAvailability;
+  meta_title: string | null;
+  meta_description: string | null;
   subcategories: { slug: string } | null;
   product_images: { id: string; url: string; order: number; scale: number | null }[];
   product_characteristics: { id: string; attribute: string; value: string; order: number }[];
@@ -251,6 +295,9 @@ export async function getAdminProduct(slug: string): Promise<AdminProduct | null
     description: row.description ?? undefined,
     article: row.article ?? undefined,
     published: row.published,
+    availability: row.availability,
+    metaTitle: row.meta_title ?? undefined,
+    metaDescription: row.meta_description ?? undefined,
     compatibleBrands: row.product_brands.map((pb) => pb.brand_slug),
     vehicleTypes: row.product_vehicle_types.map((pvt) => pvt.vehicle_type_slug),
     images: [...row.product_images].sort((a, b) => a.order - b.order),

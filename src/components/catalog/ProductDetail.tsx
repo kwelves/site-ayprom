@@ -43,7 +43,7 @@ export async function ProductDetail({ product }: { product: Product }) {
         <Reveal>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{product.name}</h1>
-            <p className="mt-3 text-muted-foreground">{product.shortDescription}</p>
+            {product.shortDescription && <p className="mt-3 text-muted-foreground">{product.shortDescription}</p>}
 
             <div className="mt-6">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
