@@ -88,7 +88,10 @@ export function CategoryHoverGrid({ categories }: { categories: Category[] }) {
                 <div className="relative aspect-4/3 w-full shrink-0 bg-muted/40">
                   <Image
                     src={category.image}
-                    alt={category.name}
+                    // Пустой alt: название категории уже видимым текстом
+                    // сразу под фото (см. BrandCard.tsx — та же причина,
+                    // Lighthouse отмечал это как image-redundant-alt).
+                    alt=""
                     fill
                     sizes="(max-width: 639px) 45vw, (max-width: 1023px) 30vw, 320px"
                     className="object-contain p-5"

@@ -38,7 +38,10 @@ export function BrandCard({ href, brand, nameClassName, imageClassName, logoScal
         {/* eslint-disable-next-line @next/next/no-img-element -- static local SVGs are already optimal; next/image blocks local SVGs without dangerouslyAllowSVG */}
         <img
           src={brand.logo}
-          alt={`Логотип ${brand.name}`}
+          // Пустой alt: карточка уже подписана видимым текстом с именем
+          // бренда чуть ниже — повтор того же текста в alt читался бы
+          // скринридером дважды подряд (Lighthouse: image-redundant-alt).
+          alt=""
           width={320}
           height={160}
           className={cn("absolute inset-0 h-full w-full object-contain p-3", imageClassName)}

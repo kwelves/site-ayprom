@@ -19,7 +19,9 @@ function BrandGrid({ brands }: { brands: Brand[] }) {
               {/* eslint-disable-next-line @next/next/no-img-element -- static local SVGs are already optimal; next/image blocks local SVGs without dangerouslyAllowSVG */}
               <img
                 src={brand.logo}
-                alt={`Логотип ${brand.name}`}
+                // Пустой alt: имя бренда уже дублируется видимым текстом
+                // ниже (см. комментарий в BrandCard.tsx — та же причина).
+                alt=""
                 width={160}
                 height={48}
                 className="max-h-10 max-w-[80%] object-contain sm:max-h-12"

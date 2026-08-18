@@ -102,7 +102,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         <Reveal>
           <div className="text-center">
             <p className="text-sm font-semibold uppercase tracking-wide text-primary">Каталог</p>
-            <h1 className="mt-3 text-2xl font-bold text-foreground sm:text-3xl">{category.name}</h1>
+            <h1 className="mt-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{category.name}</h1>
             <p className="mt-3 text-muted-foreground">
               Раздел в разработке. Скоро здесь появится каталог этой категории.
             </p>

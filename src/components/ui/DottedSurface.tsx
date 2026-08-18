@@ -36,7 +36,18 @@ export function DottedSurface({ className, size = 8, opacity = 0.8, sizeAttenuat
     const camera = new THREE.PerspectiveCamera(60, width / height, 1, 10000);
     camera.position.set(0, 355, 1220);
 
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      // antialias: false — the dots are round points with no straight edges
+      // to alias against, so MSAA here only spends GPU time on the weakest
+      // devices for a difference nobody can see.
+      renderer = new THREE.WebGLRenderer({ alpha: true, antialias: false });
+    } catch {
+      // A device/browser without WebGL support throws here instead of
+      // failing per-frame — this decorative effect just doesn't render,
+      // rather than taking the footer down with it.
+      return;
+    }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(width, height);
     renderer.setClearColor(0x000000, 0);
