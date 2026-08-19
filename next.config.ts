@@ -10,6 +10,12 @@ const contentSecurityPolicy = buildContentSecurityPolicy({
 });
 
 const nextConfig: NextConfig = {
+  // sharp — нативный модуль (.node/.so). Turbopack пытается его забандлить и
+  // теряет платформенный бинарник (linux-x64) при трассировке для serverless-
+  // функций Vercel, из-за чего /admin/* падал с ERR_DLOPEN_FAILED. Эта опция
+  // держит sharp вне бандла — он грузится через require() из node_modules,
+  // и Vercel корректно включает нужный бинарник по output file tracing.
+  serverExternalPackages: ["sharp"],
   turbopack: {
     root: path.resolve(__dirname),
   },
