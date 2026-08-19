@@ -5,12 +5,15 @@ import { SortableList } from "@/components/admin/SortableList";
 import { Input } from "@/components/admin/ui/Input";
 import { Select } from "@/components/admin/ui/Select";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
+import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   addCategoryBrand,
   removeCategoryBrand,
   updateCategoryBrandOverride,
   reorderCategoryBrands,
 } from "@/lib/admin/actions";
+import { useConfirmDelete } from "@/lib/admin/use-confirm-delete";
 import type { AdminBrand, AdminCategoryBrand } from "@/lib/admin/queries";
 
 interface CategoryBrandsManagerProps {
@@ -42,8 +45,7 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
     });
   }
 
-  function handleRemove(brand: AdminCategoryBrand) {
-    if (!confirm(`Убрать бренд «${brand.brandName}» из этой категории?`)) return;
+  const removeConfirm = useConfirmDelete<AdminCategoryBrand>((brand) => {
     const previous = attached;
     setAttached((prev) => prev.filter((b) => b.brandSlug !== brand.brandSlug));
     setActionError(null);
@@ -55,7 +57,7 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
         setActionError("Не удалось убрать бренд. Связь восстановлена.");
       }
     });
-  }
+  });
 
   function handleOverrideBlur(brandSlug: string, rawValue: string) {
     const parsed = rawValue.trim() ? Number(rawValue) : null;
@@ -110,8 +112,9 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
           items={attached}
           getId={(brand) => brand.brandSlug}
           onReorder={handleReorder}
+          enableStepButtons
           renderItem={(brand) => (
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="flex h-10 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/40">
                 {/* eslint-disable-next-line @next/next/no-img-element -- brand logos are SVGs, possibly hosted on Supabase Storage (external host) */}
                 <img src={brand.brandLogo} alt="" className="max-h-full max-w-full object-contain p-1" />
@@ -141,7 +144,7 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
               </label>
               <button
                 type="button"
-                onClick={() => handleRemove(brand)}
+                onClick={() => removeConfirm.request(brand)}
                 className="shrink-0 rounded-md border border-danger-border px-3 py-1 text-sm font-medium text-danger transition-colors hover:bg-danger-surface"
               >
                 Убрать
@@ -150,11 +153,14 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
           )}
         />
       ) : (
-        <p className="text-sm text-muted-foreground">К этой категории пока не привязан ни один бренд.</p>
+        <EmptyState
+          title="Бренды пока не привязаны"
+          description="Выберите бренд ниже, чтобы он появился на публичной странице этой категории."
+        />
       )}
 
       {available.length > 0 && (
-        <div className="mt-6 flex items-center gap-2 border-t border-border pt-6">
+        <div className="mt-6 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-4">
           <Select
             aria-label="Добавить бренд"
             value={selectedBrandToAdd}
@@ -179,6 +185,16 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
         </div>
       )}
       <AdminActionFeedback message={actionError} onDismiss={() => setActionError(null)} />
+      <ConfirmDialog
+        open={removeConfirm.pending !== null}
+        title={`Убрать бренд «${removeConfirm.pending?.brandName}» из этой категории?`}
+        description="Бренд перестанет отображаться на публичной странице категории."
+        cancelLabel="Отмена"
+        confirmLabel="Убрать"
+        tone="danger"
+        onCancel={removeConfirm.cancel}
+        onConfirm={removeConfirm.confirm}
+      />
     </div>
   );
 }
