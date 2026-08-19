@@ -31,10 +31,10 @@ export function BulkActionBar({ count, itemLabel, onClear, children, className }
       role="toolbar"
       aria-label="Массовые действия"
       className={cn(
-        "sticky bottom-4 z-20 mx-auto flex w-fit max-w-[calc(100vw-2rem)] flex-wrap items-center gap-3 rounded-full border border-border bg-card px-4 py-2.5 shadow-lg",
+        "fixed bottom-4 left-1/2 z-20 flex w-fit max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-wrap items-center gap-3 rounded-full border border-border bg-card px-4 py-2.5 shadow-lg",
         className,
       )}
-      style={{ marginBottom: "env(safe-area-inset-bottom)" }}
+      style={{ bottom: "max(1rem, env(safe-area-inset-bottom))" }}
     >
       <span className="text-sm font-medium text-card-foreground">{itemLabel(count)}</span>
       <div className="flex flex-wrap items-center gap-2">{children}</div>

@@ -326,11 +326,16 @@ export function VehicleShowcaseEditor({ vehicleTypeSlug, vehicleTypeName, hotspo
             <label htmlFor={inputId} className="mt-4 block text-sm font-medium text-card-foreground">
               Название хотспота
             </label>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Можно переименовать в любой момент — название на карточке товара на сайте обновится синхронно,
+              позиция точки не меняется.
+            </p>
             <Input
               id={inputId}
               value={hotspot.label}
               required
               disabled={isSavePending}
+              className="mt-1.5"
               onChange={(event) => updateHotspot(hotspot.id, { label: event.target.value })}
             />
 

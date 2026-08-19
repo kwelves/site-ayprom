@@ -43,7 +43,7 @@ interface TooltipPlacement {
   gap?: 9 | 16 | 24 | 32;
 }
 
-// Per-(vehicle, hotspot label) tooltip placement, keyed because the generic
+// Per-(vehicle, hotspot NUMBER) tooltip placement, keyed because the generic
 // "near top → below, near an edge → start/end" heuristic only reasons about
 // the hotspot's position against the *stage* edges — it has no idea where
 // the other 4 hotspots on the same truck actually are, so on any vehicle
@@ -66,8 +66,9 @@ interface TooltipPlacement {
 // like the candidate search below does. Every value here was reproduced
 // twice from a hard `location.reload()` with `document.fonts.ready`
 // awaited first. Two hotspots have no zero-overlap option at all —
-// Самосвал's "Гидробак за кабиной" always touches "Распределитель"
-// (their circles sit under one diameter apart), and Тонар's "Гидронасос"
+// Самосвал's hotspot 5 ("Гидробак за кабиной" at the time of measurement)
+// always touches hotspot 4 ("Распределитель") — their circles sit under one
+// diameter apart — and Тонар's hotspot 3 ("Гидронасос" at measurement time)
 // sits low enough on the truck that flipping it to `below` avoids every
 // neighbor but clips the *grid's* `lg:overflow-hidden` bottom edge
 // instead — a container clip that z-30 can't rescue, unlike a same-level
@@ -75,36 +76,41 @@ interface TooltipPlacement {
 // `below: true` (0 overlaps, clips) here. HotspotMarker's hover/active
 // z-30 is the backstop for both overlap cases, so the tooltip you're
 // pointing at always paints over the marker(s) it still overlaps.
+//
+// Keyed by hotspot_number (not label text): position/numbering never change
+// for a given vehicle type (admin can only rename the label, see
+// vehicle-showcase admin), so the number is a stable key while the label is
+// not — a rename in the admin must not desync this table.
 const TOOLTIP_PLACEMENT: Record<string, TooltipPlacement> = {
-  "kran-manipulyator:Гидробак": { below: false, align: "center" },
-  "kran-manipulyator:Гидронасос": { below: true, align: "center", gap: 16 },
-  "kran-manipulyator:КОМ": { below: true, align: "center" },
-  "kran-manipulyator:Гидрораспределитель": { below: false, align: "center" },
-  "kran-manipulyator:Кнопка пневмоуправления": { below: false, align: "center" },
+  "kran-manipulyator:1": { below: false, align: "center" },
+  "kran-manipulyator:2": { below: true, align: "center", gap: 16 },
+  "kran-manipulyator:3": { below: true, align: "center" },
+  "kran-manipulyator:4": { below: false, align: "center" },
+  "kran-manipulyator:5": { below: false, align: "center" },
 
-  "musorovoz:Кнопка пневмоуправления": { below: false, align: "center" },
-  "musorovoz:Гидрораспределитель": { below: false, align: "center" },
-  "musorovoz:КОМ": { below: true, align: "center" },
-  "musorovoz:Гидронасос": { below: false, align: "center" },
-  "musorovoz:Гидробак": { below: false, align: "center" },
+  "musorovoz:1": { below: false, align: "center" },
+  "musorovoz:2": { below: false, align: "center" },
+  "musorovoz:3": { below: true, align: "center" },
+  "musorovoz:4": { below: false, align: "center" },
+  "musorovoz:5": { below: false, align: "center" },
 
-  "samosval:Гидронасос": { below: true, align: "center" },
-  "samosval:КОМ": { below: true, align: "center", gap: 32 },
-  "samosval:Джойстик подъёма/опускания": { below: false, align: "end" },
-  "samosval:Распределитель": { below: false, align: "center" },
-  "samosval:Гидробак за кабиной": { below: false, align: "start" },
+  "samosval:1": { below: true, align: "center" },
+  "samosval:2": { below: true, align: "center", gap: 32 },
+  "samosval:3": { below: false, align: "end" },
+  "samosval:4": { below: false, align: "center" },
+  "samosval:5": { below: false, align: "start" },
 
-  "tyagach:Распределитель": { below: false, align: "start" },
-  "tyagach:Джойстик подъёма/опускания": { below: false, align: "center" },
-  "tyagach:Гидронасос": { below: false, align: "center" },
-  "tyagach:КОМ": { below: false, align: "center", gap: 24 },
-  "tyagach:Гидробак": { below: true, align: "center", gap: 16 },
+  "tyagach:1": { below: false, align: "start" },
+  "tyagach:2": { below: false, align: "center" },
+  "tyagach:3": { below: false, align: "center" },
+  "tyagach:4": { below: false, align: "center", gap: 24 },
+  "tyagach:5": { below: true, align: "center", gap: 16 },
 
-  "avtovoz:Гидрораспределитель": { below: true, align: "center" },
-  "avtovoz:Гидробак": { below: true, align: "center" },
-  "avtovoz:КОМ": { below: true, align: "center" },
-  "avtovoz:Гидронасос": { below: false, align: "center" },
-  "avtovoz:Кнопка пневмоуправления": { below: false, align: "center" },
+  "avtovoz:1": { below: true, align: "center" },
+  "avtovoz:2": { below: true, align: "center" },
+  "avtovoz:3": { below: true, align: "center" },
+  "avtovoz:4": { below: false, align: "center" },
+  "avtovoz:5": { below: false, align: "center" },
 };
 
 interface VehicleShowcaseInteractiveProps {
@@ -601,7 +607,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
           const top = containRect.top + (hotspot.yPct / 100) * containRect.height;
           // Falls back to the generic edge-based heuristic for any hotspot
           // not in the table (new DB data before it's been measured/added).
-          const placement = TOOLTIP_PLACEMENT[`${activeEntry.vehicleType.slug}:${hotspot.label}`];
+          const placement = TOOLTIP_PLACEMENT[`${activeEntry.vehicleType.slug}:${hotspot.hotspotNumber}`];
           const tooltipBelow = placement?.below ?? top < containRect.boxHeight * 0.2;
           const tooltipAlign = placement?.align ?? (left < containRect.boxWidth * 0.25 ? "start" : left > containRect.boxWidth * 0.75 ? "end" : "center");
           return (
