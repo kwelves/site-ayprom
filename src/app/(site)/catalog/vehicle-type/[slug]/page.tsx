@@ -6,6 +6,7 @@ import { ProductSearchForm } from "@/components/catalog/ProductSearchForm";
 import { ProductGridWithSearch } from "@/components/catalog/ProductGridWithSearch";
 import { getVehicleType } from "@/lib/queries/vehicle-types";
 import { getCategoryBrandSlugs } from "@/lib/queries/category-brands";
+import { getDirectCategorySlugs } from "@/lib/queries/categories";
 import { getProducts, parseCatalogPage } from "@/lib/queries/products";
 import { getProductHref } from "@/lib/product-href";
 
@@ -35,10 +36,11 @@ export default async function VehicleTypePage({ params, searchParams }: VehicleT
   const { slug } = await params;
   const { q, page: pageParam } = await searchParams;
   const page = parseCatalogPage(pageParam);
-  const [vehicleType, productPage, categoryBrandSlugs] = await Promise.all([
+  const [vehicleType, productPage, categoryBrandSlugs, directCategorySlugs] = await Promise.all([
     getVehicleType(slug),
     getProducts({ vehicleTypeSlug: slug, query: q, page }),
     getCategoryBrandSlugs(),
+    getDirectCategorySlugs(),
   ]);
   const action = `/catalog/vehicle-type/${slug}`;
 
@@ -68,7 +70,7 @@ export default async function VehicleTypePage({ params, searchParams }: VehicleT
         query={q}
         scopeLabel={`для «${vehicleType.name}»`}
         action={action}
-        href={(product) => getProductHref(product, categoryBrandSlugs)}
+        href={(product) => getProductHref(product, categoryBrandSlugs, directCategorySlugs)}
         emptyLabel="Для этого типа техники пока нет товаров. Скоро они здесь появятся."
       />
     </>

@@ -97,11 +97,15 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
           <FormField
             label="Тип категории"
             htmlFor="type"
-            description="«По подкатегориям» — товары делятся на подразделы (как Гидронасосы). «По брендам» — товары показываются сразу по маркам техники (как КОМ/ВОМ). Нельзя изменить после создания — от этого зависит, что показывать на странице категории."
+            description="«По подкатегориям» — товары делятся на подразделы (как Гидронасосы). «По брендам» — товары показываются сразу по маркам техники (как КОМ/ВОМ). «Напрямую» — без группировки, товары категории списком. Нельзя изменить после создания — от этого зависит, что показывать на странице категории."
           >
-            <Select id="type" name="type" defaultValue="subcategory">
+            <Select id="type" name="type" required defaultValue="">
+              <option value="" disabled>
+                Выберите тип
+              </option>
               <option value="subcategory">По подкатегориям</option>
               <option value="brand">По брендам</option>
+              <option value="direct">Напрямую (без группировки)</option>
             </Select>
           </FormField>
         ) : (
@@ -112,7 +116,9 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
           >
             <Input
               id="type-display"
-              value={category?.type === "brand" ? "По брендам" : "По подкатегориям"}
+              value={
+                category?.type === "brand" ? "По брендам" : category?.type === "subcategory" ? "По подкатегориям" : "Напрямую"
+              }
               disabled
             />
           </FormField>
@@ -169,23 +175,24 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
           )}
         </div>
 
-        {mode === "edit" && category && (
+        {mode === "edit" && category && category.type === "subcategory" && (
           <div>
-            {category.type === "subcategory" ? (
-              <Link
-                href={`/admin/categories/${category.slug}/subcategories`}
-                className="text-sm text-primary hover:underline"
-              >
-                Управлять подкатегориями ({category.subcategoryCount}) →
-              </Link>
-            ) : (
-              <Link
-                href={`/admin/categories/${category.slug}/category-brands`}
-                className="text-sm text-primary hover:underline"
-              >
-                Управлять брендами категории ({category.categoryBrandCount}) →
-              </Link>
-            )}
+            <Link
+              href={`/admin/categories/${category.slug}/subcategories`}
+              className="text-sm text-primary hover:underline"
+            >
+              Управлять подкатегориями ({category.subcategoryCount}) →
+            </Link>
+          </div>
+        )}
+        {mode === "edit" && category && category.type === "brand" && (
+          <div>
+            <Link
+              href={`/admin/categories/${category.slug}/category-brands`}
+              className="text-sm text-primary hover:underline"
+            >
+              Управлять брендами категории ({category.categoryBrandCount}) →
+            </Link>
           </div>
         )}
 

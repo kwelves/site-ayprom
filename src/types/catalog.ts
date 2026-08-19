@@ -17,10 +17,11 @@ export interface Category {
    * Subcategory.intro, since the explanation there does vary. Optional. */
   intro?: string;
   /** Whether this category's products are browsed by subcategory
-   * (hydraulic-pumps/tanks) or by brand (pto/pto-shafts) — an explicit,
-   * database-enforced column now, replacing the old convention of inferring
+   * (hydraulic-pumps/tanks), by brand (pto/pto-shafts), or shown directly as
+   * a flat product grid with no grouping (`null`) — an explicit,
+   * database-enforced column, replacing the old convention of inferring
    * it from which lookup table had an entry for the category's slug. */
-  type: "subcategory" | "brand";
+  type: "subcategory" | "brand" | null;
 }
 
 export interface Subcategory {

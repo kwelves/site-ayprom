@@ -6,9 +6,12 @@ import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
 import { CategoryCard } from "@/components/home/CategoryCard";
 import { BrandCard } from "@/components/home/BrandCard";
 import { CatalogPageShell } from "@/components/catalog/CatalogPageShell";
+import { ProductSearchForm } from "@/components/catalog/ProductSearchForm";
+import { ProductGridWithSearch } from "@/components/catalog/ProductGridWithSearch";
 import { getCategory, getCategories } from "@/lib/queries/categories";
 import { getSubcategories } from "@/lib/queries/subcategories";
 import { getCategoryBrands } from "@/lib/queries/category-brands";
+import { getProducts, parseCatalogPage } from "@/lib/queries/products";
 import { getCategoryGridSizing, getCardGridSizing } from "@/lib/category-grid";
 import { cn } from "@/lib/utils";
 import type { Brand } from "@/types/catalog";
@@ -47,6 +50,7 @@ function BrandCardGrid({
 
 interface CategoryPageProps {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ q?: string; page?: string }>;
 }
 
 export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
@@ -61,12 +65,49 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
     : { title: "Каталог", robots: { index: false } };
 }
 
-export default async function CategoryPage({ params }: CategoryPageProps) {
+export default async function CategoryPage({ params, searchParams }: CategoryPageProps) {
   const { slug } = await params;
   const category = await getCategory(slug);
 
   if (!category) {
     notFound();
+  }
+
+  if (category.type === null) {
+    const { q, page: pageParam } = await searchParams;
+    const page = parseCatalogPage(pageParam);
+    const productPage = await getProducts({ categorySlug: slug, query: q, page });
+    const action = `/catalog/category/${slug}`;
+
+    return (
+      <CatalogPageShell items={[{ label: category.name }]}>
+        <Reveal>
+          <SectionHeading as="h1" className="mx-auto max-w-2xl text-center" title={category.name} />
+        </Reveal>
+
+        <div className="mt-6">
+          <ProductSearchForm action={action} defaultValue={q} placeholder={`Поиск по разделу «${category.name}»`} />
+        </div>
+
+        <ProductGridWithSearch
+          products={productPage.items}
+          total={productPage.total}
+          page={productPage.page}
+          totalPages={productPage.totalPages}
+          query={q}
+          scopeLabel={`в разделе «${category.name}»`}
+          action={action}
+          href={(product) => `/catalog/category/${slug}/${product.slug}`}
+          emptyLabel="В этой категории пока нет товаров. Скоро они здесь появятся."
+        />
+
+        {category.intro && (
+          <Reveal>
+            <p className="mx-auto mt-14 max-w-2xl text-center text-muted-foreground">{category.intro}</p>
+          </Reveal>
+        )}
+      </CatalogPageShell>
+    );
   }
 
   if (category.type === "brand") {

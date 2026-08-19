@@ -9,7 +9,7 @@ interface CategoryRow {
   icon: string;
   image: string;
   intro: string | null;
-  type: "subcategory" | "brand";
+  type: "subcategory" | "brand" | null;
 }
 
 function mapCategory(row: CategoryRow): Category {
@@ -92,4 +92,16 @@ export async function getBrandCategories(brandSlug: string): Promise<Category[]>
   }
 
   return rows.filter((row) => matchedSlugs.has(row.slug)).map(mapCategory);
+}
+
+// Slugs of "direct" categories (type = NULL) — products list under them
+// flat, with no subcategory/brand routing segment, so getProductHref needs
+// this set to tell "belongs to a direct category" apart from "data
+// incomplete" (both cases otherwise look identical: no subcategory, no
+// matching brand). Small table, same reasoning as getCategoryBrandSlugs.
+export async function getDirectCategorySlugs(): Promise<Set<string>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("categories").select("slug").is("type", null);
+  if (error) throw error;
+  return new Set((data as { slug: string }[]).map((row) => row.slug));
 }

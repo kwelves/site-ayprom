@@ -1033,8 +1033,20 @@ interface CategoryFormFields {
   slugSeed: string;
   description: string;
   icon: CategoryIcon;
-  type: "subcategory" | "brand";
+  // undefined = the "type" field wasn't submitted at all (the edit form
+  // never includes it — type is immutable after create, see updateCategory's
+  // comment below) or held an unrecognized value. null = explicitly chosen
+  // "Напрямую" (direct/flat category, no subcategory or brand grouping).
+  // createCategory below is the only caller that must reject `undefined`.
+  type: "subcategory" | "brand" | null | undefined;
   intro: string | null;
+}
+
+function parseCategoryType(formData: FormData): "subcategory" | "brand" | null | undefined {
+  const raw = formData.get("type");
+  if (raw === "subcategory" || raw === "brand") return raw;
+  if (raw === "direct") return null;
+  return undefined;
 }
 
 function parseCategoryFormData(formData: FormData): CategoryFormFields {
@@ -1043,7 +1055,7 @@ function parseCategoryFormData(formData: FormData): CategoryFormFields {
   const description = String(formData.get("description") ?? "").trim();
   const iconRaw = String(formData.get("icon") ?? "");
   const icon = CATEGORY_ICONS.includes(iconRaw as CategoryIcon) ? (iconRaw as CategoryIcon) : CATEGORY_ICONS[0];
-  const type = formData.get("type") === "brand" ? "brand" : "subcategory";
+  const type = parseCategoryType(formData);
   const intro = String(formData.get("intro") ?? "").trim() || null;
 
   if (!name || !description) {
@@ -1078,6 +1090,9 @@ export async function createCategory(
   return runFormAction(async () => {
   await requireAdminSession();
   const fields = parseCategoryFormData(formData);
+  if (fields.type === undefined) {
+    throw new Error("Выберите тип категории.");
+  }
   const file = formData.get("image");
   if (!(file instanceof File) || file.size === 0) {
     throw new Error("Изображение обязательно.");

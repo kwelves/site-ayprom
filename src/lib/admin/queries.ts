@@ -483,7 +483,7 @@ export interface AdminCategory {
   icon: CategoryIcon;
   image: string;
   intro?: string;
-  type: "subcategory" | "brand";
+  type: "subcategory" | "brand" | null;
   order: number;
   subcategoryCount: number;
   categoryBrandCount: number;
@@ -497,7 +497,7 @@ interface CategoryRow {
   icon: string;
   image: string;
   intro: string | null;
-  type: "subcategory" | "brand";
+  type: "subcategory" | "brand" | null;
   order: number;
 }
 

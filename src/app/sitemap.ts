@@ -4,6 +4,7 @@ import { getCategories } from "@/lib/queries/categories";
 import { getAllSubcategories } from "@/lib/queries/subcategories";
 import { getVehicleTypes } from "@/lib/queries/vehicle-types";
 import { getCategoryBrandSlugs } from "@/lib/queries/category-brands";
+import { getDirectCategorySlugs } from "@/lib/queries/categories";
 import { getSitemapProducts } from "@/lib/queries/products";
 import { getProductHref } from "@/lib/product-href";
 import { getSiteUrl } from "@/lib/site-url";
@@ -12,12 +13,13 @@ export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = getSiteUrl();
-  const [categories, subcategories, brands, vehicleTypes, categoryBrandSlugs, products] = await Promise.all([
+  const [categories, subcategories, brands, vehicleTypes, categoryBrandSlugs, directCategorySlugs, products] = await Promise.all([
     getCategories(),
     getAllSubcategories(),
     getBrands(),
     getVehicleTypes(),
     getCategoryBrandSlugs(),
+    getDirectCategorySlugs(),
     getSitemapProducts(),
   ]);
   const entries = new Map<string, MetadataRoute.Sitemap[number]>();
@@ -55,7 +57,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
   }
   for (const product of products) {
-    const canonicalPath = getProductHref(product, categoryBrandSlugs);
+    const canonicalPath = getProductHref(product, categoryBrandSlugs, directCategorySlugs);
     if (canonicalPath === "/catalog") continue;
     add(canonicalPath, {
       lastModified: product.updatedAt,

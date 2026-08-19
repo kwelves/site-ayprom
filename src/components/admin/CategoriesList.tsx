@@ -63,10 +63,14 @@ export function CategoriesList({ categories: initialCategories, flashSlug, flash
               <span
                 className={cn(
                   "rounded-full px-2 py-0.5 text-xs font-medium",
-                  category.type === "brand" ? "bg-accent-strong text-accent-foreground" : "bg-surface-subtle text-muted-foreground"
+                  category.type === "brand"
+                    ? "bg-accent-strong text-accent-foreground"
+                    : category.type === "subcategory"
+                      ? "bg-surface-subtle text-muted-foreground"
+                      : "bg-muted text-muted-foreground"
                 )}
               >
-                {category.type === "brand" ? "По брендам" : "По подкатегориям"}
+                {category.type === "brand" ? "По брендам" : category.type === "subcategory" ? "По подкатегориям" : "Напрямую"}
               </span>
               <span className="text-xs text-muted-foreground">{category.productCount} тов.</span>
             </div>
