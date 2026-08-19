@@ -16,6 +16,13 @@ const nextConfig: NextConfig = {
   // держит sharp вне бандла — он грузится через require() из node_modules,
   // и Vercel корректно включает нужный бинарник по output file tracing.
   serverExternalPackages: ["sharp"],
+  // Turbopack теряет нативный бинарник libvips (@img/sharp-*) при трассировке
+  // файлов для serverless-функций Vercel — сама либа помечена внешней, но её
+  // .so/.node не докладываются в бандл, из-за чего в проде падает ERR_DLOPEN_FAILED.
+  // Явно включаем всё дерево sharp/@img, чтобы бинарник точно попал в функцию.
+  outputFileTracingIncludes: {
+    "/*": ["node_modules/sharp/**/*", "node_modules/@img/**/*"],
+  },
   turbopack: {
     root: path.resolve(__dirname),
   },
