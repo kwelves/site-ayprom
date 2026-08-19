@@ -14,6 +14,7 @@ import { FormField } from "@/components/admin/ui/FormField";
 import { Input } from "@/components/admin/ui/Input";
 import { Textarea } from "@/components/admin/ui/Textarea";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
+import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
 import type { AdminSubcategory } from "@/lib/admin/queries";
 
 interface SubcategoryFormProps {
@@ -29,6 +30,7 @@ export function SubcategoryForm({ mode, categorySlug, categoryName, subcategory 
   const [slugTouched, setSlugTouched] = useState(false);
   const [image, setImage] = useState(subcategory?.image ?? "");
   const [dismissedError, setDismissedError] = useState<FormActionState>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { isUploading: isUploadingImage, handleReplace: handleImageReplace } = useImageReplace(
     (formData) => replaceSubcategoryImage(subcategory!.id, formData),
     setImage
@@ -49,7 +51,12 @@ export function SubcategoryForm({ mode, categorySlug, categoryName, subcategory 
       );
       return;
     }
-    if (!confirm(`Удалить подкатегорию «${subcategory.name}»? Это действие необратимо.`)) return;
+    setIsDeleteDialogOpen(true);
+  }
+
+  function confirmDeleteSubcategory() {
+    if (!subcategory) return;
+    setIsDeleteDialogOpen(false);
     deleteSubcategory(subcategory.id);
   }
 
@@ -157,6 +164,16 @@ export function SubcategoryForm({ mode, categorySlug, categoryName, subcategory 
         </div>
       </form>
       <AdminActionFeedback message={actionError} onDismiss={() => setDismissedError(formState)} />
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        title={`Удалить подкатегорию «${subcategory?.name}»?`}
+        description="Это действие необратимо."
+        cancelLabel="Отмена"
+        confirmLabel="Удалить"
+        tone="danger"
+        onCancel={() => setIsDeleteDialogOpen(false)}
+        onConfirm={confirmDeleteSubcategory}
+      />
     </div>
   );
 }

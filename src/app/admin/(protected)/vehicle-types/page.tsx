@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { getAdminVehicleTypes } from "@/lib/admin/queries";
 import { VehicleTypesList } from "@/components/admin/VehicleTypesList";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export const metadata: Metadata = {
   title: "Типы техники — Админка AYPROM",
@@ -30,7 +31,12 @@ export default async function AdminVehicleTypesPage({ searchParams }: AdminVehic
       </div>
 
       {vehicleTypes.length === 0 ? (
-        <p className="mt-8 text-sm text-muted-foreground">Типов техники пока нет.</p>
+        <EmptyState
+          title="Типов техники пока нет"
+          description="Добавьте первый тип спецтехники, чтобы привязывать к нему товары."
+          actionHref="/admin/vehicle-types/new"
+          actionLabel="Добавить тип техники"
+        />
       ) : (
         <VehicleTypesList
           vehicleTypes={vehicleTypes}

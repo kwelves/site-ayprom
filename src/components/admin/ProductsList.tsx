@@ -20,6 +20,7 @@ import {
   bulkUpdateProducts,
 } from "@/lib/admin/actions";
 import { useAdminList } from "@/lib/admin/use-admin-list";
+import { useConfirmDelete } from "@/lib/admin/use-confirm-delete";
 import { DURATION, EASE_UI } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import {
@@ -92,10 +93,7 @@ export function ProductsList({ products: initialProducts, reorderDisabled, flash
       flashAction,
     });
 
-  function handleDelete(product: AdminProductListItem) {
-    if (!confirm(`Удалить товар «${product.name}»? Это действие необратимо.`)) return;
-    removeItem(product);
-  }
+  const deleteConfirm = useConfirmDelete<AdminProductListItem>(removeItem);
 
   // Publish toggle is products-only, so it stays here rather than in the shared
   // hook — an optimistic in-place update (not a remove) built on the hook's
@@ -266,7 +264,7 @@ export function ProductsList({ products: initialProducts, reorderDisabled, flash
               </Link>
               <button
                 type="button"
-                onClick={() => handleDelete(product)}
+                onClick={() => deleteConfirm.request(product)}
                 className="rounded-md border border-danger-border px-3 py-1 text-sm font-medium text-danger transition-colors hover:bg-danger-surface"
               >
                 Удалить
@@ -311,6 +309,16 @@ export function ProductsList({ products: initialProducts, reorderDisabled, flash
           setBulkUnpublishConfirmOpen(false);
           applyBulkPatch({ published: false });
         }}
+      />
+      <ConfirmDialog
+        open={deleteConfirm.pending !== null}
+        title={`Удалить товар «${deleteConfirm.pending?.name}»?`}
+        description="Это действие необратимо."
+        cancelLabel="Отмена"
+        confirmLabel="Удалить"
+        tone="danger"
+        onCancel={deleteConfirm.cancel}
+        onConfirm={deleteConfirm.confirm}
       />
       <QuickViewPanel
         open={quickViewProduct !== null}

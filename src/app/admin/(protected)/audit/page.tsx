@@ -5,6 +5,7 @@ import { auditActionLabel, auditEntityLabel } from "@/lib/admin/audit-labels";
 import { AdminPagination } from "@/components/admin/AdminPagination";
 import { AuditFilterBar } from "@/components/admin/AuditFilterBar";
 import { AuditDiffDetail } from "@/components/admin/AuditDiffDetail";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -63,9 +64,11 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
       )}
 
       {log.items.length === 0 ? (
-        <p className="mt-8 text-sm text-muted-foreground">
-          {isFiltered ? "Ничего не найдено." : "Изменений пока нет."}
-        </p>
+        <EmptyState
+          title={isFiltered ? "Ничего не найдено" : "Изменений пока нет"}
+          description={isFiltered ? "Попробуйте изменить фильтры." : "Записи появятся здесь, как только вы что-то измените в каталоге."}
+          {...(isFiltered ? { actionHref: "/admin/audit", actionLabel: "Сбросить фильтры" } : {})}
+        />
       ) : (
         <>
           {/* Таблица — от sm и шире, где строка с полным дифом умещается без

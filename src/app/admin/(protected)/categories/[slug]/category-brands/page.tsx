@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getAdminCategory, getAdminCategoryBrands, getAdminBrands } from "@/lib/admin/queries";
 import { CategoryBrandsManager } from "@/components/admin/CategoryBrandsManager";
-import { BackLink } from "@/components/admin/ui/BackLink";
+import { Breadcrumbs } from "@/components/admin/ui/Breadcrumbs";
 
 export const revalidate = 0;
 
@@ -28,7 +28,13 @@ export default async function CategoryBrandsPage({ params }: CategoryBrandsPageP
 
   return (
     <div className="max-w-2xl">
-      <BackLink href={`/admin/categories/${slug}/edit`} label={category.name} />
+      <Breadcrumbs
+        items={[
+          { label: "Категории", href: "/admin/categories" },
+          { label: category.name, href: `/admin/categories/${slug}/edit` },
+          { label: "Бренды" },
+        ]}
+      />
 
       <h1 className="mt-4 text-xl font-semibold text-foreground">Бренды категории: {category.name}</h1>
       <p className="mt-1 text-sm text-muted-foreground">

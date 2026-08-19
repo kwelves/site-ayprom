@@ -17,6 +17,7 @@ import { Input } from "@/components/admin/ui/Input";
 import { Textarea } from "@/components/admin/ui/Textarea";
 import { Select } from "@/components/admin/ui/Select";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
+import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
 import type { AdminCategory } from "@/lib/admin/queries";
 
 interface CategoryFormProps {
@@ -30,6 +31,7 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
   const [slugTouched, setSlugTouched] = useState(false);
   const [image, setImage] = useState(category?.image ?? "");
   const [dismissedError, setDismissedError] = useState<FormActionState>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { isUploading: isUploadingImage, handleReplace: handleImageReplace } = useImageReplace(
     (formData) => replaceCategoryImage(category!.slug, formData),
     setImage
@@ -50,7 +52,12 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
       );
       return;
     }
-    if (!confirm(`Удалить категорию «${category.name}»?${describeCategoryUsage(category)} Это действие необратимо.`)) return;
+    setIsDeleteDialogOpen(true);
+  }
+
+  function confirmDeleteCategory() {
+    if (!category) return;
+    setIsDeleteDialogOpen(false);
     deleteCategory(category.slug);
   }
 
@@ -208,6 +215,16 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
         </div>
       </form>
       <AdminActionFeedback message={actionError} onDismiss={() => setDismissedError(formState)} />
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        title={`Удалить категорию «${category?.name}»?`}
+        description={category ? `${describeCategoryUsage(category)} Это действие необратимо.` : null}
+        cancelLabel="Отмена"
+        confirmLabel="Удалить"
+        tone="danger"
+        onCancel={() => setIsDeleteDialogOpen(false)}
+        onConfirm={confirmDeleteCategory}
+      />
     </div>
   );
 }

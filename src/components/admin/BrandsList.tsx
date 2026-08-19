@@ -4,9 +4,11 @@ import Link from "next/link";
 import { SortableList } from "@/components/admin/SortableList";
 import { Toast } from "@/components/admin/ui/Toast";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
+import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
 import { reorderBrands, deleteBrand } from "@/lib/admin/actions";
 import { describeBrandUsage } from "@/lib/admin/usage-descriptions";
 import { useAdminList } from "@/lib/admin/use-admin-list";
+import { useConfirmDelete } from "@/lib/admin/use-confirm-delete";
 import type { AdminBrand } from "@/lib/admin/queries";
 
 interface BrandsListProps {
@@ -26,10 +28,7 @@ export function BrandsList({ brands: initialBrands, flashSlug, flashAction }: Br
     flashAction,
   });
 
-  function handleDelete(brand: AdminBrand) {
-    if (!confirm(`Удалить бренд «${brand.name}»?${describeBrandUsage(brand)} Это действие необратимо.`)) return;
-    removeItem(brand);
-  }
+  const deleteConfirm = useConfirmDelete<AdminBrand>(removeItem);
 
   return (
     <>
@@ -67,7 +66,7 @@ export function BrandsList({ brands: initialBrands, flashSlug, flashAction }: Br
               </Link>
               <button
                 type="button"
-                onClick={() => handleDelete(brand)}
+                onClick={() => deleteConfirm.request(brand)}
                 className="rounded-md border border-danger-border px-3 py-1 text-sm font-medium text-danger transition-colors hover:bg-danger-surface"
               >
                 Удалить
@@ -79,6 +78,16 @@ export function BrandsList({ brands: initialBrands, flashSlug, flashAction }: Br
     />
     <Toast message={toast} onDismiss={dismissToast} />
     <AdminActionFeedback message={actionError} onDismiss={dismissActionError} />
+    <ConfirmDialog
+      open={deleteConfirm.pending !== null}
+      title={`Удалить бренд «${deleteConfirm.pending?.name}»?`}
+      description={deleteConfirm.pending ? `${describeBrandUsage(deleteConfirm.pending)} Это действие необратимо.` : null}
+      cancelLabel="Отмена"
+      confirmLabel="Удалить"
+      tone="danger"
+      onCancel={deleteConfirm.cancel}
+      onConfirm={deleteConfirm.confirm}
+    />
     </>
   );
 }

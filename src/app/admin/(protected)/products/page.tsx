@@ -6,6 +6,7 @@ import { isProductAvailability } from "@/lib/admin/product-availability";
 import { ProductsList } from "@/components/admin/ProductsList";
 import { ProductsFilterBar } from "@/components/admin/ProductsFilterBar";
 import { AdminPagination } from "@/components/admin/AdminPagination";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export const metadata: Metadata = {
   title: "Товары — Админка AYPROM",
@@ -82,9 +83,12 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
       )}
 
       {productPage.items.length === 0 ? (
-        <p className="mt-8 text-sm text-muted-foreground">
-          {isFiltered ? "Ничего не найдено." : "Товаров пока нет."}
-        </p>
+        <EmptyState
+          title={isFiltered ? "Ничего не найдено" : "Товаров пока нет"}
+          description={isFiltered ? "Попробуйте изменить поиск или фильтры." : "Добавьте первый товар, чтобы начать наполнять каталог."}
+          actionHref={isFiltered ? "/admin/products" : "/admin/products/new"}
+          actionLabel={isFiltered ? "Сбросить фильтры" : "Добавить товар"}
+        />
       ) : (
         <>
           {/* Перетаскивание остаётся доступным и в отфильтрованном, и в

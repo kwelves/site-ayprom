@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { getAdminBrands } from "@/lib/admin/queries";
 import { BrandsList } from "@/components/admin/BrandsList";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export const metadata: Metadata = {
   title: "Бренды — Админка AYPROM",
@@ -30,7 +31,12 @@ export default async function AdminBrandsPage({ searchParams }: AdminBrandsPageP
       </div>
 
       {brands.length === 0 ? (
-        <p className="mt-8 text-sm text-muted-foreground">Брендов пока нет.</p>
+        <EmptyState
+          title="Брендов пока нет"
+          description="Добавьте первый бренд, чтобы привязывать к нему товары и категории."
+          actionHref="/admin/brands/new"
+          actionLabel="Добавить бренд"
+        />
       ) : (
         <BrandsList
           brands={brands}

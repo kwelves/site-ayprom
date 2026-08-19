@@ -103,6 +103,7 @@ export function ProductForm({
   const [actionError, setActionError] = useState<string | null>(null);
   const [dismissedFormError, setDismissedFormError] = useState<FormActionState>(null);
   const [isUnpublishDialogOpen, setIsUnpublishDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const unpublishConfirmedRef = useRef(false);
   const [, startTransition] = useTransition();
@@ -273,7 +274,12 @@ export function ProductForm({
 
   function handleDeleteProduct() {
     if (!product) return;
-    if (!confirm(`Удалить товар «${product.name}»? Это действие необратимо.`)) return;
+    setIsDeleteDialogOpen(true);
+  }
+
+  function confirmDeleteProduct() {
+    if (!product) return;
+    setIsDeleteDialogOpen(false);
     startTransition(() => {
       deleteProduct(product.slug);
     });
@@ -433,6 +439,16 @@ export function ProductForm({
         tone="danger"
         onCancel={closeUnpublishDialog}
         onConfirm={confirmUnpublish}
+      />
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        title={`Удалить товар «${product?.name}»?`}
+        description="Это действие необратимо."
+        cancelLabel="Отмена"
+        confirmLabel="Удалить"
+        tone="danger"
+        onCancel={() => setIsDeleteDialogOpen(false)}
+        onConfirm={confirmDeleteProduct}
       />
     </div>
   );

@@ -5,8 +5,10 @@ import Image from "next/image";
 import { SortableList } from "@/components/admin/SortableList";
 import { Toast } from "@/components/admin/ui/Toast";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
+import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
 import { reorderSubcategories, deleteSubcategory } from "@/lib/admin/actions";
 import { useAdminList } from "@/lib/admin/use-admin-list";
+import { useConfirmDelete } from "@/lib/admin/use-confirm-delete";
 import { formatRussianCount } from "@/lib/russian-plural";
 import type { AdminSubcategory } from "@/lib/admin/queries";
 
@@ -32,6 +34,8 @@ export function SubcategoriesList({
       flashAction,
     });
 
+  const deleteConfirm = useConfirmDelete<AdminSubcategory>(removeItem);
+
   function handleDelete(subcategory: AdminSubcategory) {
     if (subcategory.productCount > 0) {
       alert(
@@ -39,8 +43,7 @@ export function SubcategoriesList({
       );
       return;
     }
-    if (!confirm(`Удалить подкатегорию «${subcategory.name}»? Это действие необратимо.`)) return;
-    removeItem(subcategory);
+    deleteConfirm.request(subcategory);
   }
 
   return (
@@ -81,6 +84,16 @@ export function SubcategoriesList({
     />
     <Toast message={toast} onDismiss={dismissToast} />
     <AdminActionFeedback message={actionError} onDismiss={dismissActionError} />
+    <ConfirmDialog
+      open={deleteConfirm.pending !== null}
+      title={`Удалить подкатегорию «${deleteConfirm.pending?.name}»?`}
+      description="Это действие необратимо."
+      cancelLabel="Отмена"
+      confirmLabel="Удалить"
+      tone="danger"
+      onCancel={deleteConfirm.cancel}
+      onConfirm={deleteConfirm.confirm}
+    />
     </>
   );
 }

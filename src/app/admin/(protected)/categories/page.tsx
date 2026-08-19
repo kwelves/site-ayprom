@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { getAdminCategories } from "@/lib/admin/queries";
 import { CategoriesList } from "@/components/admin/CategoriesList";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export const metadata: Metadata = {
   title: "Категории — Админка AYPROM",
@@ -30,7 +31,12 @@ export default async function AdminCategoriesPage({ searchParams }: AdminCategor
       </div>
 
       {categories.length === 0 ? (
-        <p className="mt-8 text-sm text-muted-foreground">Категорий пока нет.</p>
+        <EmptyState
+          title="Категорий пока нет"
+          description="Создайте первую категорию, чтобы начать наполнять каталог."
+          actionHref="/admin/categories/new"
+          actionLabel="Добавить категорию"
+        />
       ) : (
         <CategoriesList
           categories={categories}

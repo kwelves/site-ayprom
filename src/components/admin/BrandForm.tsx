@@ -12,6 +12,7 @@ import { SubmitButton } from "@/components/admin/ui/SubmitButton";
 import { FormField } from "@/components/admin/ui/FormField";
 import { Input } from "@/components/admin/ui/Input";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
+import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
 import type { AdminBrand } from "@/lib/admin/queries";
 
 interface BrandFormProps {
@@ -25,6 +26,7 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
   const [slugTouched, setSlugTouched] = useState(false);
   const [logo, setLogo] = useState(brand?.logo ?? "");
   const [dismissedError, setDismissedError] = useState<FormActionState>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { isUploading: isUploadingLogo, handleReplace: handleLogoReplace } = useImageReplace(
     (formData) => replaceBrandLogo(brand!.slug, formData),
     setLogo
@@ -37,9 +39,9 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
     }
   }
 
-  function handleDeleteBrand() {
+  function confirmDeleteBrand() {
     if (!brand) return;
-    if (!confirm(`Удалить бренд «${brand.name}»?${describeBrandUsage(brand)} Это действие необратимо.`)) return;
+    setIsDeleteDialogOpen(false);
     deleteBrand(brand.slug);
   }
 
@@ -139,13 +141,23 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
             {mode === "create" ? "Создать бренд" : "Сохранить"}
           </SubmitButton>
           {mode === "edit" && (
-            <button type="button" onClick={handleDeleteBrand} className="text-sm text-danger hover:underline">
+            <button type="button" onClick={() => setIsDeleteDialogOpen(true)} className="text-sm text-danger hover:underline">
               Удалить бренд
             </button>
           )}
         </div>
       </form>
       <AdminActionFeedback message={actionError} onDismiss={() => setDismissedError(formState)} />
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        title={`Удалить бренд «${brand?.name}»?`}
+        description={brand ? `${describeBrandUsage(brand)} Это действие необратимо.` : null}
+        cancelLabel="Отмена"
+        confirmLabel="Удалить"
+        tone="danger"
+        onCancel={() => setIsDeleteDialogOpen(false)}
+        onConfirm={confirmDeleteBrand}
+      />
     </div>
   );
 }

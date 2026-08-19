@@ -5,10 +5,12 @@ import Image from "next/image";
 import { SortableList } from "@/components/admin/SortableList";
 import { Toast } from "@/components/admin/ui/Toast";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
+import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
 import { reorderCategories, deleteCategory } from "@/lib/admin/actions";
 import { describeCategoryUsage } from "@/lib/admin/usage-descriptions";
 import { formatRussianCount } from "@/lib/russian-plural";
 import { useAdminList } from "@/lib/admin/use-admin-list";
+import { useConfirmDelete } from "@/lib/admin/use-confirm-delete";
 import { cn } from "@/lib/utils";
 import type { AdminCategory } from "@/lib/admin/queries";
 
@@ -30,6 +32,8 @@ export function CategoriesList({ categories: initialCategories, flashSlug, flash
       flashAction,
     });
 
+  const deleteConfirm = useConfirmDelete<AdminCategory>(removeItem);
+
   function handleDelete(category: AdminCategory) {
     if (category.productCount > 0) {
       alert(
@@ -37,10 +41,7 @@ export function CategoriesList({ categories: initialCategories, flashSlug, flash
       );
       return;
     }
-    if (!confirm(`Удалить категорию «${category.name}»?${describeCategoryUsage(category)} Это действие необратимо.`)) {
-      return;
-    }
-    removeItem(category);
+    deleteConfirm.request(category);
   }
 
   return (
@@ -95,6 +96,16 @@ export function CategoriesList({ categories: initialCategories, flashSlug, flash
     />
     <Toast message={toast} onDismiss={dismissToast} />
     <AdminActionFeedback message={actionError} onDismiss={dismissActionError} />
+    <ConfirmDialog
+      open={deleteConfirm.pending !== null}
+      title={`Удалить категорию «${deleteConfirm.pending?.name}»?`}
+      description={deleteConfirm.pending ? `${describeCategoryUsage(deleteConfirm.pending)} Это действие необратимо.` : null}
+      cancelLabel="Отмена"
+      confirmLabel="Удалить"
+      tone="danger"
+      onCancel={deleteConfirm.cancel}
+      onConfirm={deleteConfirm.confirm}
+    />
     </>
   );
 }

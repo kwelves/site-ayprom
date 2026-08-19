@@ -5,9 +5,11 @@ import { Truck } from "lucide-react";
 import { SortableList } from "@/components/admin/SortableList";
 import { Toast } from "@/components/admin/ui/Toast";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
+import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
 import { reorderVehicleTypes, deleteVehicleType } from "@/lib/admin/actions";
 import { describeVehicleTypeUsage } from "@/lib/admin/usage-descriptions";
 import { useAdminList } from "@/lib/admin/use-admin-list";
+import { useConfirmDelete } from "@/lib/admin/use-confirm-delete";
 import type { AdminVehicleType } from "@/lib/admin/queries";
 
 interface VehicleTypesListProps {
@@ -28,16 +30,7 @@ export function VehicleTypesList({ vehicleTypes: initialVehicleTypes, flashSlug,
       flashAction,
     });
 
-  function handleDelete(vehicleType: AdminVehicleType) {
-    if (
-      !confirm(
-        `Удалить тип техники «${vehicleType.name}»?${describeVehicleTypeUsage(vehicleType)} Это действие необратимо.`
-      )
-    ) {
-      return;
-    }
-    removeItem(vehicleType);
-  }
+  const deleteConfirm = useConfirmDelete<AdminVehicleType>(removeItem);
 
   return (
     <>
@@ -66,7 +59,7 @@ export function VehicleTypesList({ vehicleTypes: initialVehicleTypes, flashSlug,
               </Link>
               <button
                 type="button"
-                onClick={() => handleDelete(vehicleType)}
+                onClick={() => deleteConfirm.request(vehicleType)}
                 className="rounded-md border border-danger-border px-3 py-1 text-sm font-medium text-danger transition-colors hover:bg-danger-surface"
               >
                 Удалить
@@ -78,6 +71,16 @@ export function VehicleTypesList({ vehicleTypes: initialVehicleTypes, flashSlug,
     />
     <Toast message={toast} onDismiss={dismissToast} />
     <AdminActionFeedback message={actionError} onDismiss={dismissActionError} />
+    <ConfirmDialog
+      open={deleteConfirm.pending !== null}
+      title={`Удалить тип техники «${deleteConfirm.pending?.name}»?`}
+      description={deleteConfirm.pending ? `${describeVehicleTypeUsage(deleteConfirm.pending)} Это действие необратимо.` : null}
+      cancelLabel="Отмена"
+      confirmLabel="Удалить"
+      tone="danger"
+      onCancel={deleteConfirm.cancel}
+      onConfirm={deleteConfirm.confirm}
+    />
     </>
   );
 }

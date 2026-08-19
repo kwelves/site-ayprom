@@ -64,6 +64,8 @@
   /* Вход выдвижной панели (QuickViewPanel) — та же кривая входа, что и у
      остальных панелей/дропдаунов. */
   --animate-slide-in-right: slide-in-right var(--transition-duration-base) var(--ease-ui) both;
+  /* Вход мобильного навигационного drawer'а (AdminMobileNav) слева. */
+  --animate-slide-in-left: slide-in-left var(--transition-duration-base) var(--ease-ui) both;
   /* Подсказка «прокрути вниз» под первым экраном. */
   --animate-nudge-down: nudge-down 1.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
   /* Бесконечное пульсирующее кольцо вокруг закреплённой кнопки WhatsApp. */
@@ -231,6 +233,13 @@ a {
 @keyframes slide-in-right {
   from {
     translate: 24px 0;
+    opacity: 0;
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    translate: -24px 0;
     opacity: 0;
   }
 }

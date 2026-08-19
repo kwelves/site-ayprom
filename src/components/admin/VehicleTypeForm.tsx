@@ -10,6 +10,7 @@ import { FormField } from "@/components/admin/ui/FormField";
 import { Input } from "@/components/admin/ui/Input";
 import { SubmitButton } from "@/components/admin/ui/SubmitButton";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
+import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
 import type { AdminVehicleType } from "@/lib/admin/queries";
 
 interface VehicleTypeFormProps {
@@ -22,6 +23,7 @@ export function VehicleTypeForm({ mode, vehicleType }: VehicleTypeFormProps) {
   const [slug, setSlug] = useState(vehicleType?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(false);
   const [dismissedError, setDismissedError] = useState<FormActionState>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   function handleNameChange(value: string) {
     setName(value);
@@ -30,15 +32,9 @@ export function VehicleTypeForm({ mode, vehicleType }: VehicleTypeFormProps) {
     }
   }
 
-  function handleDeleteVehicleType() {
+  function confirmDeleteVehicleType() {
     if (!vehicleType) return;
-    if (
-      !confirm(
-        `Удалить тип техники «${vehicleType.name}»?${describeVehicleTypeUsage(vehicleType)} Это действие необратимо.`
-      )
-    ) {
-      return;
-    }
+    setIsDeleteDialogOpen(false);
     deleteVehicleType(vehicleType.slug);
   }
 
@@ -86,13 +82,23 @@ export function VehicleTypeForm({ mode, vehicleType }: VehicleTypeFormProps) {
             {mode === "create" ? "Создать тип техники" : "Сохранить"}
           </SubmitButton>
           {mode === "edit" && (
-            <button type="button" onClick={handleDeleteVehicleType} className="text-sm text-danger hover:underline">
+            <button type="button" onClick={() => setIsDeleteDialogOpen(true)} className="text-sm text-danger hover:underline">
               Удалить тип техники
             </button>
           )}
         </div>
       </form>
       <AdminActionFeedback message={actionError} onDismiss={() => setDismissedError(formState)} />
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        title={`Удалить тип техники «${vehicleType?.name}»?`}
+        description={vehicleType ? `${describeVehicleTypeUsage(vehicleType)} Это действие необратимо.` : null}
+        cancelLabel="Отмена"
+        confirmLabel="Удалить"
+        tone="danger"
+        onCancel={() => setIsDeleteDialogOpen(false)}
+        onConfirm={confirmDeleteVehicleType}
+      />
     </div>
   );
 }

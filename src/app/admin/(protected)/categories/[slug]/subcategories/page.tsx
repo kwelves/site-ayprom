@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getAdminCategory, getAdminSubcategories } from "@/lib/admin/queries";
 import { SubcategoriesList } from "@/components/admin/SubcategoriesList";
-import { BackLink } from "@/components/admin/ui/BackLink";
+import { Breadcrumbs } from "@/components/admin/ui/Breadcrumbs";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export const revalidate = 0;
 
@@ -27,7 +28,13 @@ export default async function AdminSubcategoriesPage({ params, searchParams }: S
 
   return (
     <div>
-      <BackLink href={`/admin/categories/${slug}/edit`} label={category.name} />
+      <Breadcrumbs
+        items={[
+          { label: "Категории", href: "/admin/categories" },
+          { label: category.name, href: `/admin/categories/${slug}/edit` },
+          { label: "Подкатегории" },
+        ]}
+      />
 
       <div className="mt-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold text-foreground">Подкатегории: {category.name}</h1>
@@ -40,7 +47,12 @@ export default async function AdminSubcategoriesPage({ params, searchParams }: S
       </div>
 
       {subcategories.length === 0 ? (
-        <p className="mt-8 text-sm text-muted-foreground">Подкатегорий пока нет.</p>
+        <EmptyState
+          title="Подкатегорий пока нет"
+          description="Добавьте первую подкатегорию, чтобы распределять по ней товары."
+          actionHref={`/admin/categories/${slug}/subcategories/new`}
+          actionLabel="Добавить подкатегорию"
+        />
       ) : (
         <SubcategoriesList
           categorySlug={slug}
