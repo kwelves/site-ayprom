@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { getAuditLog, getAuditLogEntityTypes } from "@/lib/admin/queries";
 import { parseAdminPage } from "@/lib/admin/pagination";
-import { auditActionLabel, auditEntityLabel, auditChangedFieldsLabel } from "@/lib/admin/audit-labels";
+import { auditActionLabel, auditEntityLabel } from "@/lib/admin/audit-labels";
 import { AdminPagination } from "@/components/admin/AdminPagination";
 import { AuditFilterBar } from "@/components/admin/AuditFilterBar";
+import { AuditDiffDetail } from "@/components/admin/AuditDiffDetail";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -67,7 +68,11 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
         </p>
       ) : (
         <>
-          <div className="mt-6 overflow-x-auto">
+          {/* Таблица — от sm и шире, где строка с полным дифом умещается без
+              горизонтальной прокрутки. Ниже — карточный список: та же диагональная
+              прокрутка ради одной длинной ячейки "Что изменилось" на телефоне не
+              стоит того, а карточка читается вертикально естественно. */}
+          <div className="mt-6 hidden overflow-x-auto sm:block">
             <table className="w-full min-w-[52rem] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -99,13 +104,39 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
                       {entry.entityKey ?? "—"}
                     </td>
                     <td className="max-w-[20rem] break-words py-2.5 text-muted-foreground">
-                      {auditChangedFieldsLabel(entry.action, entry.changedFields)}
+                      <AuditDiffDetail entry={entry} />
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+
+          <div className="mt-6 flex flex-col gap-2 sm:hidden">
+            {log.items.map((entry) => (
+              <div key={entry.id} className="rounded-lg border border-border bg-card p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span
+                    className={cn(
+                      "inline-block rounded-full px-2 py-0.5 text-xs font-medium",
+                      ACTION_STYLES[entry.action] ?? "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {auditActionLabel(entry.action)}
+                  </span>
+                  <span className="whitespace-nowrap text-xs text-muted-foreground">
+                    {DATE_FORMAT.format(new Date(entry.occurredAt))}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm font-medium text-card-foreground">{auditEntityLabel(entry.entityType)}</p>
+                {entry.entityKey && <p className="mt-0.5 break-words font-mono text-xs text-muted-foreground">{entry.entityKey}</p>}
+                <div className="mt-2 text-sm">
+                  <AuditDiffDetail entry={entry} />
+                </div>
+              </div>
+            ))}
+          </div>
+
           <AdminPagination page={log.page} totalPages={log.totalPages} />
         </>
       )}

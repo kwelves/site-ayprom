@@ -42,3 +42,52 @@ export function auditChangedFieldsLabel(action: string, changedFields: string[])
   if (changedFields.length === 0) return "без изменений полей";
   return changedFields.join(", ");
 }
+
+export interface AuditFieldDiff {
+  field: string;
+  before: unknown;
+  after: unknown;
+}
+
+// Value-level diff for the expandable detail — null when there's nothing to
+// show beyond the plain field-name list (pre-migration rows have no
+// old_values/new_values, and a record with no changed fields has nothing to
+// expand either).
+export function auditFieldDiffs(entry: {
+  action: string;
+  changedFields: string[];
+  oldValues: Record<string, unknown> | null;
+  newValues: Record<string, unknown> | null;
+}): AuditFieldDiff[] | null {
+  const { action, changedFields, oldValues, newValues } = entry;
+  if (!oldValues && !newValues) return null;
+
+  if (action === "INSERT") {
+    const keys = Object.keys(newValues ?? {}).sort();
+    if (keys.length === 0) return null;
+    return keys.map((field) => ({ field, before: null, after: newValues?.[field] ?? null }));
+  }
+  if (action === "DELETE") {
+    const keys = Object.keys(oldValues ?? {}).sort();
+    if (keys.length === 0) return null;
+    return keys.map((field) => ({ field, before: oldValues?.[field] ?? null, after: null }));
+  }
+  if (changedFields.length === 0) return null;
+  return changedFields.map((field) => ({
+    field,
+    before: oldValues?.[field] ?? null,
+    after: newValues?.[field] ?? null,
+  }));
+}
+
+// Renders one diff value for display — covers the shapes jsonb columns
+// actually carry (primitives, arrays of strings for e.g. compatibleBrands
+// style join rows would need their own table, not this generic one).
+export function formatAuditValue(value: unknown): string {
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "boolean") return value ? "да" : "нет";
+  if (typeof value === "string") return value.trim() === "" ? "—" : value;
+  if (Array.isArray(value)) return value.length === 0 ? "—" : value.map(formatAuditValue).join(", ");
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}

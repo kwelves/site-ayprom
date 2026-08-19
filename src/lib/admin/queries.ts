@@ -50,6 +50,12 @@ export interface AuditLogEntry {
   entityType: string;
   entityKey: string | null;
   changedFields: string[];
+  /** Field values before the change — null for rows written before the
+   * before/after migration, or when the change had nothing to record
+   * (e.g. a DELETE's oldValues always has content, but INSERT's is always
+   * null since there was no prior row). */
+  oldValues: Record<string, unknown> | null;
+  newValues: Record<string, unknown> | null;
 }
 
 export interface AuditLogPage {
@@ -79,7 +85,7 @@ export async function getAuditLog(filters: AuditLogFilters = {}): Promise<AuditL
 
   let query = supabase
     .from("admin_audit_log")
-    .select("id, occurred_at, actor, action, entity_type, entity_key, changed_fields", { count: "exact" })
+    .select("id, occurred_at, actor, action, entity_type, entity_key, changed_fields, old_values, new_values", { count: "exact" })
     .order("occurred_at", { ascending: false })
     .order("id", { ascending: false })
     .range(from, from + pageSize - 1);
@@ -100,6 +106,8 @@ export async function getAuditLog(filters: AuditLogFilters = {}): Promise<AuditL
       entityType: row.entity_type as string,
       entityKey: (row.entity_key as string | null) ?? null,
       changedFields: (row.changed_fields as string[] | null) ?? [],
+      oldValues: (row.old_values as Record<string, unknown> | null) ?? null,
+      newValues: (row.new_values as Record<string, unknown> | null) ?? null,
     })),
     total,
     page,
