@@ -39,7 +39,7 @@ export function BrandsList({ brands: initialBrands, flashSlug, flashAction }: Br
       onReorder={handleReorder}
       highlightedKey={highlightedKey}
       renderItem={(brand) => (
-        <div className="flex items-start gap-3">
+        <div className="grid grid-cols-[5rem_minmax(0,1fr)] items-start gap-x-3 gap-y-3 md:flex md:gap-3">
           <div className="flex h-12 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/40">
             {/* eslint-disable-next-line @next/next/no-img-element -- brand logos are SVGs, possibly hosted on Supabase Storage (external host) */}
             <img
@@ -49,25 +49,27 @@ export function BrandsList({ brands: initialBrands, flashSlug, flashAction }: Br
               style={brand.logoScale ? { transform: `scale(${brand.logoScale})` } : undefined}
             />
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-card-foreground">{brand.name}</p>
-            {(brand.productCount > 0 || brand.categoryCount > 0) && (
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {brand.productCount} тов. / {brand.categoryCount} кат.
-              </p>
-            )}
-            <p className="mt-0.5 text-xs text-muted-foreground">{brand.country}</p>
-            <div className="mt-2 flex flex-wrap items-center gap-3">
+          <div className="contents md:block md:min-w-0 md:flex-1">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-card-foreground">{brand.name}</p>
+              {(brand.productCount > 0 || brand.categoryCount > 0) && (
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {brand.productCount} тов. / {brand.categoryCount} кат.
+                </p>
+              )}
+              <p className="mt-0.5 text-xs text-muted-foreground">{brand.country}</p>
+            </div>
+            <div className="col-span-2 grid grid-cols-2 gap-2 border-t border-border pt-3 md:mt-2 md:flex md:flex-wrap md:items-center md:gap-3 md:border-0 md:pt-0">
               <Link
                 href={`/admin/brands/${brand.slug}/edit`}
-                className="rounded-md border border-border px-3 py-1 text-sm font-medium text-primary transition-colors hover:border-border-interactive hover:bg-accent"
+                className="flex min-h-11 items-center justify-center rounded-md border border-border px-3 py-1 text-sm font-medium text-primary transition-colors hover:border-border-interactive hover:bg-accent md:min-h-0"
               >
                 Редактировать
               </Link>
               <button
                 type="button"
                 onClick={() => deleteConfirm.request(brand)}
-                className="rounded-md border border-danger-border px-3 py-1 text-sm font-medium text-danger transition-colors hover:bg-danger-surface"
+                className="flex min-h-11 items-center justify-center rounded-md border border-danger-border px-3 py-1 text-sm font-medium text-danger transition-colors hover:bg-danger-surface md:min-h-0"
               >
                 Удалить
               </button>

@@ -25,8 +25,9 @@ describe("мобильная строка товара в админке", () =>
     expect(sortableList).toContain("min-h-11 min-w-8");
   });
 
-  it("не показывает на телефоне drag-handle, дублирующий стрелки порядка", () => {
-    expect(sortableList).toContain('stepButtons && "hidden md:block"');
+  it("собирает стрелки и drag-handle в одну мобильную рейку", () => {
+    expect(sortableList).toContain('className="flex shrink-0 flex-col items-center md:contents"');
+    expect(sortableList).toContain('aria-label="Перетащить для изменения порядка"');
     expect(sortableList).toContain('aria-label="Переместить выше"');
     expect(sortableList).toContain('aria-label="Переместить ниже"');
   });

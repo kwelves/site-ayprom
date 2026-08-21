@@ -44,8 +44,23 @@ export function VehicleHotspotPreview({ vehicleTypeSlug, hotspots }: VehicleHots
             scripts/generate-vehicle-webp.mjs) — `unoptimized` for the same
             reason it's used there: this is already the exact file to serve,
             not something next/image needs to resize or re-encode. */}
-        <Image src={visual.image} alt="" fill unoptimized className="object-contain" />
-        {hotspots.map((hotspot) => (
+        {containRect.width > 0 && (
+          <Image
+            src={visual.image}
+            alt=""
+            width={Math.round(containRect.width)}
+            height={Math.round(containRect.height)}
+            unoptimized
+            className="absolute max-w-none"
+            style={{
+              left: containRect.left,
+              top: containRect.top,
+              width: containRect.width,
+              height: containRect.height,
+            }}
+          />
+        )}
+        {containRect.width > 0 && hotspots.map((hotspot) => (
           <div
             key={hotspot.id}
             aria-hidden="true"

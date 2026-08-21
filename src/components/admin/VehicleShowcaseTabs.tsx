@@ -60,7 +60,11 @@ export function VehicleShowcaseTabs({
       ) : (
         <>
           <div className="mt-6">
-            <VehicleHotspotPreview vehicleTypeSlug={selectedVehicle.slug} hotspots={selectedHotspots} />
+            <VehicleHotspotPreview
+              key={selectedVehicle.slug}
+              vehicleTypeSlug={selectedVehicle.slug}
+              hotspots={selectedHotspots}
+            />
           </div>
           <VehicleShowcaseEditor
             key={selectedVehicle.slug}

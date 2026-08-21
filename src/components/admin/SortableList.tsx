@@ -222,6 +222,18 @@ function SortableRow({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = { transform: CSS.Transform.toString(transform), transition };
+  const dragHandle = (
+    <button
+      type="button"
+      data-admin-press-feedback="tone-only"
+      {...attributes}
+      {...listeners}
+      aria-label="Перетащить для изменения порядка"
+      className="flex min-h-11 min-w-8 shrink-0 touch-none items-center justify-center rounded text-faint-foreground transition-colors hover:bg-accent hover:text-muted-foreground active:cursor-grabbing md:-m-2 md:min-h-0 md:min-w-0 md:cursor-grab md:p-2"
+    >
+      <GripVertical className="h-4 w-4" />
+    </button>
+  );
 
   return (
     <div
@@ -234,27 +246,17 @@ function SortableRow({
         highlighted && "border-border-interactive bg-accent"
       )}
     >
-      {stepButtons && (
-        <StepButtons
-          onMoveUp={stepButtons.onMoveUp}
-          onMoveDown={stepButtons.onMoveDown}
-          disabledUp={stepButtons.disabledUp}
-          disabledDown={stepButtons.disabledDown}
-        />
-      )}
-      <button
-        type="button"
-        data-admin-press-feedback="tone-only"
-        {...attributes}
-        {...listeners}
-        aria-label="Перетащить для изменения порядка"
-        className={cn(
-          "-m-2 shrink-0 cursor-grab touch-none p-2 text-faint-foreground transition-colors hover:text-muted-foreground active:cursor-grabbing",
-          stepButtons && "hidden md:block",
-        )}
-      >
-        <GripVertical className="h-4 w-4" />
-      </button>
+      {stepButtons ? (
+        <div className="flex shrink-0 flex-col items-center md:contents">
+          <StepButtons
+            onMoveUp={stepButtons.onMoveUp}
+            onMoveDown={stepButtons.onMoveDown}
+            disabledUp={stepButtons.disabledUp}
+            disabledDown={stepButtons.disabledDown}
+          />
+          {dragHandle}
+        </div>
+      ) : dragHandle}
       <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
