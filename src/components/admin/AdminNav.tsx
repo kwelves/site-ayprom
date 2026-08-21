@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Package, Truck, Tag, Wrench, LayoutGrid, Upload, ScrollText, KeyRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +34,11 @@ interface AdminNavProps {
 // section the admin is currently in.
 export function AdminNav({ variant = "inline", onNavigate }: AdminNavProps) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  function warmRoute(href: string) {
+    if (!isNavItemActive(pathname, href)) router.prefetch(href);
+  }
 
   if (variant === "sidebar") {
     return (
@@ -47,6 +52,8 @@ export function AdminNav({ variant = "inline", onNavigate }: AdminNavProps) {
               href={item.href}
               aria-current={active ? "page" : undefined}
               onClick={onNavigate}
+              onPointerEnter={() => warmRoute(item.href)}
+              onFocus={() => warmRoute(item.href)}
               className={cn(
                 "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                 active
@@ -72,6 +79,8 @@ export function AdminNav({ variant = "inline", onNavigate }: AdminNavProps) {
             key={item.href}
             href={item.href}
             aria-current={active ? "page" : undefined}
+            onPointerEnter={() => warmRoute(item.href)}
+            onFocus={() => warmRoute(item.href)}
             className={cn(
               "transition-colors hover:text-primary",
               active ? "font-semibold text-primary" : "text-muted-foreground"

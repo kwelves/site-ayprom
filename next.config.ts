@@ -10,6 +10,15 @@ const contentSecurityPolicy = buildContentSecurityPolicy({
 });
 
 const nextConfig: NextConfig = {
+  // Admin pages are dynamic, so Next.js 16 otherwise discards their client
+  // route payload immediately (dynamic stale time defaults to zero). A short
+  // Router Cache window makes back/forward navigation and recently visited
+  // tabs instant; Server Actions already call revalidatePath after writes.
+  experimental: {
+    staleTimes: {
+      dynamic: 30,
+    },
+  },
   // sharp — нативный модуль (.node/.so). Turbopack пытается его забандлить и
   // теряет платформенный бинарник (linux-x64) при трассировке для serverless-
   // функций Vercel, из-за чего /admin/* падал с ERR_DLOPEN_FAILED. Эта опция

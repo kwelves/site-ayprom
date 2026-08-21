@@ -6,6 +6,16 @@ import { constantTimePasswordEqual, verifyAdminPasswordHash } from "@/lib/admin/
 
 const PRIMARY_CREDENTIAL_KEY = "primary";
 const INITIAL_CREDENTIAL_VERSION = 1;
+// Proxy runs for navigations and Next.js prefetches. Hitting Supabase for the
+// same credential version on every one of those requests adds a full network
+// round trip before the page can even start rendering. Keep the fail-closed
+// database check, but share its result briefly inside each warm server
+// instance. Password changes invalidate the local entry immediately; other
+// instances can retain the old version for at most this small window.
+const CREDENTIAL_VERSION_CACHE_MS = 10_000;
+
+let cachedCredentialVersion: { value: number; expiresAt: number } | null = null;
+let credentialVersionRequest: Promise<number> | null = null;
 
 interface AdminCredentialRow {
   password_hash: string;
@@ -59,7 +69,30 @@ export async function verifyAdminPassword(
 }
 
 export async function getAdminCredentialVersion(): Promise<number> {
-  return (await getAdminCredentialState()).sessionVersion;
+  const now = Date.now();
+  if (cachedCredentialVersion && cachedCredentialVersion.expiresAt > now) {
+    return cachedCredentialVersion.value;
+  }
+
+  if (!credentialVersionRequest) {
+    credentialVersionRequest = getAdminCredentialState()
+      .then((state) => {
+        cachedCredentialVersion = {
+          value: state.sessionVersion,
+          expiresAt: Date.now() + CREDENTIAL_VERSION_CACHE_MS,
+        };
+        return state.sessionVersion;
+      })
+      .finally(() => {
+        credentialVersionRequest = null;
+      });
+  }
+
+  return credentialVersionRequest;
+}
+
+export function invalidateAdminCredentialVersionCache(): void {
+  cachedCredentialVersion = null;
 }
 
 export async function replaceAdminPasswordHash(
@@ -79,6 +112,7 @@ export async function replaceAdminPasswordHash(
     const { error } = await supabase.from("admin_credentials").insert(values);
     if (error?.code === "23505") throw new AdminCredentialConflictError();
     if (error) throw new Error("Не удалось сохранить новый пароль.");
+    invalidateAdminCredentialVersionCache();
     return nextVersion;
   }
 
@@ -91,5 +125,6 @@ export async function replaceAdminPasswordHash(
     .maybeSingle();
   if (error) throw new Error("Не удалось сохранить новый пароль.");
   if (!data) throw new AdminCredentialConflictError();
+  invalidateAdminCredentialVersionCache();
   return nextVersion;
 }

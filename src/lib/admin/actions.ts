@@ -14,10 +14,10 @@ import { slugify } from "@/lib/admin/slugify";
 import { registerLoginAttempt } from "@/lib/admin/login-rate-limit";
 import {
   AdminCredentialConflictError,
+  getAdminCredentialVersion,
   getAdminCredentialState,
   replaceAdminPasswordHash,
   verifyAdminPassword,
-  type AdminCredentialState,
 } from "@/lib/admin/credentials";
 import {
   constantTimePasswordEqual,
@@ -127,19 +127,18 @@ export async function logout(): Promise<void> {
 // Every product-mutating Server Action (task 14) calls this first — defense
 // in depth, since Server Actions are callable directly and don't pass
 // through middleware.
-export async function requireAdminSession(): Promise<AdminCredentialState> {
+export async function requireAdminSession(): Promise<void> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
   const payload = await getSessionPayload(token);
   if (!payload) {
     redirect("/admin/login");
   }
-  const credentialState = await getAdminCredentialState();
-  if (payload.credentialVersion !== credentialState.sessionVersion) {
+  const credentialVersion = await getAdminCredentialVersion();
+  if (payload.credentialVersion !== credentialVersion) {
     cookieStore.delete(SESSION_COOKIE_NAME);
     redirect("/admin/login?session=expired");
   }
-  return credentialState;
 }
 
 export type PasswordChangeState = { error: string } | null;
@@ -149,7 +148,10 @@ export async function changeAdminPassword(
   formData: FormData,
 ): Promise<PasswordChangeState> {
   try {
-    const credentialState = await requireAdminSession();
+    await requireAdminSession();
+    // Password verification needs the current hash, not just the briefly
+    // cached session version used by ordinary admin actions.
+    const credentialState = await getAdminCredentialState();
     const currentPassword = formData.get("currentPassword");
     const newPassword = formData.get("newPassword");
     const confirmation = formData.get("confirmPassword");

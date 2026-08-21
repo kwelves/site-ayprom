@@ -354,13 +354,15 @@ interface AdminVehicleHotspotRow {
 // deliberately not editable from this admin surface — x_pct/y_pct are read
 // here only so VehicleHotspotPreview can show admins where each point
 // actually sits; the editor form below it still only writes label/product.
-export async function getAdminVehicleHotspots(vehicleTypeSlug: string): Promise<AdminVehicleHotspot[]> {
+export async function getAdminVehicleHotspots(vehicleTypeSlug?: string): Promise<AdminVehicleHotspot[]> {
   const supabase = createAdminClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("vehicle_hotspots")
     .select("id, vehicle_type_slug, hotspot_number, label, x_pct, y_pct, products(id, slug, name, article)")
-    .eq("vehicle_type_slug", vehicleTypeSlug)
     .order("hotspot_number");
+  if (vehicleTypeSlug) query = query.eq("vehicle_type_slug", vehicleTypeSlug);
+
+  const { data, error } = await query;
   if (error) throw error;
 
   return (data as unknown as AdminVehicleHotspotRow[]).map((row) => ({
