@@ -79,7 +79,7 @@ export function SortableList<T>({
             key={getId(item)}
             data-flash-key={flashKeyOf(item)}
             className={cn(
-              "flex items-center gap-2 rounded-md border border-border bg-card p-2 transition-colors duration-fast ease-ui",
+              "flex items-start gap-2 rounded-md border border-border bg-card p-2 transition-colors duration-fast ease-ui md:items-center",
               highlightedKey === flashKeyOf(item) && "border-border-interactive bg-accent"
             )}
           >
@@ -126,13 +126,13 @@ function StepButtons({
   disabledDown: boolean;
 }) {
   return (
-    <div className="flex shrink-0 flex-col md:hidden">
+    <div className="flex shrink-0 flex-col gap-1 md:hidden">
       <button
         type="button"
         onClick={onMoveUp}
         disabled={disabledUp}
         aria-label="Переместить выше"
-        className="rounded p-1 text-faint-foreground transition-colors hover:text-muted-foreground disabled:pointer-events-none disabled:opacity-30"
+        className="flex min-h-11 min-w-8 items-center justify-center rounded text-faint-foreground transition-colors hover:bg-accent hover:text-muted-foreground disabled:pointer-events-none disabled:opacity-30"
       >
         <ChevronUp className="h-4 w-4" />
       </button>
@@ -141,7 +141,7 @@ function StepButtons({
         onClick={onMoveDown}
         disabled={disabledDown}
         aria-label="Переместить ниже"
-        className="rounded p-1 text-faint-foreground transition-colors hover:text-muted-foreground disabled:pointer-events-none disabled:opacity-30"
+        className="flex min-h-11 min-w-8 items-center justify-center rounded text-faint-foreground transition-colors hover:bg-accent hover:text-muted-foreground disabled:pointer-events-none disabled:opacity-30"
       >
         <ChevronDown className="h-4 w-4" />
       </button>
@@ -229,7 +229,7 @@ function SortableRow({
       style={style}
       data-flash-key={flashKey}
       className={cn(
-        "flex items-center gap-2 rounded-md border border-border bg-card p-2 transition-colors duration-fast ease-ui",
+        "flex items-start gap-2 rounded-md border border-border bg-card p-2 transition-colors duration-fast ease-ui md:items-center",
         isDragging && "opacity-50",
         highlighted && "border-border-interactive bg-accent"
       )}
@@ -248,7 +248,10 @@ function SortableRow({
         {...attributes}
         {...listeners}
         aria-label="Перетащить для изменения порядка"
-        className="-m-2 shrink-0 cursor-grab touch-none p-2 text-faint-foreground transition-colors hover:text-muted-foreground active:cursor-grabbing"
+        className={cn(
+          "-m-2 shrink-0 cursor-grab touch-none p-2 text-faint-foreground transition-colors hover:text-muted-foreground active:cursor-grabbing",
+          stepButtons && "hidden md:block",
+        )}
       >
         <GripVertical className="h-4 w-4" />
       </button>

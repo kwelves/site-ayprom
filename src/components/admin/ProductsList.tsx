@@ -197,13 +197,14 @@ export function ProductsList({ products: initialProducts, reorderDisabled, flash
         enableStepButtons
         highlightedKey={highlightedKey}
         renderItem={(product) => (
-        <div className="flex items-start gap-3">
+        <div className="grid grid-cols-[2.75rem_3rem_minmax(0,1fr)] items-start gap-x-2.5 gap-y-3 md:flex md:gap-3">
           <Checkbox
             label=""
             aria-label={`Выделить товар «${product.name}»`}
             checked={selected.has(product.slug)}
             onChange={() => toggleSelected(product.slug)}
-            className="mt-1"
+            containerClassName="min-h-11 justify-center md:min-h-0 md:justify-start"
+            className="h-5 w-5 md:mt-1 md:h-4 md:w-4"
           />
           <button
             type="button"
@@ -215,24 +216,26 @@ export function ProductsList({ products: initialProducts, reorderDisabled, flash
               <Image src={product.coverImage} alt="" width={48} height={48} className="h-full w-full object-contain" />
             )}
           </button>
-          <div className="min-w-0 flex-1">
-            <button type="button" onClick={() => setQuickViewProduct(product)} className="text-left">
-              <p className="text-sm font-medium text-card-foreground hover:underline">{product.name}</p>
-            </button>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {product.categoryName}
-              {product.article && ` · Арт. ${product.article}`}
-              {" · изменено "}
-              {UPDATED_DATE_FORMAT.format(new Date(product.updatedAt))}
-            </p>
-            <div className="mt-2 flex flex-wrap items-center gap-3">
+          <div className="contents md:block md:min-w-0 md:flex-1">
+            <div className="min-w-0">
+              <button type="button" onClick={() => setQuickViewProduct(product)} className="w-full text-left">
+                <p className="text-sm font-medium leading-snug text-card-foreground hover:underline">{product.name}</p>
+              </button>
+              <p className="mt-1 text-xs leading-snug text-muted-foreground">
+                {product.categoryName}
+                {product.article && ` · Арт. ${product.article}`}
+                {" · изменено "}
+                {UPDATED_DATE_FORMAT.format(new Date(product.updatedAt))}
+              </p>
+            </div>
+            <div className="col-span-3 grid grid-cols-2 gap-2 border-t border-border pt-3 min-[380px]:grid-cols-[auto_minmax(0,1fr)_auto] md:mt-2 md:flex md:flex-wrap md:items-center md:gap-3 md:border-0 md:pt-0">
               <button
                 type="button"
                 onClick={() => handleTogglePublished(product, !product.published)}
                 aria-pressed={product.published}
                 aria-label={`Переключить публикацию товара «${product.name}»`}
                 className={cn(
-                  "overflow-hidden rounded-full px-2.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+                  "col-span-2 row-start-1 min-h-11 justify-self-start overflow-hidden rounded-full px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 min-[380px]:col-span-1 min-[380px]:col-start-1 md:min-h-0",
                   product.published
                     ? "bg-success-surface text-success hover:bg-success-surface-hover"
                     : "bg-warning-surface text-warning hover:bg-warning-surface-hover"
@@ -255,17 +258,19 @@ export function ProductsList({ products: initialProducts, reorderDisabled, flash
                 options={AVAILABILITY_OPTIONS}
                 value={product.availability}
                 onChange={(next) => handleAvailabilityChange(product, next)}
+                className="col-span-2 row-start-2 flex w-full flex-nowrap min-[380px]:col-span-3 [&>button]:min-h-11 [&>button]:min-w-0 [&>button]:flex-1 [&>button]:px-2 md:w-auto md:[&>button]:min-h-0 md:[&>button]:flex-none md:[&>button]:px-2.5"
               />
               <Link
                 href={`/admin/products/${product.slug}/edit`}
-                className="rounded-md border border-border px-3 py-1 text-sm font-medium text-primary transition-colors hover:border-border-interactive hover:bg-accent"
+                className="col-start-1 row-start-3 flex min-h-11 items-center justify-center rounded-md border border-border px-3 py-1 text-sm font-medium text-primary transition-colors hover:border-border-interactive hover:bg-accent min-[380px]:col-start-2 min-[380px]:row-start-1 md:min-h-0"
               >
-                Редактировать
+                <span className="md:hidden">Изменить</span>
+                <span className="hidden md:inline">Редактировать</span>
               </Link>
               <button
                 type="button"
                 onClick={() => deleteConfirm.request(product)}
-                className="rounded-md border border-danger-border px-3 py-1 text-sm font-medium text-danger transition-colors hover:bg-danger-surface"
+                className="col-start-2 row-start-3 flex min-h-11 items-center justify-center rounded-md border border-danger-border px-3 py-1 text-sm font-medium text-danger transition-colors hover:bg-danger-surface min-[380px]:col-start-3 min-[380px]:row-start-1 md:min-h-0"
               >
                 Удалить
               </button>
