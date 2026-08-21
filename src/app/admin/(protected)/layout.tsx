@@ -8,7 +8,7 @@ import { AdminMobileNav } from "@/components/admin/AdminMobileNav";
 //
 // Persistent left sidebar from `lg` up (Linear/Stripe-style — always
 // visible, no need to open anything to switch section); below that, a
-// hamburger + drawer (AdminMobileNav) replaces it, since 7 sections don't
+// hamburger + drawer (AdminMobileNav) replaces it, since 8 sections don't
 // fit a bottom tab bar without truncation.
 export default function ProtectedAdminLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (

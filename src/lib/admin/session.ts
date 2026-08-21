@@ -14,9 +14,15 @@ export const SESSION_DURATION_SECONDS = 60 * 60 * 8; // 8 hours
 export const SESSION_REFRESH_THRESHOLD_SECONDS = 60 * 60; // refresh during the final hour
 const SESSION_ABSOLUTE_DURATION_SECONDS = 60 * 60 * 24 * 30; // force a new login after 30 days
 
-interface SessionPayload {
+export interface SessionPayload {
   iat: number;
   exp: number;
+  credentialVersion: number;
+}
+
+interface CreateSessionTokenOptions {
+  originalIssuedAt?: number;
+  credentialVersion?: number;
 }
 
 function bufferToBase64Url(buffer: ArrayBuffer): string {
@@ -42,12 +48,16 @@ async function getHmacKey(): Promise<CryptoKey> {
   ]);
 }
 
-export async function createSessionToken(originalIssuedAt = Date.now()): Promise<string> {
+export async function createSessionToken({
+  originalIssuedAt = Date.now(),
+  credentialVersion = 1,
+}: CreateSessionTokenOptions = {}): Promise<string> {
   const now = Date.now();
   const absoluteExpiration = originalIssuedAt + SESSION_ABSOLUTE_DURATION_SECONDS * 1000;
   const payload = JSON.stringify({
     iat: originalIssuedAt,
     exp: Math.min(now + SESSION_DURATION_SECONDS * 1000, absoluteExpiration),
+    credentialVersion,
   });
   const payloadB64 = bufferToBase64Url(new TextEncoder().encode(payload).buffer);
   const key = await getHmacKey();
@@ -70,9 +80,22 @@ export async function getSessionPayload(token: string | undefined): Promise<Sess
     );
     if (!valid) return null;
 
-    const payload = JSON.parse(new TextDecoder().decode(base64UrlToBuffer(payloadB64))) as SessionPayload;
+    const parsed = JSON.parse(new TextDecoder().decode(base64UrlToBuffer(payloadB64))) as Partial<SessionPayload>;
     const now = Date.now();
-    const hasValidShape = Number.isFinite(payload.iat) && Number.isFinite(payload.exp) && payload.iat <= payload.exp;
+    // Tokens created before credential versioning are version 1. This keeps
+    // every current production session valid until a password is actually
+    // changed, at which point the database version increments to 2.
+    const payload: SessionPayload = {
+      iat: parsed.iat ?? Number.NaN,
+      exp: parsed.exp ?? Number.NaN,
+      credentialVersion: parsed.credentialVersion ?? 1,
+    };
+    const hasValidShape =
+      Number.isFinite(payload.iat) &&
+      Number.isFinite(payload.exp) &&
+      Number.isSafeInteger(payload.credentialVersion) &&
+      payload.credentialVersion >= 1 &&
+      payload.iat <= payload.exp;
     const withinAbsoluteLifetime = now - payload.iat <= SESSION_ABSOLUTE_DURATION_SECONDS * 1000;
     return hasValidShape && payload.exp > now && withinAbsoluteLifetime ? payload : null;
   } catch {

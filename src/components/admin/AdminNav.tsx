@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Package, Truck, Tag, Wrench, LayoutGrid, Upload, ScrollText } from "lucide-react";
+import { Package, Truck, Tag, Wrench, LayoutGrid, Upload, ScrollText, KeyRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const NAV_ITEMS = [
@@ -13,6 +13,7 @@ export const NAV_ITEMS = [
   { href: "/admin/categories", label: "Категории", icon: LayoutGrid },
   { href: "/admin/import", label: "Импорт", icon: Upload },
   { href: "/admin/audit", label: "Журнал", icon: ScrollText },
+  { href: "/admin/security", label: "Пароль", icon: KeyRound },
 ] as const;
 
 function isNavItemActive(pathname: string, href: string): boolean {

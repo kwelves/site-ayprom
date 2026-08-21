@@ -1,6 +1,6 @@
 begin;
 
-select plan(10);
+select plan(15);
 
 select has_table('public', 'products', 'products table exists');
 select has_function(
@@ -10,6 +10,26 @@ select has_function(
   'catalog search RPC exists'
 );
 select has_table('public', 'admin_audit_log', 'admin audit log exists');
+select has_table('public', 'admin_credentials', 'admin credentials table exists');
+select ok(
+  (select relrowsecurity from pg_class where oid = 'public.admin_credentials'::regclass),
+  'admin credentials has RLS enabled'
+);
+select is(
+  has_table_privilege('anon', 'public.admin_credentials', 'select'),
+  false,
+  'anon cannot read admin credentials'
+);
+select is(
+  has_table_privilege('authenticated', 'public.admin_credentials', 'select'),
+  false,
+  'authenticated cannot read admin credentials'
+);
+select is(
+  has_table_privilege('service_role', 'public.admin_credentials', 'update'),
+  true,
+  'service role can update admin credentials'
+);
 
 insert into public.products (
   slug,

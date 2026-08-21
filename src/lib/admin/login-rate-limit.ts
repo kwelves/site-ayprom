@@ -25,21 +25,12 @@ async function sha256(value: string): Promise<Uint8Array> {
   return new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)));
 }
 
-export async function constantTimePasswordEqual(provided: string, expected: string): Promise<boolean> {
-  const [providedDigest, expectedDigest] = await Promise.all([sha256(provided), sha256(expected)]);
-  let difference = 0;
-  for (let index = 0; index < expectedDigest.length; index += 1) {
-    difference |= providedDigest[index] ^ expectedDigest[index];
-  }
-  return difference === 0;
-}
-
-async function getAttemptKeyHash(): Promise<string> {
+async function getAttemptKeyHash(scope: "login" | "password-change"): Promise<string> {
   const requestHeaders = await headers();
   const forwardedFor = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim();
   const address = forwardedFor || requestHeaders.get("x-real-ip") || "unknown";
   const secret = requireServerEnv("ADMIN_SESSION_SECRET");
-  const digest = await sha256(`${secret}:${address}`);
+  const digest = await sha256(`${secret}:${scope}:${address}`);
   return Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
@@ -63,8 +54,11 @@ function registerFallbackAttempt(keyHash: string, passwordIsValid: boolean): num
   return blockedUntil ? Math.ceil((blockedUntil - now) / 1000) : 0;
 }
 
-export async function registerLoginAttempt(passwordIsValid: boolean): Promise<number> {
-  const keyHash = await getAttemptKeyHash();
+export async function registerLoginAttempt(
+  passwordIsValid: boolean,
+  scope: "login" | "password-change" = "login",
+): Promise<number> {
+  const keyHash = await getAttemptKeyHash(scope);
   const supabase = createAdminClient();
   const { data, error } = await supabase.rpc("register_admin_login_attempt", {
     attempt_key_hash: keyHash,

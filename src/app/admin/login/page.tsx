@@ -10,11 +10,11 @@ export const metadata: Metadata = {
 };
 
 interface LoginPageProps {
-  searchParams: Promise<{ error?: string; retry?: string }>;
+  searchParams: Promise<{ error?: string; retry?: string; changed?: string; session?: string }>;
 }
 
 export default async function AdminLoginPage({ searchParams }: LoginPageProps) {
-  const { error, retry } = await searchParams;
+  const { error, retry, changed, session } = await searchParams;
   const parsedRetry = Number(retry ?? 0);
   const retryMinutes = Number.isFinite(parsedRetry) ? Math.max(1, Math.ceil(parsedRetry / 60)) : 15;
 
@@ -38,6 +38,24 @@ export default async function AdminLoginPage({ searchParams }: LoginPageProps) {
               Неверный пароль. Проверьте ввод и повторите попытку.
             </p>
           )
+        )}
+
+        {changed === "1" && (
+          <p className="mt-3 text-sm text-success" role="status">
+            Пароль изменён. Войдите с новым паролем.
+          </p>
+        )}
+
+        {session === "expired" && (
+          <p className="mt-3 text-sm text-muted-foreground" role="status">
+            Сессия завершена после смены пароля. Войдите снова.
+          </p>
+        )}
+
+        {session === "unavailable" && (
+          <p className="mt-3 text-sm text-danger" role="alert">
+            Не удалось проверить сессию. Повторите вход через несколько секунд.
+          </p>
         )}
 
         <LoginSubmitButton />

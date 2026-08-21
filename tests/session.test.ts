@@ -10,7 +10,12 @@ describe("административная сессия", () => {
   it("принимает корректно подписанный токен", async () => {
     const token = await createSessionToken();
     expect(await verifySessionToken(token)).toBe(true);
-    expect(await getSessionPayload(token)).not.toBeNull();
+    expect((await getSessionPayload(token))?.credentialVersion).toBe(1);
+  });
+
+  it("сохраняет версию учётных данных в подписанной сессии", async () => {
+    const token = await createSessionToken({ credentialVersion: 7 });
+    expect((await getSessionPayload(token))?.credentialVersion).toBe(7);
   });
 
   it("отклоняет изменённую подпись", async () => {

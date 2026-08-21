@@ -5,14 +5,25 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import {
   createSessionToken,
-  verifySessionToken,
+  getSessionPayload,
   SESSION_COOKIE_NAME,
   SESSION_DURATION_SECONDS,
 } from "@/lib/admin/session";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireServerEnv } from "@/lib/env";
 import { slugify } from "@/lib/admin/slugify";
-import { constantTimePasswordEqual, registerLoginAttempt } from "@/lib/admin/login-rate-limit";
+import { registerLoginAttempt } from "@/lib/admin/login-rate-limit";
+import {
+  AdminCredentialConflictError,
+  getAdminCredentialState,
+  replaceAdminPasswordHash,
+  verifyAdminPassword,
+  type AdminCredentialState,
+} from "@/lib/admin/credentials";
+import {
+  constantTimePasswordEqual,
+  hashAdminPassword,
+  validateNewAdminPassword,
+} from "@/lib/admin/password-credential";
 import { MAX_PRODUCT_IMAGES, validateProductImage } from "@/lib/admin/image-validation";
 import { ADMIN_PAGE_SIZE } from "@/lib/admin/pagination";
 import { convertBufferToWebp, enhanceProductPhotoBuffer } from "@/lib/admin/enhance-product-photo";
@@ -83,10 +94,8 @@ async function runFormAction(fn: () => Promise<void>): Promise<FormActionState> 
 
 export async function login(formData: FormData): Promise<void> {
   const password = formData.get("password");
-  const expectedPassword = requireServerEnv("ADMIN_PASSWORD");
-
-  const passwordIsValid =
-    typeof password === "string" && (await constantTimePasswordEqual(password, expectedPassword));
+  const credentialState = await getAdminCredentialState();
+  const passwordIsValid = typeof password === "string" && (await verifyAdminPassword(password, credentialState));
   const retryAfter = await registerLoginAttempt(passwordIsValid);
 
   if (retryAfter > 0) {
@@ -96,7 +105,7 @@ export async function login(formData: FormData): Promise<void> {
     redirect("/admin/login?error=1");
   }
 
-  const token = await createSessionToken();
+  const token = await createSessionToken({ credentialVersion: credentialState.sessionVersion });
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
@@ -118,11 +127,67 @@ export async function logout(): Promise<void> {
 // Every product-mutating Server Action (task 14) calls this first — defense
 // in depth, since Server Actions are callable directly and don't pass
 // through middleware.
-export async function requireAdminSession(): Promise<void> {
+export async function requireAdminSession(): Promise<AdminCredentialState> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-  if (!(await verifySessionToken(token))) {
+  const payload = await getSessionPayload(token);
+  if (!payload) {
     redirect("/admin/login");
+  }
+  const credentialState = await getAdminCredentialState();
+  if (payload.credentialVersion !== credentialState.sessionVersion) {
+    cookieStore.delete(SESSION_COOKIE_NAME);
+    redirect("/admin/login?session=expired");
+  }
+  return credentialState;
+}
+
+export type PasswordChangeState = { error: string } | null;
+
+export async function changeAdminPassword(
+  _previousState: PasswordChangeState,
+  formData: FormData,
+): Promise<PasswordChangeState> {
+  try {
+    const credentialState = await requireAdminSession();
+    const currentPassword = formData.get("currentPassword");
+    const newPassword = formData.get("newPassword");
+    const confirmation = formData.get("confirmPassword");
+
+    if (
+      typeof currentPassword !== "string" ||
+      typeof newPassword !== "string" ||
+      typeof confirmation !== "string"
+    ) {
+      return { error: "Заполните все поля формы." };
+    }
+
+    const validationError = validateNewAdminPassword(newPassword, confirmation);
+    if (validationError) return { error: validationError };
+
+    const currentPasswordIsValid = await verifyAdminPassword(currentPassword, credentialState);
+    const retryAfter = await registerLoginAttempt(currentPasswordIsValid, "password-change");
+    if (retryAfter > 0) {
+      const retryMinutes = Math.max(1, Math.ceil(retryAfter / 60));
+      return { error: `Слишком много попыток. Повторите примерно через ${retryMinutes} мин.` };
+    }
+    if (!currentPasswordIsValid) return { error: "Текущий пароль указан неверно." };
+    if (await constantTimePasswordEqual(newPassword, currentPassword)) {
+      return { error: "Новый пароль должен отличаться от текущего." };
+    }
+
+    const passwordHash = await hashAdminPassword(newPassword);
+    await replaceAdminPasswordHash(passwordHash, credentialState.sessionVersion);
+
+    const cookieStore = await cookies();
+    cookieStore.delete(SESSION_COOKIE_NAME);
+    redirect("/admin/login?changed=1");
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    if (error instanceof AdminCredentialConflictError) {
+      return { error: "Пароль уже изменён в другой сессии. Войдите снова." };
+    }
+    return { error: getErrorMessage(error, "Не удалось изменить пароль.") };
   }
 }
 
