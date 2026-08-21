@@ -32,11 +32,15 @@ const product: HotspotProduct = {
 };
 
 describe("ProductPanel", () => {
-  it("keeps a stable mobile media frame and exposes separate 44px gallery controls", () => {
+  it("keeps a compact landscape mobile media frame and exposes separate 44px gallery controls", () => {
     render(<ProductPanel label="Гидронасос" product={product} vehicleTypeSlug="samosval" />);
 
     const media = screen.getByTestId("product-panel-media");
-    expect([...media.classList]).toEqual(expect.arrayContaining(["aspect-square", "w-full", "max-w-[220px]"]));
+    expect([...media.classList]).toEqual(expect.arrayContaining(["h-[168px]", "w-full", "max-w-[320px]", "sm:aspect-square"]));
+    expect(media.classList).not.toContain("aspect-square");
+    const image = screen.getByAltText(product.name);
+    expect([...image.classList]).toEqual(expect.arrayContaining(["object-cover", "p-0", "sm:object-contain"]));
+    expect([...image.parentElement!.classList]).toEqual(expect.arrayContaining(["scale-[1.18]", "sm:scale-100"]));
 
     const previous = screen.getByRole("button", { name: "Предыдущее фото" });
     const next = screen.getByRole("button", { name: "Следующее фото" });

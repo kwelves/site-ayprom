@@ -90,7 +90,7 @@ export const ProductPanel = forwardRef<HTMLDivElement, ProductPanelProps>(functi
     >
       {product ? (
         <>
-          <div className="relative flex min-h-0 flex-1 flex-col px-4 pt-12 pb-0 sm:px-6 sm:pt-[52px] lg:px-5">
+          <div className="relative flex min-h-0 flex-col px-4 pt-12 pb-0 sm:px-6 sm:pt-[52px] lg:flex-1 lg:px-5">
             <p className="absolute top-4 left-4 max-w-[calc(100%-4.5rem)] text-[13px] leading-[1.1] font-semibold tracking-wide text-primary uppercase sm:top-3 sm:left-6 sm:max-w-none lg:left-5">
               {label}
             </p>
@@ -104,11 +104,11 @@ export const ProductPanel = forwardRef<HTMLDivElement, ProductPanelProps>(functi
               <span className="sr-only sm:not-sr-only">Увеличить</span>
             </button>
 
-            <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto]">
+            <div className="grid min-h-0 grid-rows-[auto_auto] lg:flex-1 lg:grid-rows-[minmax(0,1fr)_auto]">
               <div className="flex min-h-0 items-center justify-center">
                 <motion.div
                   data-testid="product-panel-media"
-                  className="relative aspect-square w-full max-w-[220px] touch-pan-y overflow-hidden sm:max-w-[300px] lg:h-full lg:max-h-[320px] lg:w-auto lg:max-w-full"
+                  className="relative h-[168px] w-full max-w-[320px] touch-pan-y overflow-hidden sm:aspect-square sm:h-auto sm:max-w-[300px] lg:h-full lg:max-h-[320px] lg:w-auto lg:max-w-full"
                   drag={hasMultipleImages && isTouchDevice ? "x" : false}
                   dragConstraints={{ left: 0, right: 0 }}
                   dragElastic={0}
@@ -122,13 +122,13 @@ export const ProductPanel = forwardRef<HTMLDivElement, ProductPanelProps>(functi
                       initial="enter"
                       animate="center"
                       exit="exit"
-                      className="absolute inset-0"
+                      className="absolute inset-0 scale-[1.18] sm:scale-100"
                     >
                       <ImageFallback
                         src={currentImage?.url}
                         alt={product.name}
-                        sizes="(max-width: 639px) 260px, (max-width: 1023px) 300px, 320px"
-                        className="p-1"
+                        sizes="(max-width: 639px) 320px, (max-width: 1023px) 300px, 320px"
+                        className="object-cover p-0 sm:object-contain sm:p-1"
                         style={currentImage?.scale ? { transform: `scale(${currentImage.scale})` } : undefined}
                         priority={imageIndex === 0}
                       />
@@ -181,12 +181,12 @@ export const ProductPanel = forwardRef<HTMLDivElement, ProductPanelProps>(functi
               )}
             </div>
 
-            <div className="mt-1.5 pb-0 text-center lg:mt-2.5">
+            <div className="mt-0.5 pb-0 text-center sm:mt-1.5 lg:mt-2.5">
               <h3 className="text-base font-bold text-card-foreground lg:text-sm">{product.name}</h3>
             </div>
           </div>
 
-          <div className="mt-2 grid grid-cols-[1.15fr_0.85fr] gap-2 px-3 pb-3 lg:mt-2.5 lg:grid-cols-2">
+          <div className="mt-1.5 grid grid-cols-[1.15fr_0.85fr] gap-2 px-3 pb-3 sm:mt-2 lg:mt-2.5 lg:grid-cols-2">
             <Link
               href={`/product/${product.slug}`}
               className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-3 py-3 text-center text-sm font-semibold text-primary-foreground transition-[background-color,scale] duration-fast ease-ui hover:bg-primary-hover active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 lg:min-h-0 lg:py-2.5 lg:text-xs"
