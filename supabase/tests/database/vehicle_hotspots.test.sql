@@ -23,7 +23,7 @@ as $function$
       'id', hotspot.id,
       'label', case when hotspot.hotspot_number = 1 and first_label is not null then first_label else hotspot.label end,
       'productId', case
-        when hotspot.hotspot_number = 1 and first_product_slug is not null then (
+        when hotspot.hotspot_number = 1 then (
           select product.id from public.products as product where product.slug = first_product_slug
         )
         else hotspot.product_id
