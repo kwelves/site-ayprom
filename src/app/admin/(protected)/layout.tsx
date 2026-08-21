@@ -12,17 +12,20 @@ import { AdminMobileNav } from "@/components/admin/AdminMobileNav";
 // fit a bottom tab bar without truncation.
 export default function ProtectedAdminLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <div className="flex min-h-screen">
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-card lg:flex">
+    <div data-testid="admin-shell" className="flex min-h-dvh">
+      <aside
+        data-testid="admin-sidebar"
+        className="hidden w-60 shrink-0 flex-col border-r border-border bg-card lg:sticky lg:top-0 lg:flex lg:h-dvh lg:self-start"
+      >
         <div className="border-b border-border px-4 py-4">
           <Link href="/admin/products" className="text-sm font-semibold text-card-foreground">
             AYPROM — Админка
           </Link>
         </div>
-        <nav className="flex flex-1 flex-col gap-1 p-3">
+        <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-3">
           <AdminNav variant="sidebar" />
         </nav>
-        <form action={logout} className="border-t border-border p-3">
+        <form action={logout} data-testid="admin-logout" className="shrink-0 border-t border-border p-3">
           <button
             type="submit"
             className="w-full rounded-md px-3 py-2 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-card-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"

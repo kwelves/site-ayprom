@@ -97,7 +97,7 @@ export function AdminMobileNav() {
             <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
               <AdminNav variant="sidebar" onNavigate={close} />
             </nav>
-            <form action={logout} className="border-t border-border p-3">
+            <form action={logout} className="shrink-0 border-t border-border p-3">
               <button
                 type="submit"
                 className="w-full rounded-md px-3 py-2 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-card-foreground"
