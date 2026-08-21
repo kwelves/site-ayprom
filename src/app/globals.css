@@ -52,6 +52,7 @@
      (высота мобильной панели), а не для отклика на нажатие. */
   --ease-ui-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 
+  --transition-duration-press: 90ms; /* непосредственный отклик на touch/click */
   --transition-duration-fast: 150ms; /* цвет, hover, микрообратная связь */
   --transition-duration-base: 200ms; /* вход панелей, дропдаунов, смена фото */
   --transition-duration-slow: 280ms; /* изменение высоты, крупные перемещения */
@@ -188,6 +189,47 @@ a {
   touch-action: manipulation;
 }
 
+/*
+ * Единый отклик на нажатие в админке. Он включается либо в мобильном layout,
+ * либо на устройстве с coarse pointer независимо от ширины экрана. `scale` —
+ * самостоятельное CSS-свойство, поэтому не перезаписывает transform у
+ * модальных окон и строк, которые двигает dnd-kit.
+ */
+@media (max-width: 63.999rem), (hover: none) and (pointer: coarse) {
+  [data-admin-root] {
+    --admin-press-scale: 0.97;
+  }
+
+  [data-admin-root]
+    :where(
+      button:not(:disabled),
+      a[href]:not([aria-disabled="true"]),
+      input:is([type="button"], [type="submit"], [type="reset"]):not(:disabled),
+      [role="button"]:not([aria-disabled="true"])
+    ) {
+    -webkit-tap-highlight-color: transparent;
+    transition-duration: var(--transition-duration-press);
+    transition-property: color, background-color, border-color, opacity, filter, scale;
+    transition-timing-function: var(--ease-ui);
+  }
+
+  [data-admin-root]
+    :where(
+      button:not(:disabled),
+      a[href]:not([aria-disabled="true"]),
+      input:is([type="button"], [type="submit"], [type="reset"]):not(:disabled),
+      [role="button"]:not([aria-disabled="true"])
+    ):active {
+    filter: brightness(0.92);
+    scale: var(--admin-press-scale);
+  }
+
+  /* Удержание drag-handle подтверждаем тоном, не уменьшая сам захват. */
+  [data-admin-root] [data-admin-press-feedback="tone-only"]:active {
+    scale: 1;
+  }
+}
+
 :where(h1, h2, h3, h4, h5, h6)[id] {
   scroll-margin-top: 5rem;
 }
@@ -200,6 +242,10 @@ a {
  * появление — этого и добивались.
  */
 @media (prefers-reduced-motion: reduce) {
+  [data-admin-root] {
+    --admin-press-scale: 1;
+  }
+
   *,
   *::before,
   *::after {

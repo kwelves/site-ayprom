@@ -244,6 +244,7 @@ function SortableRow({
       )}
       <button
         type="button"
+        data-admin-press-feedback="tone-only"
         {...attributes}
         {...listeners}
         aria-label="Перетащить для изменения порядка"

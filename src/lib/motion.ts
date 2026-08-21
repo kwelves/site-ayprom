@@ -12,6 +12,7 @@ import type { Variants } from "framer-motion";
  * `AnimatePresence`, `whileInView`, анимация `height: auto`.
  */
 export const DURATION = {
+  press: 0.09,
   fast: 0.15,
   base: 0.2,
   slow: 0.28,
