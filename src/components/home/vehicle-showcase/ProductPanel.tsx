@@ -90,23 +90,25 @@ export const ProductPanel = forwardRef<HTMLDivElement, ProductPanelProps>(functi
     >
       {product ? (
         <>
-          <div className="relative flex min-h-0 flex-1 flex-col px-5 pt-[52px] pb-0 sm:px-6 lg:px-5">
-            <p className="absolute top-3 left-5 text-[13px] leading-[1.1] font-semibold tracking-wide text-primary uppercase sm:left-6 lg:left-5">
+          <div className="relative flex min-h-0 flex-1 flex-col px-4 pt-12 pb-0 sm:px-6 sm:pt-[52px] lg:px-5">
+            <p className="absolute top-4 left-4 max-w-[calc(100%-4.5rem)] text-[13px] leading-[1.1] font-semibold tracking-wide text-primary uppercase sm:top-3 sm:left-6 sm:max-w-none lg:left-5">
               {label}
             </p>
             <button
               type="button"
               onClick={() => setZoomed(true)}
-              className="absolute top-3 right-3 z-10 inline-flex items-center gap-1 rounded-full border border-border bg-card px-[11px] py-[4.5px] text-[13px] leading-[1.1] font-semibold text-muted-foreground shadow-sm transition-[background-color,color,scale] duration-fast ease-ui hover:border-border-interactive hover:bg-muted hover:text-primary active:scale-95"
+              aria-label="Увеличить фото"
+              className="absolute top-2 right-2 z-10 inline-flex h-11 w-11 items-center justify-center gap-1 rounded-full border border-border bg-card p-0 text-[13px] leading-[1.1] font-semibold text-muted-foreground shadow-sm transition-[background-color,color,scale] duration-fast ease-ui hover:border-border-interactive hover:bg-muted hover:text-primary active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:top-3 sm:right-3 sm:h-auto sm:w-auto sm:px-[11px] sm:py-[4.5px]"
             >
-              <Maximize2 aria-hidden="true" className="h-[13px] w-[13px]" />
-              Увеличить
+              <Maximize2 aria-hidden="true" className="h-4 w-4 sm:h-[13px] sm:w-[13px]" />
+              <span className="sr-only sm:not-sr-only">Увеличить</span>
             </button>
 
             <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto]">
               <div className="flex min-h-0 items-center justify-center">
                 <motion.div
-                  className="relative h-full max-h-[260px] w-auto max-w-full aspect-square touch-pan-y overflow-hidden sm:max-h-[300px] lg:max-h-[320px]"
+                  data-testid="product-panel-media"
+                  className="relative aspect-square w-full max-w-[220px] touch-pan-y overflow-hidden sm:max-w-[300px] lg:h-full lg:max-h-[320px] lg:w-auto lg:max-w-full"
                   drag={hasMultipleImages && isTouchDevice ? "x" : false}
                   dragConstraints={{ left: 0, right: 0 }}
                   dragElastic={0}
@@ -139,17 +141,17 @@ export const ProductPanel = forwardRef<HTMLDivElement, ProductPanelProps>(functi
                         type="button"
                         onClick={() => goToImage(imageIndex - 1)}
                         aria-label="Предыдущее фото"
-                        className="absolute top-1/2 left-0 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-[background-color,scale] duration-fast ease-ui hover:bg-primary-hover active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        className="absolute top-1/2 left-1 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-[background-color,scale] duration-fast ease-ui hover:bg-primary-hover active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 lg:left-0 lg:h-8 lg:w-8"
                       >
-                        <ChevronLeft aria-hidden="true" className="h-4 w-4" />
+                        <ChevronLeft aria-hidden="true" className="h-5 w-5 lg:h-4 lg:w-4" />
                       </button>
                       <button
                         type="button"
                         onClick={() => goToImage(imageIndex + 1)}
                         aria-label="Следующее фото"
-                        className="absolute top-1/2 right-0 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-[background-color,scale] duration-fast ease-ui hover:bg-primary-hover active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        className="absolute top-1/2 right-1 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-[background-color,scale] duration-fast ease-ui hover:bg-primary-hover active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 lg:right-0 lg:h-8 lg:w-8"
                       >
-                        <ChevronRight aria-hidden="true" className="h-4 w-4" />
+                        <ChevronRight aria-hidden="true" className="h-5 w-5 lg:h-4 lg:w-4" />
                       </button>
                     </>
                   )}
@@ -157,7 +159,7 @@ export const ProductPanel = forwardRef<HTMLDivElement, ProductPanelProps>(functi
               </div>
 
               {hasMultipleImages && (
-                <div className="mt-5 flex items-center justify-center">
+                <div className="mt-1 flex flex-wrap items-center justify-center lg:mt-5">
                   {images.map((image, index) => (
                     <button
                       key={`${image.url}-${index}`}
@@ -165,7 +167,7 @@ export const ProductPanel = forwardRef<HTMLDivElement, ProductPanelProps>(functi
                       onClick={() => goToImage(index)}
                       aria-label={`Показать фото ${index + 1}`}
                       aria-current={index === imageIndex}
-                      className="p-2 transition-transform duration-fast ease-ui active:scale-90"
+                      className="flex h-11 w-11 items-center justify-center transition-transform duration-fast ease-ui active:scale-90 lg:h-auto lg:w-auto lg:p-2"
                     >
                       <span
                         className={cn(
@@ -179,21 +181,21 @@ export const ProductPanel = forwardRef<HTMLDivElement, ProductPanelProps>(functi
               )}
             </div>
 
-            <div className="mt-2.5 pb-0 text-center">
+            <div className="mt-1.5 pb-0 text-center lg:mt-2.5">
               <h3 className="text-base font-bold text-card-foreground lg:text-sm">{product.name}</h3>
             </div>
           </div>
 
-          <div className="mt-2.5 grid grid-cols-2 gap-2 px-3 pb-3">
+          <div className="mt-2 grid grid-cols-[1.15fr_0.85fr] gap-2 px-3 pb-3 lg:mt-2.5 lg:grid-cols-2">
             <Link
               href={`/product/${product.slug}`}
-              className="rounded-xl bg-primary px-3 py-3 text-center text-sm font-semibold text-primary-foreground transition-colors duration-fast ease-ui hover:bg-primary-hover lg:py-2.5 lg:text-xs"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-3 py-3 text-center text-sm font-semibold text-primary-foreground transition-[background-color,scale] duration-fast ease-ui hover:bg-primary-hover active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 lg:min-h-0 lg:py-2.5 lg:text-xs"
             >
               Подробнее
             </Link>
             <Link
               href={`/catalog/vehicle-type/${vehicleTypeSlug}`}
-              className="rounded-xl bg-primary px-3 py-3 text-center text-sm font-semibold text-primary-foreground transition-colors duration-fast ease-ui hover:bg-primary-hover lg:py-2.5 lg:text-xs"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-primary bg-card px-3 py-3 text-center text-sm font-semibold text-primary transition-[background-color,color,border-color,scale] duration-fast ease-ui hover:bg-primary-soft active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 lg:min-h-0 lg:border-transparent lg:bg-primary lg:py-2.5 lg:text-xs lg:text-primary-foreground lg:hover:bg-primary-hover"
             >
               В каталог
             </Link>
