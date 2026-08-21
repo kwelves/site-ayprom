@@ -13,6 +13,10 @@ export function WelcomeSplash() {
   const router = useRouter();
 
   useEffect(() => {
+    // Use the intentional welcome pause to warm the first protected route.
+    // Its loading.tsx can then appear immediately if the product query still
+    // needs time after the splash finishes.
+    router.prefetch("/admin/products");
     const timer = setTimeout(() => router.replace("/admin/products"), REDIRECT_DELAY_MS);
     return () => clearTimeout(timer);
   }, [router]);
@@ -32,9 +36,15 @@ export function WelcomeSplash() {
           unoptimized
         />
       </span>
-      <div className="animate-fade-up [animation-delay:150ms]">
+      <div className="animate-fade-up [animation-delay:150ms]" role="status" aria-live="polite">
         <h1 className="text-xl font-semibold text-foreground">Здравствуйте, шеф</h1>
         <p className="mt-1.5 text-sm text-muted-foreground">Загружаем панель управления...</p>
+        <span
+          aria-hidden="true"
+          className="mx-auto mt-4 block h-1 w-32 overflow-hidden rounded-full bg-surface-strong"
+        >
+          <span className="block h-full w-2/5 animate-site-loading-progress rounded-full bg-primary" />
+        </span>
       </div>
     </div>
   );

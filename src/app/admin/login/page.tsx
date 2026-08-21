@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { LoginPasswordInput } from "@/components/admin/LoginPasswordInput";
+import { LoginSubmitButton } from "@/components/admin/LoginSubmitButton";
 import { login } from "@/lib/admin/actions";
 
 export const metadata: Metadata = {
@@ -23,13 +25,7 @@ export default async function AdminLoginPage({ searchParams }: LoginPageProps) {
 
         <label className="mt-6 block text-sm">
           <span className="text-muted-foreground">Пароль</span>
-          <input
-            type="password"
-            name="password"
-            required
-            autoComplete="current-password"
-            className="mt-1.5 block w-full rounded-md border border-input px-3 py-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:py-2"
-          />
+          <LoginPasswordInput />
         </label>
 
         {error === "rate" ? (
@@ -44,16 +40,11 @@ export default async function AdminLoginPage({ searchParams }: LoginPageProps) {
           )
         )}
 
-        <button
-          type="submit"
-          className="mt-6 w-full rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:py-2"
-        >
-          Войти
-        </button>
+        <LoginSubmitButton />
 
         <Link
           href="/"
-          className="mt-4 flex items-center justify-center gap-1.5 py-3 text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:py-0"
+          className="mt-2 flex items-center justify-center gap-1.5 py-3 text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:py-0"
         >
           <ArrowLeft aria-hidden="true" className="h-4 w-4" />
           Вернуться на сайт
