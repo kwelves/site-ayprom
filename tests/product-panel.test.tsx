@@ -25,27 +25,33 @@ const product: HotspotProduct = {
   name: "Шестерённый насос AY-GP110",
   shortDescription: "Насос для гидравлической системы",
   images: [
-    { url: "/images/products/ay-gp110-1.webp" },
+    { url: "/images/products/ay-gp110-1.webp", scale: 1.12 },
     { url: "/images/products/ay-gp110-2.webp" },
     { url: "/images/products/ay-gp110-3.webp" },
   ],
 };
 
 describe("ProductPanel", () => {
-  it("keeps a compact landscape mobile media frame and exposes separate 44px gallery controls", () => {
+  it("keeps arrows and indicators outside the 4:3 media rect and switches the active image", () => {
     render(<ProductPanel label="Гидронасос" product={product} vehicleTypeSlug="samosval" />);
 
+    const panel = screen.getByTestId("product-panel");
+    const gallery = screen.getByTestId("product-gallery");
     const media = screen.getByTestId("product-panel-media");
-    expect([...media.classList]).toEqual(expect.arrayContaining(["h-[168px]", "w-full", "max-w-[320px]", "sm:aspect-square"]));
-    expect(media.classList).not.toContain("aspect-square");
+    expect(panel.className).toBeTruthy();
+    expect(panel.getAttribute("data-layout-scope")).toBe("product-panel");
+    expect(gallery.getAttribute("data-gallery-layout")).toBe("controls-media-controls");
     const image = screen.getByAltText(product.name);
-    expect([...image.classList]).toEqual(expect.arrayContaining(["object-cover", "p-0", "sm:object-contain"]));
-    expect([...image.parentElement!.classList]).toEqual(expect.arrayContaining(["scale-[1.18]", "sm:scale-100"]));
+    expect(image.style.transform).toBe("scale(1.12)");
+    expect(screen.getByTestId("product-image-base-zoom").contains(image)).toBe(true);
 
     const previous = screen.getByRole("button", { name: "Предыдущее фото" });
     const next = screen.getByRole("button", { name: "Следующее фото" });
-    expect([...previous.classList]).toEqual(expect.arrayContaining(["left-1", "h-11", "w-11"]));
-    expect([...next.classList]).toEqual(expect.arrayContaining(["right-1", "h-11", "w-11"]));
+    expect(previous.parentElement).toBe(gallery);
+    expect(next.parentElement).toBe(gallery);
+    expect(media.contains(previous)).toBe(false);
+    expect(media.contains(next)).toBe(false);
+    expect(screen.getByTestId("product-image-indicators").parentElement).toBe(gallery);
     expect(previous).not.toBe(next);
 
     fireEvent.click(next);

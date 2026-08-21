@@ -1,0 +1,160 @@
+.panel {
+  container: product-panel / inline-size;
+}
+
+.layout {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 100%;
+}
+
+.header {
+  display: flex;
+  min-height: 3.25rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem clamp(0.875rem, 4cqi, 1.25rem) 0;
+}
+
+.zoomButton {
+  width: 2.75rem;
+  min-width: 2.75rem;
+}
+
+.zoomLabel {
+  display: none;
+}
+
+.main {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(0.25rem, 1cqi, 0.5rem) clamp(0.75rem, 3cqi, 1.5rem)
+    clamp(0.5rem, 1.5cqi, 0.75rem);
+}
+
+.gallery {
+  display: grid;
+  width: min(100%, 30rem);
+  grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: clamp(0.5rem, 2cqi, 1rem);
+}
+
+.gallerySingle {
+  width: min(100%, 22.5rem);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.media {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1;
+  aspect-ratio: 4 / 3;
+  min-width: 0;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.mediaSingle {
+  grid-column: 1;
+}
+
+.slide,
+.baseZoom {
+  position: absolute;
+  inset: 0;
+}
+
+.baseZoom {
+  transform: scale(1.45);
+  transform-origin: center;
+}
+
+.previous {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.next {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.arrowHit {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+}
+
+.arrowVisual {
+  display: grid;
+  width: clamp(2.5rem, 10cqi, 2.875rem);
+  height: clamp(2.5rem, 10cqi, 2.875rem);
+  place-items: center;
+}
+
+.indicators {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  margin-top: clamp(0.75rem, 2cqi, 1rem);
+}
+
+.indicatorHit {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+}
+
+.title {
+  margin-top: clamp(0.25rem, 1cqi, 0.625rem);
+  text-wrap: balance;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: clamp(0.5rem, 2cqi, 0.75rem);
+  padding: 0 clamp(0.75rem, 3cqi, 1.25rem) clamp(0.75rem, 3cqi, 1.25rem);
+}
+
+@container product-panel (min-width: 28rem) {
+  .zoomButton {
+    width: auto;
+    padding-inline: 0.75rem;
+  }
+
+  .zoomLabel {
+    display: inline;
+  }
+
+  .baseZoom {
+    transform: scale(1.5);
+  }
+
+  .actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .layout {
+    height: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .baseZoom {
+    transition: none;
+  }
+}

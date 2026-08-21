@@ -44,10 +44,14 @@ function distanceToSegment(px: number, py: number, ax: number, ay: number, bx: n
  * never passes through another hotspot. All rects are in the same
  * (container-relative) coordinate space.
  */
-export function buildConnectorPaths(hotspot: Rect, card: Rect, obstacles: Rect[]): ConnectorPaths {
+export function buildConnectorPaths(
+  hotspot: Rect,
+  sourceVisualRadius: number,
+  card: Rect,
+  obstacles: Rect[],
+): ConnectorPaths {
   const hx = hotspot.left + hotspot.width / 2;
   const hy = hotspot.top + hotspot.height / 2;
-  const radius = hotspot.width / 2;
   const cardCenterY = card.top + card.height / 2;
   const sign = cardCenterY >= hy ? 1 : -1;
 
@@ -74,8 +78,8 @@ export function buildConnectorPaths(hotspot: Rect, card: Rect, obstacles: Rect[]
   }
 
   const startAngle = Math.atan2(endY - hy, bendX - hx);
-  const startX = hx + (radius + 3) * Math.cos(startAngle);
-  const startY = hy + (radius + 3) * Math.sin(startAngle);
+  const startX = hx + (sourceVisualRadius + 3) * Math.cos(startAngle);
+  const startY = hy + (sourceVisualRadius + 3) * Math.sin(startAngle);
 
   const cardLeft = card.left - CARD_OUTLINE_GAP;
   const cardRight = card.left + card.width + CARD_OUTLINE_GAP;
@@ -98,16 +102,19 @@ export function buildConnectorPaths(hotspot: Rect, card: Rect, obstacles: Rect[]
 /** Simpler top-entry route for the stacked mobile layout, where the card
  * sits full-width below the photo instead of beside it — wrapping around
  * "left/right edges" doesn't apply when there's no side to wrap. */
-export function buildVerticalConnectorPath(hotspot: Rect, card: Rect): { stem: string; terminal: { x: number; y: number } } {
+export function buildVerticalConnectorPath(
+  hotspot: Rect,
+  sourceVisualRadius: number,
+  card: Rect,
+): { stem: string; terminal: { x: number; y: number } } {
   const hx = hotspot.left + hotspot.width / 2;
   const hy = hotspot.top + hotspot.height / 2;
-  const radius = hotspot.width / 2;
   const entryX = card.left + card.width / 2;
   // The stacked mobile connector ends 2px above the card. It does not wrap
   // the sides because the card spans the full row at this breakpoint.
   const entryY = card.top - CARD_OUTLINE_GAP;
-  const bendY = Math.max(hy + radius + 24, entryY - 40);
+  const bendY = Math.max(hy + sourceVisualRadius + 24, entryY - 40);
 
-  const stem = `M ${hx} ${hy + radius + 3} L ${hx} ${bendY} L ${entryX} ${entryY}`;
+  const stem = `M ${hx} ${hy + sourceVisualRadius + 3} L ${hx} ${bendY} L ${entryX} ${entryY}`;
   return { stem, terminal: { x: entryX, y: entryY } };
 }

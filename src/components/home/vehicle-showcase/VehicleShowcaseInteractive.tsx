@@ -11,6 +11,11 @@ import { Connector } from "./Connector";
 import { useContainRect } from "./useContainRect";
 import { VehicleImageWarmup } from "./VehicleImageWarmup";
 import { buildConnectorPaths, buildVerticalConnectorPath, type ConnectorPaths, type Rect } from "./connector-geometry";
+import {
+  calculateHotspotLayoutMetrics,
+  createFallbackHotspotMetrics,
+  resolveHotspotPositions,
+} from "./showcase-layout";
 import type { VehicleShowcaseEntry } from "@/lib/queries/vehicle-hotspots";
 import { DURATION, EASE_UI } from "@/lib/motion";
 import { useHomeEntrySequence } from "@/components/home/HomeEntrySequence";
@@ -226,6 +231,21 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
   const visual = visuals[activeEntry?.vehicleType.slug ?? ""];
   const effectiveScale = isDesktop ? (visual?.desktopScale ?? visual?.scale ?? 1) : (visual?.scale ?? 1);
   const containRect = useContainRect(stageRef, visual?.naturalWidth ?? 1, visual?.naturalHeight ?? 1, effectiveScale);
+  const hotspotAnchorPoints = useMemo(
+    () =>
+      activeEntry?.hotspots.map((hotspot) => ({
+        id: hotspot.id,
+        x: containRect.left + (hotspot.xPct / 100) * containRect.width,
+        y: containRect.top + (hotspot.yPct / 100) * containRect.height,
+      })) ?? [],
+    [activeEntry, containRect.height, containRect.left, containRect.top, containRect.width],
+  );
+  const hotspotLayoutMetrics = useMemo(() => {
+    return calculateHotspotLayoutMetrics(containRect.width, hotspotAnchorPoints);
+  }, [containRect.width, hotspotAnchorPoints]);
+  const hotspotPositions = useMemo(() => {
+    return resolveHotspotPositions(hotspotAnchorPoints, hotspotLayoutMetrics);
+  }, [hotspotAnchorPoints, hotspotLayoutMetrics]);
   const preloadEntry = preloadTargetIndex !== null ? entries[preloadTargetIndex] : undefined;
   const preloadVisual = visuals[preloadEntry?.vehicleType.slug ?? ""];
   const preloadScale = isDesktop
@@ -458,6 +478,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
     const hotspotEl = hotspotRefs.current.get(activeHotspotId);
     const cardEl = cardRef.current;
     if (!container || !hotspotEl || !cardEl) return;
+    const activeMetrics = hotspotLayoutMetrics.get(activeHotspotId) ?? createFallbackHotspotMetrics();
 
     const compute = () => {
       const containerRect = container.getBoundingClientRect();
@@ -471,10 +492,10 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
           .map((hotspot) => hotspotRefs.current.get(hotspot.id))
           .filter((el): el is HTMLButtonElement => Boolean(el))
           .map((el) => toRect(el.getBoundingClientRect(), containerRect));
-        setConnectorPaths(buildConnectorPaths(hotspotRect, cardRect, obstacles));
+        setConnectorPaths(buildConnectorPaths(hotspotRect, activeMetrics.visualDiameter / 2, cardRect, obstacles));
         setVerticalPath(null);
       } else {
-        setVerticalPath(buildVerticalConnectorPath(hotspotRect, cardRect));
+        setVerticalPath(buildVerticalConnectorPath(hotspotRect, activeMetrics.visualDiameter / 2, cardRect));
         setConnectorPaths(null);
       }
     };
@@ -484,7 +505,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
     resizeObserver.observe(container);
     resizeObserver.observe(cardEl);
     return () => resizeObserver.disconnect();
-  }, [activeHotspotId, activeEntry, isDesktop]);
+  }, [activeHotspotId, activeEntry, hotspotLayoutMetrics, isDesktop]);
 
   const vehicleItems = useMemo(
     () =>
@@ -603,13 +624,15 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
       {revealed &&
         containRect.width > 0 &&
         activeEntry.hotspots.map((hotspot) => {
-          const left = containRect.left + (hotspot.xPct / 100) * containRect.width;
-          const top = containRect.top + (hotspot.yPct / 100) * containRect.height;
+          const position = hotspotPositions.get(hotspot.id);
+          const left = position?.x ?? containRect.left + (hotspot.xPct / 100) * containRect.width;
+          const top = position?.y ?? containRect.top + (hotspot.yPct / 100) * containRect.height;
           // Falls back to the generic edge-based heuristic for any hotspot
           // not in the table (new DB data before it's been measured/added).
           const placement = TOOLTIP_PLACEMENT[`${activeEntry.vehicleType.slug}:${hotspot.hotspotNumber}`];
           const tooltipBelow = placement?.below ?? top < containRect.boxHeight * 0.2;
           const tooltipAlign = placement?.align ?? (left < containRect.boxWidth * 0.25 ? "start" : left > containRect.boxWidth * 0.75 ? "end" : "center");
+          const metrics = hotspotLayoutMetrics.get(hotspot.id) ?? createFallbackHotspotMetrics();
           return (
             <HotspotMarker
               key={hotspot.id}
@@ -624,7 +647,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
               tooltipGap={placement?.gap}
               label={hotspot.label}
               isActive={hotspot.id === activeHotspotId}
-              size={activeEntry.vehicleType.slug === "tyagach" ? "tonar" : "standard"}
+              metrics={metrics}
               revealDelay={hotspot.hotspotNumber * 0.08}
               visible={hotspotsVisible}
               switching={switchingHotspots}
