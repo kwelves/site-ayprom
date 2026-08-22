@@ -53,39 +53,41 @@ export function CategoriesList({ categories: initialCategories, flashSlug, flash
       onReorder={handleReorder}
       highlightedKey={highlightedKey}
       renderItem={(category) => (
-        <div className="flex items-start gap-3">
+        <div className="grid grid-cols-[4rem_minmax(0,1fr)] items-start gap-x-3 gap-y-3 md:flex md:gap-3">
           <div className="flex h-12 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/40">
             <Image src={category.image} alt="" width={64} height={48} className="h-full w-full object-cover" />
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-card-foreground">{category.name}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{category.description}</p>
-            <div className="mt-2 flex flex-wrap items-center gap-3">
-              <span
-                className={cn(
-                  "rounded-full px-2 py-0.5 text-xs font-medium",
-                  category.type === "brand"
-                    ? "bg-accent-strong text-accent-foreground"
-                    : category.type === "subcategory"
-                      ? "bg-surface-subtle text-muted-foreground"
-                      : "bg-muted text-muted-foreground"
-                )}
-              >
-                {category.type === "brand" ? "По брендам" : category.type === "subcategory" ? "По подкатегориям" : "Напрямую"}
-              </span>
-              <span className="text-xs text-muted-foreground">{category.productCount} тов.</span>
+          <div className="contents md:block md:min-w-0 md:flex-1">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-card-foreground">{category.name}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{category.description}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <span
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-xs font-medium",
+                    category.type === "brand"
+                      ? "bg-accent-strong text-accent-foreground"
+                      : category.type === "subcategory"
+                        ? "bg-surface-subtle text-muted-foreground"
+                        : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {category.type === "brand" ? "По брендам" : category.type === "subcategory" ? "По подкатегориям" : "Напрямую"}
+                </span>
+                <span className="text-xs text-muted-foreground">{category.productCount} тов.</span>
+              </div>
             </div>
-            <div className="mt-2 flex flex-wrap items-center gap-3">
+            <div className="col-span-2 grid grid-cols-2 gap-2 border-t border-border pt-3 md:mt-2 md:flex md:flex-wrap md:items-center md:gap-3 md:border-0 md:pt-0">
               <Link
                 href={`/admin/categories/${category.slug}/edit`}
-                className="rounded-md border border-border px-3 py-1 text-sm font-medium text-primary transition-colors hover:border-border-interactive hover:bg-accent"
+                className="flex min-h-11 items-center justify-center rounded-md border border-border px-3 py-1 text-sm font-medium text-primary transition-colors hover:border-border-interactive hover:bg-accent md:min-h-0"
               >
                 Редактировать
               </Link>
               <button
                 type="button"
                 onClick={() => handleDelete(category)}
-                className="rounded-md border border-danger-border px-3 py-1 text-sm font-medium text-danger transition-colors hover:bg-danger-surface"
+                className="flex min-h-11 items-center justify-center rounded-md border border-danger-border px-3 py-1 text-sm font-medium text-danger transition-colors hover:bg-danger-surface md:min-h-0"
               >
                 Удалить
               </button>
