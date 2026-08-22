@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createSessionToken, getSessionPayload, verifySessionToken } from "@/lib/admin/session";
+import {
+  createSessionToken,
+  getSessionPayload,
+  SESSION_DURATION_SECONDS,
+  verifySessionToken,
+} from "@/lib/admin/session";
 
 describe("административная сессия", () => {
   beforeEach(() => {
@@ -27,9 +32,10 @@ describe("административная сессия", () => {
 
   it("отклоняет истёкший токен", async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+    const issuedAt = new Date("2026-01-01T00:00:00Z");
+    vi.setSystemTime(issuedAt);
     const token = await createSessionToken();
-    vi.setSystemTime(new Date("2026-01-02T01:00:00Z"));
+    vi.setSystemTime(new Date(issuedAt.getTime() + (SESSION_DURATION_SECONDS + 1) * 1000));
     expect(await verifySessionToken(token)).toBe(false);
   });
 });
