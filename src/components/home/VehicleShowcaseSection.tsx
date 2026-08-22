@@ -11,7 +11,7 @@ export async function VehicleShowcaseSection() {
   return (
     <section
       id="vehicle-showcase"
-      className="relative scroll-mt-16 overflow-hidden bg-[#060b16] py-16 sm:py-20 lg:flex lg:h-[calc(100dvh-4rem+6rem)] lg:flex-col lg:py-6"
+      className="relative scroll-mt-16 overflow-hidden bg-[#060b16] py-16 sm:py-20 lg:flex lg:min-h-[calc(100dvh-4rem+6rem)] lg:flex-col lg:py-6"
     >
       {/* Faint circuit-board grid — pure CSS, no image asset needed */}
       <div
@@ -28,10 +28,10 @@ export async function VehicleShowcaseSection() {
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(20,116,255,0.16),transparent_60%)]"
       />
 
-      <Container className="relative z-10 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
+      <Container className="relative z-10 lg:flex lg:flex-1 lg:flex-col">
         <VehicleShowcaseHeading title="Гидравлика на вашей технике" />
 
-        <div className="mt-8 lg:mt-4 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
+        <div className="mt-8 lg:mt-4 lg:flex lg:flex-1 lg:flex-col">
           <VehicleShowcaseInteractive entries={entries} visuals={VEHICLE_VISUALS} defaultSlug="kran-manipulyator" />
         </div>
       </Container>

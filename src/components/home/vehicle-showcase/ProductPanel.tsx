@@ -6,6 +6,11 @@ import Link from "next/link";
 import { AnimatePresence, motion, type PanInfo, useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Clock, Maximize2, X } from "lucide-react";
 import { ImageFallback } from "@/components/ui/ImageFallback";
+import {
+  GalleryNeighborWarmup,
+  PreparedImageLayers,
+  usePreparedImageCarousel,
+} from "@/components/ui/PreparedImageCarousel";
 import { DURATION, EASE_UI } from "@/lib/motion";
 import { useIsTouchDevice } from "@/lib/use-is-touch-device";
 import { cn } from "@/lib/utils";
@@ -19,39 +24,25 @@ interface ProductPanelProps {
   vehicleTypeSlug: string;
 }
 
-const slideVariants = {
-  enter: (direction: number) => ({ x: direction > 0 ? 20 : -20, opacity: 0 }),
-  center: { x: 0, opacity: 1, transition: { duration: DURATION.base, ease: EASE_UI } },
-  exit: (direction: number) => ({
-    x: direction > 0 ? -20 : 20,
-    opacity: 0,
-    transition: { duration: DURATION.fast, ease: EASE_UI },
-  }),
-};
-
 const SWIPE_THRESHOLD = 40;
+const PANEL_IMAGE_SIZES = "(max-width: 639px) 65vw, (max-width: 1023px) 360px, 30vw";
 
 export const ProductPanel = forwardRef<HTMLDivElement, ProductPanelProps>(function ProductPanel(
   { label, product, vehicleTypeSlug },
   ref,
 ) {
   const [zoomed, setZoomed] = useState(false);
-  const [[imageIndex, imageDirection], setImage] = useState<[number, number]>([0, 0]);
   const shouldReduceMotion = useReducedMotion();
   const isTouchDevice = useIsTouchDevice();
   const images = product?.images ?? [];
+  const carousel = usePreparedImageCarousel(images);
+  const imageIndex = carousel.selectedIndex;
   const hasMultipleImages = images.length > 1;
   const currentImage = images[imageIndex];
 
-  const goToImage = (nextIndex: number) => {
-    if (images.length === 0) return;
-    const wrapped = (nextIndex + images.length) % images.length;
-    setImage([wrapped, nextIndex > imageIndex ? 1 : -1]);
-  };
-
   const handleImageDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    if (info.offset.x < -SWIPE_THRESHOLD) goToImage(imageIndex + 1);
-    else if (info.offset.x > SWIPE_THRESHOLD) goToImage(imageIndex - 1);
+    if (info.offset.x < -SWIPE_THRESHOLD) carousel.step(1);
+    else if (info.offset.x > SWIPE_THRESHOLD) carousel.step(-1);
   };
 
   useEffect(() => {
@@ -75,7 +66,7 @@ export const ProductPanel = forwardRef<HTMLDivElement, ProductPanelProps>(functi
       data-layout-scope="product-panel"
       className={cn(
         styles.panel,
-        "relative min-h-[220px] overflow-hidden rounded-2xl border border-border bg-card lg:h-full lg:min-h-0",
+        "relative min-h-[220px] overflow-hidden rounded-2xl border border-border bg-card lg:min-h-[29rem]",
       )}
     >
       {product ? (
@@ -107,7 +98,7 @@ export const ProductPanel = forwardRef<HTMLDivElement, ProductPanelProps>(functi
               {hasMultipleImages && (
                 <button
                   type="button"
-                  onClick={() => goToImage(imageIndex - 1)}
+                  onClick={() => carousel.step(-1)}
                   aria-label="Предыдущее фото"
                   className={cn(
                     styles.arrowHit,
@@ -129,40 +120,35 @@ export const ProductPanel = forwardRef<HTMLDivElement, ProductPanelProps>(functi
 
               <motion.div
                 data-testid="product-panel-media"
+                data-image-fit="contain"
                 className={cn(styles.media, !hasMultipleImages && styles.mediaSingle)}
                 drag={hasMultipleImages && isTouchDevice ? "x" : false}
                 dragConstraints={{ left: 0, right: 0 }}
                 dragElastic={0}
                 onDragEnd={handleImageDragEnd}
               >
-                <AnimatePresence initial={false} custom={imageDirection}>
-                  <motion.div
-                    key={`${currentImage?.url ?? "image-fallback"}-${imageIndex}`}
-                    custom={imageDirection}
-                    variants={slideVariants}
-                    initial="enter"
-                    animate="center"
-                    exit="exit"
-                    className={styles.slide}
-                  >
-                    <div data-testid="product-image-base-zoom" className={styles.baseZoom}>
-                      <ImageFallback
-                        src={currentImage?.url}
-                        alt={product.name}
-                        sizes="(max-width: 639px) 65vw, 360px"
-                        className="object-contain"
-                        style={currentImage?.scale ? { transform: `scale(${currentImage.scale})` } : undefined}
-                        priority={imageIndex === 0}
-                      />
-                    </div>
-                  </motion.div>
-                </AnimatePresence>
+                <PreparedImageLayers
+                  images={images}
+                  alt={product.name}
+                  sizes={PANEL_IMAGE_SIZES}
+                  layerClassName={styles.slide}
+                  imageClassName="object-contain"
+                  carousel={carousel}
+                />
+
+                {hasMultipleImages && carousel.neighborIndices.map((neighborIndex) => (
+                  <GalleryNeighborWarmup
+                    key={`${images[neighborIndex].url}-${neighborIndex}`}
+                    url={images[neighborIndex].url}
+                    sizes={PANEL_IMAGE_SIZES}
+                  />
+                ))}
               </motion.div>
 
               {hasMultipleImages && (
                 <button
                   type="button"
-                  onClick={() => goToImage(imageIndex + 1)}
+                  onClick={() => carousel.step(1)}
                   aria-label="Следующее фото"
                   className={cn(
                     styles.arrowHit,
@@ -188,7 +174,7 @@ export const ProductPanel = forwardRef<HTMLDivElement, ProductPanelProps>(functi
                     <button
                       key={`${image.url}-${index}`}
                       type="button"
-                      onClick={() => goToImage(index)}
+                      onClick={() => carousel.select(index)}
                       aria-label={`Показать фото ${index + 1}`}
                       aria-current={index === imageIndex}
                       className={cn(
@@ -277,7 +263,7 @@ export const ProductPanel = forwardRef<HTMLDivElement, ProductPanelProps>(functi
             )}
         </div>
       ) : (
-        <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 p-5 text-center sm:p-6 lg:h-full lg:min-h-0 lg:p-4">
+        <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 p-5 text-center sm:p-6 lg:p-4">
           <span className="grid h-11 w-11 place-items-center rounded-full bg-muted text-primary">
             <Clock aria-hidden="true" className="h-5 w-5" />
           </span>

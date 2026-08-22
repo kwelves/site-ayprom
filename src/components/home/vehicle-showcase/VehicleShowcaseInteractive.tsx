@@ -662,7 +662,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
   );
 
   return (
-    <div ref={sectionRef} className="relative lg:flex lg:h-full lg:min-h-0 lg:flex-col">
+    <div ref={sectionRef} className="relative lg:flex lg:flex-1 lg:flex-col">
       <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">{activeEntry.vehicleType.name}</p>
 
       {/* `stage` stays in this exact spot in the tree at all times — it's
@@ -680,7 +680,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
       <div
         ref={containerRef}
         data-testid="vehicle-showcase-grid"
-        className={`relative mt-3 grid grid-cols-1 gap-6 lg:min-h-0 lg:flex-1 lg:overflow-hidden lg:p-1 ${revealed ? "mx-auto lg:mx-0 lg:grid-cols-[1.3fr_1fr] lg:gap-10" : "mx-auto max-w-2xl"}`}
+        className={`relative mt-3 grid grid-cols-1 gap-6 lg:flex-1 lg:p-1 ${revealed ? "mx-auto lg:mx-0 lg:grid-cols-[1.3fr_1fr] lg:gap-10" : "mx-auto max-w-2xl"}`}
       >
         {stage}
 
@@ -692,7 +692,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
           // top edge and the pulse needs unclipped space to remain legible.
           // This is on the measured wrapper, so both card height and SVG
           // geometry move together.
-          <div ref={cardRef} data-testid="vehicle-card" className="min-h-[220px] lg:mt-4 lg:h-[calc(100%-1rem)] lg:min-h-0">
+          <div ref={cardRef} data-testid="vehicle-card" className="min-h-[220px] lg:mt-4 lg:min-h-[29rem]">
             <AnimatePresence mode="wait">
               {activeHotspot ? (
                 <motion.div
@@ -703,7 +703,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
                   transition={{ duration: 0.25, ease: "easeOut" }}
                   aria-hidden={!isCardRevealed}
                   inert={!isCardRevealed}
-                  className={`lg:h-full ${isCardRevealed ? "pointer-events-auto" : "pointer-events-none"}`}
+                  className={`lg:min-h-[29rem] ${isCardRevealed ? "pointer-events-auto" : "pointer-events-none"}`}
                 >
                   <ProductPanel
                     label={activeHotspot.label}

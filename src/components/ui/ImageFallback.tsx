@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { ImageOff } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -10,11 +10,13 @@ interface ImageFallbackProps {
   alt: string;
   sizes: string;
   className?: string;
-  priority?: boolean;
+  loading?: "eager" | "lazy";
+  fetchPriority?: "high" | "low" | "auto";
   quality?: number;
   style?: React.CSSProperties;
   fallbackLabel?: string;
   onLoad?: () => void;
+  onError?: () => void;
 }
 
 export function ImageFallback({
@@ -22,13 +24,27 @@ export function ImageFallback({
   alt,
   sizes,
   className,
-  priority,
+  loading,
+  fetchPriority,
   quality,
   style,
   fallbackLabel = "Фотография пока не добавлена",
   onLoad,
+  onError,
 }: ImageFallbackProps) {
   const [failed, setFailed] = useState(false);
+  const onErrorRef = useRef(onError);
+  const previousSrcRef = useRef<string | undefined | symbol>(Symbol("initial-src"));
+
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
+
+  useEffect(() => {
+    if (previousSrcRef.current === src) return;
+    previousSrcRef.current = src;
+    if (!src) onErrorRef.current?.();
+  }, [src]);
 
   if (failed || !src) {
     return (
@@ -50,10 +66,14 @@ export function ImageFallback({
       fill
       sizes={sizes}
       className={cn("object-contain", className)}
-      priority={priority}
+      loading={loading}
+      fetchPriority={fetchPriority}
       quality={quality}
       style={style}
-      onError={() => setFailed(true)}
+      onError={() => {
+        setFailed(true);
+        onError?.();
+      }}
       onLoad={onLoad}
       draggable={false}
     />

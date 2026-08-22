@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProductPanel } from "@/components/home/vehicle-showcase/ProductPanel";
 import type { HotspotProduct } from "@/lib/queries/vehicle-hotspots";
@@ -41,9 +41,10 @@ describe("ProductPanel", () => {
     expect(panel.className).toBeTruthy();
     expect(panel.getAttribute("data-layout-scope")).toBe("product-panel");
     expect(gallery.getAttribute("data-gallery-layout")).toBe("controls-media-controls");
+    expect(media.getAttribute("data-image-fit")).toBe("contain");
     const image = screen.getByAltText(product.name);
     expect(image.style.transform).toBe("scale(1.12)");
-    expect(screen.getByTestId("product-image-base-zoom").contains(image)).toBe(true);
+    expect(screen.queryByTestId("product-image-base-zoom")).toBeNull();
 
     const previous = screen.getByRole("button", { name: "Предыдущее фото" });
     const next = screen.getByRole("button", { name: "Следующее фото" });
@@ -57,6 +58,44 @@ describe("ProductPanel", () => {
     fireEvent.click(next);
     expect(screen.getByRole("button", { name: "Показать фото 1" }).getAttribute("aria-current")).toBe("false");
     expect(screen.getByRole("button", { name: "Показать фото 2" }).getAttribute("aria-current")).toBe("true");
+  });
+
+  it("keeps the committed photo visible until the selected photo has loaded", async () => {
+    render(<ProductPanel label="Гидронасос" product={product} vehicleTypeSlug="samosval" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Следующее фото" }));
+
+    const committed = document.querySelector<HTMLElement>('[data-carousel-layer="committed"]');
+    const pending = document.querySelector<HTMLElement>('[data-carousel-layer="pending"]');
+    expect(committed?.querySelector("img")?.getAttribute("src")).toContain("ay-gp110-1.webp");
+    expect(pending?.querySelector("img")?.getAttribute("src")).toContain("ay-gp110-2.webp");
+    expect(committed).toBeTruthy();
+    expect(pending).toBeTruthy();
+
+    fireEvent.load(pending!.querySelector("img")!);
+
+    await waitFor(() => {
+      const layers = document.querySelectorAll('[data-carousel-layer="committed"]');
+      expect(layers).toHaveLength(1);
+      expect(layers[0].querySelector("img")?.getAttribute("src")).toContain("ay-gp110-2.webp");
+    });
+  });
+
+  it("does not let a stale image load replace the latest rapid selection", () => {
+    render(<ProductPanel label="Гидронасос" product={product} vehicleTypeSlug="samosval" />);
+
+    const next = screen.getByRole("button", { name: "Следующее фото" });
+    fireEvent.click(next);
+    const staleImage = document.querySelector<HTMLElement>('[data-carousel-layer="pending"] img');
+    fireEvent.click(next);
+
+    fireEvent.load(staleImage!);
+
+    const pending = document.querySelector<HTMLElement>('[data-carousel-layer="pending"]');
+    expect(pending?.querySelector("img")?.getAttribute("src")).toContain("ay-gp110-3.webp");
+    expect(document.querySelector<HTMLElement>('[data-carousel-layer="committed"] img')?.getAttribute("src")).toContain(
+      "ay-gp110-1.webp",
+    );
   });
 
   it("hides gallery navigation for one image and keeps one visually primary action", () => {
