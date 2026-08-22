@@ -43,6 +43,7 @@ export function ImageFallback({
   useEffect(() => {
     if (previousSrcRef.current === src) return;
     previousSrcRef.current = src;
+    setFailed(false);
     if (!src) onErrorRef.current?.();
   }, [src]);
 
@@ -74,7 +75,16 @@ export function ImageFallback({
         setFailed(true);
         onError?.();
       }}
-      onLoad={onLoad}
+      onLoad={async (event) => {
+        const image = event.currentTarget;
+        try {
+          if (typeof image.decode === "function") await image.decode();
+          onLoad?.();
+        } catch {
+          setFailed(true);
+          onError?.();
+        }
+      }}
       draggable={false}
     />
   );

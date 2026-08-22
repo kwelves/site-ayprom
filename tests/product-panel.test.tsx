@@ -71,10 +71,20 @@ describe("ProductPanel", () => {
     expect(pending?.querySelector("img")?.getAttribute("src")).toContain("ay-gp110-2.webp");
     expect(committed).toBeTruthy();
     expect(pending).toBeTruthy();
+    expect(committed?.style.visibility).toBe("");
+    expect(committed?.style.opacity).toBe("");
+    expect(committed?.style.transform).toBe("");
+    expect(pending?.style.visibility).toBe("hidden");
+    expect(pending?.style.opacity).toBe("");
+    expect(pending?.style.transform).toBe("");
 
-    fireEvent.load(pending!.querySelector("img")!);
+    const pendingImage = pending!.querySelector("img")!;
+    const decode = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(pendingImage, "decode", { configurable: true, value: decode });
+    fireEvent.load(pendingImage);
 
     await waitFor(() => {
+      expect(decode).toHaveBeenCalled();
       const layers = document.querySelectorAll('[data-carousel-layer="committed"]');
       expect(layers).toHaveLength(1);
       expect(layers[0].querySelector("img")?.getAttribute("src")).toContain("ay-gp110-2.webp");

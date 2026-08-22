@@ -1,28 +1,22 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { AnimatePresence, motion, type PanInfo } from "framer-motion";
+import { motion, type PanInfo } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DURATION, EASE_UI } from "@/lib/motion";
 import { useIsTouchDevice } from "@/lib/use-is-touch-device";
-import { ImageFallback } from "@/components/ui/ImageFallback";
+import {
+  GalleryNeighborWarmup,
+  PreparedImageLayers,
+  usePreparedImageCarousel,
+} from "@/components/ui/PreparedImageCarousel";
 import type { ProductListItem } from "@/types/catalog";
 
-// Как в ProductGallery: уход короче прихода, оба идут одновременно.
-const slideVariants = {
-  enter: (direction: number) => ({ x: direction > 0 ? 24 : -24, opacity: 0 }),
-  center: { x: 0, opacity: 1, transition: { duration: DURATION.base, ease: EASE_UI } },
-  exit: (direction: number) => ({
-    x: direction > 0 ? -24 : 24,
-    opacity: 0,
-    transition: { duration: DURATION.fast, ease: EASE_UI },
-  }),
-};
-
 const SWIPE_THRESHOLD = 40;
+const CARD_IMAGE_SIZES = "(max-width: 639px) 45vw, (max-width: 1023px) 30vw, 320px";
+const CARD_IMAGE_QUALITY = 60;
 
 // Unlike CategoryCard/BrandCard (which lift + scale on hover), product cards
 // use a static hover — only border/shadow change, no transform. In a long
@@ -40,25 +34,19 @@ const SWIPE_THRESHOLD = 40;
 // via onTap, ignoring taps that land on the arrow buttons.
 export function ProductCard({ product, href }: { product: ProductListItem; href: string }) {
   const router = useRouter();
-  const [[index, direction], setIndex] = useState<[number, number]>([0, 0]);
+  const carousel = usePreparedImageCarousel(product.images);
+  const index = carousel.selectedIndex;
   const hasMultiple = product.images.length > 1;
-  const currentImage = product.images[index];
   const isTouchDevice = useIsTouchDevice();
   // Framer Motion can still fire onTap right after a drag release when drag
   // and tap gestures share the same element — this flag lets onTap tell a
   // real tap apart from "finger lifted at the end of a swipe".
   const didDragRef = useRef(false);
 
-  const goTo = (nextIndex: number) => {
-    if (product.images.length === 0) return;
-    const wrapped = (nextIndex + product.images.length) % product.images.length;
-    setIndex([wrapped, nextIndex > index ? 1 : -1]);
-  };
-
-  const handleArrowClick = (nextIndex: number) => (event: React.MouseEvent) => {
+  const handleCarouselClick = (action: () => void) => (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
-    goTo(nextIndex);
+    action();
   };
 
   // drag="x" is used purely for gesture detection, not visual movement:
@@ -74,9 +62,9 @@ export function ProductCard({ product, href }: { product: ProductListItem; href:
 
   const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     if (info.offset.x < -SWIPE_THRESHOLD) {
-      goTo(index + 1);
+      carousel.step(1);
     } else if (info.offset.x > SWIPE_THRESHOLD) {
-      goTo(index - 1);
+      carousel.step(-1);
     }
     // Clear it a tick later so it's still true when onTap checks it (onTap
     // can fire in the same gesture right after onDragEnd), but reset before
@@ -107,32 +95,30 @@ export function ProductCard({ product, href }: { product: ProductListItem; href:
           router.push(href);
         }}
       >
-        <AnimatePresence initial={false} custom={direction}>
-          <motion.div
-            key={currentImage?.url ?? "image-fallback"}
-            custom={direction}
-            variants={slideVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            className="absolute inset-0"
-          >
-            <ImageFallback
-              src={currentImage?.url}
-              alt={product.name}
-              sizes="(max-width: 639px) 45vw, (max-width: 1023px) 30vw, 320px"
-              quality={60}
-              className="p-4"
-              style={currentImage?.scale ? { transform: `scale(${currentImage.scale})` } : undefined}
-            />
-          </motion.div>
-        </AnimatePresence>
+        <PreparedImageLayers
+          images={product.images}
+          alt={product.name}
+          sizes={CARD_IMAGE_SIZES}
+          quality={CARD_IMAGE_QUALITY}
+          layerClassName="absolute inset-0"
+          imageClassName="p-4"
+          carousel={carousel}
+        />
+
+        {hasMultiple && carousel.neighborIndices.map((neighborIndex) => (
+          <GalleryNeighborWarmup
+            key={`${product.images[neighborIndex].url}-${neighborIndex}`}
+            url={product.images[neighborIndex].url}
+            sizes={CARD_IMAGE_SIZES}
+            quality={CARD_IMAGE_QUALITY}
+          />
+        ))}
 
         {hasMultiple && (
           <>
             <button
               type="button"
-              onClick={handleArrowClick(index - 1)}
+              onClick={handleCarouselClick(() => carousel.step(-1))}
               aria-label="Предыдущее фото"
               className="absolute left-2 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-card/80 text-primary opacity-70 shadow-sm backdrop-blur-sm transition-[opacity,scale] duration-fast ease-ui hover:opacity-100 active:scale-90 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
@@ -140,7 +126,7 @@ export function ProductCard({ product, href }: { product: ProductListItem; href:
             </button>
             <button
               type="button"
-              onClick={handleArrowClick(index + 1)}
+              onClick={handleCarouselClick(() => carousel.step(1))}
               aria-label="Следующее фото"
               className="absolute right-2 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-card/80 text-primary opacity-70 shadow-sm backdrop-blur-sm transition-[opacity,scale] duration-fast ease-ui hover:opacity-100 active:scale-90 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
@@ -167,7 +153,7 @@ export function ProductCard({ product, href }: { product: ProductListItem; href:
             <button
               key={`${image.url}-${i}`}
               type="button"
-              onClick={handleArrowClick(i)}
+              onClick={handleCarouselClick(() => carousel.select(i))}
               aria-label={`Показать фото ${i + 1}`}
               aria-current={i === index}
               className="px-2 py-[19px] transition-transform duration-fast ease-ui active:scale-90"

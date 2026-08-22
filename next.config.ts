@@ -36,6 +36,9 @@ const nextConfig: NextConfig = {
     root: path.resolve(__dirname),
   },
   images: {
+    // Product-card thumbnails deliberately use 60 while full galleries use
+    // the default 75. Next 16 requires every optimizer quality explicitly.
+    qualities: [60, 75],
     remotePatterns: [
       {
         protocol: "https",

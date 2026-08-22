@@ -2,9 +2,7 @@
 
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { getImageProps } from "next/image";
-import { motion, useReducedMotion } from "framer-motion";
 import { ImageFallback } from "@/components/ui/ImageFallback";
-import { DURATION, EASE_UI } from "@/lib/motion";
 
 export interface PreparedCarouselImage {
   url: string;
@@ -14,8 +12,6 @@ export interface PreparedCarouselImage {
 interface CarouselState {
   selectedIndex: number;
   committedIndex: number;
-  direction: number;
-  readyKey: string | null;
 }
 
 export function getPreparedImageKey(image: PreparedCarouselImage | undefined, index: number) {
@@ -30,8 +26,6 @@ export function usePreparedImageCarousel(images: PreparedCarouselImage[]) {
   const [state, setState] = useState<CarouselState>({
     selectedIndex: 0,
     committedIndex: 0,
-    direction: 0,
-    readyKey: null,
   });
 
   const safeSelectedIndex = images.length === 0 ? 0 : Math.min(state.selectedIndex, images.length - 1);
@@ -48,8 +42,6 @@ export function usePreparedImageCarousel(images: PreparedCarouselImage[]) {
         return {
           ...current,
           selectedIndex: nextIndex,
-          direction: delta > 0 ? 1 : -1,
-          readyKey: nextIndex === current.selectedIndex ? current.readyKey : null,
         };
       });
     },
@@ -65,8 +57,6 @@ export function usePreparedImageCarousel(images: PreparedCarouselImage[]) {
         return {
           ...current,
           selectedIndex: wrapped,
-          direction: wrapped > current.selectedIndex ? 1 : -1,
-          readyKey: null,
         };
       });
     },
@@ -78,17 +68,8 @@ export function usePreparedImageCarousel(images: PreparedCarouselImage[]) {
       const currentImages = imagesRef.current;
       const currentIndex = currentImages.length === 0 ? 0 : Math.min(current.selectedIndex, currentImages.length - 1);
       const currentKey = getPreparedImageKey(currentImages[currentIndex], currentIndex);
-      return key === currentKey ? { ...current, readyKey: key } : current;
-    });
-  }, []);
-
-  const commitReady = useCallback((key: string) => {
-    setState((current) => {
-      const currentImages = imagesRef.current;
-      const currentIndex = currentImages.length === 0 ? 0 : Math.min(current.selectedIndex, currentImages.length - 1);
-      const currentKey = getPreparedImageKey(currentImages[currentIndex], currentIndex);
-      if (key !== currentKey || current.readyKey !== key) return current;
-      return { ...current, committedIndex: currentIndex, readyKey: null };
+      if (key !== currentKey) return current;
+      return { ...current, committedIndex: currentIndex };
     });
   }, []);
 
@@ -101,22 +82,14 @@ export function usePreparedImageCarousel(images: PreparedCarouselImage[]) {
   return {
     selectedIndex: safeSelectedIndex,
     committedIndex: safeCommittedIndex,
-    direction: state.direction,
     selectedKey,
     committedKey,
     hasPendingImage,
-    pendingReady: hasPendingImage && state.readyKey === selectedKey,
     neighborIndices,
     step,
     select,
     markReady,
-    commitReady,
   };
-}
-
-export function getPreparedImageOffset(direction: number, shouldReduceMotion: boolean | null) {
-  if (shouldReduceMotion) return 0;
-  return direction > 0 ? 8 : -8;
 }
 
 interface PreparedImageLayersProps {
@@ -125,6 +98,7 @@ interface PreparedImageLayersProps {
   sizes: string;
   layerClassName: string;
   imageClassName?: string;
+  quality?: number;
   carousel: ReturnType<typeof usePreparedImageCarousel>;
 }
 
@@ -134,9 +108,9 @@ export function PreparedImageLayers({
   sizes,
   layerClassName,
   imageClassName,
+  quality,
   carousel,
 }: PreparedImageLayersProps) {
-  const shouldReduceMotion = useReducedMotion();
   const layerIndices = carousel.hasPendingImage
     ? [carousel.committedIndex, carousel.selectedIndex]
     : [carousel.committedIndex];
@@ -145,23 +119,14 @@ export function PreparedImageLayers({
     const image = images[index];
     const key = getPreparedImageKey(image, index);
     const isPending = carousel.hasPendingImage && key === carousel.selectedKey;
-    const hiddenOffset = getPreparedImageOffset(carousel.direction, shouldReduceMotion);
-    const target = isPending && !carousel.pendingReady
-      ? { x: hiddenOffset, opacity: 0 }
-      : { x: 0, opacity: 1 };
 
     return (
-      <motion.div
+      <div
         key={key}
         data-carousel-layer={isPending ? "pending" : "committed"}
-        aria-hidden={!isPending && carousel.hasPendingImage ? true : undefined}
+        aria-hidden={isPending ? true : undefined}
         className={layerClassName}
-        initial={isPending ? { x: hiddenOffset, opacity: 0 } : false}
-        animate={target}
-        transition={{ duration: DURATION.fast, ease: EASE_UI }}
-        onAnimationComplete={() => {
-          if (isPending && carousel.pendingReady) carousel.commitReady(key);
-        }}
+        style={isPending ? { visibility: "hidden" } : undefined}
       >
         <ImageFallback
           src={image?.url}
@@ -170,21 +135,23 @@ export function PreparedImageLayers({
           className={imageClassName}
           style={image?.scale && image.scale !== 1 ? { transform: `scale(${image.scale})` } : undefined}
           loading="eager"
+          quality={quality}
           onLoad={isPending ? () => carousel.markReady(key) : undefined}
           onError={isPending ? () => carousel.markReady(key) : undefined}
         />
-      </motion.div>
+      </div>
     );
   });
 }
 
-export function GalleryNeighborWarmup({ url, sizes }: { url: string; sizes: string }) {
+export function GalleryNeighborWarmup({ url, sizes, quality }: { url: string; sizes: string; quality?: number }) {
   const { props } = getImageProps({
     src: url,
     alt: "",
     fill: true,
     sizes,
     loading: "eager",
+    quality,
   });
 
   return (
