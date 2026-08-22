@@ -391,32 +391,49 @@ export function ProductsList({ products: initialProducts, reorderDisabled, flash
           </div>
         )}
       </QuickViewPanel>
-      <BulkActionBar count={selected.size} itemLabel={bulkCountLabel} onClear={clearSelection}>
-        <button
-          type="button"
-          onClick={() => applyBulkPatch({ published: true })}
-          className="rounded-full bg-success-surface px-3 py-1.5 text-xs font-medium text-success transition-colors hover:bg-success-surface-hover"
-        >
-          Опубликовать
-        </button>
-        <button
-          type="button"
-          onClick={handleBulkUnpublishClick}
-          className="rounded-full bg-warning-surface px-3 py-1.5 text-xs font-medium text-warning transition-colors hover:bg-warning-surface-hover"
-        >
-          Снять с публикации
-        </button>
-        {AVAILABILITY_OPTIONS.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => applyBulkPatch({ availability: option.value })}
-            className={cn("rounded-full px-3 py-1.5 text-xs font-medium transition-colors", option.activeClassName)}
-          >
-            {option.label}
-          </button>
-        ))}
-      </BulkActionBar>
+      <BulkActionBar
+        count={selected.size}
+        itemLabel={bulkCountLabel}
+        onClear={clearSelection}
+        groups={[
+          {
+            label: "Публикация",
+            mobileClassName: "grid-cols-2",
+            actions: (
+              <>
+                <button
+                  type="button"
+                  onClick={() => applyBulkPatch({ published: true })}
+                  className="rounded-full bg-success-surface px-3 py-1.5 text-xs font-medium text-success transition-colors hover:bg-success-surface-hover"
+                >
+                  Опубликовать
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBulkUnpublishClick}
+                  className="rounded-full bg-warning-surface px-3 py-1.5 text-xs font-medium text-warning transition-colors hover:bg-warning-surface-hover"
+                >
+                  Снять с публикации
+                </button>
+              </>
+            ),
+          },
+          {
+            label: "Наличие",
+            mobileClassName: "grid-cols-3",
+            actions: AVAILABILITY_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => applyBulkPatch({ availability: option.value })}
+                className={cn("rounded-full px-3 py-1.5 text-xs font-medium transition-colors", option.activeClassName)}
+              >
+                {option.label}
+              </button>
+            )),
+          },
+        ]}
+      />
     </>
   );
 }
