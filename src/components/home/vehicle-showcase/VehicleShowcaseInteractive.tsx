@@ -665,70 +665,67 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
     <div ref={sectionRef} className="relative lg:flex lg:flex-1 lg:flex-col">
       <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">{activeEntry.vehicleType.name}</p>
 
-      {/* `stage` stays in this exact spot in the tree at all times — it's
-          never swapped between differently-shaped branches. Before reveal
-          the grid is forced to one column (so the vehicle reads as
-          centered, full width, nothing else on screen); the moment
-          `revealed` flips, the lg:grid-cols-[...] class takes effect
-          instantly (no transition property on grid-template-columns), at
-          the same beat hotspots and the carousel pop in. Swapping `stage`
-          between separate branches was tried first — React remounts the
-          div when its position in the tree changes, which drops
-          useContainRect's ResizeObserver silently (the ref re-attaches to
-          a new node, but the effect's deps don't change, so it never
-          reruns) and hotspots stopped rendering entirely. */}
+      {/* The final grid exists from the first render. The previous entrance
+          changed from one column to two and mounted the card 700ms after the
+          section entered the viewport; that pushed every following section
+          down and produced the production CLS spike. The choreography now
+          changes only opacity/scale while these boxes keep their final size.
+          `stage` also stays at the same tree position so useContainRect's
+          ResizeObserver remains attached. */}
       <div
         ref={containerRef}
         data-testid="vehicle-showcase-grid"
-        className={`relative mt-3 grid grid-cols-1 gap-6 lg:flex-1 lg:p-1 ${revealed ? "mx-auto lg:mx-0 lg:grid-cols-[1.3fr_1fr] lg:gap-10" : "mx-auto max-w-2xl"}`}
+        className="relative mx-auto mt-3 grid grid-cols-1 gap-6 lg:mx-0 lg:flex-1 lg:grid-cols-[1.3fr_1fr] lg:gap-10 lg:p-1"
       >
         {stage}
 
-        {revealed && (
-          // Ref target for the connector measurement — stays mounted
-          // across both hotspot switches and the hint↔card swap so it's
-          // never a stale/removed node when geometry is (re)computed.
-          // Leave a one-step runway above the card: the connector traces its
-          // top edge and the pulse needs unclipped space to remain legible.
-          // This is on the measured wrapper, so both card height and SVG
-          // geometry move together.
-          <div ref={cardRef} data-testid="vehicle-card" className="min-h-[220px] lg:mt-4 lg:min-h-[29rem]">
-            <AnimatePresence mode="wait">
-              {activeHotspot ? (
-                <motion.div
-                  key={activeHotspot.id}
-                  initial={{ opacity: 0, x: shouldReduceMotion ? 0 : 16 }}
-                  animate={{ opacity: isCardRevealed ? 1 : 0, x: isCardRevealed || shouldReduceMotion ? 0 : 16 }}
-                  exit={{ opacity: 0, x: 16 }}
-                  transition={{ duration: 0.25, ease: "easeOut" }}
-                  aria-hidden={!isCardRevealed}
-                  inert={!isCardRevealed}
-                  className={`lg:min-h-[29rem] ${isCardRevealed ? "pointer-events-auto" : "pointer-events-none"}`}
-                >
-                  <ProductPanel
-                    label={activeHotspot.label}
-                    product={activeHotspot.product}
-                    vehicleTypeSlug={activeEntry.vehicleType.slug}
-                  />
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="hint"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25, ease: "easeOut" }}
-                  className="flex min-h-[220px] flex-col justify-center gap-2 px-2 lg:min-h-0"
-                >
-                  <p className="text-4xl font-bold text-white/10 tabular-nums">
-                    01—{String(hotspotCount).padStart(2, "0")}
-                  </p>
-                  <p className="text-sm text-slate-400">Нажмите на синий плюс, чтобы увидеть подходящее оборудование.</p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        )}
+        <div
+          ref={cardRef}
+          data-testid="vehicle-card"
+          aria-hidden={!revealed}
+          inert={!revealed}
+          className={`min-h-[220px] transition-opacity duration-reveal ease-ui lg:mt-4 lg:min-h-[29rem] ${
+            revealed ? "opacity-100" : "pointer-events-none opacity-0"
+          }`}
+        >
+          {/* Ref target for the connector measurement — stays mounted across
+              hotspot switches and the hint↔card swap. The reserved height is
+              shared by the card and connector geometry. */}
+          <AnimatePresence mode="wait">
+            {activeHotspot ? (
+              <motion.div
+                key={activeHotspot.id}
+                initial={{ opacity: 0, x: shouldReduceMotion ? 0 : 16 }}
+                animate={{ opacity: isCardRevealed ? 1 : 0, x: isCardRevealed || shouldReduceMotion ? 0 : 16 }}
+                exit={{ opacity: 0, x: 16 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                aria-hidden={!isCardRevealed}
+                inert={!isCardRevealed}
+                className={`lg:min-h-[29rem] ${isCardRevealed ? "pointer-events-auto" : "pointer-events-none"}`}
+              >
+                <ProductPanel
+                  label={activeHotspot.label}
+                  product={activeHotspot.product}
+                  vehicleTypeSlug={activeEntry.vehicleType.slug}
+                />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="hint"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="flex min-h-[220px] flex-col justify-center gap-2 px-2 lg:min-h-0"
+              >
+                <p className="text-4xl font-bold text-white/10 tabular-nums">
+                  01—{String(hotspotCount).padStart(2, "0")}
+                </p>
+                <p className="text-sm text-slate-400">Нажмите на синий плюс, чтобы увидеть подходящее оборудование.</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* Keyed by the active hotspot so every switch is a fresh mount —
             restarting the draw from scratch and playing the previous
@@ -750,19 +747,18 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
         </AnimatePresence>
       </div>
 
-      {revealed && (
-        <motion.div
-          initial={{ scaleY: 0.4, opacity: 0 }}
-          animate={{ scaleY: 1, opacity: 1 }}
-          transition={{ duration: shouldReduceMotion ? 0 : 0.4, ease: [0.39, 0.575, 0.565, 1] }}
-          className="mt-8 shrink-0 lg:mt-4"
-        >
-          {/* No longer gated on transitionPhase !== "idle": every click is
-              acknowledged immediately (see selectVehicle above) instead of
-              being dropped while a previous switch is still animating. */}
-          <VehicleCarousel items={vehicleItems} activeIndex={selectedVehicleIndex} onSelect={selectVehicle} />
-        </motion.div>
-      )}
+      <div
+        aria-hidden={!revealed}
+        inert={!revealed}
+        className={`mt-8 shrink-0 origin-top transition-[opacity,scale] duration-reveal ease-ui lg:mt-4 ${
+          revealed ? "scale-y-100 opacity-100" : "pointer-events-none scale-y-[0.4] opacity-0"
+        }`}
+      >
+        {/* No longer gated on transitionPhase !== "idle": every click is
+            acknowledged immediately (see selectVehicle above) instead of
+            being dropped while a previous switch is still animating. */}
+        <VehicleCarousel items={vehicleItems} activeIndex={selectedVehicleIndex} onSelect={selectVehicle} />
+      </div>
     </div>
   );
 }

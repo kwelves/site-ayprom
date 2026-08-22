@@ -30,6 +30,18 @@ describe("vehicle showcase product-card layout", () => {
     expect(layoutDeclarations).not.toMatch(/(?:^|\n)\s*height:\s*100%/);
   });
 
+  it("reserves the final showcase layout before the entrance choreography", () => {
+    const interactive = readFileSync("src/components/home/vehicle-showcase/VehicleShowcaseInteractive.tsx", "utf8");
+
+    expect(interactive).toContain(
+      'className="relative mx-auto mt-3 grid grid-cols-1 gap-6 lg:mx-0 lg:flex-1 lg:grid-cols-[1.3fr_1fr] lg:gap-10 lg:p-1"',
+    );
+    expect(interactive).toContain('data-testid="vehicle-card"');
+    expect(interactive).toContain('aria-hidden={!revealed}');
+    expect(interactive).not.toContain('revealed ? "mx-auto lg:mx-0 lg:grid-cols-[1.3fr_1fr]');
+    expect(interactive).not.toContain("{revealed && (\n        <motion.div");
+  });
+
   it("uses collision-safe warmup keys in both product galleries", () => {
     const catalogGallery = readFileSync("src/components/catalog/ProductGallery.tsx", "utf8");
     const hotspotPanel = readFileSync("src/components/home/vehicle-showcase/ProductPanel.tsx", "utf8");
