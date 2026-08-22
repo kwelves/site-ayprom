@@ -1,6 +1,11 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { getAdminProducts, getAdminCategories, type AdminProductSort } from "@/lib/admin/queries";
+import {
+  getAdminProducts,
+  getAdminCategories,
+  getAdminProductHotspotOptions,
+  type AdminProductSort,
+} from "@/lib/admin/queries";
 import { parseAdminPage } from "@/lib/admin/pagination";
 import { isProductAvailability } from "@/lib/admin/product-availability";
 import { ProductsList } from "@/components/admin/ProductsList";
@@ -41,7 +46,7 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
   const isFiltered = Boolean(q?.trim() || category || resolvedPublished !== undefined || resolvedAvailability);
   const currentPage = parseAdminPage(page);
 
-  const [productPage, categories] = await Promise.all([
+  const [productPage, categories, hotspotOptions] = await Promise.all([
     getAdminProducts({
       q,
       categorySlug: category,
@@ -51,6 +56,7 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
       page: currentPage,
     }),
     getAdminCategories(),
+    getAdminProductHotspotOptions(),
   ]);
 
   return (
@@ -98,6 +104,7 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
           <ProductsList
             key={`${q ?? ""}:${category ?? ""}:${resolvedSort}:${productPage.page}`}
             products={productPage.items}
+            hotspotOptions={hotspotOptions}
             reorderDisabled={resolvedSort !== "order"}
             flashSlug={created ?? updated}
             flashAction={created ? "created" : updated ? "updated" : undefined}

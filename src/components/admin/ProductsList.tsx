@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { SortableList } from "@/components/admin/SortableList";
 import { Toast } from "@/components/admin/ui/Toast";
@@ -12,12 +12,16 @@ import { Checkbox } from "@/components/admin/ui/Checkbox";
 import { SegmentedControl } from "@/components/admin/ui/SegmentedControl";
 import { BulkActionBar } from "@/components/admin/ui/BulkActionBar";
 import { QuickViewPanel } from "@/components/admin/ui/QuickViewPanel";
+import { AdminUndoToast } from "@/components/admin/ui/AdminUndoToast";
+import { ProductActionsButton, ProductActionsPanel } from "@/components/admin/ProductActionsPanel";
+import { applyOptimisticProductPatch } from "@/components/admin/product-publication-state";
 import {
   reorderProducts,
   deleteProduct,
   toggleProductPublished,
   toggleProductAvailability,
   bulkUpdateProducts,
+  updateProductHotspotAssignments,
 } from "@/lib/admin/actions";
 import { useAdminList } from "@/lib/admin/use-admin-list";
 import { useConfirmDelete } from "@/lib/admin/use-confirm-delete";
@@ -28,10 +32,12 @@ import {
   PRODUCT_AVAILABILITY_OPTIONS,
   type ProductAvailability,
 } from "@/lib/admin/product-availability";
-import type { AdminProductListItem } from "@/lib/admin/queries";
+import type { AdminProductHotspotOption, AdminProductListItem } from "@/lib/admin/queries";
+import type { ProductHotspotAssignmentUpdate } from "@/lib/admin/product-hotspot-assignments";
 
 interface ProductsListProps {
   products: AdminProductListItem[];
+  hotspotOptions: AdminProductHotspotOption[];
   reorderDisabled?: boolean;
   flashSlug?: string;
   flashAction?: "created" | "updated";
@@ -65,11 +71,82 @@ function bulkCountLabel(count: number): string {
 // Единственное исключение — сортировка "по названию"/"по дате" (reorderDisabled):
 // в этом режиме видимый порядок и order расходятся, поэтому drag-n-drop
 // временно выключен, а не вводит в заблуждение.
-export function ProductsList({ products: initialProducts, reorderDisabled, flashSlug, flashAction }: ProductsListProps) {
+interface HotspotUndoState {
+  id: number;
+  message: string;
+  reverseUpdates: ProductHotspotAssignmentUpdate[];
+  restorePatch: HotspotUiPatch;
+}
+
+interface HotspotUiPatch {
+  products: Array<Pick<AdminProductListItem, "id" | "hotspotAssignment" | "hotspotCount">>;
+  hotspotOptions: Array<Pick<AdminProductHotspotOption, "id" | "product">>;
+}
+
+function assignmentFromOption(hotspot: AdminProductHotspotOption) {
+  return {
+    id: hotspot.id,
+    vehicleTypeSlug: hotspot.vehicleTypeSlug,
+    vehicleTypeName: hotspot.vehicleTypeName,
+    hotspotNumber: hotspot.hotspotNumber,
+    label: hotspot.label,
+  };
+}
+
+function captureHotspotUiPatch(
+  products: AdminProductListItem[],
+  hotspotOptions: AdminProductHotspotOption[],
+  productIds: Array<string | null>,
+  hotspotIds: Array<string | null>,
+): HotspotUiPatch {
+  const productIdSet = new Set(productIds.filter((id): id is string => id !== null));
+  const hotspotIdSet = new Set(hotspotIds.filter((id): id is string => id !== null));
+  return {
+    products: products
+      .filter((product) => productIdSet.has(product.id))
+      .map(({ id, hotspotAssignment, hotspotCount }) => ({ id, hotspotAssignment, hotspotCount })),
+    hotspotOptions: hotspotOptions
+      .filter((hotspot) => hotspotIdSet.has(hotspot.id))
+      .map(({ id, product }) => ({ id, product })),
+  };
+}
+
+function applyProductHotspotPatch(products: AdminProductListItem[], patch: HotspotUiPatch): AdminProductListItem[] {
+  const byId = new Map(patch.products.map((product) => [product.id, product]));
+  return products.map((product) => {
+    const saved = byId.get(product.id);
+    return saved
+      ? { ...product, hotspotAssignment: saved.hotspotAssignment, hotspotCount: saved.hotspotCount }
+      : product;
+  });
+}
+
+function applyHotspotOptionsPatch(
+  hotspotOptions: AdminProductHotspotOption[],
+  patch: HotspotUiPatch,
+): AdminProductHotspotOption[] {
+  const byId = new Map(patch.hotspotOptions.map((hotspot) => [hotspot.id, hotspot]));
+  return hotspotOptions.map((hotspot) => {
+    const saved = byId.get(hotspot.id);
+    return saved ? { ...hotspot, product: saved.product } : hotspot;
+  });
+}
+
+export function ProductsList({
+  products: initialProducts,
+  hotspotOptions: initialHotspotOptions,
+  reorderDisabled,
+  flashSlug,
+  flashAction,
+}: ProductsListProps) {
   const [unpublishProduct, setUnpublishProduct] = useState<AdminProductListItem | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkUnpublishConfirmOpen, setBulkUnpublishConfirmOpen] = useState(false);
   const [quickViewProduct, setQuickViewProduct] = useState<AdminProductListItem | null>(null);
+  const [actionsProductId, setActionsProductId] = useState<string | null>(null);
+  const [hotspotOptions, setHotspotOptions] = useState(initialHotspotOptions);
+  const [hotspotUndo, setHotspotUndo] = useState<HotspotUndoState | null>(null);
+  const [isHotspotPending, startHotspotTransition] = useTransition();
   const {
     items: products,
     setItems: setProducts,
@@ -94,19 +171,165 @@ export function ProductsList({ products: initialProducts, reorderDisabled, flash
     });
 
   const deleteConfirm = useConfirmDelete<AdminProductListItem>(removeItem);
+  const actionsProduct = products.find((product) => product.id === actionsProductId) ?? null;
+  const dismissHotspotUndo = useCallback(() => setHotspotUndo(null), []);
+
+  function runHotspotMutation(
+    updates: ProductHotspotAssignmentUpdate[],
+    nextProducts: AdminProductListItem[],
+    nextHotspotOptions: AdminProductHotspotOption[],
+    undo: Omit<HotspotUndoState, "id">,
+  ) {
+    setProducts(nextProducts);
+    setHotspotOptions(nextHotspotOptions);
+    dismissActionError();
+    setHotspotUndo(null);
+
+    startHotspotTransition(async () => {
+      let result;
+      try {
+        result = await updateProductHotspotAssignments(updates);
+      } catch {
+        setProducts((current) => applyProductHotspotPatch(current, undo.restorePatch));
+        setHotspotOptions((current) => applyHotspotOptionsPatch(current, undo.restorePatch));
+        reportActionError("Не удалось изменить хотспот. Проверьте подключение и попробуйте снова.");
+        return;
+      }
+      if (!result || "error" in result) {
+        setProducts((current) => applyProductHotspotPatch(current, undo.restorePatch));
+        setHotspotOptions((current) => applyHotspotOptionsPatch(current, undo.restorePatch));
+        reportActionError(
+          result?.error ?? "Не удалось изменить хотспот. Данные могли измениться — обновите страницу и попробуйте снова.",
+        );
+        return;
+      }
+      setActionsProductId(null);
+      setHotspotUndo({ ...undo, id: Date.now() });
+    });
+  }
+
+  function assignProductToHotspot(product: AdminProductListItem, target: AdminProductHotspotOption) {
+    const oldHotspotId = product.hotspotAssignment?.id ?? null;
+    if (oldHotspotId === target.id) return;
+
+    const displacedProductId = target.product?.id ?? null;
+    const restorePatch = captureHotspotUiPatch(
+      products,
+      hotspotOptions,
+      [product.id, displacedProductId],
+      [oldHotspotId, target.id],
+    );
+    const updates: ProductHotspotAssignmentUpdate[] = [];
+    if (oldHotspotId) {
+      updates.push({ hotspotId: oldHotspotId, expectedProductId: product.id, productId: null });
+    }
+    updates.push({ hotspotId: target.id, expectedProductId: displacedProductId, productId: product.id });
+
+    const nextProducts = products.map((item) => {
+      if (item.id === product.id) {
+        return { ...item, hotspotAssignment: assignmentFromOption(target), hotspotCount: 1 };
+      }
+      if (item.id === displacedProductId) {
+        return { ...item, hotspotAssignment: null, hotspotCount: 0 };
+      }
+      return item;
+    });
+    const nextHotspotOptions = hotspotOptions.map((hotspot) => {
+      if (hotspot.id === oldHotspotId) return { ...hotspot, product: null };
+      if (hotspot.id === target.id) {
+        return { ...hotspot, product: { id: product.id, slug: product.slug, name: product.name } };
+      }
+      return hotspot;
+    });
+    const reverseUpdates: ProductHotspotAssignmentUpdate[] = [
+      { hotspotId: target.id, expectedProductId: product.id, productId: displacedProductId },
+    ];
+    if (oldHotspotId) {
+      reverseUpdates.push({ hotspotId: oldHotspotId, expectedProductId: null, productId: product.id });
+    }
+
+    runHotspotMutation(updates, nextProducts, nextHotspotOptions, {
+      message: oldHotspotId ? "Товар перенесён на другой хотспот" : "Товар закреплён за хотспотом",
+      reverseUpdates,
+      restorePatch,
+    });
+  }
+
+  function detachProductFromHotspot(product: AdminProductListItem) {
+    const assignment = product.hotspotAssignment;
+    if (!assignment) return;
+    const restorePatch = captureHotspotUiPatch(products, hotspotOptions, [product.id], [assignment.id]);
+    const nextProducts = products.map((item) =>
+      item.id === product.id ? { ...item, hotspotAssignment: null, hotspotCount: 0 } : item,
+    );
+    const nextHotspotOptions = hotspotOptions.map((hotspot) =>
+      hotspot.id === assignment.id ? { ...hotspot, product: null } : hotspot,
+    );
+    runHotspotMutation(
+      [{ hotspotId: assignment.id, expectedProductId: product.id, productId: null }],
+      nextProducts,
+      nextHotspotOptions,
+      {
+        message: "Товар снят с хотспота",
+        reverseUpdates: [{ hotspotId: assignment.id, expectedProductId: null, productId: product.id }],
+        restorePatch,
+      },
+    );
+  }
+
+  function undoHotspotMutation() {
+    if (!hotspotUndo) return;
+    const undo = hotspotUndo;
+    const rollbackPatch = captureHotspotUiPatch(
+      products,
+      hotspotOptions,
+      undo.restorePatch.products.map((product) => product.id),
+      undo.restorePatch.hotspotOptions.map((hotspot) => hotspot.id),
+    );
+    setProducts((current) => applyProductHotspotPatch(current, undo.restorePatch));
+    setHotspotOptions((current) => applyHotspotOptionsPatch(current, undo.restorePatch));
+    dismissActionError();
+
+    startHotspotTransition(async () => {
+      let result;
+      try {
+        result = await updateProductHotspotAssignments(undo.reverseUpdates);
+      } catch {
+        setProducts((current) => applyProductHotspotPatch(current, rollbackPatch));
+        setHotspotOptions((current) => applyHotspotOptionsPatch(current, rollbackPatch));
+        reportActionError("Не удалось отменить действие. Проверьте подключение и попробуйте снова.");
+        return;
+      }
+      if (!result || "error" in result) {
+        setProducts((current) => applyProductHotspotPatch(current, rollbackPatch));
+        setHotspotOptions((current) => applyHotspotOptionsPatch(current, rollbackPatch));
+        reportActionError(
+          result?.error ?? "Не удалось отменить действие. Данные могли измениться — обновите страницу.",
+        );
+        return;
+      }
+      setHotspotUndo(null);
+    });
+  }
 
   // Publish toggle is products-only, so it stays here rather than in the shared
   // hook — an optimistic in-place update (not a remove) built on the hook's
   // exposed setItems / startTransition.
   function applyPublishedToggle(product: AdminProductListItem, nextPublished: boolean, confirmedUnpublish = false) {
-    const previous = products;
-    setProducts((prev) => prev.map((p) => (p.slug === product.slug ? { ...p, published: nextPublished } : p)));
+    const previousProducts = products;
+    const previousHotspotOptions = hotspotOptions;
+    const optimistic = applyOptimisticProductPatch(products, hotspotOptions, [product.slug], {
+      published: nextPublished,
+    });
+    setProducts(optimistic.products);
+    setHotspotOptions(optimistic.hotspotOptions);
     dismissActionError();
     startTransition(async () => {
       try {
         await toggleProductPublished(product.slug, nextPublished, confirmedUnpublish);
       } catch (error) {
-        setProducts(previous);
+        setProducts(previousProducts);
+        setHotspotOptions(previousHotspotOptions);
         reportActionError(
           error instanceof Error
             ? error.message
@@ -163,15 +386,19 @@ export function ProductsList({ products: initialProducts, reorderDisabled, flash
 
   function applyBulkPatch(patch: { published?: boolean; availability?: ProductAvailability }) {
     const slugs = [...selected];
-    const previous = products;
-    setProducts((prev) => prev.map((p) => (slugs.includes(p.slug) ? { ...p, ...patch } : p)));
+    const previousProducts = products;
+    const previousHotspotOptions = hotspotOptions;
+    const optimistic = applyOptimisticProductPatch(products, hotspotOptions, slugs, patch);
+    setProducts(optimistic.products);
+    setHotspotOptions(optimistic.hotspotOptions);
     dismissActionError();
     clearSelection();
     startTransition(async () => {
       try {
         await bulkUpdateProducts(slugs, patch);
       } catch {
-        setProducts(previous);
+        setProducts(previousProducts);
+        setHotspotOptions(previousHotspotOptions);
         reportActionError("Не удалось применить массовое действие. Список возвращён в прежнее состояние.");
       }
     });
@@ -217,11 +444,12 @@ export function ProductsList({ products: initialProducts, reorderDisabled, flash
             )}
           </button>
           <div className="contents md:block md:min-w-0 md:flex-1">
-            <div className="min-w-0">
-              <button type="button" onClick={() => setQuickViewProduct(product)} className="w-full text-left">
-                <p className="text-sm font-medium leading-snug text-card-foreground hover:underline">{product.name}</p>
+            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_2.75rem] items-start gap-x-1 md:grid-cols-[minmax(0,1fr)_2.75rem]">
+              <button type="button" onClick={() => setQuickViewProduct(product)} className="min-w-0 text-left">
+                <p className="break-words text-sm font-medium leading-snug text-card-foreground [overflow-wrap:anywhere] hover:underline">{product.name}</p>
               </button>
-              <p className="mt-1 text-xs leading-snug text-muted-foreground">
+              <ProductActionsButton product={product} onOpen={() => setActionsProductId(product.id)} />
+              <p className="col-span-2 mt-1 text-xs leading-snug text-muted-foreground">
                 {product.categoryName}
                 {product.article && ` · Арт. ${product.article}`}
                 {" · изменено "}
@@ -391,6 +619,27 @@ export function ProductsList({ products: initialProducts, reorderDisabled, flash
           </div>
         )}
       </QuickViewPanel>
+      {actionsProduct && (
+        <ProductActionsPanel
+          key={actionsProduct.id}
+          open
+          product={actionsProduct}
+          hotspots={hotspotOptions}
+          pending={isHotspotPending}
+          onClose={() => {
+            if (!isHotspotPending) setActionsProductId(null);
+          }}
+          onAssign={(hotspot) => assignProductToHotspot(actionsProduct, hotspot)}
+          onDetach={() => detachProductFromHotspot(actionsProduct)}
+        />
+      )}
+      <AdminUndoToast
+        toast={hotspotUndo ? { id: hotspotUndo.id, message: hotspotUndo.message } : null}
+        actionLabel="Отменить"
+        pending={isHotspotPending}
+        onAction={undoHotspotMutation}
+        onDismiss={dismissHotspotUndo}
+      />
       <BulkActionBar
         count={selected.size}
         itemLabel={bulkCountLabel}

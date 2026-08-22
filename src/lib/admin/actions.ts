@@ -54,6 +54,11 @@ import {
   type VehicleHotspotActionState,
   type VehicleHotspotUpdate,
 } from "@/lib/admin/vehicle-hotspot-updates";
+import {
+  getProductHotspotAssignmentRpcErrorMessage,
+  parseProductHotspotAssignmentUpdates,
+  type ProductHotspotAssignmentActionState,
+} from "@/lib/admin/product-hotspot-assignments";
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -1757,6 +1762,35 @@ export async function restoreVehicleHotspots(
     const expectedUpdates = parseVehicleHotspotUndoUpdates(expectedSavedUpdates);
     return persistVehicleHotspotUpdates(vehicleTypeSlug, updates, expectedUpdates);
   });
+}
+
+// Quick product actions use a small CAS batch rather than rewriting all five
+// hotspots. The database locks and validates the whole transition atomically;
+// the expected product ids make ordinary saves and Undo equally conflict-safe.
+export async function updateProductHotspotAssignments(
+  updates: unknown,
+): Promise<ProductHotspotAssignmentActionState> {
+  try {
+    await requireAdminSession();
+    const parsedUpdates = parseProductHotspotAssignmentUpdates(updates);
+    const supabase = createAdminClient();
+    const { error } = await supabase.rpc("update_vehicle_hotspot_assignments", {
+      assignment_updates: parsedUpdates,
+    });
+    if (error) {
+      const translatedMessage = getProductHotspotAssignmentRpcErrorMessage(error.message);
+      if (translatedMessage) throw new Error(translatedMessage);
+      throw error;
+    }
+
+    revalidatePath("/admin/products");
+    revalidatePath("/admin/vehicle-showcase");
+    revalidatePublicSite();
+    return { success: true, savedUpdates: parsedUpdates };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    return { error: getErrorMessage(error, "Не удалось изменить закрепление товара.") };
+  }
 }
 
 function escapeILikeTerm(term: string): string {

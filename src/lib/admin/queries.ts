@@ -22,6 +22,7 @@ export interface AdminProductListItem {
    * The list uses it to require an explicit confirmation before an
    * unpublish operation triggers automatic detachment. */
   hotspotCount: number;
+  hotspotAssignment: AdminProductHotspotAssignment | null;
   order: number;
   updatedAt: string;
   coverImage: string | null;
@@ -39,7 +40,28 @@ interface AdminProductListRow {
   updated_at: string;
   categories: { name: string } | null;
   product_images: { url: string; order: number }[];
-  vehicle_hotspots: { id: string }[];
+  vehicle_hotspots: {
+    id: string;
+    vehicle_type_slug: string;
+    hotspot_number: number;
+    label: string;
+    vehicle_types: { name: string } | null;
+  }[];
+}
+
+export interface AdminProductHotspotAssignment {
+  id: string;
+  vehicleTypeSlug: string;
+  vehicleTypeName: string;
+  hotspotNumber: number;
+  label: string;
+}
+
+export interface AdminProductHotspotOption extends AdminProductHotspotAssignment {
+  vehicleTypeOrder: number;
+  xPct: number;
+  yPct: number;
+  product: { id: string; slug: string; name: string } | null;
 }
 
 export interface AuditLogEntry {
@@ -163,7 +185,7 @@ export async function getAdminProducts(filters: AdminProductFilters = {}): Promi
   let query = supabase
     .from("products")
     .select(
-      "id, slug, name, article, short_description, published, availability, order, updated_at, categories(name), product_images(url, order), vehicle_hotspots(id)",
+      "id, slug, name, article, short_description, published, availability, order, updated_at, categories(name), product_images(url, order), vehicle_hotspots(id, vehicle_type_slug, hotspot_number, label, vehicle_types(name))",
       { count: "exact" },
     )
     .range(from, from + pageSize - 1);
@@ -212,6 +234,15 @@ export async function getAdminProducts(filters: AdminProductFilters = {}): Promi
       published: row.published,
       availability: row.availability,
       hotspotCount: row.vehicle_hotspots?.length ?? 0,
+      hotspotAssignment: row.vehicle_hotspots?.[0]
+        ? {
+            id: row.vehicle_hotspots[0].id,
+            vehicleTypeSlug: row.vehicle_hotspots[0].vehicle_type_slug,
+            vehicleTypeName: row.vehicle_hotspots[0].vehicle_types?.name ?? row.vehicle_hotspots[0].vehicle_type_slug,
+            hotspotNumber: row.vehicle_hotspots[0].hotspot_number,
+            label: row.vehicle_hotspots[0].label,
+          }
+        : null,
       order: row.order,
       updatedAt: row.updated_at,
       coverImage: [...row.product_images].sort((a, b) => a.order - b.order)[0]?.url ?? null,
@@ -221,6 +252,49 @@ export async function getAdminProducts(filters: AdminProductFilters = {}): Promi
     pageSize,
     totalPages: Math.max(1, Math.ceil(total / pageSize)),
   };
+}
+
+interface AdminProductHotspotOptionRow {
+  id: string;
+  vehicle_type_slug: string;
+  hotspot_number: number;
+  label: string;
+  x_pct: number;
+  y_pct: number;
+  vehicle_types: { name: string; order: number } | null;
+  products: { id: string; slug: string; name: string } | null;
+}
+
+// All assignment choices are intentionally loaded in one bounded query. The
+// schema guarantees five hotspots per configured vehicle type, so this avoids
+// an N+1 request for every product row while still returning current occupancy.
+export async function getAdminProductHotspotOptions(): Promise<AdminProductHotspotOption[]> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("vehicle_hotspots")
+    .select("id, vehicle_type_slug, hotspot_number, label, x_pct, y_pct, vehicle_types(name, order), products(id, slug, name)");
+  if (error) throw error;
+
+  return (data as unknown as AdminProductHotspotOptionRow[])
+    .map((row) => ({
+      id: row.id,
+      vehicleTypeSlug: row.vehicle_type_slug,
+      vehicleTypeName: row.vehicle_types?.name ?? row.vehicle_type_slug,
+      vehicleTypeOrder: row.vehicle_types?.order ?? Number.MAX_SAFE_INTEGER,
+      hotspotNumber: row.hotspot_number,
+      label: row.label,
+      xPct: row.x_pct,
+      yPct: row.y_pct,
+      product: row.products
+        ? { id: row.products.id, slug: row.products.slug, name: row.products.name }
+        : null,
+    }))
+    .sort(
+      (left, right) =>
+        left.vehicleTypeOrder - right.vehicleTypeOrder ||
+        left.hotspotNumber - right.hotspotNumber ||
+        left.id.localeCompare(right.id),
+    );
 }
 
 export interface AdminProduct {

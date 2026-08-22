@@ -40,7 +40,7 @@ export function AdminUndoToast({ toast, actionLabel, pending = false, onAction, 
               type="button"
               onClick={onAction}
               disabled={pending}
-              className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold text-primary transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-70"
+              className="ml-auto inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold text-primary transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-70 md:min-h-0"
             >
               {pending ? <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" /> : <Undo2 aria-hidden="true" className="h-4 w-4" />}
               {pending ? "Отмена…" : actionLabel}
@@ -50,7 +50,7 @@ export function AdminUndoToast({ toast, actionLabel, pending = false, onAction, 
             type="button"
             onClick={onDismiss}
             aria-label="Закрыть уведомление"
-            className="shrink-0 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary md:h-auto md:w-auto md:rounded-none"
           >
             <X aria-hidden="true" className="h-4 w-4" />
           </button>
