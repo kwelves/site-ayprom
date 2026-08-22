@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import * as Sentry from "@sentry/nextjs";
 import {
   createSessionToken,
   getSessionPayload,
@@ -11,7 +12,10 @@ import {
 } from "@/lib/admin/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { slugify } from "@/lib/admin/slugify";
-import { registerLoginAttempt } from "@/lib/admin/login-rate-limit";
+import {
+  AdminLoginProtectionUnavailableError,
+  registerLoginAttempt,
+} from "@/lib/admin/login-rate-limit";
 import {
   AdminCredentialConflictError,
   getAdminCredentialVersion,
@@ -64,6 +68,26 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
+async function removeFilesAfterDatabaseDelete(
+  supabase: ReturnType<typeof createAdminClient>,
+  paths: string[],
+  entityType: "category" | "subcategory",
+): Promise<void> {
+  if (paths.length === 0) return;
+
+  const { error } = await supabase.storage.from("category-images").remove(paths);
+  if (error) {
+    // The database deletion is already committed. An orphaned file is safer
+    // than deleting files first and then discovering that a foreign key kept
+    // the category alive. Report cleanup for retry without turning a completed
+    // deletion into a misleading UI failure.
+    Sentry.captureException(error, {
+      tags: { subsystem: "admin-storage-cleanup", entityType },
+      extra: { bucket: "category-images", fileCount: paths.length },
+    });
+  }
+}
+
 export type FormActionState = { error: string } | null;
 
 // redirect() reports success by throwing a special error tagged with this
@@ -101,7 +125,15 @@ export async function login(formData: FormData): Promise<void> {
   const password = formData.get("password");
   const credentialState = await getAdminCredentialState();
   const passwordIsValid = typeof password === "string" && (await verifyAdminPassword(password, credentialState));
-  const retryAfter = await registerLoginAttempt(passwordIsValid);
+  let retryAfter: number;
+  try {
+    retryAfter = await registerLoginAttempt(passwordIsValid);
+  } catch (error) {
+    if (error instanceof AdminLoginProtectionUnavailableError) {
+      redirect("/admin/login?error=security");
+    }
+    throw error;
+  }
 
   if (retryAfter > 0) {
     redirect(`/admin/login?error=rate&retry=${retryAfter}`);
@@ -1257,37 +1289,29 @@ export async function deleteCategory(slug: string): Promise<void> {
 
   const { data: files, error: listError } = await supabase.storage.from("category-images").list(slug);
   if (listError) throw listError;
-  if (files && files.length > 0) {
-    const { error: removeError } = await supabase.storage
-      .from("category-images")
-      .remove(files.map((file) => `${slug}/${file.name}`));
-    if (removeError) throw removeError;
-  }
+  const storagePaths = (files ?? []).map((file) => `${slug}/${file.name}`);
 
   // Subcategory images live in their own sub-{id} folders, not nested under
   // this category's — the DB cascade below clears subcategory rows but
-  // wouldn't reach their Storage files, so remove those folders first.
+  // wouldn't reach their Storage files, so collect those paths before the
+  // rows disappear and clean them only after the database delete succeeds.
   // Parallel, not sequential: a category can have many subcategories, and
-  // each is an independent list+remove round trip with nothing to serialize.
+  // each folder listing is independent with nothing to serialize.
   const { data: subcategories, error: subcategoriesError } = await supabase
     .from("subcategories")
     .select("id")
     .eq("category_slug", slug);
   if (subcategoriesError) throw subcategoriesError;
-  await Promise.all(
+  const subcategoryStoragePaths = await Promise.all(
     (subcategories ?? []).map(async (sub) => {
       const { data: subFiles, error: subListError } = await supabase.storage
         .from("category-images")
         .list(`sub-${sub.id}`);
       if (subListError) throw subListError;
-      if (subFiles && subFiles.length > 0) {
-        const { error: subRemoveError } = await supabase.storage
-          .from("category-images")
-          .remove(subFiles.map((file) => `sub-${sub.id}/${file.name}`));
-        if (subRemoveError) throw subRemoveError;
-      }
+      return (subFiles ?? []).map((file) => `sub-${sub.id}/${file.name}`);
     }),
   );
+  storagePaths.push(...subcategoryStoragePaths.flat());
 
   // Cascades clean up subcategories/category_brands; products.category_slug
   // has no cascade, so this throws (FK violation) if any product still
@@ -1295,6 +1319,7 @@ export async function deleteCategory(slug: string): Promise<void> {
   // calling this to avoid surfacing that raw error.
   const { error } = await supabase.from("categories").delete().eq("slug", slug);
   if (error) throw error;
+  await removeFilesAfterDatabaseDelete(supabase, storagePaths, "category");
 
   revalidatePath("/admin/categories");
   revalidatePublicSite();
@@ -1468,18 +1493,14 @@ export async function deleteSubcategory(subcategoryId: string): Promise<void> {
     .from("category-images")
     .list(`sub-${subcategoryId}`);
   if (listError) throw listError;
-  if (files && files.length > 0) {
-    const { error: removeError } = await supabase.storage
-      .from("category-images")
-      .remove(files.map((file) => `sub-${subcategoryId}/${file.name}`));
-    if (removeError) throw removeError;
-  }
+  const storagePaths = (files ?? []).map((file) => `sub-${subcategoryId}/${file.name}`);
 
   // products.subcategory_id has no cascade, so this throws (FK violation) if
   // any product still references it — SubcategoriesList checks productCount
   // before calling this to avoid surfacing that raw error.
   const { error } = await supabase.from("subcategories").delete().eq("id", subcategoryId);
   if (error) throw error;
+  await removeFilesAfterDatabaseDelete(supabase, storagePaths, "subcategory");
 
   revalidatePath(`/admin/categories/${existing.category_slug}/subcategories`);
   revalidatePublicSite();

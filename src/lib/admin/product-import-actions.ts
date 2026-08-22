@@ -7,13 +7,27 @@ import {
   parseProductImportCsv,
   type ImportCatalogReference,
   type ImportPreview,
-  type ParsedImportRow,
 } from "@/lib/admin/product-import-parse";
 
 // Batch по 500: PostgREST/config.toml ограничивает ответ max_rows = 1000, а
 // сам import_products_batch выполняет по несколько DML-операторов на строку
 // — держим запрос заведомо ниже потолка и в разумных по времени пределах.
 const IMPORT_BATCH_SIZE = 500;
+const MAX_IMPORT_FILE_BYTES = 5 * 1024 * 1024;
+
+async function parseUploadedImport(formData: FormData): Promise<ImportPreview> {
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("Выберите CSV-файл для импорта.");
+  }
+  if (file.size > MAX_IMPORT_FILE_BYTES) {
+    throw new Error("CSV-файл слишком большой. Максимальный размер — 5 МБ.");
+  }
+
+  const csvText = await file.text();
+  const reference = await loadCatalogReference();
+  return parseProductImportCsv(csvText, reference);
+}
 
 async function loadCatalogReference(): Promise<ImportCatalogReference> {
   const supabase = createAdminClient();
@@ -56,14 +70,7 @@ async function loadCatalogReference(): Promise<ImportCatalogReference> {
 // единственное, что нужно от File на этом шаге.
 export async function previewProductImport(formData: FormData): Promise<ImportPreview> {
   await requireAdminSession();
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) {
-    throw new Error("Выберите CSV-файл для импорта.");
-  }
-
-  const csvText = await file.text();
-  const reference = await loadCatalogReference();
-  return parseProductImportCsv(csvText, reference);
+  return parseUploadedImport(formData);
 }
 
 export interface ImportCommitResult {
@@ -72,13 +79,12 @@ export interface ImportCommitResult {
   errors: { rowIndex: number; slug: string; message: string }[];
 }
 
-// Строки берутся ровно те, что вернул previewProductImport — предпросмотр
-// уже сделал всю структурную валидацию, поэтому здесь только доверенная
-// пакетная запись через RPC. Батч-уровневый сбой (сеть, тайм-аут) прерывает
-// весь импорт с понятной ошибкой; построчный — обрабатывается внутри RPC и
-// не мешает следующим батчам.
-export async function commitProductImport(rows: ParsedImportRow[]): Promise<ImportCommitResult> {
+// Server Actions are public mutation endpoints: the browser may call this
+// function directly and forge every ordinary argument. Re-read and revalidate
+// the original file here instead of trusting rows returned to the preview UI.
+export async function commitProductImport(formData: FormData): Promise<ImportCommitResult> {
   await requireAdminSession();
+  const { validRows: rows } = await parseUploadedImport(formData);
   const supabase = createAdminClient();
   const result: ImportCommitResult = { created: 0, updated: 0, errors: [] };
 

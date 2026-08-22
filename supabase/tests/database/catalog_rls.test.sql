@@ -1,6 +1,6 @@
 begin;
 
-select plan(15);
+select plan(23);
 
 select has_table('public', 'products', 'products table exists');
 select has_function(
@@ -10,6 +10,32 @@ select has_function(
   'catalog search RPC exists'
 );
 select has_table('public', 'admin_audit_log', 'admin audit log exists');
+select has_table('public', 'admin_auth_events', 'admin auth events table exists');
+select has_function(
+  'public',
+  'register_admin_login_attempt',
+  array['text', 'boolean', 'text'],
+  'distributed login guard RPC exists with audit scope'
+);
+select ok(
+  (select relrowsecurity from pg_class where oid = 'public.admin_auth_events'::regclass),
+  'admin auth events has RLS enabled'
+);
+select is(
+  has_table_privilege('anon', 'public.admin_auth_events', 'select'),
+  false,
+  'anon cannot read admin auth events'
+);
+select is(
+  has_table_privilege('authenticated', 'public.admin_auth_events', 'select'),
+  false,
+  'authenticated cannot read admin auth events'
+);
+select is(
+  has_function_privilege('anon', 'public.register_admin_login_attempt(text,boolean,text)', 'execute'),
+  false,
+  'anon cannot call the login guard RPC'
+);
 select has_table('public', 'admin_credentials', 'admin credentials table exists');
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.admin_credentials'::regclass),
@@ -81,6 +107,23 @@ select throws_ok(
 
 reset role;
 set local role service_role;
+
+select is(
+  public.register_admin_login_attempt(repeat('a', 64), false, 'login'),
+  0,
+  'service role can register a first failed login attempt'
+);
+select is(
+  (
+    select count(*)
+    from public.admin_auth_events
+    where attempt_key_hash = repeat('a', 64)
+      and scope = 'login'
+      and outcome = 'failure'
+  ),
+  1::bigint,
+  'failed login attempt is durably audited'
+);
 
 select lives_ok(
   $$update public.products set published = true where slug = 'integration-hidden-product'$$,

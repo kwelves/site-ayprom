@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, UploadCloud } from "lucide-react";
 import { previewProductImport, commitProductImport, type ImportCommitResult } from "@/lib/admin/product-import-actions";
-import type { ImportPreview, ParsedImportRow } from "@/lib/admin/product-import-parse";
+import type { ImportPreview } from "@/lib/admin/product-import-parse";
 
 type Stage = { name: "idle" } | { name: "preview"; preview: ImportPreview } | { name: "done"; result: ImportCommitResult };
 
@@ -12,10 +12,12 @@ export function ImportProducts() {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const selectedFileRef = useRef<File | null>(null);
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
+    selectedFileRef.current = file;
     setError(null);
 
     const formData = new FormData();
@@ -30,10 +32,17 @@ export function ImportProducts() {
     });
   }
 
-  function handleConfirm(rows: ParsedImportRow[]) {
+  function handleConfirm() {
+    const file = selectedFileRef.current;
+    if (!file) {
+      setError("Выберите CSV-файл заново.");
+      return;
+    }
+    const formData = new FormData();
+    formData.set("file", file);
     startTransition(async () => {
       try {
-        const result = await commitProductImport(rows);
+        const result = await commitProductImport(formData);
         setStage({ name: "done", result });
       } catch (err) {
         setError(err instanceof Error ? err.message : "Импорт не выполнен.");
@@ -44,6 +53,7 @@ export function ImportProducts() {
   function handleReset() {
     setStage({ name: "idle" });
     setError(null);
+    selectedFileRef.current = null;
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -104,7 +114,7 @@ function ImportPreviewPanel({
 }: {
   preview: ImportPreview;
   isPending: boolean;
-  onConfirm: (rows: ParsedImportRow[]) => void;
+  onConfirm: () => void;
   onCancel: () => void;
 }) {
   const toCreate = preview.validRows.filter((r) => !r.matchedExisting).length;
@@ -178,7 +188,7 @@ function ImportPreviewPanel({
       <div className="flex gap-3">
         <button
           type="button"
-          onClick={() => onConfirm(preview.validRows)}
+          onClick={onConfirm}
           disabled={isPending || preview.validRows.length === 0}
           className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-70"
         >

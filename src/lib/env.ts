@@ -26,6 +26,26 @@ const PUBLIC_ENV_KEYS = [
 type ServerEnvKey = (typeof SERVER_ENV_KEYS)[number];
 type PublicEnvKey = (typeof PUBLIC_ENV_KEYS)[number];
 
+const SERVER_SECRET_RULES: Record<ServerEnvKey, { minimumBytes: number; examples: readonly string[] }> = {
+  SUPABASE_SECRET_KEY: { minimumBytes: 32, examples: ["your-secret-key"] },
+  ADMIN_PASSWORD: { minimumBytes: 12, examples: ["replace-with-a-long-random-password"] },
+  ADMIN_SESSION_SECRET: { minimumBytes: 32, examples: ["replace-with-at-least-32-random-bytes"] },
+};
+
+function assertSecureServerValue(key: ServerEnvKey, value: string): void {
+  const rule = SERVER_SECRET_RULES[key];
+  const byteLength = new TextEncoder().encode(value).byteLength;
+  const normalized = value.toLowerCase();
+  const isDocumentedPlaceholder = rule.examples.some((example) => normalized === example);
+  const isGenericPlaceholder = /^(change-?me|replace-?me|example|placeholder)([-_].*)?$/.test(normalized);
+
+  if (byteLength < rule.minimumBytes || isDocumentedPlaceholder || isGenericPlaceholder) {
+    throw new Error(
+      `Переменная окружения ${key} небезопасна: задайте случайное значение длиной не менее ${rule.minimumBytes} байт.`,
+    );
+  }
+}
+
 /**
  * Reads a required variable, throwing a value-free error when it is unset.
  *
@@ -40,6 +60,9 @@ export function requireServerEnv(key: ServerEnvKey | PublicEnvKey): string {
       `Переменная окружения ${key} не задана. Добавьте её в .env.local (локально) ` +
         `или в переменные окружения хостинга. Список см. в .env.example.`
     );
+  }
+  if ((SERVER_ENV_KEYS as readonly string[]).includes(key)) {
+    assertSecureServerValue(key as ServerEnvKey, value);
   }
   return value;
 }

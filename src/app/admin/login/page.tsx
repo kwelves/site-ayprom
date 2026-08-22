@@ -32,6 +32,10 @@ export default async function AdminLoginPage({ searchParams }: LoginPageProps) {
           <p className="mt-3 text-sm text-danger" role="alert">
             Слишком много попыток. Повторите вход примерно через {retryMinutes} мин.
           </p>
+        ) : error === "security" ? (
+          <p className="mt-3 text-sm text-danger" role="alert">
+            Защита входа временно недоступна. Повторите попытку через несколько секунд.
+          </p>
         ) : (
           error && (
             <p className="mt-3 text-sm text-danger" role="alert">

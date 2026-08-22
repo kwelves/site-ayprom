@@ -67,8 +67,11 @@ CREATE OR REPLACE FUNCTION "public"."record_admin_mutation"() RETURNS "trigger"
     SET "search_path" TO ''
     AS $$
 declare
+  ignored_keys text[] := array['search_text', 'created_at', 'updated_at', 'order'];
   row_data jsonb := case when tg_op = 'DELETE' then to_jsonb(old) else to_jsonb(new) end;
   field_names text[] := '{}';
+  old_diff jsonb := '{}'::jsonb;
+  new_diff jsonb := '{}'::jsonb;
 begin
   -- Триггеры вроде products_refresh_search_text каскадно выполняют свой
   -- собственный UPDATE (например, пересчёт search_text) в ответ на исходную
@@ -83,11 +86,23 @@ begin
     select coalesce(array_agg(field.key order by field.key), '{}')
     into field_names
     from jsonb_each(to_jsonb(new)) as field
-    where to_jsonb(old) -> field.key is distinct from field.value;
+    where field.key <> all(ignored_keys)
+      and to_jsonb(old) -> field.key is distinct from field.value;
+
+    if array_length(field_names, 1) is null then
+      return new;
+    end if;
+
+    select coalesce(jsonb_object_agg(k, to_jsonb(old) -> k), '{}'::jsonb) into old_diff
+      from unnest(field_names) as k;
+    select coalesce(jsonb_object_agg(k, to_jsonb(new) -> k), '{}'::jsonb) into new_diff
+      from unnest(field_names) as k;
   elsif tg_op = 'INSERT' then
     field_names := array['created'];
+    new_diff := to_jsonb(new) - ignored_keys;
   else
     field_names := array['deleted'];
+    old_diff := to_jsonb(old) - ignored_keys;
   end if;
 
   insert into public.admin_audit_log (
@@ -95,7 +110,9 @@ begin
     action,
     entity_type,
     entity_key,
-    changed_fields
+    changed_fields,
+    old_values,
+    new_values
   )
   values (
     coalesce(
@@ -111,7 +128,9 @@ begin
       row_data ->> 'product_id',
       row_data ->> 'category_slug'
     ),
-    field_names
+    field_names,
+    nullif(old_diff, '{}'::jsonb),
+    nullif(new_diff, '{}'::jsonb)
   );
 
   return case when tg_op = 'DELETE' then old else new end;
@@ -277,8 +296,8 @@ $$;
 ALTER FUNCTION "public"."refresh_product_search_text"("target_product_id" "uuid") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."register_admin_login_attempt"("attempt_key_hash" "text", "password_is_valid" boolean) RETURNS integer
-    LANGUAGE "plpgsql"
+CREATE OR REPLACE FUNCTION "public"."register_admin_login_attempt"("attempt_key_hash" "text", "password_is_valid" boolean, "attempt_scope" "text" DEFAULT 'login'::"text") RETURNS integer
+    LANGUAGE "plpgsql" SECURITY INVOKER
     SET "search_path" TO ''
     AS $$
 declare
@@ -292,6 +311,10 @@ declare
   next_window_started_at timestamptz;
   next_blocked_until timestamptz;
 begin
+  if attempt_scope not in ('login', 'password-change') then
+    raise exception 'invalid admin login attempt scope' using errcode = '22023';
+  end if;
+
   perform pg_advisory_xact_lock(hashtextextended(attempt_key_hash, 0));
 
   select *
@@ -301,11 +324,15 @@ begin
   for update;
 
   if found and current_row.blocked_until is not null and current_row.blocked_until > attempt_at then
+    insert into public.admin_auth_events (scope, outcome, attempt_key_hash)
+    values (attempt_scope, 'blocked', attempt_key_hash);
     return greatest(1, ceil(extract(epoch from (current_row.blocked_until - attempt_at)))::integer);
   end if;
 
   if password_is_valid then
     delete from public.admin_login_rate_limits where key_hash = attempt_key_hash;
+    insert into public.admin_auth_events (scope, outcome, attempt_key_hash)
+    values (attempt_scope, 'success', attempt_key_hash);
     return 0;
   end if;
 
@@ -342,6 +369,13 @@ begin
       last_attempt_at = excluded.last_attempt_at,
       blocked_until = excluded.blocked_until;
 
+  insert into public.admin_auth_events (scope, outcome, attempt_key_hash)
+  values (
+    attempt_scope,
+    case when next_blocked_until is null then 'failure' else 'blocked' end,
+    attempt_key_hash
+  );
+
   if next_blocked_until is not null then
     return ceil(extract(epoch from (next_blocked_until - attempt_at)))::integer;
   end if;
@@ -351,7 +385,7 @@ end;
 $$;
 
 
-ALTER FUNCTION "public"."register_admin_login_attempt"("attempt_key_hash" "text", "password_is_valid" boolean) OWNER TO "postgres";
+ALTER FUNCTION "public"."register_admin_login_attempt"("attempt_key_hash" "text", "password_is_valid" boolean, "attempt_scope" "text") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."search_catalog_products"("search_query" "text" DEFAULT NULL::"text", "category_filter" "text" DEFAULT NULL::"text", "subcategory_filter" "text" DEFAULT NULL::"text", "brand_filter" "text" DEFAULT NULL::"text", "vehicle_type_filter" "text" DEFAULT NULL::"text") RETURNS TABLE("slug" "text", "name" "text", "category_slug" "text", "subcategory_slug" "text", "short_description" "text", "article" "text", "cover_url" "text", "cover_scale" numeric, "compatible_brands" "text"[])
@@ -1141,6 +1175,8 @@ CREATE TABLE IF NOT EXISTS "public"."admin_audit_log" (
     "entity_type" "text" NOT NULL,
     "entity_key" "text",
     "changed_fields" "text"[] DEFAULT '{}'::"text"[] NOT NULL,
+    "old_values" "jsonb",
+    "new_values" "jsonb",
     CONSTRAINT "admin_audit_log_action_check" CHECK (("action" = ANY (ARRAY['INSERT'::"text", 'UPDATE'::"text", 'DELETE'::"text"])))
 );
 
@@ -1150,6 +1186,31 @@ ALTER TABLE "public"."admin_audit_log" OWNER TO "postgres";
 
 ALTER TABLE "public"."admin_audit_log" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
     SEQUENCE NAME "public"."admin_audit_log_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+CREATE TABLE IF NOT EXISTS "public"."admin_auth_events" (
+    "id" bigint NOT NULL,
+    "occurred_at" timestamp with time zone DEFAULT "clock_timestamp"() NOT NULL,
+    "scope" "text" NOT NULL,
+    "outcome" "text" NOT NULL,
+    "attempt_key_hash" "text" NOT NULL,
+    CONSTRAINT "admin_auth_events_scope_check" CHECK (("scope" = ANY (ARRAY['login'::"text", 'password-change'::"text"]))),
+    CONSTRAINT "admin_auth_events_outcome_check" CHECK (("outcome" = ANY (ARRAY['success'::"text", 'failure'::"text", 'blocked'::"text"]))),
+    CONSTRAINT "admin_auth_events_key_hash_check" CHECK (("length"("attempt_key_hash") = 64))
+);
+
+
+ALTER TABLE "public"."admin_auth_events" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."admin_auth_events" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "public"."admin_auth_events_id_seq"
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1265,10 +1326,13 @@ CREATE TABLE IF NOT EXISTS "public"."products" (
     "description" "text",
     "article" "text",
     "published" boolean DEFAULT true NOT NULL,
+    "availability" "public"."product_availability" DEFAULT 'in_stock'::"public"."product_availability" NOT NULL,
     "order" integer DEFAULT 0 NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "search_text" "text" DEFAULT ''::"text" NOT NULL
+    "search_text" "text" DEFAULT ''::"text" NOT NULL,
+    "meta_title" "text",
+    "meta_description" "text"
 );
 
 
@@ -1316,6 +1380,10 @@ ALTER TABLE "public"."vehicle_types" OWNER TO "postgres";
 
 ALTER TABLE ONLY "public"."admin_audit_log"
     ADD CONSTRAINT "admin_audit_log_pkey" PRIMARY KEY ("id");
+
+
+ALTER TABLE ONLY "public"."admin_auth_events"
+    ADD CONSTRAINT "admin_auth_events_pkey" PRIMARY KEY ("id");
 
 
 
@@ -1399,6 +1467,12 @@ CREATE INDEX "admin_audit_log_entity_idx" ON "public"."admin_audit_log" USING "b
 
 
 CREATE INDEX "admin_audit_log_occurred_at_idx" ON "public"."admin_audit_log" USING "btree" ("occurred_at" DESC);
+
+
+CREATE INDEX "admin_auth_events_occurred_at_idx" ON "public"."admin_auth_events" USING "btree" ("occurred_at" DESC);
+
+
+CREATE INDEX "admin_auth_events_attempt_key_idx" ON "public"."admin_auth_events" USING "btree" ("attempt_key_hash", "occurred_at" DESC);
 
 
 
@@ -1665,6 +1739,9 @@ CREATE POLICY "Public can read vehicle_types" ON "public"."vehicle_types" FOR SE
 ALTER TABLE "public"."admin_audit_log" ENABLE ROW LEVEL SECURITY;
 
 
+ALTER TABLE "public"."admin_auth_events" ENABLE ROW LEVEL SECURITY;
+
+
 ALTER TABLE "public"."admin_login_rate_limits" ENABLE ROW LEVEL SECURITY;
 
 
@@ -1750,8 +1827,8 @@ GRANT EXECUTE ON FUNCTION "public"."refresh_product_search_text"("target_product
 
 
 
-REVOKE ALL ON FUNCTION "public"."register_admin_login_attempt"("attempt_key_hash" "text", "password_is_valid" boolean) FROM PUBLIC;
-GRANT ALL ON FUNCTION "public"."register_admin_login_attempt"("attempt_key_hash" "text", "password_is_valid" boolean) TO "service_role";
+REVOKE ALL ON FUNCTION "public"."register_admin_login_attempt"("attempt_key_hash" "text", "password_is_valid" boolean, "attempt_scope" "text") FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."register_admin_login_attempt"("attempt_key_hash" "text", "password_is_valid" boolean, "attempt_scope" "text") TO "service_role";
 
 
 -- Функции сортировки вызываются только административным слоем через
@@ -1804,10 +1881,24 @@ GRANT ALL ON FUNCTION "public"."search_catalog_products"("search_query" "text", 
 GRANT ALL ON TABLE "public"."admin_audit_log" TO "service_role";
 
 
+GRANT ALL ON TABLE "public"."admin_auth_events" TO "service_role";
+
+REVOKE ALL ON TABLE "public"."admin_auth_events" FROM "anon";
+REVOKE ALL ON TABLE "public"."admin_auth_events" FROM "authenticated";
+REVOKE ALL ON TABLE "public"."admin_auth_events" FROM PUBLIC;
+
+
 
 GRANT UPDATE ON SEQUENCE "public"."admin_audit_log_id_seq" TO "anon";
 GRANT UPDATE ON SEQUENCE "public"."admin_audit_log_id_seq" TO "authenticated";
 GRANT UPDATE ON SEQUENCE "public"."admin_audit_log_id_seq" TO "service_role";
+
+
+GRANT UPDATE ON SEQUENCE "public"."admin_auth_events_id_seq" TO "service_role";
+
+REVOKE ALL ON SEQUENCE "public"."admin_auth_events_id_seq" FROM "anon";
+REVOKE ALL ON SEQUENCE "public"."admin_auth_events_id_seq" FROM "authenticated";
+REVOKE ALL ON SEQUENCE "public"."admin_auth_events_id_seq" FROM PUBLIC;
 
 
 

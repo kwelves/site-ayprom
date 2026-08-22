@@ -2,6 +2,10 @@ import nextEnv from "@next/env";
 import { createClient } from "@supabase/supabase-js";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
+import {
+  applyAlterTableColumnChanges,
+  extractCreatedPublicTables,
+} from "./schema-migration-parser.mjs";
 
 const { loadEnvConfig } = nextEnv;
 
@@ -28,73 +32,15 @@ const migrationFiles = (await readdir(migrationsDirectory))
 const expectedTables = new Map();
 const expectedBuckets = new Map();
 
-function splitDefinitions(body) {
-  const definitions = [];
-  let current = "";
-  let depth = 0;
-  let quote = null;
-
-  for (let index = 0; index < body.length; index += 1) {
-    const character = body[index];
-    const previous = body[index - 1];
-
-    if ((character === "'" || character === '"') && previous !== "\\") {
-      quote = quote === character ? null : quote ?? character;
-    }
-
-    if (!quote) {
-      if (character === "(") depth += 1;
-      if (character === ")") depth -= 1;
-      if (character === "," && depth === 0) {
-        definitions.push(current.trim());
-        current = "";
-        continue;
-      }
-    }
-
-    current += character;
-  }
-
-  if (current.trim()) definitions.push(current.trim());
-  return definitions;
-}
-
 for (const migrationFile of migrationFiles) {
   const sql = await readFile(path.join(migrationsDirectory, migrationFile), "utf8");
   const withoutComments = sql.replace(/--.*$/gm, "");
 
-  for (const match of withoutComments.matchAll(
-    // Схема может быть в кавычках: pg_dump пишет "public"."products", рукописные
-    // миграции — public.products. Принимаем оба варианта, иначе baseline,
-    // снятый дампом, выглядит как отсутствие всех таблиц разом.
-    /create\s+table\s+(?:if\s+not\s+exists\s+)?"?public"?\."?([a-z_][a-z0-9_]*)"?\s*\(([\s\S]*?)\)\s*;/gi,
-  )) {
-    const [, tableName, body] = match;
-    const columns = new Set();
-
-    for (const definition of splitDefinitions(body)) {
-      const columnMatch = definition.match(/^(?:"([^"]+)"|([a-z_][a-z0-9_]*))/i);
-      const columnName = columnMatch?.[1] ?? columnMatch?.[2];
-      if (!columnName || /^(constraint|primary|unique|check|foreign|exclude)$/i.test(columnName)) continue;
-      columns.add(columnName);
-    }
-
+  for (const [tableName, columns] of extractCreatedPublicTables(withoutComments)) {
     expectedTables.set(tableName, columns);
   }
 
-  for (const match of withoutComments.matchAll(
-    /alter\s+table\s+(?:if\s+exists\s+)?"?public"?\."?([a-z_][a-z0-9_]*)"?\s+add\s+column\s+(?:if\s+not\s+exists\s+)?(?:"([^"]+)"|([a-z_][a-z0-9_]*))/gi,
-  )) {
-    const [, tableName, quotedColumn, plainColumn] = match;
-    expectedTables.get(tableName)?.add(quotedColumn ?? plainColumn);
-  }
-
-  for (const match of withoutComments.matchAll(
-    /alter\s+table\s+(?:if\s+exists\s+)?"?public"?\."?([a-z_][a-z0-9_]*)"?\s+drop\s+column\s+(?:if\s+exists\s+)?(?:"([^"]+)"|([a-z_][a-z0-9_]*))/gi,
-  )) {
-    const [, tableName, quotedColumn, plainColumn] = match;
-    expectedTables.get(tableName)?.delete(quotedColumn ?? plainColumn);
-  }
+  applyAlterTableColumnChanges(withoutComments, expectedTables);
 
   // Один INSERT может задавать сразу несколько bucket'ов, поэтому сначала
   // выделяется всё выражение до `;`, а потом из него разбираются все кортежи.
@@ -106,6 +52,40 @@ for (const migrationFile of migrationFiles) {
       expectedBuckets.set(tuple[1], tuple[2].toLowerCase() === "true");
     }
   }
+}
+
+const schemasDirectory = path.join(process.cwd(), "supabase", "schemas");
+const schemaFiles = (await readdir(schemasDirectory)).filter((fileName) => fileName.endsWith(".sql")).sort();
+const declaredTables = new Map();
+for (const schemaFile of schemaFiles) {
+  const sql = await readFile(path.join(schemasDirectory, schemaFile), "utf8");
+  for (const [tableName, columns] of extractCreatedPublicTables(sql.replace(/--.*$/gm, ""))) {
+    declaredTables.set(tableName, columns);
+  }
+}
+
+const declarationDifferences = [];
+for (const [tableName, migrationColumns] of expectedTables) {
+  const declaredColumns = declaredTables.get(tableName);
+  if (!declaredColumns) {
+    declarationDifferences.push(`public.${tableName}: таблица отсутствует в supabase/schemas`);
+    continue;
+  }
+  const missing = [...migrationColumns].filter((column) => !declaredColumns.has(column));
+  const extra = [...declaredColumns].filter((column) => !migrationColumns.has(column));
+  if (missing.length > 0) declarationDifferences.push(`public.${tableName}: в декларации нет колонок ${missing.join(", ")}`);
+  if (extra.length > 0) declarationDifferences.push(`public.${tableName}: в декларации лишние колонки ${extra.join(", ")}`);
+}
+for (const tableName of declaredTables.keys()) {
+  if (!expectedTables.has(tableName)) {
+    declarationDifferences.push(`public.${tableName}: декларация не представлена миграциями`);
+  }
+}
+
+if (declarationDifferences.length > 0) {
+  console.error("Декларативная схема и миграции расходятся:");
+  for (const difference of declarationDifferences) console.error(`- ${difference}`);
+  process.exit(1);
 }
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
