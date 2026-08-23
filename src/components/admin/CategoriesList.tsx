@@ -64,7 +64,7 @@ export function CategoriesList({ categories: initialCategories, flashSlug, flash
           <div className="contents md:block md:min-w-0 md:flex-1">
             <div className="min-w-0">
               <p className="text-sm font-medium text-card-foreground">{category.name}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{category.description}</p>
+              {category.description && <p className="mt-0.5 text-xs text-muted-foreground">{category.description}</p>}
               <div className="mt-2 flex flex-wrap items-center gap-3">
                 <span
                   className={cn(

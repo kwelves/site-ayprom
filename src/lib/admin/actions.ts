@@ -1172,8 +1172,8 @@ function parseCategoryFormData(formData: FormData): CategoryFormFields {
   const type = parseCategoryType(formData);
   const intro = String(formData.get("intro") ?? "").trim() || null;
 
-  if (!name || !description) {
-    throw new Error("Заполните обязательные поля: название, описание.");
+  if (!name) {
+    throw new Error("Заполните обязательное поле: название.");
   }
 
   return { name, slugSeed, description, icon, type, intro };

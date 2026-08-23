@@ -104,7 +104,7 @@ export function NavDropdown({ label, href, items, light, fixedSingleColumn, scro
                     ) : null}
                     <span className="flex flex-col">
                       <span className="text-sm font-semibold text-card-foreground">{item.label}</span>
-                      <span className="text-xs text-muted-foreground">{item.description}</span>
+                      {item.description && <span className="text-xs text-muted-foreground">{item.description}</span>}
                     </span>
                   </Link>
                 ))}

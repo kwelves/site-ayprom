@@ -132,8 +132,12 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
           </FormField>
         )}
 
-        <FormField label="Описание" htmlFor="description" description="Показывается в каталоге и меню.">
-          <Textarea id="description" name="description" required rows={2} defaultValue={category?.description} />
+        <FormField
+          label="Описание для меню и SEO"
+          htmlFor="description"
+          description="Необязательно. Если оставить пустым, дополнительный текст в меню и SEO-описание не выводятся."
+        >
+          <Textarea id="description" name="description" rows={2} defaultValue={category?.description} />
         </FormField>
 
         <FormField

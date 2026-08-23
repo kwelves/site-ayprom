@@ -59,7 +59,7 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
   return category
     ? {
         title: category.name,
-        description: category.description,
+        description: category.description || undefined,
         alternates: { canonical: `/catalog/category/${slug}` },
       }
     : { title: "Каталог", robots: { index: false } };

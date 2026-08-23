@@ -352,7 +352,7 @@ function MobileNavItem({
                   ) : null}
                   <span className="flex flex-col">
                     <span className="text-sm font-medium text-card-foreground">{sub.label}</span>
-                    <span className="text-xs text-muted-foreground">{sub.description}</span>
+                    {sub.description && <span className="text-xs text-muted-foreground">{sub.description}</span>}
                   </span>
                 </Link>
               ))}
