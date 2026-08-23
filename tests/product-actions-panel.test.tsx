@@ -21,7 +21,6 @@ const product: AdminProductListItem = {
   published: true,
   availability: "in_stock",
   hotspotCount: 0,
-  hotspotAssignment: null,
   order: 0,
   updatedAt: "2026-08-22T00:00:00.000Z",
   coverImage: null,
@@ -176,7 +175,7 @@ describe("ProductActionsPanel", () => {
   });
 
   it("переводит фокус на стабильный заголовок, если detach размонтировал активную кнопку", () => {
-    const assignedProduct = { ...product, hotspotCount: 1, hotspotAssignment: hotspots[0] };
+    const assignedProduct = { ...product, hotspotCount: 1 };
     const assignedHotspots = [
       { ...hotspots[0], product: { id: product.id, slug: product.slug, name: product.name } },
     ];
@@ -191,12 +190,12 @@ describe("ProductActionsPanel", () => {
         onDetach={vi.fn()}
       />,
     );
-    const detach = screen.getByRole("button", { name: "Снять с хотспота" });
+    const detach = screen.getByRole("button", { name: /Снять с хотспота/ });
     detach.focus();
     view.rerender(
       <ProductActionsPanel
         open
-        product={{ ...product, hotspotCount: 0, hotspotAssignment: null }}
+        product={{ ...product, hotspotCount: 0 }}
         hotspots={[{ ...hotspots[0], product: null }]}
         pending
         onClose={vi.fn()}
@@ -229,7 +228,7 @@ describe("ProductActionsPanel", () => {
     view.rerender(
       <ProductActionsPanel
         open
-        product={{ ...product, hotspotCount: 1, hotspotAssignment: hotspots[0] }}
+        product={{ ...product, hotspotCount: 1 }}
         hotspots={[{ ...hotspots[0], product: { id: product.id, slug: product.slug, name: product.name } }]}
         pending
         onClose={vi.fn()}
@@ -260,13 +259,17 @@ describe("ProductActionsPanel", () => {
     expect(screen.queryByRole("button", { name: "Скопировать артикул" })).toBeNull();
   });
 
-  it("вызывает снятие для уже закреплённого товара", () => {
+  it("показывает несколько привязок и снимает выбранную точку", () => {
     const onDetach = vi.fn();
+    const assignedHotspots = hotspots.map((hotspot) => ({
+      ...hotspot,
+      product: { id: product.id, slug: product.slug, name: product.name },
+    }));
     render(
       <ProductActionsPanel
         open
-        product={{ ...product, hotspotCount: 1, hotspotAssignment: hotspots[0] }}
-        hotspots={[{ ...hotspots[0], product: { id: product.id, slug: product.slug, name: product.name } }]}
+        product={{ ...product, hotspotCount: 2 }}
+        hotspots={assignedHotspots}
         pending={false}
         onClose={vi.fn()}
         onAssign={vi.fn()}
@@ -274,8 +277,11 @@ describe("ProductActionsPanel", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Снять с хотспота" }));
-    expect(onDetach).toHaveBeenCalledOnce();
+    expect(screen.getByText("Используется в 2 хотспотах")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Добавить ещё один хотспот" })).toBeTruthy();
+    const detachButtons = screen.getAllByRole("button", { name: /Снять с хотспота/ });
+    fireEvent.click(detachButtons[1]);
+    expect(onDetach).toHaveBeenCalledWith(assignedHotspots[1]);
   });
 
   it("показывает пустое состояние без настроенных хотспотов", () => {

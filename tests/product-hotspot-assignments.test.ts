@@ -59,7 +59,6 @@ describe("parseProductHotspotAssignmentUpdates", () => {
 describe("getProductHotspotAssignmentRpcErrorMessage", () => {
   it.each([
     "Hotspot assignment state has changed",
-    "A selected product is already assigned to another hotspot",
     "Every selected hotspot must exist",
   ])("переводит конфликт %s в единое безопасное сообщение", (message) => {
     expect(getProductHotspotAssignmentRpcErrorMessage(message)).toBe(

@@ -22,14 +22,14 @@ describe("parseVehicleHotspotUpdates", () => {
     expect(() => parseVehicleHotspotUpdates(updates().slice(0, -1))).toThrow("ровно 5 хотспотов");
   });
 
-  it("отклоняет повторные точки, товары и пустые названия", () => {
+  it("отклоняет повторные точки и пустые названия, но принимает повторный товар", () => {
     const duplicateHotspot = updates();
     duplicateHotspot[1].id = duplicateHotspot[0].id;
     expect(() => parseVehicleHotspotUpdates(duplicateHotspot)).toThrow("Один и тот же хотспот");
 
     const duplicateProduct = updates();
     duplicateProduct[1].productId = "product-1";
-    expect(() => parseVehicleHotspotUpdates(duplicateProduct)).toThrow("Один товар нельзя");
+    expect(parseVehicleHotspotUpdates(duplicateProduct)[1]?.productId).toBe("product-1");
 
     const blankLabel = updates();
     blankLabel[0].label = "  ";

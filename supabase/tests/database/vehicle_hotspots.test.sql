@@ -92,23 +92,18 @@ select is(
 );
 
 select ok(
-  to_regclass('public.vehicle_hotspots_product_id_unique') is not null,
-  'a partial unique index protects assigned products'
+  to_regclass('public.vehicle_hotspots_product_id_idx') is not null,
+  'a partial index supports product assignment lookups'
 );
 
-select is(
-  (
-    select count(*)
-    from (
-      select product_id
-      from public.vehicle_hotspots
-      where product_id is not null
-      group by product_id
-      having count(*) > 1
-    ) as duplicate_product
-  ),
-  0::bigint,
-  'migration leaves no duplicate product assignments'
+select ok(
+  to_regclass('public.vehicle_hotspots_product_id_unique') is null
+    and not (
+      select index_row.indisunique
+      from pg_catalog.pg_index as index_row
+      where index_row.indexrelid = 'public.vehicle_hotspots_product_id_idx'::regclass
+    ),
+  'product assignment index is non-unique'
 );
 
 select has_function(
@@ -274,14 +269,12 @@ select throws_ok(
   'a hotspot from another vehicle cannot be saved in this batch'
 );
 
-select throws_ok(
+select lives_ok(
   $$select public.update_vehicle_hotspots(
       'kran-manipulyator',
       pg_temp.duplicate_product_updates('kran-manipulyator', 'vehicle-showcase-test-available')
     )$$,
-  'P0001',
-  'A product may be assigned to only one hotspot',
-  'a product cannot be assigned twice inside one batch'
+  'a product can be assigned twice inside one vehicle batch'
 );
 
 update public.vehicle_hotspots
@@ -290,37 +283,34 @@ set product_id = (
 )
 where vehicle_type_slug = 'musorovoz' and hotspot_number = 1;
 
-select throws_ok(
+select lives_ok(
   $$select public.update_vehicle_hotspots(
       'kran-manipulyator',
       pg_temp.hotspot_updates('kran-manipulyator', null, 'vehicle-showcase-test-reserved')
     )$$,
-  'P0001',
-  'A selected product is already assigned to another hotspot',
-  'a product assigned outside the submitted five is rejected'
+  'a product assigned to another vehicle can also be used in this batch'
 );
 
-select throws_ok(
+select lives_ok(
   $$update public.vehicle_hotspots
     set product_id = (select id from public.products where slug = 'vehicle-showcase-test-reserved')
     where vehicle_type_slug = 'kran-manipulyator' and hotspot_number = 2$$,
-  '23505',
-  'duplicate key value violates unique constraint "vehicle_hotspots_product_id_unique"',
-  'the database uniquely constrains non-NULL product assignments'
+  'direct writes can reuse the same product on another hotspot'
 );
 
 update public.products
 set published = false
-where slug = 'vehicle-showcase-test-available';
+where slug = 'vehicle-showcase-test-reserved';
 
 select is(
   (
-    select product_id
-    from public.vehicle_hotspots
-    where vehicle_type_slug = 'kran-manipulyator' and hotspot_number = 1
+    select count(*)
+    from public.vehicle_hotspots as hotspot
+    join public.products as product on product.id = hotspot.product_id
+    where product.slug = 'vehicle-showcase-test-reserved'
   ),
-  null::uuid,
-  'unpublishing a product automatically detaches its hotspot'
+  0::bigint,
+  'unpublishing a product automatically detaches all of its hotspots'
 );
 
 reset role;

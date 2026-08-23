@@ -41,10 +41,6 @@ export function parseVehicleHotspotUpdates(value: unknown): VehicleHotspotUpdate
   if (new Set(updates.map((update) => update.id)).size !== updates.length) {
     throw new Error("Один и тот же хотспот передан несколько раз.");
   }
-  const productIds = updates.flatMap((update) => (update.productId ? [update.productId] : []));
-  if (new Set(productIds).size !== productIds.length) {
-    throw new Error("Один товар нельзя закрепить за несколькими хотспотами.");
-  }
   return updates;
 }
 

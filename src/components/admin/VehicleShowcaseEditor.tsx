@@ -116,7 +116,7 @@ export function VehicleShowcaseEditor({ vehicleTypeSlug, vehicleTypeName, hotspo
         window.setTimeout(() => {
           startSearchTransition(async () => {
             try {
-              const products = await searchAvailableHotspotProducts(trimmedQuery, hotspotId);
+              const products = await searchAvailableHotspotProducts(trimmedQuery);
               if (searchRequest.current[hotspotId] === requestId) {
                 setResults((current) => ({ ...current, [hotspotId]: products }));
               }
@@ -146,12 +146,6 @@ export function VehicleShowcaseEditor({ vehicleTypeSlug, vehicleTypeName, hotspo
 
   function chooseProduct(hotspot: EditableHotspot, product: AdminAvailableProduct) {
     if (isEditorMutationPending) return;
-    const usedElsewhere = hotspots.some((item) => item.id !== hotspot.id && item.product?.id === product.id);
-    if (usedElsewhere) {
-      setSearchError(`Товар «${product.name}» уже выбран для другой точки.`);
-      return;
-    }
-
     updateHotspot(hotspot.id, { product });
     setRemovedProducts((current) => {
       const remaining = { ...current };
@@ -172,12 +166,6 @@ export function VehicleShowcaseEditor({ vehicleTypeSlug, vehicleTypeName, hotspo
     if (isEditorMutationPending) return;
     const product = removedProducts[hotspot.id];
     if (!product) return;
-
-    const usedElsewhere = hotspots.some((item) => item.id !== hotspot.id && item.product?.id === product.id);
-    if (usedElsewhere) {
-      setSearchError(`Товар «${product.name}» уже выбран для другой точки.`);
-      return;
-    }
 
     updateHotspot(hotspot.id, { product });
     setRemovedProducts((current) => {
@@ -356,25 +344,34 @@ export function VehicleShowcaseEditor({ vehicleTypeSlug, vehicleTypeName, hotspo
                 />
               </div>
               <p className="mt-1.5 text-xs text-muted-foreground">
-                Введите минимум 2 символа. В поиске доступны только опубликованные и незакреплённые товары.
+                Введите минимум 2 символа. В поиске доступны все опубликованные товары.
               </p>
 
               {query.trim().length >= 2 && (
                 <div className="mt-2 overflow-hidden rounded-md border border-border" aria-live="polite">
                   {foundProducts.length > 0 ? (
                     foundProducts.map((product) => {
-                      const selectedElsewhere = hotspots.some((item) => item.id !== hotspot.id && item.product?.id === product.id);
                       return (
                         <button
                           key={product.id}
                           type="button"
                           aria-label={`Выбрать товар «${product.name}» для точки ${hotspot.hotspotNumber}`}
-                          disabled={selectedElsewhere || isSavePending}
+                          disabled={isSavePending}
                           onClick={() => chooseProduct(hotspot, product)}
                           className="block w-full border-b border-border px-3 py-2 text-left last:border-b-0 hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <span className="block text-sm font-medium text-card-foreground">{product.name}</span>
                           {product.article && <span className="mt-0.5 block text-xs text-muted-foreground">Артикул: {product.article}</span>}
+                          {product.hotspotAssignments.length > 0 && (
+                            <span className="mt-1 block text-xs leading-relaxed text-warning">
+                              Используется: {product.hotspotAssignments
+                                .map(
+                                  (assignment) =>
+                                    `${assignment.vehicleTypeName} · точка №${assignment.hotspotNumber} «${assignment.label}»`,
+                                )
+                                .join("; ")}
+                            </span>
+                          )}
                         </button>
                       );
                     })

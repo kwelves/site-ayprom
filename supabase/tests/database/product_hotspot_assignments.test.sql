@@ -177,7 +177,7 @@ select lives_ok(
       pg_temp.assignment_update('musorovoz', 1, 'quick-hotspot-test-reserved', 'quick-hotspot-test-available')
     )
   ),
-  'a product can atomically move onto an occupied hotspot'
+  'a product can atomically move onto an occupied hotspot for backward compatibility'
 );
 
 select is(
@@ -227,7 +227,7 @@ select ok(
   'Undo restores both the moved and replaced products'
 );
 
-select throws_ok(
+select lives_ok(
   format(
     'select public.update_vehicle_hotspot_assignments(%L::jsonb)',
     jsonb_build_array(
@@ -235,19 +235,15 @@ select throws_ok(
       pg_temp.assignment_update('musorovoz', 1, 'quick-hotspot-test-reserved', 'quick-hotspot-test-available')
     )
   ),
-  'P0001',
-  'A product may be assigned to only one hotspot',
-  'the same product cannot be desired by two submitted hotspots'
+  'the same product can be desired by two submitted hotspots'
 );
 
-select throws_ok(
+select lives_ok(
   format(
     'select public.update_vehicle_hotspot_assignments(%L::jsonb)',
     jsonb_build_array(pg_temp.assignment_update('kran-manipulyator', 2, null, 'quick-hotspot-test-available'))
   ),
-  'P0001',
-  'A selected product is already assigned to another hotspot',
-  'a product cannot be assigned while its current hotspot is outside the batch'
+  'a product can be assigned while its current hotspots are outside the batch'
 );
 
 select throws_ok(

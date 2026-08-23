@@ -14,15 +14,6 @@ function product(id: string, slug: string, hotspotId: string | null): AdminProdu
     published: true,
     availability: "in_stock",
     hotspotCount: hotspotId ? 1 : 0,
-    hotspotAssignment: hotspotId
-      ? {
-          id: hotspotId,
-          vehicleTypeSlug: "dump-truck",
-          vehicleTypeName: "Самосвал",
-          hotspotNumber: Number(hotspotId.at(-1)),
-          label: `Точка ${hotspotId.at(-1)}`,
-        }
-      : null,
     order: 0,
     updatedAt: "2026-08-22T00:00:00.000Z",
     coverImage: null,
@@ -61,7 +52,7 @@ describe("optimistic unpublish state", () => {
 
     const result = applyOptimisticProductPatch(products, options, [first.slug], { published: false });
 
-    expect(result.products[0]).toMatchObject({ published: false, hotspotAssignment: null, hotspotCount: 0 });
+    expect(result.products[0]).toMatchObject({ published: false, hotspotCount: 0 });
     expect(result.hotspotOptions[0]?.product).toBeNull();
     expect(result.products[1]).toBe(second);
     expect(result.hotspotOptions[1]).toBe(options[1]);
@@ -102,9 +93,9 @@ describe("optimistic unpublish state", () => {
     });
     const availability = applyOptimisticProductPatch([first], options, [first.slug], { availability: "unclear" });
 
-    expect(publish.products[0]?.hotspotAssignment).toEqual(first.hotspotAssignment);
+    expect(publish.products[0]?.hotspotCount).toBe(first.hotspotCount);
     expect(publish.hotspotOptions).toBe(options);
-    expect(availability.products[0]?.hotspotAssignment).toEqual(first.hotspotAssignment);
+    expect(availability.products[0]?.hotspotCount).toBe(first.hotspotCount);
     expect(availability.hotspotOptions).toBe(options);
   });
 });

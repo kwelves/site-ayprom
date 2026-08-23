@@ -618,9 +618,7 @@ declare
   distinct_submitted_count integer;
   matching_count integer;
   blank_label_count integer;
-  duplicate_product_count integer;
   invalid_product_count integer;
-  outside_assignment_count integer;
 begin
   if nullif(btrim(target_vehicle_type_slug), '') is null then
     raise exception 'Vehicle type is required' using errcode = 'P0001';
@@ -699,24 +697,6 @@ begin
     from jsonb_array_elements(hotspot_updates) as entry(value)
   )
   select count(*)
-  into duplicate_product_count
-  from (
-    select submitted.product_id
-    from submitted
-    where submitted.product_id is not null
-    group by submitted.product_id
-    having count(*) > 1
-  ) as duplicate_product;
-
-  if duplicate_product_count <> 0 then
-    raise exception 'A product may be assigned to only one hotspot' using errcode = 'P0001';
-  end if;
-
-  with submitted as (
-    select nullif(entry.value ->> 'productId', '')::uuid as product_id
-    from jsonb_array_elements(hotspot_updates) as entry(value)
-  )
-  select count(*)
   into invalid_product_count
   from submitted
   left join public.products as product on product.id = submitted.product_id
@@ -725,27 +705,6 @@ begin
 
   if invalid_product_count <> 0 then
     raise exception 'Every selected product must be published' using errcode = 'P0001';
-  end if;
-
-  with submitted as (
-    select
-      (entry.value ->> 'id')::uuid as id,
-      nullif(entry.value ->> 'productId', '')::uuid as product_id
-    from jsonb_array_elements(hotspot_updates) as entry(value)
-  )
-  select count(*)
-  into outside_assignment_count
-  from public.vehicle_hotspots as assigned_hotspot
-  join submitted on submitted.product_id = assigned_hotspot.product_id
-  where assigned_hotspot.product_id is not null
-    and not exists (
-      select 1
-      from submitted as submitted_hotspot
-      where submitted_hotspot.id = assigned_hotspot.id
-    );
-
-  if outside_assignment_count <> 0 then
-    raise exception 'A selected product is already assigned to another hotspot' using errcode = 'P0001';
   end if;
 
   update public.vehicle_hotspots as hotspot
@@ -783,9 +742,7 @@ declare
   distinct_hotspot_count integer;
   locked_hotspot_count integer;
   matching_state_count integer;
-  duplicate_product_count integer;
   invalid_product_count integer;
-  outside_assignment_count integer;
 begin
   if jsonb_typeof(assignment_updates) is distinct from 'array' then
     raise exception 'Hotspot assignment updates must be an array' using errcode = 'P0001';
@@ -887,24 +844,6 @@ begin
     from jsonb_array_elements(assignment_updates) as entry(value)
   )
   select count(*)
-  into duplicate_product_count
-  from (
-    select submitted.product_id
-    from submitted
-    where submitted.product_id is not null
-    group by submitted.product_id
-    having count(*) > 1
-  ) as duplicate_product;
-
-  if duplicate_product_count <> 0 then
-    raise exception 'A product may be assigned to only one hotspot' using errcode = 'P0001';
-  end if;
-
-  with submitted as (
-    select nullif(entry.value ->> 'productId', '')::uuid as product_id
-    from jsonb_array_elements(assignment_updates) as entry(value)
-  )
-  select count(*)
   into invalid_product_count
   from submitted
   left join public.products as product on product.id = submitted.product_id
@@ -913,27 +852,6 @@ begin
 
   if invalid_product_count <> 0 then
     raise exception 'Every selected product must be published' using errcode = 'P0001';
-  end if;
-
-  with submitted as (
-    select
-      (entry.value ->> 'hotspotId')::uuid as hotspot_id,
-      nullif(entry.value ->> 'productId', '')::uuid as product_id
-    from jsonb_array_elements(assignment_updates) as entry(value)
-  )
-  select count(*)
-  into outside_assignment_count
-  from submitted
-  join public.vehicle_hotspots as assigned_hotspot on assigned_hotspot.product_id = submitted.product_id
-  where submitted.product_id is not null
-    and not exists (
-      select 1
-      from submitted as changed_hotspot
-      where changed_hotspot.hotspot_id = assigned_hotspot.id
-    );
-
-  if outside_assignment_count <> 0 then
-    raise exception 'A selected product is already assigned to another hotspot' using errcode = 'P0001';
   end if;
 
   with submitted as (
@@ -1539,11 +1457,9 @@ CREATE INDEX "vehicle_hotspots_vehicle_type_slug_idx" ON "public"."vehicle_hotsp
 
 
 
--- Один товар закрепляется максимум за одной точкой. Исторические дубли
--- очищаются детерминированно в миграции 20260815102954 до создания индекса;
--- частичный индекс не индексирует заглушки (NULL), но покрывает все реальные
--- product_id.
-CREATE UNIQUE INDEX "vehicle_hotspots_product_id_unique" ON "public"."vehicle_hotspots" USING "btree" ("product_id") WHERE ("product_id" IS NOT NULL);
+-- Один товар может использоваться на нескольких точках. Обычный индекс
+-- сохраняет быстрые выборки и массовую отвязку по внешнему ключу product_id.
+CREATE INDEX "vehicle_hotspots_product_id_idx" ON "public"."vehicle_hotspots" USING "btree" ("product_id") WHERE ("product_id" IS NOT NULL);
 
 
 

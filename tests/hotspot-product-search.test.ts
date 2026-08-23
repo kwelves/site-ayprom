@@ -13,28 +13,34 @@ const products: HotspotProductSearchRow[] = [
   { id: "taken", slug: "taken", name: "Гидронасос занятый", article: null, published: true },
 ];
 
+const assignment = {
+  id: "another-hotspot",
+  product_id: "taken",
+  vehicle_type_slug: "dump-truck",
+  hotspot_number: 2,
+  label: "Колесо",
+  vehicle_types: { name: "Самосвал", order: 0 },
+};
+
 describe("selectAvailableHotspotProducts", () => {
-  it("не отдаёт черновики и товары, закреплённые у другой точки", () => {
+  it("не отдаёт черновики, но возвращает уже используемые товары со всеми привязками", () => {
     const result = selectAvailableHotspotProducts({
       nameMatches: products,
       articleMatches: [],
-      assignments: [{ id: "another-hotspot", product_id: "taken" }],
+      assignments: [assignment],
       limit: 8,
     });
 
-    expect(result.map((product) => product.id)).toEqual(["name-match", "article-match"]);
-  });
-
-  it("оставляет товар текущего хотспота в его собственной выдаче", () => {
-    const result = selectAvailableHotspotProducts({
-      nameMatches: [products[3]],
-      articleMatches: [],
-      assignments: [{ id: "current-hotspot", product_id: "taken" }],
-      currentHotspotId: "current-hotspot",
-      limit: 8,
-    });
-
-    expect(result).toEqual([{ id: "taken", slug: "taken", name: "Гидронасос занятый", article: undefined }]);
+    expect(result.map((product) => product.id)).toEqual(["name-match", "article-match", "taken"]);
+    expect(result.at(-1)?.hotspotAssignments).toEqual([
+      {
+        id: assignment.id,
+        vehicleTypeSlug: assignment.vehicle_type_slug,
+        vehicleTypeName: assignment.vehicle_types.name,
+        hotspotNumber: assignment.hotspot_number,
+        label: assignment.label,
+      },
+    ]);
   });
 
   it("объединяет совпадения по названию и артикулу без дублей и уважает лимит", () => {
@@ -46,6 +52,7 @@ describe("selectAvailableHotspotProducts", () => {
     });
 
     expect(result.map((product) => product.id)).toEqual(["name-match", "article-match"]);
+    expect(result.every((product) => product.hotspotAssignments.length === 0)).toBe(true);
   });
 });
 

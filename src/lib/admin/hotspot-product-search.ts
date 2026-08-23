@@ -14,6 +14,10 @@ export interface HotspotProductSearchRow {
 export interface HotspotProductAssignment {
   id: string;
   product_id: string;
+  vehicle_type_slug: string;
+  hotspot_number: number;
+  label: string;
+  vehicle_types: { name: string; order: number } | null;
 }
 
 export function normalizeHotspotProductSearchQuery(query: string): string | null {
@@ -32,28 +36,42 @@ export function selectAvailableHotspotProducts({
   nameMatches,
   articleMatches,
   assignments,
-  currentHotspotId,
   limit,
 }: {
   nameMatches: HotspotProductSearchRow[];
   articleMatches: HotspotProductSearchRow[];
   assignments: HotspotProductAssignment[];
-  currentHotspotId?: string;
   limit: number;
 }): AdminAvailableProduct[] {
-  const assignedElsewhere = new Set(
-    assignments
-      .filter((assignment) => assignment.id !== currentHotspotId)
-      .map((assignment) => assignment.product_id),
-  );
+  const assignmentsByProduct = new Map<string, HotspotProductAssignment[]>();
+  for (const assignment of assignments) {
+    const current = assignmentsByProduct.get(assignment.product_id) ?? [];
+    current.push(assignment);
+    assignmentsByProduct.set(assignment.product_id, current);
+  }
+
   const uniqueMatches = new Map<string, AdminAvailableProduct>();
   for (const product of [...nameMatches, ...articleMatches]) {
-    if (product.published && !assignedElsewhere.has(product.id) && !uniqueMatches.has(product.id)) {
+    if (product.published && !uniqueMatches.has(product.id)) {
+      const productAssignments = [...(assignmentsByProduct.get(product.id) ?? [])].sort(
+        (left, right) =>
+          (left.vehicle_types?.order ?? Number.MAX_SAFE_INTEGER) -
+            (right.vehicle_types?.order ?? Number.MAX_SAFE_INTEGER) ||
+          left.hotspot_number - right.hotspot_number ||
+          left.id.localeCompare(right.id),
+      );
       uniqueMatches.set(product.id, {
         id: product.id,
         slug: product.slug,
         name: product.name,
         article: product.article ?? undefined,
+        hotspotAssignments: productAssignments.map((assignment) => ({
+          id: assignment.id,
+          vehicleTypeSlug: assignment.vehicle_type_slug,
+          vehicleTypeName: assignment.vehicle_types?.name ?? assignment.vehicle_type_slug,
+          hotspotNumber: assignment.hotspot_number,
+          label: assignment.label,
+        })),
       });
     }
   }

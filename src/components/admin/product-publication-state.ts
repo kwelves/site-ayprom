@@ -25,7 +25,7 @@ export function applyOptimisticProductPatch(
     products: products.map((product) => {
       if (!selectedSlugs.has(product.slug)) return product;
       return detachesHotspots
-        ? { ...product, ...patch, hotspotAssignment: null, hotspotCount: 0 }
+        ? { ...product, ...patch, hotspotCount: 0 }
         : { ...product, ...patch };
     }),
     hotspotOptions: detachesHotspots

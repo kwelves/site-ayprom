@@ -14,7 +14,6 @@ const UPDATE_KEYS = ["expectedProductId", "hotspotId", "productId"];
 const CONFLICT_MESSAGE = "Данные хотспотов изменены другим администратором. Обновите страницу и повторите действие.";
 const RPC_CONFLICT_ERRORS = new Set([
   "Hotspot assignment state has changed",
-  "A selected product is already assigned to another hotspot",
   "Every selected hotspot must exist",
 ]);
 
@@ -22,9 +21,6 @@ export function getProductHotspotAssignmentRpcErrorMessage(message: string): str
   if (RPC_CONFLICT_ERRORS.has(message)) return CONFLICT_MESSAGE;
   if (message === "Every selected product must be published") {
     return "Закрепить можно только существующий опубликованный товар.";
-  }
-  if (message === "A product may be assigned to only one hotspot") {
-    return "Один товар нельзя закрепить за несколькими хотспотами.";
   }
   return null;
 }

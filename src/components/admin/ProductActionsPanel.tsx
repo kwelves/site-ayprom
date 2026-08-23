@@ -13,7 +13,7 @@ interface ProductActionsPanelProps {
   pending: boolean;
   onClose: () => void;
   onAssign: (hotspot: AdminProductHotspotOption) => void;
-  onDetach: () => void;
+  onDetach: (hotspot: AdminProductHotspotOption) => void;
 }
 
 const FOCUSABLE_SELECTOR = [
@@ -42,9 +42,30 @@ export function ProductActionsPanel({
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const previousViewRef = useRef<"actions" | "picker">("actions");
   const titleId = useId();
+  const productAssignments = useMemo(
+    () =>
+      hotspots
+        .filter((hotspot) => hotspot.product?.id === product?.id)
+        .sort(
+          (left, right) =>
+            left.vehicleTypeOrder - right.vehicleTypeOrder ||
+            left.hotspotNumber - right.hotspotNumber ||
+            left.id.localeCompare(right.id),
+        ),
+    [hotspots, product?.id],
+  );
+  const assignmentGroups = useMemo(() => {
+    const groups = new Map<string, { name: string; hotspots: AdminProductHotspotOption[] }>();
+    for (const hotspot of productAssignments) {
+      const group = groups.get(hotspot.vehicleTypeSlug) ?? { name: hotspot.vehicleTypeName, hotspots: [] };
+      group.hotspots.push(hotspot);
+      groups.set(hotspot.vehicleTypeSlug, group);
+    }
+    return [...groups.entries()].map(([slug, group]) => ({ slug, ...group }));
+  }, [productAssignments]);
   const [view, setView] = useState<"actions" | "picker">("actions");
   const [selectedVehicleSlug, setSelectedVehicleSlug] = useState(
-    () => product?.hotspotAssignment?.vehicleTypeSlug ?? hotspots[0]?.vehicleTypeSlug ?? "",
+    () => productAssignments[0]?.vehicleTypeSlug ?? hotspots[0]?.vehicleTypeSlug ?? "",
   );
   const [selectedHotspotId, setSelectedHotspotId] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
@@ -69,7 +90,7 @@ export function ProductActionsPanel({
         .sort((a, b) => a.hotspotNumber - b.hotspotNumber)
     : [];
   const selectedHotspot = hotspots.find((hotspot) => hotspot.id === selectedHotspotId) ?? null;
-  const isCurrentHotspot = selectedHotspot?.id === product?.hotspotAssignment?.id;
+  const isCurrentHotspot = selectedHotspot?.product?.id === product?.id;
 
   useEffect(() => {
     if (!open) return;
@@ -105,7 +126,7 @@ export function ProductActionsPanel({
   useEffect(() => {
     if (!open || !pending || panelRef.current?.contains(document.activeElement)) return;
     headingRef.current?.focus();
-  }, [open, pending, product?.hotspotAssignment?.id]);
+  }, [open, pending, product?.hotspotCount]);
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === "Escape") {
@@ -203,13 +224,37 @@ export function ProductActionsPanel({
           {view === "actions" ? (
             <div className="space-y-4">
               <div className="rounded-xl border border-border bg-muted/30 p-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Текущее закрепление</p>
-                {product.hotspotAssignment ? (
-                  <div className="mt-2">
-                    <p className="font-medium text-card-foreground">{product.hotspotAssignment.vehicleTypeName}</p>
-                    <p className="mt-0.5 text-sm text-muted-foreground">
-                      Точка №{product.hotspotAssignment.hotspotNumber} · {product.hotspotAssignment.label}
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Использование в спецтехнике</p>
+                {assignmentGroups.length > 0 ? (
+                  <div className="mt-2 space-y-3">
+                    <p className="text-sm font-medium text-card-foreground">
+                      Используется в {productAssignments.length} {productAssignments.length === 1 ? "хотспоте" : "хотспотах"}
                     </p>
+                    {assignmentGroups.map((group) => (
+                      <div key={group.slug}>
+                        <p className="text-sm font-medium text-card-foreground">{group.name}</p>
+                        <ul className="mt-1 space-y-1.5">
+                          {group.hotspots.map((hotspot) => (
+                            <li key={hotspot.id} className="flex min-h-11 items-center justify-between gap-3 rounded-lg bg-card px-3 py-1.5">
+                              <span className="min-w-0 text-sm text-muted-foreground">
+                                <span className="font-medium text-card-foreground">Точка №{hotspot.hotspotNumber}</span>
+                                <span className="block truncate text-xs">{hotspot.label}</span>
+                              </span>
+                              <button
+                                type="button"
+                                disabled={pending}
+                                onClick={() => onDetach(hotspot)}
+                                aria-label={`Снять с хотспота «${hotspot.label}» техники «${hotspot.vehicleTypeName}»`}
+                                className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-danger transition-colors hover:bg-danger-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-55"
+                              >
+                                {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Unlink className="h-4 w-4" aria-hidden="true" />}
+                                Снять
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
                   </div>
                 ) : (
                   <p className="mt-2 text-sm text-muted-foreground">Товар пока не закреплён за техникой.</p>
@@ -225,24 +270,13 @@ export function ProductActionsPanel({
                   className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-border px-3 py-2.5 text-left text-sm font-medium text-card-foreground transition-colors hover:border-border-interactive hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-55"
                 >
                   <Pin className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-                  {product.hotspotAssignment ? "Перенести на другой хотспот" : "Закрепить за хотспотом"}
+                  {productAssignments.length > 0 ? "Добавить ещё один хотспот" : "Закрепить за хотспотом"}
                 </button>
                 {!product.published && (
                   <p className="px-1 text-xs text-warning">Сначала опубликуйте товар.</p>
                 )}
                 {product.published && hotspots.length === 0 && (
                   <p className="px-1 text-xs text-muted-foreground">Настроенных хотспотов пока нет.</p>
-                )}
-                {product.hotspotAssignment && (
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={onDetach}
-                    className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-danger-border px-3 py-2.5 text-left text-sm font-medium text-danger transition-colors hover:bg-danger-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-55"
-                  >
-                    {pending ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : <Unlink className="h-5 w-5" aria-hidden="true" />}
-                    Снять с хотспота
-                  </button>
                 )}
                 {product.article && (
                   <button
@@ -292,7 +326,7 @@ export function ProductActionsPanel({
               <fieldset className="space-y-2">
                 <legend className="mb-2 text-sm font-semibold text-card-foreground">Точки на технике</legend>
                 {selectedVehicleHotspots.map((hotspot) => {
-                  const current = hotspot.id === product.hotspotAssignment?.id;
+                  const current = hotspot.product?.id === product.id;
                   const selected = hotspot.id === selectedHotspotId;
                   return (
                     <button
@@ -313,7 +347,7 @@ export function ProductActionsPanel({
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-medium text-card-foreground">{hotspot.label}</span>
                         <span className={cn("block truncate text-xs", hotspot.product && !current ? "text-warning" : "text-muted-foreground")}>
-                          {current ? "Текущий хотспот" : hotspot.product ? `Занят: ${hotspot.product.name}` : "Свободно"}
+                          {current ? "Уже используется этим товаром" : hotspot.product ? `Занят: ${hotspot.product.name}` : "Свободно"}
                         </span>
                       </span>
                     </button>

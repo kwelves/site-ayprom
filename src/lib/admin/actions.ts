@@ -1727,15 +1727,16 @@ async function persistVehicleHotspotUpdates(
 
   const productIds = updates.flatMap((update) => (update.productId ? [update.productId] : []));
   if (productIds.length > 0) {
+    const uniqueProductIds = [...new Set(productIds)];
     const { data: products, error: productsError } = await supabase
       .from("products")
       .select("id, published")
-      .in("id", productIds);
+      .in("id", uniqueProductIds);
     if (productsError) throw productsError;
     const productsById = new Map((products as HotspotProductRow[]).map((product) => [product.id, product]));
     if (
-      productsById.size !== productIds.length ||
-      productIds.some((productId) => productsById.get(productId)?.published !== true)
+      productsById.size !== uniqueProductIds.length ||
+      uniqueProductIds.some((productId) => productsById.get(productId)?.published !== true)
     ) {
       throw new Error("Закрепить можно только существующий опубликованный товар.");
     }
@@ -1838,8 +1839,7 @@ function escapeILikeTerm(term: string): string {
 // admin-only lookup data. The final save validates again in case a result is
 // claimed by another admin between this search and submission.
 export async function searchAvailableHotspotProducts(
-  query: string,
-  currentHotspotId?: string
+  query: string
 ): Promise<AdminAvailableProduct[]> {
   await requireAdminSession();
   const term = normalizeHotspotProductSearchQuery(query);
@@ -1866,10 +1866,13 @@ export async function searchAvailableHotspotProducts(
   if (nameError) throw nameError;
   if (articleError) throw articleError;
 
-  const candidateIds = [...(nameMatches ?? []), ...(articleMatches ?? [])].map((product) => product.id);
+  const candidateIds = [...new Set([...(nameMatches ?? []), ...(articleMatches ?? [])].map((product) => product.id))];
   const { data: assignments, error: assignmentsError } =
     candidateIds.length > 0
-      ? await supabase.from("vehicle_hotspots").select("id, product_id").in("product_id", candidateIds)
+      ? await supabase
+          .from("vehicle_hotspots")
+          .select("id, product_id, vehicle_type_slug, hotspot_number, label, vehicle_types(name, order)")
+          .in("product_id", candidateIds)
       : { data: [], error: null };
   if (assignmentsError) throw assignmentsError;
 
@@ -1877,7 +1880,6 @@ export async function searchAvailableHotspotProducts(
     nameMatches: (nameMatches ?? []) as Parameters<typeof selectAvailableHotspotProducts>[0]["nameMatches"],
     articleMatches: (articleMatches ?? []) as Parameters<typeof selectAvailableHotspotProducts>[0]["articleMatches"],
     assignments: (assignments ?? []) as Parameters<typeof selectAvailableHotspotProducts>[0]["assignments"],
-    currentHotspotId,
     limit: HOTSPOT_PRODUCT_SEARCH_LIMIT,
   });
 }

@@ -22,7 +22,6 @@ export interface AdminProductListItem {
    * The list uses it to require an explicit confirmation before an
    * unpublish operation triggers automatic detachment. */
   hotspotCount: number;
-  hotspotAssignment: AdminProductHotspotAssignment | null;
   order: number;
   updatedAt: string;
   coverImage: string | null;
@@ -40,13 +39,7 @@ interface AdminProductListRow {
   updated_at: string;
   categories: { name: string } | null;
   product_images: { url: string; order: number }[];
-  vehicle_hotspots: {
-    id: string;
-    vehicle_type_slug: string;
-    hotspot_number: number;
-    label: string;
-    vehicle_types: { name: string } | null;
-  }[];
+  vehicle_hotspots: { id: string }[];
 }
 
 export interface AdminProductHotspotAssignment {
@@ -185,7 +178,7 @@ export async function getAdminProducts(filters: AdminProductFilters = {}): Promi
   let query = supabase
     .from("products")
     .select(
-      "id, slug, name, article, short_description, published, availability, order, updated_at, categories(name), product_images(url, order), vehicle_hotspots(id, vehicle_type_slug, hotspot_number, label, vehicle_types(name))",
+      "id, slug, name, article, short_description, published, availability, order, updated_at, categories(name), product_images(url, order), vehicle_hotspots(id)",
       { count: "exact" },
     )
     .range(from, from + pageSize - 1);
@@ -234,15 +227,6 @@ export async function getAdminProducts(filters: AdminProductFilters = {}): Promi
       published: row.published,
       availability: row.availability,
       hotspotCount: row.vehicle_hotspots?.length ?? 0,
-      hotspotAssignment: row.vehicle_hotspots?.[0]
-        ? {
-            id: row.vehicle_hotspots[0].id,
-            vehicleTypeSlug: row.vehicle_hotspots[0].vehicle_type_slug,
-            vehicleTypeName: row.vehicle_hotspots[0].vehicle_types?.name ?? row.vehicle_hotspots[0].vehicle_type_slug,
-            hotspotNumber: row.vehicle_hotspots[0].hotspot_number,
-            label: row.vehicle_hotspots[0].label,
-          }
-        : null,
       order: row.order,
       updatedAt: row.updated_at,
       coverImage: [...row.product_images].sort((a, b) => a.order - b.order)[0]?.url ?? null,
@@ -393,6 +377,7 @@ export interface AdminAvailableProduct {
   slug: string;
   name: string;
   article?: string;
+  hotspotAssignments: AdminProductHotspotAssignment[];
 }
 
 export interface AdminVehicleHotspot {
@@ -452,6 +437,7 @@ export async function getAdminVehicleHotspots(vehicleTypeSlug?: string): Promise
           slug: row.products.slug,
           name: row.products.name,
           article: row.products.article ?? undefined,
+          hotspotAssignments: [],
         }
       : null,
   }));

@@ -42,13 +42,6 @@ function assignedProduct(index: number): AdminProductListItem {
     published: true,
     availability: "in_stock",
     hotspotCount: 1,
-    hotspotAssignment: {
-      id: `00000000-0000-4000-8000-00000000001${index}`,
-      vehicleTypeSlug: "dump-truck",
-      vehicleTypeName: "Самосвал",
-      hotspotNumber: index,
-      label: `Точка ${index}`,
-    },
     order: index,
     updatedAt: "2026-08-22T00:00:00.000Z",
     coverImage: null,
@@ -56,17 +49,12 @@ function assignedProduct(index: number): AdminProductListItem {
 }
 
 function option(product: AdminProductListItem): AdminProductHotspotOption {
-  return {
-    ...product.hotspotAssignment!,
-    vehicleTypeOrder: 0,
-    xPct: 50,
-    yPct: 50,
-    product: { id: product.id, slug: product.slug, name: product.name },
-  };
+  const index = Number(product.slug.split("-").at(-1));
+  return hotspotOption(index, product);
 }
 
 function unassignedProduct(index: number): AdminProductListItem {
-  return { ...assignedProduct(index), hotspotCount: 0, hotspotAssignment: null };
+  return { ...assignedProduct(index), hotspotCount: 0 };
 }
 
 function hotspotOption(index: number, assigned: AdminProductListItem | null = null): AdminProductHotspotOption {
@@ -138,29 +126,30 @@ describe("ProductsList publication and hotspot state", () => {
     );
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Выбрать хотспот" })).toBeNull());
     fireEvent.click(screen.getByRole("button", { name: `Открыть действия с товаром «${product.name}»` }));
-    expect(screen.getByText("Точка №2 · Точка 2")).toBeTruthy();
+    expect(screen.getByText("Точка №2")).toBeTruthy();
   });
 
-  it("переносит товар двумя CAS-строками и освобождает прежнюю точку локально", async () => {
+  it("добавляет товар на вторую точку одним CAS-изменением и сохраняет прежнюю", async () => {
     const product = assignedProduct(1);
     const oldHotspot = option(product);
     const target = hotspotOption(2);
     render(<ProductsList products={[product]} hotspotOptions={[oldHotspot, target]} reorderDisabled />);
 
     fireEvent.click(screen.getByRole("button", { name: `Открыть действия с товаром «${product.name}»` }));
-    fireEvent.click(screen.getByRole("button", { name: "Перенести на другой хотспот" }));
+    fireEvent.click(screen.getByRole("button", { name: "Добавить ещё один хотспот" }));
     fireEvent.click(screen.getByRole("button", { name: /Точка 2/ }));
     fireEvent.click(screen.getByRole("button", { name: "Закрепить" }));
 
     await waitFor(() =>
       expect(actionMocks.updateProductHotspotAssignments).toHaveBeenCalledWith([
-        { hotspotId: oldHotspot.id, expectedProductId: product.id, productId: null },
         { hotspotId: target.id, expectedProductId: null, productId: product.id },
       ]),
     );
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Выбрать хотспот" })).toBeNull());
     fireEvent.click(screen.getByRole("button", { name: `Открыть действия с товаром «${product.name}»` }));
-    expect(screen.getByText("Точка №2 · Точка 2")).toBeTruthy();
+    expect(screen.getByText("Используется в 2 хотспотах")).toBeTruthy();
+    expect(screen.getByText("Точка №1")).toBeTruthy();
+    expect(screen.getByText("Точка №2")).toBeTruthy();
   });
 
   it("замена занятой точки отвязывает видимый вытесненный товар", async () => {
@@ -184,7 +173,7 @@ describe("ProductsList publication and hotspot state", () => {
     expect(screen.getByText("Товар пока не закреплён за техникой.")).toBeTruthy();
   });
 
-  it("при CAS-конфликте переноса восстанавливает обе точки и оба видимых товара", async () => {
+  it("при CAS-конфликте добавления восстанавливает целевую точку и сохраняет прежнюю", async () => {
     const incoming = assignedProduct(1);
     const displaced = assignedProduct(2);
     const oldHotspot = option(incoming);
@@ -193,7 +182,7 @@ describe("ProductsList publication and hotspot state", () => {
     render(<ProductsList products={[incoming, displaced]} hotspotOptions={[oldHotspot, target]} reorderDisabled />);
 
     fireEvent.click(screen.getByRole("button", { name: `Открыть действия с товаром «${incoming.name}»` }));
-    fireEvent.click(screen.getByRole("button", { name: "Перенести на другой хотспот" }));
+    fireEvent.click(screen.getByRole("button", { name: "Добавить ещё один хотспот" }));
     fireEvent.click(screen.getByRole("button", { name: /Точка 2/ }));
     fireEvent.click(screen.getByRole("button", { name: "Заменить товар" }));
 
@@ -203,22 +192,23 @@ describe("ProductsList publication and hotspot state", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Закрыть действия с товаром" }));
     fireEvent.click(screen.getByRole("button", { name: `Открыть действия с товаром «${incoming.name}»` }));
-    expect(screen.getByText("Точка №1 · Точка 1")).toBeTruthy();
+    expect(screen.getByText("Точка №1")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Закрыть действия с товаром" }));
     fireEvent.click(screen.getByRole("button", { name: `Открыть действия с товаром «${displaced.name}»` }));
-    expect(screen.getByText("Точка №2 · Точка 2")).toBeTruthy();
+    expect(screen.getByText("Точка №2")).toBeTruthy();
   });
 
   it("Undo закрепления сохраняет более позднее изменение наличия", async () => {
     const product = assignedProduct(1);
-    render(<ProductsList products={[product]} hotspotOptions={[option(product)]} reorderDisabled />);
+    const assignedHotspot = option(product);
+    render(<ProductsList products={[product]} hotspotOptions={[assignedHotspot]} reorderDisabled />);
 
     fireEvent.click(screen.getByRole("button", { name: `Открыть действия с товаром «${product.name}»` }));
-    fireEvent.click(screen.getByRole("button", { name: "Снять с хотспота" }));
+    fireEvent.click(screen.getByRole("button", { name: /Снять с хотспота/ }));
 
     await waitFor(() =>
       expect(actionMocks.updateProductHotspotAssignments).toHaveBeenCalledWith([
-        { hotspotId: product.hotspotAssignment?.id, expectedProductId: product.id, productId: null },
+        { hotspotId: assignedHotspot.id, expectedProductId: product.id, productId: null },
       ]),
     );
     expect(await screen.findByText("Товар снят с хотспота")).toBeTruthy();
@@ -228,12 +218,12 @@ describe("ProductsList publication and hotspot state", () => {
     fireEvent.click(screen.getByRole("button", { name: "Отменить" }));
     await waitFor(() => expect(actionMocks.updateProductHotspotAssignments).toHaveBeenCalledTimes(2));
     expect(actionMocks.updateProductHotspotAssignments).toHaveBeenLastCalledWith([
-      { hotspotId: product.hotspotAssignment?.id, expectedProductId: null, productId: product.id },
+      { hotspotId: assignedHotspot.id, expectedProductId: null, productId: product.id },
     ]);
 
     fireEvent.click(screen.getByRole("button", { name: `Открыть действия с товаром «${product.name}»` }));
     expect(screen.getByText("Самосвал")).toBeTruthy();
-    expect(screen.getByText("Точка №1 · Точка 1")).toBeTruthy();
+    expect(screen.getByText("Точка №1")).toBeTruthy();
     expect(screen.getByRole("radio", { name: "Уточнить" }).getAttribute("aria-checked")).toBe("true");
   });
 
@@ -262,7 +252,7 @@ describe("ProductsList publication and hotspot state", () => {
     expect(screen.getByRole("button", { name: `Переключить публикацию товара «${product.name}»` }).getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: `Открыть действия с товаром «${product.name}»` }));
     expect(screen.getByText("Самосвал")).toBeTruthy();
-    expect(screen.getByText("Точка №1 · Точка 1")).toBeTruthy();
+    expect(screen.getByText("Точка №1")).toBeTruthy();
   });
 
   it("массовое подтверждённое снятие публикации синхронно очищает оба закрепления", async () => {

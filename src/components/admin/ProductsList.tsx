@@ -76,18 +76,8 @@ interface HotspotUndoState {
 }
 
 interface HotspotUiPatch {
-  products: Array<Pick<AdminProductListItem, "id" | "hotspotAssignment" | "hotspotCount">>;
+  products: Array<Pick<AdminProductListItem, "id" | "hotspotCount">>;
   hotspotOptions: Array<Pick<AdminProductHotspotOption, "id" | "product">>;
-}
-
-function assignmentFromOption(hotspot: AdminProductHotspotOption) {
-  return {
-    id: hotspot.id,
-    vehicleTypeSlug: hotspot.vehicleTypeSlug,
-    vehicleTypeName: hotspot.vehicleTypeName,
-    hotspotNumber: hotspot.hotspotNumber,
-    label: hotspot.label,
-  };
 }
 
 function captureHotspotUiPatch(
@@ -101,7 +91,7 @@ function captureHotspotUiPatch(
   return {
     products: products
       .filter((product) => productIdSet.has(product.id))
-      .map(({ id, hotspotAssignment, hotspotCount }) => ({ id, hotspotAssignment, hotspotCount })),
+      .map(({ id, hotspotCount }) => ({ id, hotspotCount })),
     hotspotOptions: hotspotOptions
       .filter((hotspot) => hotspotIdSet.has(hotspot.id))
       .map(({ id, product }) => ({ id, product })),
@@ -112,9 +102,7 @@ function applyProductHotspotPatch(products: AdminProductListItem[], patch: Hotsp
   const byId = new Map(patch.products.map((product) => [product.id, product]));
   return products.map((product) => {
     const saved = byId.get(product.id);
-    return saved
-      ? { ...product, hotspotAssignment: saved.hotspotAssignment, hotspotCount: saved.hotspotCount }
-      : product;
+    return saved ? { ...product, hotspotCount: saved.hotspotCount } : product;
   });
 }
 
@@ -218,69 +206,52 @@ export function ProductsList({
   }
 
   function assignProductToHotspot(product: AdminProductListItem, target: AdminProductHotspotOption) {
-    const oldHotspotId = product.hotspotAssignment?.id ?? null;
-    if (oldHotspotId === target.id) return;
+    if (target.product?.id === product.id) return;
 
     const displacedProductId = target.product?.id ?? null;
-    const restorePatch = captureHotspotUiPatch(
-      products,
-      hotspotOptions,
-      [product.id, displacedProductId],
-      [oldHotspotId, target.id],
-    );
-    const updates: ProductHotspotAssignmentUpdate[] = [];
-    if (oldHotspotId) {
-      updates.push({ hotspotId: oldHotspotId, expectedProductId: product.id, productId: null });
-    }
-    updates.push({ hotspotId: target.id, expectedProductId: displacedProductId, productId: product.id });
+    const restorePatch = captureHotspotUiPatch(products, hotspotOptions, [product.id, displacedProductId], [target.id]);
+    const updates: ProductHotspotAssignmentUpdate[] = [
+      { hotspotId: target.id, expectedProductId: displacedProductId, productId: product.id },
+    ];
 
     const nextProducts = products.map((item) => {
       if (item.id === product.id) {
-        return { ...item, hotspotAssignment: assignmentFromOption(target), hotspotCount: 1 };
+        return { ...item, hotspotCount: item.hotspotCount + 1 };
       }
       if (item.id === displacedProductId) {
-        return { ...item, hotspotAssignment: null, hotspotCount: 0 };
+        return { ...item, hotspotCount: Math.max(0, item.hotspotCount - 1) };
       }
       return item;
     });
     const nextHotspotOptions = hotspotOptions.map((hotspot) => {
-      if (hotspot.id === oldHotspotId) return { ...hotspot, product: null };
       if (hotspot.id === target.id) {
         return { ...hotspot, product: { id: product.id, slug: product.slug, name: product.name } };
       }
       return hotspot;
     });
-    const reverseUpdates: ProductHotspotAssignmentUpdate[] = [
-      { hotspotId: target.id, expectedProductId: product.id, productId: displacedProductId },
-    ];
-    if (oldHotspotId) {
-      reverseUpdates.push({ hotspotId: oldHotspotId, expectedProductId: null, productId: product.id });
-    }
-
     runHotspotMutation(updates, nextProducts, nextHotspotOptions, {
-      message: oldHotspotId ? "Товар перенесён на другой хотспот" : "Товар закреплён за хотспотом",
-      reverseUpdates,
+      message: product.hotspotCount > 0 ? "Товар закреплён ещё за одним хотспотом" : "Товар закреплён за хотспотом",
+      reverseUpdates: [{ hotspotId: target.id, expectedProductId: product.id, productId: displacedProductId }],
       restorePatch,
     });
   }
 
-  function detachProductFromHotspot(product: AdminProductListItem) {
-    const assignment = product.hotspotAssignment;
-    if (!assignment) return;
-    const restorePatch = captureHotspotUiPatch(products, hotspotOptions, [product.id], [assignment.id]);
+  function detachProductFromHotspot(product: AdminProductListItem, hotspot: AdminProductHotspotOption) {
+    if (hotspot.product?.id !== product.id) return;
+    const restorePatch = captureHotspotUiPatch(products, hotspotOptions, [product.id], [hotspot.id]);
     const nextProducts = products.map((item) =>
-      item.id === product.id ? { ...item, hotspotAssignment: null, hotspotCount: 0 } : item,
+      item.id === product.id ? { ...item, hotspotCount: Math.max(0, item.hotspotCount - 1) } : item,
     );
-    const nextHotspotOptions = hotspotOptions.map((hotspot) =>
-      hotspot.id === assignment.id ? { ...hotspot, product: null } : hotspot,
+    const nextHotspotOptions = hotspotOptions.map((item) =>
+      item.id === hotspot.id ? { ...item, product: null } : item,
     );
     runHotspotMutation(
-      [{ hotspotId: assignment.id, expectedProductId: product.id, productId: null }],
+      [{ hotspotId: hotspot.id, expectedProductId: product.id, productId: null }],
       nextProducts,
       nextHotspotOptions,
       {
         message: "Товар снят с хотспота",
-        reverseUpdates: [{ hotspotId: assignment.id, expectedProductId: null, productId: product.id }],
+        reverseUpdates: [{ hotspotId: hotspot.id, expectedProductId: null, productId: product.id }],
         restorePatch,
       },
     );
@@ -648,7 +619,7 @@ export function ProductsList({
             if (!isHotspotPending) setActionsProductId(null);
           }}
           onAssign={(hotspot) => assignProductToHotspot(actionsProduct, hotspot)}
-          onDetach={() => detachProductFromHotspot(actionsProduct)}
+          onDetach={(hotspot) => detachProductFromHotspot(actionsProduct, hotspot)}
         />
       )}
       <AdminUndoToast
