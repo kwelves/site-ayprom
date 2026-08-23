@@ -21,6 +21,11 @@ const geistSans = Geist({
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
+  icons: {
+    icon: [{ url: "/brand/ayprom-icon.svg", type: "image/svg+xml" }],
+    shortcut: "/brand/ayprom-icon.svg",
+    apple: "/brand/ayprom-icon-light.png",
+  },
   title: {
     default: "AYPROM — гидрооборудование и запчасти для спецтехники",
     template: "%s — AYPROM",

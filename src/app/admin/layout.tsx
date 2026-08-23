@@ -9,6 +9,11 @@ const geistSans = Geist({
 
 export const metadata: Metadata = {
   title: "Админка — AYPROM",
+  icons: {
+    icon: [{ url: "/brand/ayprom-icon.svg", type: "image/svg+xml" }],
+    shortcut: "/brand/ayprom-icon.svg",
+    apple: "/brand/ayprom-icon-light.png",
+  },
   robots: { index: false, follow: false },
 };
 
