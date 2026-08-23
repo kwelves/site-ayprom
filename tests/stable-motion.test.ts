@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 const header = readFileSync("src/components/layout/Header.tsx", "utf8");
 const productsList = readFileSync("src/components/admin/ProductsList.tsx", "utf8");
+const vehicleCarousel = readFileSync("src/components/home/vehicle-showcase/VehicleCarousel.tsx", "utf8");
 
 describe("stable state transitions", () => {
   it("keeps the mobile header and accordions mounted without height:auto animation", () => {
@@ -23,5 +24,11 @@ describe("stable state transitions", () => {
     expect(productsList).not.toContain('AnimatePresence mode="wait"');
     expect(productsList).toContain('<span className="grid" aria-hidden="true">');
     expect(productsList.match(/col-start-1 row-start-1/g)).toHaveLength(2);
+  });
+
+  it("keeps the fixed carousel lamp lit during click-driven switches", () => {
+    expect(vehicleCarousel).toContain("<CarouselLamp dimmed={isDragging} />");
+    expect(vehicleCarousel).not.toContain("isFlashing");
+    expect(vehicleCarousel).not.toContain("flashLamp");
   });
 });

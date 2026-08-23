@@ -8,7 +8,7 @@ import { DURATION } from "@/lib/motion";
 // scaled down to sit under a thumbnail strip instead of a full hero, with no
 // mount/expand animation (unlike the original's whileInView grow-in). Only
 // state it reacts to is `dimmed`, mirroring the old ActiveLamp's drag-dim
-// behavior, now also triggered by clicking a thumbnail to switch vehicles.
+// behavior. Click-driven switches leave this fixed selection landmark on.
 const BEAM_BLUE = "#1474ff";
 const GLOW_BLUE = "#5e98ff";
 

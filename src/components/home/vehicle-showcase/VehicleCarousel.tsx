@@ -1,15 +1,11 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { motion, type PanInfo } from "framer-motion";
-import { DURATION } from "@/lib/motion";
 import { CarouselLamp } from "./CarouselLamp";
 
 const SWIPE_THRESHOLD = 40;
-// How the dim-flash on a click-driven switch stays in sync with
-// CarouselLamp's own opacity transition duration (see CarouselLamp.tsx).
-const FLASH_MS = DURATION.slow * 1000;
 // How many slots are visible on each side of the active one. With 5 real
 // vehicles this exactly covers all of them (0 = active, ±1 = near, ±2 =
 // the ones fading into the edge) — no vehicle is ever rendered twice.
@@ -106,9 +102,7 @@ export function VehicleCarousel({ items, activeIndex, disabled = false, onSelect
   const trackRef = useRef<HTMLDivElement>(null);
   const didDragRef = useRef(false);
   const nextKeyRef = useRef(BUFFER + 1);
-  const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [isDragging, setIsDragging] = useState(false);
-  const [isFlashing, setIsFlashing] = useState(false);
   const [slotWidth, setSlotWidth] = useState(220);
   const [slots, setSlots] = useState<Slot[]>(() => buildInitialSlots(activeIndex, items.length));
 
@@ -122,21 +116,10 @@ export function VehicleCarousel({ items, activeIndex, disabled = false, onSelect
     return () => resizeObserver.disconnect();
   }, []);
 
-  useEffect(() => () => clearTimeout(flashTimeoutRef.current), []);
-
   const navigate = (delta: number, newActiveIndex: number) => {
     if (disabled) return;
     setSlots((prev) => shiftSlots(prev, delta, newActiveIndex, items.length, nextKeyRef));
     onSelect(newActiveIndex);
-  };
-
-  // Same lamp-dim beat as an actual drag (see CarouselLamp), fired instead
-  // for a click-driven switch. Held in a ref so a fast second click restarts
-  // the timer instead of letting a stale one turn the lamp back on early.
-  const flashLamp = () => {
-    clearTimeout(flashTimeoutRef.current);
-    setIsFlashing(true);
-    flashTimeoutRef.current = setTimeout(() => setIsFlashing(false), FLASH_MS);
   };
 
   const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
@@ -192,7 +175,6 @@ export function VehicleCarousel({ items, activeIndex, disabled = false, onSelect
                 onClick={() => {
                   if (!disabled && !didDragRef.current && slot.position !== 0) {
                     navigate(slot.position, slot.semanticIndex);
-                    flashLamp();
                   }
                 }}
                 aria-label={item.name}
@@ -219,7 +201,10 @@ export function VehicleCarousel({ items, activeIndex, disabled = false, onSelect
       {/* Pinned to the carousel container's own bottom-center, independent
           of the mask above — its glow sits behind the thumbnails (z-0 vs.
           the mask's z-10) and isn't edge-faded or clipped with them. */}
-      <CarouselLamp dimmed={isDragging || isFlashing} />
+      {/* The lamp is pinned to the center and stays visually continuous while
+          thumbnails move past it. Only an actual drag dims it; click-driven
+          switches must not blink the fixed selection landmark. */}
+      <CarouselLamp dimmed={isDragging} />
     </div>
   );
 }
