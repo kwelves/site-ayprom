@@ -34,9 +34,19 @@ export function useAdminList<T>({
   flashAction,
 }: UseAdminListOptions<T>) {
   const [items, setItems] = useState(initial);
+  const [serverItems, setServerItems] = useState(initial);
   const [isPending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
   const { toast, dismissToast, highlightedKey } = useSaveFlowFlash({ flashKey: flashSlug, flashAction, messages });
+
+  // A Server Action can re-render the current route without remounting this
+  // Client Component. React deliberately preserves local state in that case,
+  // so mirror the new server snapshot explicitly instead of continuing to show
+  // rows that were deleted or edited in the database.
+  if (initial !== serverItems) {
+    setServerItems(initial);
+    setItems(initial);
+  }
 
   function handleReorder(next: T[]) {
     const previous = items;
@@ -54,14 +64,21 @@ export function useAdminList<T>({
 
   function removeItem(item: T) {
     const id = getId(item);
-    const previous = items;
+    const previousIndex = items.findIndex((candidate) => getId(candidate) === id);
     setItems((prev) => prev.filter((i) => getId(i) !== id));
     setActionError(null);
     startTransition(async () => {
       try {
         await remove(id);
       } catch {
-        setItems(previous);
+        // Roll back only this row. Restoring the whole captured array can bring
+        // back another item whose overlapping deletion already succeeded.
+        setItems((current) => {
+          if (current.some((candidate) => getId(candidate) === id)) return current;
+          const restored = [...current];
+          restored.splice(Math.min(Math.max(previousIndex, 0), restored.length), 0, item);
+          return restored;
+        });
         setActionError("Не удалось удалить запись. Она возвращена в список.");
       }
     });

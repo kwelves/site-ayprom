@@ -143,6 +143,7 @@ export function ProductsList({
   const [quickViewProduct, setQuickViewProduct] = useState<AdminProductListItem | null>(null);
   const [actionsProductId, setActionsProductId] = useState<string | null>(null);
   const [hotspotOptions, setHotspotOptions] = useState(initialHotspotOptions);
+  const [serverHotspotOptions, setServerHotspotOptions] = useState(initialHotspotOptions);
   const [hotspotUndo, setHotspotUndo] = useState<HotspotUndoState | null>(null);
   const [isHotspotPending, startHotspotTransition] = useTransition();
   const {
@@ -162,7 +163,7 @@ export function ProductsList({
       initial: initialProducts,
       getId: (p) => p.slug,
       reorder: reorderProducts,
-      remove: deleteProduct,
+      remove: (slug) => deleteProduct(slug, false),
       messages: { created: "Товар успешно добавлен", updated: "Товар успешно отредактирован" },
       flashSlug,
       flashAction,
@@ -171,6 +172,13 @@ export function ProductsList({
   const deleteConfirm = useConfirmDelete<AdminProductListItem>(removeItem);
   const actionsProduct = products.find((product) => product.id === actionsProductId) ?? null;
   const dismissHotspotUndo = useCallback(() => setHotspotUndo(null), []);
+
+  // Keep the showcase assignment cache on the same incoming server snapshot as
+  // the product rows after edits, unpublishing, or deletion.
+  if (initialHotspotOptions !== serverHotspotOptions) {
+    setServerHotspotOptions(initialHotspotOptions);
+    setHotspotOptions(initialHotspotOptions);
+  }
 
   function runHotspotMutation(
     updates: ProductHotspotAssignmentUpdate[],

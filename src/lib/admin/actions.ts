@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
+import { refresh, revalidatePath } from "next/cache";
 import * as Sentry from "@sentry/nextjs";
 import {
   createSessionToken,
@@ -677,7 +677,7 @@ export async function updateProduct(
   });
 }
 
-export async function deleteProduct(slug: string): Promise<void> {
+export async function deleteProduct(slug: string, redirectAfterDelete = true): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
 
@@ -687,7 +687,15 @@ export async function deleteProduct(slug: string): Promise<void> {
     .eq("slug", slug)
     .maybeSingle<{ id: string; product_images: { url: string }[] }>();
   if (findError) throw findError;
-  if (!product) throw new Error("Товар не найден или уже удалён.");
+  if (!product) {
+    // Deletion is idempotent: a stale tab or a repeated confirmation already
+    // has the desired database state and must not resurrect the old row.
+    revalidatePath("/admin/products");
+    revalidatePublicSite();
+    if (redirectAfterDelete) redirect("/admin/products");
+    refresh();
+    return;
+  }
 
   // Сначала подтверждаем удаление в БД. Storage не участвует в транзакции:
   // если очистка файлов недоступна, товар всё равно не остаётся с битым фото.
@@ -708,7 +716,8 @@ export async function deleteProduct(slug: string): Promise<void> {
   }
   revalidatePath("/admin/products");
   revalidatePublicSite();
-  redirect("/admin/products");
+  if (redirectAfterDelete) redirect("/admin/products");
+  refresh();
 }
 
 // A quick from-the-list toggle for the products list's status pill — a

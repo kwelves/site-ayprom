@@ -97,6 +97,19 @@ afterEach(() => {
 });
 
 describe("ProductsList publication and hotspot state", () => {
+  it("успешно удаляет товар из списка без redirect-ошибки и старой карточки", async () => {
+    const product = unassignedProduct(1);
+    actionMocks.deleteProduct.mockResolvedValueOnce(undefined);
+    render(<ProductsList products={[product]} hotspotOptions={[]} reorderDisabled />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Удалить" }));
+    fireEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Удалить" }));
+
+    await waitFor(() => expect(actionMocks.deleteProduct).toHaveBeenCalledWith(product.slug, false));
+    expect(screen.queryByRole("button", { name: product.name })).toBeNull();
+    expect(screen.queryByText("Не удалось удалить запись. Она возвращена в список.")).toBeNull();
+  });
+
   it("даёт непрерывному длинному названию перенос внутри колонки перед кнопкой меню", () => {
     const name = "Сверхдлинноеназваниетоварабезединогопробелакотороенедолжноперекрыватькнопкудействий";
     const product = { ...unassignedProduct(1), name };
