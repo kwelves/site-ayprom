@@ -3,6 +3,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAdminList } from "@/lib/admin/use-admin-list";
+import { AdminToastProvider } from "@/components/admin/ui/AdminToastProvider";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
@@ -30,7 +31,7 @@ function Harness({ initial, remove }: { initial: Item[]; remove: (id: string) =>
     getId: (item: Item) => item.id,
     reorder: vi.fn().mockResolvedValue(undefined),
     remove,
-    messages: { created: "created", updated: "updated" },
+    messages: { created: "created", updated: "updated", deleted: "deleted", reordered: "reordered" },
   });
 
   return (
@@ -82,5 +83,19 @@ describe("useAdminList server synchronization", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Первый" })).toBeTruthy());
     expect(screen.queryByRole("button", { name: "Второй" })).toBeNull();
     expect(screen.getByText("Не удалось удалить запись. Она возвращена в список.")).toBeTruthy();
+  });
+
+  it("подтверждает успешное удаление через общий toast", async () => {
+    const remove = vi.fn().mockResolvedValue(undefined);
+    render(
+      <AdminToastProvider>
+        <Harness initial={[{ id: "first", name: "Первый" }]} remove={remove} />
+      </AdminToastProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Первый" }));
+
+    await waitFor(() => expect(screen.getByRole("status").textContent).toContain("deleted"));
+    expect(screen.queryByRole("button", { name: "Первый" })).toBeNull();
   });
 });

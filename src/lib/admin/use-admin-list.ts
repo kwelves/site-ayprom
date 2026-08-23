@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useSaveFlowFlash } from "@/lib/admin/use-save-flow-flash";
+import { useAdminToast } from "@/components/admin/ui/AdminToastProvider";
 
 interface UseAdminListOptions<T> {
   initial: T[];
@@ -12,7 +13,7 @@ interface UseAdminListOptions<T> {
   // Persist a deletion by id. Callers run their own confirm()/guard first and
   // only reach removeItem() when the delete is actually going ahead.
   remove: (id: string) => Promise<void>;
-  messages: { created: string; updated: string };
+  messages: { created: string; updated: string; deleted: string; reordered: string };
   flashSlug?: string;
   flashAction?: "created" | "updated";
 }
@@ -37,7 +38,8 @@ export function useAdminList<T>({
   const [serverItems, setServerItems] = useState(initial);
   const [isPending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
-  const { toast, dismissToast, highlightedKey } = useSaveFlowFlash({ flashKey: flashSlug, flashAction, messages });
+  const { highlightedKey } = useSaveFlowFlash({ flashKey: flashSlug, flashAction, messages });
+  const { success } = useAdminToast();
 
   // A Server Action can re-render the current route without remounting this
   // Client Component. React deliberately preserves local state in that case,
@@ -55,6 +57,7 @@ export function useAdminList<T>({
     startTransition(async () => {
       try {
         await reorder(next.map(getId));
+        success(messages.reordered);
       } catch {
         setItems(previous);
         setActionError("Не удалось сохранить новый порядок. Список возвращён в прежнее состояние.");
@@ -70,6 +73,7 @@ export function useAdminList<T>({
     startTransition(async () => {
       try {
         await remove(id);
+        success(messages.deleted);
       } catch {
         // Roll back only this row. Restoring the whole captured array can bring
         // back another item whose overlapping deletion already succeeded.
@@ -91,11 +95,10 @@ export function useAdminList<T>({
     startTransition,
     handleReorder,
     removeItem,
-    toast,
-    dismissToast,
     highlightedKey,
     actionError,
     dismissActionError: () => setActionError(null),
     reportActionError: setActionError,
+    reportSuccess: success,
   };
 }

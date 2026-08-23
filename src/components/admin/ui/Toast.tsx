@@ -2,12 +2,23 @@
 
 import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle2, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, X } from "lucide-react";
 import { DURATION, EASE_UI } from "@/lib/motion";
+import { cn } from "@/lib/utils";
 
 const AUTO_DISMISS_MS = 4000;
 
-export function Toast({ message, onDismiss }: { message: string | null; onDismiss: () => void }) {
+export type ToastTone = "success" | "error";
+
+export function Toast({
+  message,
+  tone = "success",
+  onDismiss,
+}: {
+  message: string | null;
+  tone?: ToastTone;
+  onDismiss: () => void;
+}) {
   useEffect(() => {
     if (!message) return;
     const timer = setTimeout(onDismiss, AUTO_DISMISS_MS);
@@ -18,14 +29,21 @@ export function Toast({ message, onDismiss }: { message: string | null; onDismis
     <AnimatePresence>
       {message && (
         <motion.div
-          role="status"
-          aria-live="polite"
+          role={tone === "error" ? "alert" : "status"}
+          aria-live={tone === "error" ? "assertive" : "polite"}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0, transition: { duration: DURATION.base, ease: EASE_UI } }}
           exit={{ opacity: 0, y: 8, transition: { duration: DURATION.fast, ease: EASE_UI } }}
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 shadow-lg"
+          className={cn(
+            "fixed bottom-6 right-6 z-50 flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-lg border bg-card px-4 py-3 shadow-lg",
+            tone === "error" ? "border-danger-border" : "border-border",
+          )}
         >
-          <CheckCircle2 aria-hidden="true" className="h-5 w-5 shrink-0 text-primary" />
+          {tone === "error" ? (
+            <AlertCircle aria-hidden="true" className="h-5 w-5 shrink-0 text-danger" />
+          ) : (
+            <CheckCircle2 aria-hidden="true" className="h-5 w-5 shrink-0 text-primary" />
+          )}
           <p className="text-sm font-medium text-card-foreground">{message}</p>
           <button
             type="button"

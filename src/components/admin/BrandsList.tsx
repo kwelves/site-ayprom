@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { SortableList } from "@/components/admin/SortableList";
-import { Toast } from "@/components/admin/ui/Toast";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
 import { reorderBrands, deleteBrand } from "@/lib/admin/actions";
@@ -18,12 +17,17 @@ interface BrandsListProps {
 }
 
 export function BrandsList({ brands: initialBrands, flashSlug, flashAction }: BrandsListProps) {
-  const { items: brands, handleReorder, removeItem, toast, dismissToast, highlightedKey, actionError, dismissActionError } = useAdminList<AdminBrand>({
+  const { items: brands, handleReorder, removeItem, highlightedKey, actionError, dismissActionError } = useAdminList<AdminBrand>({
     initial: initialBrands,
     getId: (brand) => brand.slug,
     reorder: reorderBrands,
-    remove: deleteBrand,
-    messages: { created: "Бренд успешно добавлен", updated: "Бренд успешно отредактирован" },
+    remove: (slug) => deleteBrand(slug, false),
+    messages: {
+      created: "Бренд успешно добавлен",
+      updated: "Бренд успешно отредактирован",
+      deleted: "Бренд успешно удалён",
+      reordered: "Порядок брендов сохранён",
+    },
     flashSlug,
     flashAction,
   });
@@ -78,7 +82,6 @@ export function BrandsList({ brands: initialBrands, flashSlug, flashAction }: Br
         </div>
       )}
     />
-    <Toast message={toast} onDismiss={dismissToast} />
     <AdminActionFeedback message={actionError} onDismiss={dismissActionError} />
     <ConfirmDialog
       open={deleteConfirm.pending !== null}

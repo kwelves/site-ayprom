@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useAdminToast } from "@/components/admin/ui/AdminToastProvider";
 
 // How long the highlight stays visible once applied — kept short, per the
 // brief on this: it's just a "yes, this is the one" flash, not a persistent marker.
@@ -30,14 +31,13 @@ interface UseSaveFlowFlashOptions {
 export function useSaveFlowFlash({ flashKey, flashAction, messages }: UseSaveFlowFlashOptions) {
   const router = useRouter();
   const pathname = usePathname();
-  const [toast, setToast] = useState<string | null>(null);
   const [highlightedKey, setHighlightedKey] = useState<string | null>(null);
+  const { success } = useAdminToast();
 
   useEffect(() => {
     if (!flashKey || !flashAction) return;
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronizing from the external ?created=/?updated= query param (a one-shot signal from the redirecting Server Action), not derivable state.
-    setToast(flashAction === "created" ? messages.created : messages.updated);
+    success(flashAction === "created" ? messages.created : messages.updated);
     // Strip ?created=/?updated= so a refresh or back-navigation doesn't replay the flash.
     router.replace(pathname, { scroll: false });
 
@@ -63,5 +63,5 @@ export function useSaveFlowFlash({ flashKey, flashAction, messages }: UseSaveFlo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flashKey, flashAction]);
 
-  return { toast, dismissToast: () => setToast(null), highlightedKey };
+  return { highlightedKey };
 }

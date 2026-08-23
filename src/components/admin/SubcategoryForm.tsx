@@ -33,7 +33,8 @@ export function SubcategoryForm({ mode, categorySlug, categoryName, subcategory 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { isUploading: isUploadingImage, handleReplace: handleImageReplace } = useImageReplace(
     (formData) => replaceSubcategoryImage(subcategory!.id, formData),
-    setImage
+    setImage,
+    "Изображение подкатегории обновлено",
   );
 
   function handleNameChange(value: string) {

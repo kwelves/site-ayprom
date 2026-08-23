@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, UploadCloud } from "lucide-react";
 import { previewProductImport, commitProductImport, type ImportCommitResult } from "@/lib/admin/product-import-actions";
 import type { ImportPreview } from "@/lib/admin/product-import-parse";
+import { useAdminToast } from "@/components/admin/ui/AdminToastProvider";
 
 type Stage = { name: "idle" } | { name: "preview"; preview: ImportPreview } | { name: "done"; result: ImportCommitResult };
 
@@ -13,6 +14,7 @@ export function ImportProducts() {
   const [isPending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const selectedFileRef = useRef<File | null>(null);
+  const { success } = useAdminToast();
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -44,6 +46,7 @@ export function ImportProducts() {
       try {
         const result = await commitProductImport(formData);
         setStage({ name: "done", result });
+        success(`Импорт завершён: создано ${result.created}, обновлено ${result.updated}`);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Импорт не выполнен.");
       }

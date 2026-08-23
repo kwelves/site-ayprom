@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { compressImage } from "@/lib/admin/compress-image";
+import { useAdminToast } from "@/components/admin/ui/AdminToastProvider";
 
 // Shared "replace this entity's single image" flow for the admin forms
 // (brand logo, category cover, subcategory cover). Each was carrying a
@@ -15,22 +16,32 @@ import { compressImage } from "@/lib/admin/compress-image";
 // genuinely different flow, not this single-image replace.
 export function useImageReplace(
   replace: (formData: FormData) => Promise<string | null>,
-  onReplaced: (url: string) => void
+  onReplaced: (url: string) => void,
+  successMessage = "Изображение обновлено",
 ) {
   const [isUploading, setIsUploading] = useState(false);
+  const { success, error } = useAdminToast();
 
   async function handleReplace(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
 
     setIsUploading(true);
-    const compressed = await compressImage(file);
-    const formData = new FormData();
-    formData.set("file", compressed);
-    const url = await replace(formData);
-    if (url) onReplaced(url);
-    setIsUploading(false);
-    event.target.value = "";
+    try {
+      const compressed = await compressImage(file);
+      const formData = new FormData();
+      formData.set("file", compressed);
+      const url = await replace(formData);
+      if (url) {
+        onReplaced(url);
+        success(successMessage);
+      }
+    } catch (cause) {
+      error(cause instanceof Error ? cause.message : "Не удалось обновить изображение");
+    } finally {
+      setIsUploading(false);
+      event.target.value = "";
+    }
   }
 
   return { isUploading, handleReplace };

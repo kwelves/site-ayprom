@@ -29,7 +29,8 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { isUploading: isUploadingLogo, handleReplace: handleLogoReplace } = useImageReplace(
     (formData) => replaceBrandLogo(brand!.slug, formData),
-    setLogo
+    setLogo,
+    "Логотип бренда обновлён",
   );
 
   function handleNameChange(value: string) {

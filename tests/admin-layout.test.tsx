@@ -11,6 +11,7 @@ vi.mock("next/link", () => ({
 vi.mock("@/lib/admin/actions", () => ({ logout: vi.fn() }));
 vi.mock("@/components/admin/AdminNav", () => ({ AdminNav: () => <span>Навигация</span> }));
 vi.mock("@/components/admin/AdminMobileNav", () => ({ AdminMobileNav: () => <button>Меню</button> }));
+vi.mock("@/components/admin/AdminRouteNotice", () => ({ AdminRouteNotice: () => null }));
 
 afterEach(cleanup);
 

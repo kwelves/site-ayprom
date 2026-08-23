@@ -29,6 +29,7 @@ import { Collapsible } from "@/components/admin/ui/Collapsible";
 import { StickyFormActions } from "@/components/admin/ui/StickyFormActions";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
+import { useAdminToast } from "@/components/admin/ui/AdminToastProvider";
 import { ProductFormBasicSection } from "@/components/admin/product-form/ProductFormBasicSection";
 import { ProductFormCompatibilitySection } from "@/components/admin/product-form/ProductFormCompatibilitySection";
 import { ProductFormDescriptionsSection } from "@/components/admin/product-form/ProductFormDescriptionsSection";
@@ -107,6 +108,7 @@ export function ProductForm({
   const formRef = useRef<HTMLFormElement>(null);
   const unpublishConfirmedRef = useRef(false);
   const [, startTransition] = useTransition();
+  const { success } = useAdminToast();
 
   const selectedCategory = categories.find((c) => c.slug === categorySlug);
   const categorySubcategories = subcategories.filter((s) => s.categorySlug === categorySlug);
@@ -201,6 +203,7 @@ export function ProductForm({
       const uploaded = uploads.filter((image): image is NonNullable<typeof image> => image !== null);
       if (uploaded.length > 0) {
         setImages((prev) => [...prev, ...uploaded]);
+        success(uploaded.length === 1 ? "Фотография добавлена" : `Добавлено фотографий: ${uploaded.length}`);
       }
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Не удалось загрузить фотографии.");
@@ -217,6 +220,7 @@ export function ProductForm({
     startTransition(async () => {
       try {
         await deleteProductImage(imageId);
+        success("Фотография удалена");
       } catch {
         setImages(previous);
         setActionError("Не удалось удалить фотографию. Она возвращена в список.");
@@ -232,6 +236,7 @@ export function ProductForm({
     startTransition(async () => {
       try {
         await reorderProductImages(product.slug, newImages.map((img) => img.id));
+        success("Порядок фотографий сохранён");
       } catch {
         setImages(previous);
         setActionError("Не удалось сохранить порядок фотографий. Порядок восстановлен.");
@@ -249,6 +254,7 @@ export function ProductForm({
     startTransition(async () => {
       try {
         await updateProductImageScale(product.slug, imageId, value);
+        success("Масштаб фотографии сохранён");
       } catch {
         setImages(previous);
         setActionError("Не удалось сохранить масштаб фотографии. Значение восстановлено.");

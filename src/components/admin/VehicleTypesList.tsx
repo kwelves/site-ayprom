@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { Truck } from "lucide-react";
 import { SortableList } from "@/components/admin/SortableList";
-import { Toast } from "@/components/admin/ui/Toast";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
 import { reorderVehicleTypes, deleteVehicleType } from "@/lib/admin/actions";
@@ -19,13 +18,18 @@ interface VehicleTypesListProps {
 }
 
 export function VehicleTypesList({ vehicleTypes: initialVehicleTypes, flashSlug, flashAction }: VehicleTypesListProps) {
-  const { items: vehicleTypes, handleReorder, removeItem, toast, dismissToast, highlightedKey, actionError, dismissActionError } =
+  const { items: vehicleTypes, handleReorder, removeItem, highlightedKey, actionError, dismissActionError } =
     useAdminList<AdminVehicleType>({
       initial: initialVehicleTypes,
       getId: (vehicleType) => vehicleType.slug,
       reorder: reorderVehicleTypes,
-      remove: deleteVehicleType,
-      messages: { created: "Тип техники успешно добавлен", updated: "Тип техники успешно отредактирован" },
+      remove: (slug) => deleteVehicleType(slug, false),
+      messages: {
+        created: "Тип техники успешно добавлен",
+        updated: "Тип техники успешно отредактирован",
+        deleted: "Тип техники успешно удалён",
+        reordered: "Порядок типов техники сохранён",
+      },
       flashSlug,
       flashAction,
     });
@@ -69,7 +73,6 @@ export function VehicleTypesList({ vehicleTypes: initialVehicleTypes, flashSlug,
         </div>
       )}
     />
-    <Toast message={toast} onDismiss={dismissToast} />
     <AdminActionFeedback message={actionError} onDismiss={dismissActionError} />
     <ConfirmDialog
       open={deleteConfirm.pending !== null}

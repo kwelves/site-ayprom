@@ -1,7 +1,10 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { logout } from "@/lib/admin/actions";
 import { AdminNav } from "@/components/admin/AdminNav";
 import { AdminMobileNav } from "@/components/admin/AdminMobileNav";
+import { AdminRouteNotice } from "@/components/admin/AdminRouteNotice";
+import { AdminToastProvider } from "@/components/admin/ui/AdminToastProvider";
 
 // Wraps every admin page except /admin/login — middleware already gates
 // access to this whole subtree, so no auth check here, just the nav chrome.
@@ -12,38 +15,43 @@ import { AdminMobileNav } from "@/components/admin/AdminMobileNav";
 // fit a bottom tab bar without truncation.
 export default function ProtectedAdminLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <div data-testid="admin-shell" className="flex min-h-dvh">
-      <aside
-        data-testid="admin-sidebar"
-        className="hidden w-60 shrink-0 flex-col border-r border-border bg-card lg:sticky lg:top-0 lg:flex lg:h-dvh lg:self-start"
-      >
-        <div className="border-b border-border px-4 py-4">
-          <Link href="/admin/products" className="text-sm font-semibold text-card-foreground">
-            AYPROM — Админка
-          </Link>
-        </div>
-        <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-3">
-          <AdminNav variant="sidebar" />
-        </nav>
-        <form action={logout} data-testid="admin-logout" className="shrink-0 border-t border-border p-3">
-          <button
-            type="submit"
-            className="w-full rounded-md px-3 py-2 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-card-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          >
-            Выйти
-          </button>
-        </form>
-      </aside>
+    <AdminToastProvider>
+      <Suspense fallback={null}>
+        <AdminRouteNotice />
+      </Suspense>
+      <div data-testid="admin-shell" className="flex min-h-dvh">
+        <aside
+          data-testid="admin-sidebar"
+          className="hidden w-60 shrink-0 flex-col border-r border-border bg-card lg:sticky lg:top-0 lg:flex lg:h-dvh lg:self-start"
+        >
+          <div className="border-b border-border px-4 py-4">
+            <Link href="/admin/products" className="text-sm font-semibold text-card-foreground">
+              AYPROM — Админка
+            </Link>
+          </div>
+          <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-3">
+            <AdminNav variant="sidebar" />
+          </nav>
+          <form action={logout} data-testid="admin-logout" className="shrink-0 border-t border-border p-3">
+            <button
+              type="submit"
+              className="w-full rounded-md px-3 py-2 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-card-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              Выйти
+            </button>
+          </form>
+        </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-border bg-card px-4 py-2.5 lg:hidden">
-          <Link href="/admin/products" className="text-sm font-semibold text-card-foreground">
-            AYPROM — Админка
-          </Link>
-          <AdminMobileNav />
-        </header>
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="flex items-center justify-between border-b border-border bg-card px-4 py-2.5 lg:hidden">
+            <Link href="/admin/products" className="text-sm font-semibold text-card-foreground">
+              AYPROM — Админка
+            </Link>
+            <AdminMobileNav />
+          </header>
+          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
+        </div>
       </div>
-    </div>
+    </AdminToastProvider>
   );
 }

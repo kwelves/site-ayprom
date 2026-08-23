@@ -14,6 +14,7 @@ import {
   reorderCategoryBrands,
 } from "@/lib/admin/actions";
 import { useConfirmDelete } from "@/lib/admin/use-confirm-delete";
+import { useAdminToast } from "@/components/admin/ui/AdminToastProvider";
 import type { AdminBrand, AdminCategoryBrand } from "@/lib/admin/queries";
 
 interface CategoryBrandsManagerProps {
@@ -27,6 +28,7 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
   const [selectedBrandToAdd, setSelectedBrandToAdd] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const { success } = useAdminToast();
 
   const attachedSlugs = new Set(attached.map((brand) => brand.brandSlug));
   const available = allBrands.filter((brand) => !attachedSlugs.has(brand.slug));
@@ -38,6 +40,7 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
     startTransition(async () => {
       try {
         await reorderCategoryBrands(categorySlug, newAttached.map((brand) => brand.brandSlug));
+        success("Порядок брендов категории сохранён");
       } catch {
         setAttached(previous);
         setActionError("Не удалось сохранить порядок брендов. Список возвращён в прежнее состояние.");
@@ -52,6 +55,7 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
     startTransition(async () => {
       try {
         await removeCategoryBrand(categorySlug, brand.brandSlug);
+        success("Бренд убран из категории");
       } catch {
         setAttached(previous);
         setActionError("Не удалось убрать бренд. Связь восстановлена.");
@@ -70,6 +74,7 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
     startTransition(async () => {
       try {
         await updateCategoryBrandOverride(categorySlug, brandSlug, value);
+        success("Масштаб логотипа сохранён");
       } catch {
         setAttached(previous);
         setActionError("Не удалось сохранить масштаб логотипа. Значение восстановлено.");
@@ -97,6 +102,7 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
     startTransition(async () => {
       try {
         await addCategoryBrand(categorySlug, brand.slug);
+        success("Бренд добавлен в категорию");
       } catch {
         setAttached(previous);
         setSelectedBrandToAdd(brand.slug);

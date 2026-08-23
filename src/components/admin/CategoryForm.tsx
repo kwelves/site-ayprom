@@ -34,7 +34,8 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { isUploading: isUploadingImage, handleReplace: handleImageReplace } = useImageReplace(
     (formData) => replaceCategoryImage(category!.slug, formData),
-    setImage
+    setImage,
+    "Изображение категории обновлено",
   );
 
   function handleNameChange(value: string) {

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import { SortableList } from "@/components/admin/SortableList";
-import { Toast } from "@/components/admin/ui/Toast";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
 import { reorderCategories, deleteCategory } from "@/lib/admin/actions";
@@ -21,13 +20,18 @@ interface CategoriesListProps {
 }
 
 export function CategoriesList({ categories: initialCategories, flashSlug, flashAction }: CategoriesListProps) {
-  const { items: categories, handleReorder, removeItem, toast, dismissToast, highlightedKey, actionError, dismissActionError } =
+  const { items: categories, handleReorder, removeItem, highlightedKey, actionError, dismissActionError } =
     useAdminList<AdminCategory>({
       initial: initialCategories,
       getId: (category) => category.slug,
       reorder: reorderCategories,
-      remove: deleteCategory,
-      messages: { created: "Категория успешно добавлена", updated: "Категория успешно отредактирована" },
+      remove: (slug) => deleteCategory(slug, false),
+      messages: {
+        created: "Категория успешно добавлена",
+        updated: "Категория успешно отредактирована",
+        deleted: "Категория успешно удалена",
+        reordered: "Порядок категорий сохранён",
+      },
       flashSlug,
       flashAction,
     });
@@ -96,7 +100,6 @@ export function CategoriesList({ categories: initialCategories, flashSlug, flash
         </div>
       )}
     />
-    <Toast message={toast} onDismiss={dismissToast} />
     <AdminActionFeedback message={actionError} onDismiss={dismissActionError} />
     <ConfirmDialog
       open={deleteConfirm.pending !== null}

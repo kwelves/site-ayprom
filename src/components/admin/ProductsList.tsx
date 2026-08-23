@@ -4,7 +4,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { useCallback, useState, useTransition } from "react";
 import { SortableList } from "@/components/admin/SortableList";
-import { Toast } from "@/components/admin/ui/Toast";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
 import { Checkbox } from "@/components/admin/ui/Checkbox";
@@ -152,19 +151,23 @@ export function ProductsList({
     startTransition,
     handleReorder,
     removeItem,
-    toast,
-    dismissToast,
     highlightedKey,
     actionError,
     dismissActionError,
     reportActionError,
+    reportSuccess,
   } =
     useAdminList<AdminProductListItem>({
       initial: initialProducts,
       getId: (p) => p.slug,
       reorder: reorderProducts,
       remove: (slug) => deleteProduct(slug, false),
-      messages: { created: "Товар успешно добавлен", updated: "Товар успешно отредактирован" },
+      messages: {
+        created: "Товар успешно добавлен",
+        updated: "Товар успешно отредактирован",
+        deleted: "Товар успешно удалён",
+        reordered: "Порядок товаров сохранён",
+      },
       flashSlug,
       flashAction,
     });
@@ -333,6 +336,7 @@ export function ProductsList({
     startTransition(async () => {
       try {
         await toggleProductPublished(product.slug, nextPublished, confirmedUnpublish);
+        reportSuccess(nextPublished ? "Товар опубликован" : "Товар снят с публикации");
       } catch (error) {
         setProducts(previousProducts);
         setHotspotOptions(previousHotspotOptions);
@@ -370,6 +374,7 @@ export function ProductsList({
     startTransition(async () => {
       try {
         await toggleProductAvailability(product.slug, next);
+        reportSuccess("Наличие товара обновлено");
       } catch {
         setProducts(previous);
         reportActionError("Не удалось изменить наличие. Статус товара возвращён в прежнее состояние.");
@@ -402,6 +407,7 @@ export function ProductsList({
     startTransition(async () => {
       try {
         await bulkUpdateProducts(slugs, patch);
+        reportSuccess(`Обновлено товаров: ${slugs.length}`);
       } catch {
         setProducts(previousProducts);
         setHotspotOptions(previousHotspotOptions);
@@ -520,7 +526,6 @@ export function ProductsList({
         </div>
         )}
       />
-      <Toast message={toast} onDismiss={dismissToast} />
       <AdminActionFeedback
         message={actionError}
         onDismiss={dismissActionError}

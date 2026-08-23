@@ -3,7 +3,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import { SortableList } from "@/components/admin/SortableList";
-import { Toast } from "@/components/admin/ui/Toast";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
 import { reorderSubcategories, deleteSubcategory } from "@/lib/admin/actions";
@@ -23,13 +22,18 @@ export function SubcategoriesList({
   flashSlug?: string;
   flashAction?: "created" | "updated";
 }) {
-  const { items: subcategories, handleReorder, removeItem, toast, dismissToast, highlightedKey, actionError, dismissActionError } =
+  const { items: subcategories, handleReorder, removeItem, highlightedKey, actionError, dismissActionError } =
     useAdminList<AdminSubcategory>({
       initial: initialSubcategories,
       getId: (sub) => sub.id,
       reorder: (ids) => reorderSubcategories(categorySlug, ids),
-      remove: deleteSubcategory,
-      messages: { created: "Подкатегория успешно добавлена", updated: "Подкатегория успешно отредактирована" },
+      remove: (id) => deleteSubcategory(id, false),
+      messages: {
+        created: "Подкатегория успешно добавлена",
+        updated: "Подкатегория успешно отредактирована",
+        deleted: "Подкатегория успешно удалена",
+        reordered: "Порядок подкатегорий сохранён",
+      },
       flashSlug,
       flashAction,
     });
@@ -82,7 +86,6 @@ export function SubcategoriesList({
         </div>
       )}
     />
-    <Toast message={toast} onDismiss={dismissToast} />
     <AdminActionFeedback message={actionError} onDismiss={dismissActionError} />
     <ConfirmDialog
       open={deleteConfirm.pending !== null}

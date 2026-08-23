@@ -692,7 +692,7 @@ export async function deleteProduct(slug: string, redirectAfterDelete = true): P
     // has the desired database state and must not resurrect the old row.
     revalidatePath("/admin/products");
     revalidatePublicSite();
-    if (redirectAfterDelete) redirect("/admin/products");
+    if (redirectAfterDelete) redirect("/admin/products?notice=product-deleted");
     refresh();
     return;
   }
@@ -716,7 +716,7 @@ export async function deleteProduct(slug: string, redirectAfterDelete = true): P
   }
   revalidatePath("/admin/products");
   revalidatePublicSite();
-  if (redirectAfterDelete) redirect("/admin/products");
+  if (redirectAfterDelete) redirect("/admin/products?notice=product-deleted");
   refresh();
 }
 
@@ -1106,7 +1106,7 @@ export async function replaceBrandLogo(slug: string, formData: FormData): Promis
   return newLogoUrl;
 }
 
-export async function deleteBrand(slug: string): Promise<void> {
+export async function deleteBrand(slug: string, redirectAfterDelete = true): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
 
@@ -1127,7 +1127,8 @@ export async function deleteBrand(slug: string): Promise<void> {
 
   revalidatePath("/admin/brands");
   revalidatePublicSite();
-  redirect("/admin/brands");
+  if (redirectAfterDelete) redirect("/admin/brands?notice=brand-deleted");
+  refresh();
 }
 
 export async function reorderBrands(orderedSlugs: string[]): Promise<void> {
@@ -1292,7 +1293,7 @@ export async function replaceCategoryImage(slug: string, formData: FormData): Pr
   return newImageUrl;
 }
 
-export async function deleteCategory(slug: string): Promise<void> {
+export async function deleteCategory(slug: string, redirectAfterDelete = true): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
 
@@ -1332,7 +1333,8 @@ export async function deleteCategory(slug: string): Promise<void> {
 
   revalidatePath("/admin/categories");
   revalidatePublicSite();
-  redirect("/admin/categories");
+  if (redirectAfterDelete) redirect("/admin/categories?notice=category-deleted");
+  refresh();
 }
 
 export async function reorderCategories(orderedSlugs: string[]): Promise<void> {
@@ -1486,7 +1488,7 @@ export async function replaceSubcategoryImage(subcategoryId: string, formData: F
   return newImageUrl;
 }
 
-export async function deleteSubcategory(subcategoryId: string): Promise<void> {
+export async function deleteSubcategory(subcategoryId: string, redirectAfterDelete = true): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
 
@@ -1513,7 +1515,10 @@ export async function deleteSubcategory(subcategoryId: string): Promise<void> {
 
   revalidatePath(`/admin/categories/${existing.category_slug}/subcategories`);
   revalidatePublicSite();
-  redirect(`/admin/categories/${existing.category_slug}/subcategories`);
+  if (redirectAfterDelete) {
+    redirect(`/admin/categories/${existing.category_slug}/subcategories?notice=subcategory-deleted`);
+  }
+  refresh();
 }
 
 export async function reorderSubcategories(categorySlug: string, orderedIds: string[]): Promise<void> {
@@ -1646,7 +1651,7 @@ export async function updateVehicleType(
   });
 }
 
-export async function deleteVehicleType(slug: string): Promise<void> {
+export async function deleteVehicleType(slug: string, redirectAfterDelete = true): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
 
@@ -1657,7 +1662,8 @@ export async function deleteVehicleType(slug: string): Promise<void> {
 
   revalidatePath("/admin/vehicle-types");
   revalidatePublicSite();
-  redirect("/admin/vehicle-types");
+  if (redirectAfterDelete) redirect("/admin/vehicle-types?notice=vehicle-type-deleted");
+  refresh();
 }
 
 export async function reorderVehicleTypes(orderedSlugs: string[]): Promise<void> {
