@@ -30,6 +30,12 @@ describe("getProductHref", () => {
 
   it("строит путь товара напрямую под «прямой» категорией", () => {
     expect(
+      getProductHref({ ...baseProduct, category: "direct" }, {}, new Set(["direct"])),
+    ).toBe("/catalog/category/direct/pump-110");
+  });
+
+  it("строит прямой путь для товара без подкатегории в смешанной категории", () => {
+    expect(
       getProductHref(baseProduct, {}, new Set(["pumps"])),
     ).toBe("/catalog/category/pumps/pump-110");
   });

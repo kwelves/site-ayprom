@@ -27,7 +27,7 @@ function pageHref(action: string, page: number, query?: string): string {
   return search ? `${action}?${search}` : action;
 }
 
-function Pagination({
+export function CatalogPagination({
   action,
   page,
   totalPages,
@@ -134,7 +134,7 @@ export function ProductGridWithSearch({
         ))}
       </Reveal>
 
-      <Pagination action={action} page={page} totalPages={totalPages} query={query} />
+      <CatalogPagination action={action} page={page} totalPages={totalPages} query={query} />
     </>
   );
 }

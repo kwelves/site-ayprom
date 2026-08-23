@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { categorySupportsDirectProducts } from "@/lib/category-routing";
 import type { Category } from "@/types/catalog";
 
 interface CategoryRow {
@@ -94,14 +95,16 @@ export async function getBrandCategories(brandSlug: string): Promise<Category[]>
   return rows.filter((row) => matchedSlugs.has(row.slug)).map(mapCategory);
 }
 
-// Slugs of "direct" categories (type = NULL) — products list under them
-// flat, with no subcategory/brand routing segment, so getProductHref needs
-// this set to tell "belongs to a direct category" apart from "data
-// incomplete" (both cases otherwise look identical: no subcategory, no
-// matching brand). Small table, same reasoning as getCategoryBrandSlugs.
-export async function getDirectCategorySlugs(): Promise<Set<string>> {
+// Categories where a product without a subcategory has a valid direct route.
+// This includes flat categories and mixed "subcategory" categories; brand
+// categories still require a matching brand route.
+export async function getDirectProductCategorySlugs(): Promise<Set<string>> {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("categories").select("slug").is("type", null);
+  const { data, error } = await supabase.from("categories").select("slug, type");
   if (error) throw error;
-  return new Set((data as { slug: string }[]).map((row) => row.slug));
+  return new Set(
+    (data as { slug: string; type: Category["type"] }[])
+      .filter((row) => categorySupportsDirectProducts(row.type))
+      .map((row) => row.slug),
+  );
 }

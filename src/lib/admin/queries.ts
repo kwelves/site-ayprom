@@ -550,6 +550,7 @@ export interface AdminCategory {
   subcategoryCount: number;
   categoryBrandCount: number;
   productCount: number;
+  directProductCount: number;
 }
 
 interface CategoryRow {
@@ -574,10 +575,11 @@ async function getCategoryUsageCounts(
   subcategoryCounts: Map<string, number>;
   categoryBrandCounts: Map<string, number>;
   productCounts: Map<string, number>;
+  directProductCounts: Map<string, number>;
 }> {
   let subQuery = supabase.from("subcategories").select("category_slug");
   let cbQuery = supabase.from("category_brands").select("category_slug");
-  let prodQuery = supabase.from("products").select("category_slug");
+  let prodQuery = supabase.from("products").select("category_slug, subcategory_id");
   if (categorySlug) {
     subQuery = subQuery.eq("category_slug", categorySlug);
     cbQuery = cbQuery.eq("category_slug", categorySlug);
@@ -602,10 +604,14 @@ async function getCategoryUsageCounts(
     categoryBrandCounts.set(row.category_slug, (categoryBrandCounts.get(row.category_slug) ?? 0) + 1);
   }
   const productCounts = new Map<string, number>();
-  for (const row of products as { category_slug: string }[]) {
+  const directProductCounts = new Map<string, number>();
+  for (const row of products as { category_slug: string; subcategory_id: string | null }[]) {
     productCounts.set(row.category_slug, (productCounts.get(row.category_slug) ?? 0) + 1);
+    if (!row.subcategory_id) {
+      directProductCounts.set(row.category_slug, (directProductCounts.get(row.category_slug) ?? 0) + 1);
+    }
   }
-  return { subcategoryCounts, categoryBrandCounts, productCounts };
+  return { subcategoryCounts, categoryBrandCounts, productCounts, directProductCounts };
 }
 
 function mapCategory(
@@ -624,6 +630,7 @@ function mapCategory(
     subcategoryCount: counts.subcategoryCounts.get(row.slug) ?? 0,
     categoryBrandCount: counts.categoryBrandCounts.get(row.slug) ?? 0,
     productCount: counts.productCounts.get(row.slug) ?? 0,
+    directProductCount: counts.directProductCounts.get(row.slug) ?? 0,
   };
 }
 

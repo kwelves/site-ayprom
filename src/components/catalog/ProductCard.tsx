@@ -32,11 +32,20 @@ const CARD_IMAGE_QUALITY = 60;
 // "stretched link"); the photo area sits visually on top of it (own z-index,
 // since it needs to capture the swipe) and re-implements "tap to open" itself
 // via onTap, ignoring taps that land on the arrow buttons.
-export function ProductCard({ product, href }: { product: ProductListItem; href: string }) {
+export function ProductCard({
+  product,
+  href,
+  variant = "default",
+}: {
+  product: ProductListItem;
+  href: string;
+  variant?: "default" | "category-grid";
+}) {
   const router = useRouter();
   const carousel = usePreparedImageCarousel(product.images);
   const index = carousel.selectedIndex;
   const hasMultiple = product.images.length > 1;
+  const isCategoryGrid = variant === "category-grid";
   const isTouchDevice = useIsTouchDevice();
   // Framer Motion can still fire onTap right after a drag release when drag
   // and tap gestures share the same element — this flag lets onTap tell a
@@ -75,7 +84,12 @@ export function ProductCard({ product, href }: { product: ProductListItem; href:
   };
 
   return (
-    <div className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-[border-color,box-shadow,scale] duration-fast ease-ui hover:border-border-interactive hover:shadow-sm active:scale-[0.98] active:border-border-interactive active:shadow-sm">
+    <div
+      className={cn(
+        "group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-[border-color,box-shadow,scale] duration-fast ease-ui hover:border-border-interactive active:scale-[0.98] active:border-border-interactive",
+        isCategoryGrid ? "hover:shadow-sm" : "hover:shadow-sm active:shadow-sm",
+      )}
+    >
       <Link
         href={href}
         aria-label={product.name}
@@ -83,7 +97,10 @@ export function ProductCard({ product, href }: { product: ProductListItem; href:
       />
 
       <motion.div
-        className="relative z-10 aspect-square w-full shrink-0 touch-pan-y overflow-hidden bg-muted/40"
+        className={cn(
+          "relative z-10 w-full shrink-0 touch-pan-y overflow-hidden bg-muted/40",
+          isCategoryGrid ? "aspect-4/3" : "aspect-square",
+        )}
         drag={hasMultiple && isTouchDevice ? "x" : false}
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={0}
@@ -101,9 +118,15 @@ export function ProductCard({ product, href }: { product: ProductListItem; href:
           sizes={CARD_IMAGE_SIZES}
           quality={CARD_IMAGE_QUALITY}
           layerClassName="absolute inset-0"
-          imageClassName="p-4"
+          imageClassName={isCategoryGrid ? "p-5" : "p-4"}
           carousel={carousel}
         />
+
+        {isCategoryGrid && (
+          <span className="absolute left-3 top-3 z-10 rounded-full border border-border bg-card/90 px-2 py-1 text-xs font-medium text-muted-foreground backdrop-blur-sm">
+            Товар
+          </span>
+        )}
 
         {hasMultiple && carousel.neighborIndices.map((neighborIndex) => (
           <GalleryNeighborWarmup
@@ -136,14 +159,16 @@ export function ProductCard({ product, href }: { product: ProductListItem; href:
         )}
       </motion.div>
 
-      <div className="flex flex-1 flex-col px-4 pt-4 pb-5">
-        <span className="text-base font-semibold text-card-foreground">{product.name}</span>
-        {product.shortDescription && (
+      <div className={cn("flex flex-1 flex-col px-4", isCategoryGrid ? "py-3.5 text-center" : "pt-4 pb-5")}>
+        <span className={cn("text-base text-card-foreground", isCategoryGrid ? "font-medium" : "font-semibold")}>
+          {product.name}
+        </span>
+        {!isCategoryGrid && product.shortDescription && (
           <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{product.shortDescription}</p>
         )}
       </div>
 
-      {hasMultiple && (
+      {hasMultiple && !isCategoryGrid && (
         <div className="relative z-10 flex items-center justify-center pb-4">
           {product.images.map((image, i) => (
             // py-[19px] brings the tap target's height to the 44px minimum;

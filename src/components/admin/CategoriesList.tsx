@@ -78,7 +78,12 @@ export function CategoriesList({ categories: initialCategories, flashSlug, flash
                 >
                   {category.type === "brand" ? "По брендам" : category.type === "subcategory" ? "По подкатегориям" : "Напрямую"}
                 </span>
-                <span className="text-xs text-muted-foreground">{category.productCount} тов.</span>
+                <span className="text-xs text-muted-foreground">
+                  {category.productCount} тов.
+                  {category.type === "subcategory" && category.directProductCount > 0
+                    ? ` · ${category.directProductCount} без подкат.`
+                    : ""}
+                </span>
               </div>
             </div>
             <div className="col-span-2 grid grid-cols-2 gap-2 border-t border-border pt-3 md:mt-2 md:flex md:flex-wrap md:items-center md:gap-3 md:border-0 md:pt-0">

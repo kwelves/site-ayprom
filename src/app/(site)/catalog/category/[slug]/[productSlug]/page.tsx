@@ -5,6 +5,7 @@ import { CatalogPageShell } from "@/components/catalog/CatalogPageShell";
 import { StructuredData } from "@/components/seo/StructuredData";
 import { getCategory } from "@/lib/queries/categories";
 import { getProduct } from "@/lib/queries/products";
+import { categorySupportsDirectProducts } from "@/lib/category-routing";
 import { buildProductStructuredData } from "@/lib/product-structured-data";
 
 export const revalidate = 60;
@@ -41,17 +42,22 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     : { title: "Товар", robots: { index: false } };
 }
 
-// Products in a "direct" category (type = NULL) link straight here, with no
-// subcategory/brand segment — see PROJECT_BRIEF and product-href.ts.
+// Products without a subcategory link straight here. This covers both flat
+// categories and mixed subcategory categories; brand categories still use
+// their /brand/[brandSlug]/ route.
 export default async function DirectCategoryProductPage({ params }: ProductPageProps) {
   const { slug, productSlug } = await params;
   const [category, product] = await Promise.all([getCategory(slug), getProduct(productSlug)]);
 
-  // The category must actually be "direct" and the product must actually
-  // belong to it with no subcategory — otherwise a mismatched path (e.g. a
-  // subcategorized product's slug guessed under this route) 404s instead of
-  // rendering under the wrong breadcrumb.
-  if (!category || category.type !== null || !product || product.category !== slug || product.subcategory) {
+  // A mismatched category, brand-only category or subcategorized product
+  // still 404s instead of rendering under the wrong breadcrumb.
+  if (
+    !category ||
+    !categorySupportsDirectProducts(category.type) ||
+    !product ||
+    product.category !== slug ||
+    product.subcategory
+  ) {
     notFound();
   }
 

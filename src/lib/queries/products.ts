@@ -214,6 +214,61 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Product
   };
 }
 
+export async function getProductsWithoutSubcategory(
+  categorySlug: string,
+  page = 1,
+  pageSize = CATALOG_PAGE_SIZE,
+): Promise<ProductPage> {
+  // The search RPC treats a NULL subcategory filter as "all subcategories".
+  // This dedicated query applies an actual SQL NULL filter so count and
+  // pagination cover only the direct products in a mixed category.
+  const supabase = await createClient();
+  const safePage = Math.max(1, page);
+  const safePageSize = Math.min(48, Math.max(1, pageSize));
+  const from = (safePage - 1) * safePageSize;
+  const { data, error, count } = await supabase
+    .from("products")
+    .select(
+      `
+        slug, name, category_slug, short_description, article,
+        subcategories(slug),
+        product_images(url, "order", scale),
+        product_brands(brand_slug)
+      `,
+      { count: "exact" },
+    )
+    .eq("category_slug", categorySlug)
+    .is("subcategory_id", null)
+    .order("order")
+    .order("order", { referencedTable: "product_images" })
+    .limit(1, { referencedTable: "product_images" })
+    .range(from, from + safePageSize - 1);
+
+  if (error) throw error;
+  const total = count ?? 0;
+  const items = (data as unknown as LegacyProductCardRow[]).map((row) =>
+    mapProductCard({
+      slug: row.slug,
+      name: row.name,
+      category_slug: row.category_slug,
+      subcategory_slug: null,
+      short_description: row.short_description,
+      article: row.article,
+      cover_url: row.product_images[0]?.url ?? null,
+      cover_scale: row.product_images[0]?.scale ?? null,
+      compatible_brands: row.product_brands.map((brand) => brand.brand_slug),
+    }),
+  );
+
+  return {
+    items,
+    total,
+    page: safePage,
+    pageSize: safePageSize,
+    totalPages: Math.max(1, Math.ceil(total / safePageSize)),
+  };
+}
+
 export interface SitemapProduct extends ProductListItem {
   updatedAt: string;
 }

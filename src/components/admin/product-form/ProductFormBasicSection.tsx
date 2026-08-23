@@ -107,14 +107,18 @@ export function ProductFormBasicSection({
       </FormField>
 
       {selectedCategory?.type === "subcategory" && (
-        <FormField label="Подкатегория" htmlFor="subcategorySlug">
+        <FormField
+          label="Подкатегория"
+          htmlFor="subcategorySlug"
+          description="Необязательно. Товар без подкатегории появится отдельной карточкой прямо в общей сетке категории."
+        >
           <Select
             id="subcategorySlug"
             name="subcategorySlug"
             value={subcategorySlug}
             onChange={(e) => onSubcategoryChange(e.target.value)}
           >
-            <option value="">Без подкатегории</option>
+            <option value="">Без подкатегории — показать в общей сетке категории</option>
             {categorySubcategories.map((sub) => (
               <option key={sub.slug} value={sub.slug}>
                 {sub.name}

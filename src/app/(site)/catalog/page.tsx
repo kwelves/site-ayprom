@@ -6,7 +6,7 @@ import { ProductSearchForm } from "@/components/catalog/ProductSearchForm";
 import { ProductGridWithSearch } from "@/components/catalog/ProductGridWithSearch";
 import { getProducts, parseCatalogPage } from "@/lib/queries/products";
 import { getCategoryBrandSlugs } from "@/lib/queries/category-brands";
-import { getDirectCategorySlugs } from "@/lib/queries/categories";
+import { getDirectProductCategorySlugs } from "@/lib/queries/categories";
 import { getProductHref } from "@/lib/product-href";
 
 export const metadata: Metadata = {
@@ -23,10 +23,10 @@ interface CatalogPageProps {
 export default async function CatalogPage({ searchParams }: CatalogPageProps) {
   const { q, page: pageParam } = await searchParams;
   const page = parseCatalogPage(pageParam);
-  const [productPage, categoryBrandSlugs, directCategorySlugs] = await Promise.all([
+  const [productPage, categoryBrandSlugs, directProductCategorySlugs] = await Promise.all([
     getProducts({ query: q, page }),
     getCategoryBrandSlugs(),
-    getDirectCategorySlugs(),
+    getDirectProductCategorySlugs(),
   ]);
 
   return (
@@ -53,7 +53,7 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
           query={q}
           scopeLabel="в каталоге"
           action="/catalog"
-          href={(product) => getProductHref(product, categoryBrandSlugs, directCategorySlugs)}
+          href={(product) => getProductHref(product, categoryBrandSlugs, directProductCategorySlugs)}
           emptyLabel="Каталог пока пуст. Скоро здесь появятся товары."
         />
     </CatalogPageShell>

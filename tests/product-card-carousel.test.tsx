@@ -54,4 +54,13 @@ describe("ProductCard carousel", () => {
       );
     });
   });
+
+  it("показывает компактную товарную карточку внутри сетки категории", () => {
+    render(<ProductCard product={product} href="/product/test-product" variant="category-grid" />);
+
+    expect(screen.getByText("Товар")).toBeTruthy();
+    expect(screen.queryByText("Описание")).toBeNull();
+    expect(document.querySelector(".aspect-4\\/3")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Показать фото 1" })).toBeNull();
+  });
 });

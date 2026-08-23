@@ -4,7 +4,7 @@ import { ProductCard } from "@/components/catalog/ProductCard";
 import { PtoNameplateGuide } from "@/components/catalog/PtoNameplateGuide";
 import { getProducts } from "@/lib/queries/products";
 import { getCategoryBrandSlugs } from "@/lib/queries/category-brands";
-import { getDirectCategorySlugs } from "@/lib/queries/categories";
+import { getDirectProductCategorySlugs } from "@/lib/queries/categories";
 import { getProductHref } from "@/lib/product-href";
 import type { Product } from "@/types/catalog";
 
@@ -28,10 +28,10 @@ export async function ProductDetail({ product }: { product: Product }) {
   const relatedFilter = product.subcategory
     ? { categorySlug: product.category, subcategorySlug: product.subcategory }
     : { categorySlug: product.category, brandSlug: product.compatibleBrands[0] };
-  const [relatedPage, categoryBrandSlugs, directCategorySlugs] = await Promise.all([
+  const [relatedPage, categoryBrandSlugs, directProductCategorySlugs] = await Promise.all([
     getProducts({ ...relatedFilter, pageSize: 5 }),
     getCategoryBrandSlugs(),
-    getDirectCategorySlugs(),
+    getDirectProductCategorySlugs(),
   ]);
   const relatedProducts = relatedPage.items.filter((item) => item.slug !== product.slug).slice(0, 4);
 
@@ -80,7 +80,7 @@ export async function ProductDetail({ product }: { product: Product }) {
               <ProductCard
                 key={relatedProduct.slug}
                 product={relatedProduct}
-                href={getProductHref(relatedProduct, categoryBrandSlugs, directCategorySlugs)}
+                href={getProductHref(relatedProduct, categoryBrandSlugs, directProductCategorySlugs)}
               />
             ))}
           </div>

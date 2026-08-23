@@ -7,12 +7,14 @@ import { CategoryCard } from "@/components/home/CategoryCard";
 import { BrandCard } from "@/components/home/BrandCard";
 import { CatalogPageShell } from "@/components/catalog/CatalogPageShell";
 import { ProductSearchForm } from "@/components/catalog/ProductSearchForm";
-import { ProductGridWithSearch } from "@/components/catalog/ProductGridWithSearch";
+import { CatalogPagination, ProductGridWithSearch } from "@/components/catalog/ProductGridWithSearch";
+import { ProductCard } from "@/components/catalog/ProductCard";
 import { getCategory, getCategories } from "@/lib/queries/categories";
 import { getSubcategories } from "@/lib/queries/subcategories";
 import { getCategoryBrands } from "@/lib/queries/category-brands";
-import { getProducts, parseCatalogPage } from "@/lib/queries/products";
+import { getProducts, getProductsWithoutSubcategory, parseCatalogPage } from "@/lib/queries/products";
 import { getCategoryGridSizing, getCardGridSizing } from "@/lib/category-grid";
+import { buildMixedCategoryGridItems } from "@/lib/mixed-category-grid";
 import { cn } from "@/lib/utils";
 import type { Brand } from "@/types/catalog";
 
@@ -135,9 +137,14 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     );
   }
 
-  const subcategories = await getSubcategories(category.slug);
+  const { page: pageParam } = await searchParams;
+  const page = parseCatalogPage(pageParam);
+  const [subcategories, directProductPage] = await Promise.all([
+    getSubcategories(category.slug),
+    getProductsWithoutSubcategory(category.slug, page),
+  ]);
 
-  if (subcategories.length === 0) {
+  if (subcategories.length === 0 && directProductPage.total === 0) {
     return (
       <CatalogPageShell items={[{ label: category.name }]}>
         <Reveal>
@@ -153,7 +160,9 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     );
   }
 
-  const sizing = getCategoryGridSizing(subcategories.length);
+  const mixedItems = buildMixedCategoryGridItems(subcategories, directProductPage.items);
+  const sizing = getCategoryGridSizing(mixedItems.length);
+  const categoryPath = `/catalog/category/${category.slug}`;
 
   return (
     <CatalogPageShell items={[{ label: category.name }]}>
@@ -162,7 +171,13 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
           as="h1"
           className="mx-auto max-w-2xl text-center"
           title={category.name}
-          description="Выберите подкатегорию, чтобы быстро найти нужные детали."
+          description={
+            subcategories.length > 0
+              ? directProductPage.total > 0
+                ? "Выберите подкатегорию или нужный товар."
+                : "Выберите подкатегорию, чтобы быстро найти нужные детали."
+              : undefined
+          }
         />
       </Reveal>
       <StaggerGroup
@@ -171,19 +186,29 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
           sizing.containerClassName
         )}
       >
-        {subcategories.map((sub) => (
-          <StaggerItem key={sub.slug} className={sizing.itemClassName}>
-            <CategoryCard
-              href={`/catalog/category/${category.slug}/subcategory/${sub.slug}`}
-              image={sub.image}
-              name={sub.name}
-              sizes="(max-width: 1023px) 30vw, 380px"
-              imageClassName={sizing.imageClassName}
-              nameClassName={sizing.nameClassName}
-            />
+        {mixedItems.map(({ kind, item }) => (
+          <StaggerItem key={`${kind}:${item.slug}`} className={sizing.itemClassName}>
+            {kind === "subcategory" ? (
+              <CategoryCard
+                href={`/catalog/category/${category.slug}/subcategory/${item.slug}`}
+                image={item.image}
+                name={item.name}
+                sizes="(max-width: 1023px) 30vw, 380px"
+                imageClassName={sizing.imageClassName}
+                nameClassName={sizing.nameClassName}
+              />
+            ) : (
+              <ProductCard product={item} href={`${categoryPath}/${item.slug}`} variant="category-grid" />
+            )}
           </StaggerItem>
         ))}
       </StaggerGroup>
+
+      <CatalogPagination
+        action={categoryPath}
+        page={directProductPage.page}
+        totalPages={directProductPage.totalPages}
+      />
     </CatalogPageShell>
   );
 }

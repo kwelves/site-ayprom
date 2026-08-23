@@ -188,12 +188,21 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
         </div>
 
         {mode === "edit" && category && category.type === "subcategory" && (
-          <div>
+          <div className="rounded-md border border-border bg-surface-subtle p-4">
             <Link
               href={`/admin/categories/${category.slug}/subcategories`}
               className="text-sm text-primary hover:underline"
             >
               Управлять подкатегориями ({category.subcategoryCount}) →
+            </Link>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Без подкатегории: {formatRussianCount(category.directProductCount, ["товар", "товара", "товаров"])}. Опубликованные товары показываются прямо в общей сетке после подкатегорий.
+            </p>
+            <Link
+              href={`/admin/products?category=${encodeURIComponent(category.slug)}`}
+              className="mt-2 inline-block text-sm text-primary hover:underline"
+            >
+              Посмотреть товары категории →
             </Link>
           </div>
         )}

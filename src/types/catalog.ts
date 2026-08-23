@@ -63,9 +63,8 @@ export interface ProductListItem {
   name: string;
   /** Category slug. */
   category: string;
-  /** Subcategory slug — only present when `category` is a subcategory-type
-   * category (hydraulic-pumps/tanks). Not enforced by the type; whoever
-   * enters the data is responsible for the pairing. */
+  /** Subcategory slug when the product is assigned to one. A subcategory-type
+   * category may also contain direct products where this is absent. */
   subcategory?: string;
   /** Brand slugs this product fits. Present on every product regardless of
    * category type; can be empty — a product with no brands yet just doesn't
