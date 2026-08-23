@@ -3,7 +3,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useCallback, useState, useTransition } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import { SortableList } from "@/components/admin/SortableList";
 import { Toast } from "@/components/admin/ui/Toast";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
@@ -25,7 +24,6 @@ import {
 } from "@/lib/admin/actions";
 import { useAdminList } from "@/lib/admin/use-admin-list";
 import { useConfirmDelete } from "@/lib/admin/use-confirm-delete";
-import { DURATION, EASE_UI } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import {
   PRODUCT_AVAILABILITY_LABELS,
@@ -469,17 +467,24 @@ export function ProductsList({
                     : "bg-warning-surface text-warning hover:bg-warning-surface-hover"
                 )}
               >
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.span
-                    key={product.published ? "published" : "draft"}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0, transition: { duration: DURATION.fast, ease: EASE_UI } }}
-                    exit={{ opacity: 0, y: -6, transition: { duration: DURATION.fast, ease: EASE_UI } }}
-                    className="block"
+                <span className="grid" aria-hidden="true">
+                  <span
+                    className={cn(
+                      "col-start-1 row-start-1 transition-[opacity,transform] duration-fast ease-ui",
+                      product.published ? "translate-y-0 opacity-100" : "-translate-y-1.5 opacity-0"
+                    )}
                   >
-                    {product.published ? "Опубликован" : "Черновик"}
-                  </motion.span>
-                </AnimatePresence>
+                    Опубликован
+                  </span>
+                  <span
+                    className={cn(
+                      "col-start-1 row-start-1 transition-[opacity,transform] duration-fast ease-ui",
+                      product.published ? "translate-y-1.5 opacity-0" : "translate-y-0 opacity-100"
+                    )}
+                  >
+                    Черновик
+                  </span>
+                </span>
               </button>
               <SegmentedControl
                 aria-label={`Наличие товара «${product.name}»`}

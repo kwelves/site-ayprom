@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, Menu, X } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
@@ -12,7 +11,7 @@ import { NavDropdown } from "@/components/layout/NavDropdown";
 import { buildMainNav, type NavItem } from "@/lib/navigation";
 import { useScroll } from "@/lib/use-scroll";
 import { useHashNavClick } from "@/lib/use-hash-nav-click";
-import { DURATION, EASE_UI, EASE_UI_IN_OUT } from "@/lib/motion";
+import { DURATION } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { useHomeEntrySequence } from "@/components/home/HomeEntrySequence";
 import type { Brand, Category } from "@/types/catalog";
@@ -193,37 +192,43 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
           aria-label="Открыть меню"
           aria-expanded={open}
         >
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.span
-              key={open ? "close" : "open"}
-              initial={{ rotate: -90, opacity: 0 }}
-              animate={{ rotate: 0, opacity: 1 }}
-              exit={{ rotate: 90, opacity: 0 }}
-              transition={{ duration: DURATION.fast, ease: EASE_UI }}
-              className="flex"
-            >
-              {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </motion.span>
-          </AnimatePresence>
+          <span className="relative flex h-6 w-6" aria-hidden="true">
+            <Menu
+              className={cn(
+                "absolute inset-0 h-6 w-6 transition-[opacity,transform] duration-fast ease-ui",
+                open ? "-rotate-90 opacity-0" : "rotate-0 opacity-100"
+              )}
+            />
+            <X
+              className={cn(
+                "absolute inset-0 h-6 w-6 transition-[opacity,transform] duration-fast ease-ui",
+                open ? "rotate-0 opacity-100" : "rotate-90 opacity-0"
+              )}
+            />
+          </span>
         </button>
       </Container>
 
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            ref={panelRef}
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1, transition: { duration: DURATION.slow, ease: EASE_UI_IN_OUT } }}
-            exit={{ height: 0, opacity: 0, transition: { duration: DURATION.base, ease: EASE_UI_IN_OUT } }}
-            className="overflow-hidden border-t border-border bg-card md:hidden"
-          >
+      {/* Keep the panel mounted so opening it never starts with an unpainted
+          frame. A CSS grid row can transition between collapsed and natural
+          content height without Framer measuring `height: auto` on every
+          frame — that measurement plus parent opacity made iOS Safari
+          repeatedly re-composite this sticky layer over the playing video. */}
+      <div
+        ref={panelRef}
+        aria-hidden={!open || undefined}
+        inert={!open}
+        className={cn(
+          "grid overflow-hidden transition-[grid-template-rows] ease-ui md:hidden",
+          open ? "grid-rows-[1fr] duration-slow" : "pointer-events-none grid-rows-[0fr] duration-base"
+        )}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="border-t border-border bg-card">
             {/* Capped to the viewport height left below the sticky header
                 (4rem = h-16) so the panel always owns its own scroll area
                 instead of growing taller than the screen and leaking
-                scroll through to the page behind it — same fix as the
-                Каталог/Бренды dropdown below, one level up. Framer still
-                measures this div's (now capped) height for the panel's
-                open/close animation above, so a short menu is unaffected. */}
+                scroll through to the page behind it. */}
             <Container className="flex max-h-[calc(100dvh-4rem)] flex-col gap-1 overflow-y-auto overscroll-contain py-4">
               {mainNav.map((item) => (
                 <MobileNavItem
@@ -240,9 +245,9 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
                 Все товары
               </Button>
             </Container>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      </div>
     </header>
   );
 }
@@ -315,14 +320,15 @@ function MobileNavItem({
         </button>
       </div>
 
-      <AnimatePresence initial={false}>
-        {isExpanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1, transition: { duration: DURATION.base, ease: EASE_UI_IN_OUT } }}
-            exit={{ height: 0, opacity: 0, transition: { duration: DURATION.fast, ease: EASE_UI_IN_OUT } }}
-            className="overflow-hidden pl-3"
-          >
+      <div
+        aria-hidden={!isExpanded || undefined}
+        inert={!isExpanded}
+        className={cn(
+          "grid overflow-hidden transition-[grid-template-rows] ease-ui",
+          isExpanded ? "grid-rows-[1fr] duration-base" : "grid-rows-[0fr] duration-fast"
+        )}
+      >
+        <div className="min-h-0 overflow-hidden pl-3">
             {/* Capped to roughly the height of the shorter "Каталог" list
                 (~4 items) so a longer list like "Бренды" scrolls inside
                 this box instead of growing the whole mobile panel to
@@ -351,9 +357,8 @@ function MobileNavItem({
                 </Link>
               ))}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        </div>
+      </div>
     </div>
   );
 }
