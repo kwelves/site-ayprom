@@ -8,6 +8,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ADMIN_PAGE_SIZE } from "@/lib/admin/pagination";
 import type { CategoryIcon } from "@/types/catalog";
 import type { ProductAvailability } from "@/lib/admin/product-availability";
+import type { AdminProductListSort } from "@/lib/admin/product-list-config";
+import {
+  findAdminProductTargetPageByRanges,
+  getAdminProductQueryPlan,
+  type AdminProductQueryPlan,
+} from "@/lib/admin/product-list-query-plan";
 
 export interface AdminProductListItem {
   id: string;
@@ -141,7 +147,7 @@ export async function getAuditLogEntityTypes(): Promise<string[]> {
   return [...new Set((data ?? []).map((row) => row.entity_type as string))].sort();
 }
 
-export type AdminProductSort = "order" | "name" | "updated";
+export type AdminProductSort = AdminProductListSort;
 
 export interface AdminProductFilters {
   q?: string;
@@ -159,6 +165,26 @@ export interface AdminProductPage {
   page: number;
   pageSize: number;
   totalPages: number;
+}
+
+interface AdminProductQueryChain {
+  eq(column: string, value: unknown): AdminProductQueryChain;
+  or(filters: string): AdminProductQueryChain;
+  order(column: string, options?: { ascending?: boolean }): AdminProductQueryChain;
+}
+
+function applyAdminProductQueryPlan<T>(query: T, plan: AdminProductQueryPlan): T {
+  let chain = query as T & AdminProductQueryChain;
+  for (const filter of plan.equalityFilters) {
+    chain = chain.eq(filter.column, filter.value) as T & AdminProductQueryChain;
+  }
+  if (plan.searchExpression) {
+    chain = chain.or(plan.searchExpression) as T & AdminProductQueryChain;
+  }
+  for (const order of plan.order) {
+    chain = chain.order(order.column, { ascending: order.ascending }) as T & AdminProductQueryChain;
+  }
+  return chain as T;
 }
 
 // Every product regardless of `published` status — unlike the public
@@ -180,37 +206,8 @@ export async function getAdminProducts(filters: AdminProductFilters = {}): Promi
     .select(
       "id, slug, name, article, short_description, published, availability, order, updated_at, categories(name), product_images(url, order), vehicle_hotspots(id)",
       { count: "exact" },
-    )
-    .range(from, from + pageSize - 1);
-
-  // Ручной порядок (drag-n-drop) осмыслен только для sort==="order" — иначе
-  // reorder_products переставлял бы товары внутри значений order, которые
-  // сейчас не определяют видимый порядок списка.
-  if (filters.sort === "name") {
-    query = query.order("name");
-  } else if (filters.sort === "updated") {
-    query = query.order("updated_at", { ascending: false });
-  } else {
-    query = query.order("order");
-  }
-
-  if (filters.categorySlug) {
-    query = query.eq("category_slug", filters.categorySlug);
-  }
-  if (filters.published !== undefined) {
-    query = query.eq("published", filters.published);
-  }
-  if (filters.availability) {
-    query = query.eq("availability", filters.availability);
-  }
-  if (filters.q?.trim()) {
-    // PostgREST's or() parses commas/parens as filter syntax — strip them so a
-    // search term can't break out of the ilike pair or inject extra filters.
-    const term = filters.q.trim().replace(/[%,()]/g, "");
-    if (term) {
-      query = query.or(`name.ilike.%${term}%,article.ilike.%${term}%`);
-    }
-  }
+    );
+  query = applyAdminProductQueryPlan(query, getAdminProductQueryPlan(filters)).range(from, from + pageSize - 1);
 
   const { data, error, count } = await query;
   if (error) throw error;
@@ -236,6 +233,26 @@ export async function getAdminProducts(filters: AdminProductFilters = {}): Promi
     pageSize,
     totalPages: Math.max(1, Math.ceil(total / pageSize)),
   };
+}
+
+// Select-only page scan used after create/edit. Reading one page of slugs at
+// a time avoids PostgREST's max_rows truncation and uses the exact same stable
+// query plan as getAdminProducts().
+export async function getAdminProductTargetPage(
+  targetSlug: string,
+  filters: AdminProductFilters = {},
+): Promise<number | null> {
+  const supabase = createAdminClient();
+  const pageSize = Math.min(200, Math.max(1, filters.pageSize ?? ADMIN_PAGE_SIZE));
+
+  return findAdminProductTargetPageByRanges(targetSlug, pageSize, async (from, to) => {
+    let query = supabase.from("products").select("id, slug");
+    query = applyAdminProductQueryPlan(query, getAdminProductQueryPlan(filters)).range(from, to);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data ?? []) as Array<{ id: string; slug: string }>;
+  });
 }
 
 interface AdminProductHotspotOptionRow {

@@ -8,6 +8,7 @@ import { AdminToastProvider } from "@/components/admin/ui/AdminToastProvider";
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
   usePathname: () => "/admin/products",
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 interface Item {

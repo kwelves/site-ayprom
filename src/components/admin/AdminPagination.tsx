@@ -28,6 +28,7 @@ export function AdminPagination({ page, totalPages }: AdminPaginationProps) {
     // Флеш-подсветка относится к конкретному сохранению, а не к странице.
     params.delete("created");
     params.delete("updated");
+    params.delete("photoError");
     const query = params.toString();
     return query ? `${pathname}?${query}` : pathname;
   }

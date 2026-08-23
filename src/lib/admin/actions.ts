@@ -29,7 +29,6 @@ import {
   validateNewAdminPassword,
 } from "@/lib/admin/password-credential";
 import { MAX_PRODUCT_IMAGES, validateProductImage } from "@/lib/admin/image-validation";
-import { ADMIN_PAGE_SIZE } from "@/lib/admin/pagination";
 import { convertBufferToWebp, enhanceProductPhotoBuffer } from "@/lib/admin/enhance-product-photo";
 import {
   DEFAULT_PRODUCT_PHOTO_MODE,
@@ -39,7 +38,15 @@ import {
   type ProductPhotoMode,
 } from "@/lib/admin/product-photo-mode";
 import type { CategoryIcon } from "@/types/catalog";
-import type { AdminAvailableProduct } from "@/lib/admin/queries";
+import { getAdminProductTargetPage, type AdminAvailableProduct } from "@/lib/admin/queries";
+import {
+  ADMIN_PRODUCT_LIST_CONFIG_COOKIE,
+  DEFAULT_ADMIN_PRODUCT_LIST_CONFIG,
+  buildAdminProductMutationRedirectFailSoft,
+  getRelaxedAdminProductListConfig,
+  parseAdminProductListConfigCookie,
+  type AdminProductListConfig,
+} from "@/lib/admin/product-list-config";
 import {
   DEFAULT_PRODUCT_AVAILABILITY,
   isProductAvailability,
@@ -66,6 +73,45 @@ import {
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
+}
+
+function productListFiltersFromConfig(config: AdminProductListConfig) {
+  return {
+    categorySlug: config.category || undefined,
+    published: config.status === "published" ? true : config.status === "draft" ? false : undefined,
+    availability: config.availability || undefined,
+    sort: config.sort,
+  };
+}
+
+async function getProductMutationRedirect(options: {
+  slug: string;
+  flashAction: "created" | "updated";
+  product: { categorySlug: string; published: boolean; availability: ProductAvailability };
+  photoErrorCount?: number;
+}): Promise<string> {
+  const cookieStore = await cookies();
+  const savedConfig = parseAdminProductListConfigCookie(
+    cookieStore.get(ADMIN_PRODUCT_LIST_CONFIG_COOKIE)?.value,
+  );
+  const baseConfig = savedConfig ?? DEFAULT_ADMIN_PRODUCT_LIST_CONFIG;
+  const targetView = getRelaxedAdminProductListConfig(baseConfig, options.product);
+  const result = await buildAdminProductMutationRedirectFailSoft({
+    config: targetView.config,
+    flashAction: options.flashAction,
+    slug: options.slug,
+    photoErrorCount: options.photoErrorCount,
+    relaxed: savedConfig ? targetView.relaxed : [],
+  }, () => getAdminProductTargetPage(options.slug, productListFiltersFromConfig(targetView.config)));
+
+  if (result.lookupError) {
+    Sentry.captureException(result.lookupError, {
+      tags: { subsystem: "admin-product-target-page", action: options.flashAction },
+      extra: { productSlug: options.slug, sort: targetView.config.sort },
+    });
+  }
+
+  return result.href;
 }
 
 async function removeFilesAfterDatabaseDelete(
@@ -566,17 +612,17 @@ export async function createProduct(
 
   revalidatePath("/admin/products");
   revalidatePublicSite();
-  const photoWarning = photoErrorCount > 0 ? `&photoError=${photoErrorCount}` : "";
-  // New rows always sort last (getNextOrder appends past the current max), so
-  // once the catalog passes one page the plain "?created=slug" redirect would
-  // land back on page 1 — the row exists, but sits on the last page and never
-  // shows (no error, just silently missing, and the flash highlight never
-  // fires since the row isn't in view). Send the admin straight to the page
-  // that actually contains it.
-  const { count: totalAfterCreate } = await supabase.from("products").select("id", { count: "exact", head: true });
-  const targetPage = Math.max(1, Math.ceil((totalAfterCreate ?? 1) / ADMIN_PAGE_SIZE));
-  const pageParam = targetPage > 1 ? `&page=${targetPage}` : "";
-  redirect(`/admin/products?created=${encodeURIComponent(slug)}${photoWarning}${pageParam}`);
+  const destination = await getProductMutationRedirect({
+    slug,
+    flashAction: "created",
+    product: {
+      categorySlug: fields.categorySlug,
+      published: fields.published,
+      availability: fields.availability,
+    },
+    photoErrorCount,
+  });
+  redirect(destination);
   });
 }
 
@@ -673,7 +719,16 @@ export async function updateProduct(
   revalidatePath(`/admin/products/${slug}/edit`);
   revalidatePath("/admin/products");
   revalidatePublicSite();
-  redirect(`/admin/products?updated=${encodeURIComponent(slug)}`);
+  const destination = await getProductMutationRedirect({
+    slug,
+    flashAction: "updated",
+    product: {
+      categorySlug: fields.categorySlug,
+      published: fields.published,
+      availability: fields.availability,
+    },
+  });
+  redirect(destination);
   });
 }
 

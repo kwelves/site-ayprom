@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAdminToast } from "@/components/admin/ui/AdminToastProvider";
 
 // How long the highlight stays visible once applied — kept short, per the
@@ -20,6 +20,7 @@ interface UseSaveFlowFlashOptions {
   flashKey?: string;
   flashAction?: "created" | "updated";
   messages: { created: string; updated: string };
+  warningMessage?: string;
 }
 
 // Shared by every admin list (products/brands/categories/subcategories/
@@ -28,18 +29,26 @@ interface UseSaveFlowFlashOptions {
 // list is short enough that every row is already on-screen (vehicle types)
 // or long enough to need scrolling (products) isn't special-cased here —
 // scrollIntoView is simply skipped when the target's already visible.
-export function useSaveFlowFlash({ flashKey, flashAction, messages }: UseSaveFlowFlashOptions) {
+export function useSaveFlowFlash({ flashKey, flashAction, messages, warningMessage }: UseSaveFlowFlashOptions) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [highlightedKey, setHighlightedKey] = useState<string | null>(null);
   const { success } = useAdminToast();
 
   useEffect(() => {
     if (!flashKey || !flashAction) return;
 
-    success(flashAction === "created" ? messages.created : messages.updated);
-    // Strip ?created=/?updated= so a refresh or back-navigation doesn't replay the flash.
-    router.replace(pathname, { scroll: false });
+    const successMessage = flashAction === "created" ? messages.created : messages.updated;
+    success(warningMessage ? `${successMessage}. ${warningMessage}` : successMessage);
+    // Clone the read-only params and remove only one-shot feedback. Pagination,
+    // filters, sorting and view=target must survive this replace.
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete("created");
+    nextParams.delete("updated");
+    nextParams.delete("photoError");
+    const nextQuery = nextParams.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
 
     const target = document.querySelector<HTMLElement>(`[data-flash-key="${CSS.escape(flashKey)}"]`);
     if (!target) return;

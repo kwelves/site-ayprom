@@ -38,6 +38,7 @@ interface ProductsListProps {
   reorderDisabled?: boolean;
   flashSlug?: string;
   flashAction?: "created" | "updated";
+  flashWarning?: string;
 }
 
 const AVAILABILITY_TONE: Record<ProductAvailability, string> = {
@@ -123,6 +124,7 @@ export function ProductsList({
   reorderDisabled,
   flashSlug,
   flashAction,
+  flashWarning,
 }: ProductsListProps) {
   const [unpublishProduct, setUnpublishProduct] = useState<AdminProductListItem | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -158,6 +160,7 @@ export function ProductsList({
       },
       flashSlug,
       flashAction,
+      flashWarning,
     });
 
   const deleteConfirm = useConfirmDelete<AdminProductListItem>(removeItem);

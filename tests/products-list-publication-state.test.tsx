@@ -17,6 +17,7 @@ const actionMocks = vi.hoisted(() => ({
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
   usePathname: () => "/admin/products",
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock("@/lib/admin/actions", () => actionMocks);

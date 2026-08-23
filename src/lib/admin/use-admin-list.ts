@@ -16,6 +16,7 @@ interface UseAdminListOptions<T> {
   messages: { created: string; updated: string; deleted: string; reordered: string };
   flashSlug?: string;
   flashAction?: "created" | "updated";
+  flashWarning?: string;
 }
 
 // Shared wiring for every admin entity list (brands / categories / vehicle
@@ -33,12 +34,18 @@ export function useAdminList<T>({
   messages,
   flashSlug,
   flashAction,
+  flashWarning,
 }: UseAdminListOptions<T>) {
   const [items, setItems] = useState(initial);
   const [serverItems, setServerItems] = useState(initial);
   const [isPending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
-  const { highlightedKey } = useSaveFlowFlash({ flashKey: flashSlug, flashAction, messages });
+  const { highlightedKey } = useSaveFlowFlash({
+    flashKey: flashSlug,
+    flashAction,
+    messages,
+    warningMessage: flashWarning,
+  });
   const { success } = useAdminToast();
 
   // A Server Action can re-render the current route without remounting this
