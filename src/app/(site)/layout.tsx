@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
+import localFont from "next/font/local";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -17,6 +18,15 @@ import "../globals.css";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+});
+
+const kulagSha = localFont({
+  src: "../fonts/kulag-sha.otf",
+  variable: "--font-kulag-sha",
+  weight: "400",
+  style: "normal",
+  display: "swap",
+  fallback: ["Arial", "sans-serif"],
 });
 
 export const metadata: Metadata = {
@@ -54,7 +64,7 @@ export default async function RootLayout({
   const supabaseOrigin = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin;
 
   return (
-    <html lang="ru" className={`${geistSans.variable} h-full antialiased`}>
+    <html lang="ru" className={`${geistSans.variable} ${kulagSha.variable} h-full antialiased`}>
       {/* Hero-видео на главной запрашивается с Supabase Storage сразу при
           заходе на сайт. Next не хоистит resource hints автоматически для
           media-запросов, поэтому DNS/TLS к этому origin иначе начинаются
@@ -63,7 +73,7 @@ export default async function RootLayout({
           любой <link>, отрисованный в дереве, в <head> сам. */}
       <link rel="preconnect" href={supabaseOrigin} crossOrigin="anonymous" />
       <link rel="dns-prefetch" href={supabaseOrigin} />
-      <body className="flex min-h-full flex-col bg-background text-foreground">
+      <body data-site-root className="flex min-h-full flex-col bg-background text-foreground">
         <MotionPreferences>
         <HomeEntrySequence>
         <StructuredData

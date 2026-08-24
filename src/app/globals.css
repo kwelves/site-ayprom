@@ -234,6 +234,10 @@ a {
   scroll-margin-top: 5rem;
 }
 
+[data-site-root] :where(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--font-kulag-sha), var(--font-geist-sans), sans-serif;
+}
+
 /*
  * «Меньше и мягче» вместо «совсем без анимации»: длительность режется до
  * едва заметной, а не до нуля, чтобы color/opacity-переходы (hover, фокус,
