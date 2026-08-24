@@ -18,6 +18,13 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "check": "npm run lint && npm run typecheck && npm run check:colors && npm run test",
+    "e2e": "node --env-file-if-exists=.env.local scripts/e2e/run-playwright.mjs --build",
+    "e2e:ci": "node scripts/e2e/run-playwright.mjs",
+    "e2e:smoke": "node --env-file-if-exists=.env.local scripts/e2e/run-playwright.mjs --build --grep @smoke",
+    "e2e:public": "node --env-file-if-exists=.env.local scripts/e2e/run-playwright.mjs --build --project=public",
+    "e2e:admin": "node --env-file-if-exists=.env.local scripts/e2e/run-playwright.mjs --build --project=admin",
+    "e2e:preflight": "node --env-file-if-exists=.env.local scripts/e2e/preflight.mjs",
+    "e2e:install": "playwright install chromium",
     "check:colors": "node scripts/check-color-tokens.mjs",
     "schema:check": "node scripts/check-supabase-schema.mjs",
     "photos:enhance": "node scripts/enhance-product-photos.mjs",
@@ -45,6 +52,8 @@
     "three": "^0.185.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.62.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.4",

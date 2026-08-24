@@ -12,6 +12,11 @@
 
 # testing
 /coverage
+/playwright-report/
+/test-results/
+/blob-report/
+/.playwright-state/
+/.cache/ms-playwright/
 
 # next.js
 /.next/

@@ -25,14 +25,15 @@ jobs:
 
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     # Throwaway values for the ephemeral local Supabase started below — these
     # are NOT real credentials and must never be reused outside CI. Real
     # secrets belong in repository secrets, never inline here.
     env:
       ADMIN_PASSWORD: ci-only-admin-password
       ADMIN_SESSION_SECRET: ci-only-session-secret-with-at-least-32-bytes
-      NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3001
+      E2E_PORT: 3101
+      NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3101
 
     steps:
       - name: Checkout
@@ -94,3 +95,20 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+      - name: Install Playwright Chromium and system dependencies
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser smoke and regression baseline
+        run: npm run e2e:ci
+
+      - name: Upload Playwright evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: playwright-evidence-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/artifacts/
+          if-no-files-found: warn
+          retention-days: 14

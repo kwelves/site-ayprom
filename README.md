@@ -55,10 +55,32 @@ npm run test         # unit-тесты Vitest
 npm run check        # безопасная общая проверка: lint + typecheck + unit-тесты
 npm run build        # production-сборка
 npm run start        # запуск production-сборки
+npm run e2e:preflight # local Supabase/Docker/Chromium без вывода секретов
+npm run e2e:smoke     # production build + критические browser smoke
+npm run e2e           # полный Playwright baseline/regression suite
 npm run schema:check # read-only сверка миграций с удалённым Supabase
 ```
 
 `schema:check` не меняет БД. Команда сравнивает таблицы и колонки `public`, описанные в `supabase/migrations`, с OpenAPI-схемой PostgREST и проверяет наличие/публичность Storage buckets. Для неё нужен заполненный `.env.local` и сетевой доступ.
+
+## Browser E2E
+
+Playwright всегда тестирует production-сборку на отдельном `http://127.0.0.1:3101` и управляемый Chromium с изолированным browser context. Порт задаётся через `E2E_PORT`, но `3001` намеренно запрещён, чтобы harness не конфликтовал с запущенным пользовательским `npm run dev`. Чужой сервер не переиспользуется и не останавливается. Перед первым запуском установите браузер и поднимите локальный Supabase:
+
+```bash
+npm run e2e:install
+supabase start
+npm run e2e:preflight
+npm run e2e:smoke
+```
+
+`e2e`, `e2e:smoke`, `e2e:public` и `e2e:admin` сами выполняют `next build`; `e2e:ci` предназначена только для CI, где production build уже завершён отдельным шагом. Wrapper получает runtime-значения через `supabase status`, поверх любых Supabase-переменных из `.env.local`, и прекращает запуск, если URL не локальный. Для входа и rate-limit key он задаёт отдельные throwaway E2E password/session secret. Admin E2E требует отсутствия `admin_credentials.primary` и использует env fallback; существующая credential никогда не изменяется, а вызывает понятный fail-closed отказ. Public project не зависит от auth setup и не меняет auth state. Remote/production Supabase для E2E не поддерживается.
+
+Тестовые категории и товары имеют префикс `qa-e2e-`; каждый сценарий хранит собственные slug/ID и очищает только принадлежащие ему записи в изолированном lifecycle. Admin CRUD создаёт собственную категорию и не зависит от seed/public fixtures; фото не загружаются. Raw `storageState` админки живёт отдельно в игнорируемой `.playwright-state/`, удаляется teardown-проектом и не входит в CI artifacts. Trace для auth/admin projects отключён; failure evidence public-тестов всё ещё может содержать эфемерные локальные test-session/fixture данные и хранится только по CI artifact policy — 14 дней. HTML-report, video, screenshots и responsive evidence сохраняются в `playwright-report/` и `test-results/artifacts/`. В CI Chromium устанавливается с системными зависимостями, а разрешённые каталоги артефактов загружаются даже при падении тестов. Playwright запускает Next как непосредственно управляемый child process на 3101; дополнительный Windows wrapper не используется. Финальный локальный полный запуск завершился с exit 0 и освободил 3101; пользовательский 3001 не затрагивался. Windows Node 24 при shutdown всё ещё выводит non-blocking `UV_HANDLE_CLOSING` и `NO_COLOR`/`FORCE_COLOR` stderr; они не подавляются, пока exit и cleanup корректны. `reuseExistingServer` выключен.
+
+Финальная независимая локальная verification: preflight и production build PASS, smoke 12/12 PASS, полный набор — 43 outcome без unexpected results: 33 ordinary PASS, 5 ожидаемых `test.fail` для QA-006/007/008/009/011 и 5 `fixme` для QA-002/003/004/005/012. Это локальная проверка, не результат запуска GitHub Actions CI.
+
+Viewport baseline: `320x800`, `375x812`, `390x844`, `768x1024`, `1440x1000`. Это evidence, а не pixel-perfect snapshot gate. Каждый required control проверяется отдельно: zero-match, clipping и overlap считаются ошибками. Browser observer по умолчанию считает ошибкой неожиданные `console.warning/error`, `pageerror`, любой failed request и любой HTTP 4xx/5xx. Встроенные исключения узкие и local-only: доказанный same-origin Next prefetch GET abort и точный `/_vercel/speed-insights/script.js` 404 с соответствующим console event. Document 404 и Server Action POST abort разрешаются только per-test predicate с точными origin/path/method/resource type/Next headers; произвольные 4xx и `ERR_ABORTED` не игнорируются. Axe блокирует serious/critical нарушения.
 
 ## Архитектура
 
