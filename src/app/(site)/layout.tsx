@@ -20,12 +20,22 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
-const kulagSha = localFont({
-  src: "../fonts/kulag-sha.otf",
-  variable: "--font-kulag-sha",
-  weight: "400",
-  style: "normal",
+const razerF5 = localFont({
+  src: [
+    {
+      path: "../fonts/razer-f5/razer-f5-semibold.ttf",
+      weight: "600",
+      style: "normal",
+    },
+    {
+      path: "../fonts/razer-f5/razer-f5-bold.ttf",
+      weight: "700",
+      style: "normal",
+    },
+  ],
+  variable: "--font-razer-f5",
   display: "swap",
+  preload: false,
   fallback: ["Arial", "sans-serif"],
 });
 
@@ -64,7 +74,7 @@ export default async function RootLayout({
   const supabaseOrigin = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin;
 
   return (
-    <html lang="ru" className={`${geistSans.variable} ${kulagSha.variable} h-full antialiased`}>
+    <html lang="ru" className={`${geistSans.variable} ${razerF5.variable} h-full antialiased`}>
       {/* Hero-видео на главной запрашивается с Supabase Storage сразу при
           заходе на сайт. Next не хоистит resource hints автоматически для
           media-запросов, поэтому DNS/TLS к этому origin иначе начинаются
