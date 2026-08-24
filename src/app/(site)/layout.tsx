@@ -50,9 +50,9 @@ const rubik = localFont({
 });
 
 const victorMono = localFont({
-  src: "../fonts/victor-mono/victor-mono-medium.otf",
+  src: "../fonts/victor-mono/victor-mono-semibold.otf",
   variable: "--font-victor-mono",
-  weight: "500",
+  weight: "600",
   style: "normal",
   display: "swap",
   preload: false,
