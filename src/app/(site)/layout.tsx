@@ -49,6 +49,16 @@ const rubik = localFont({
   fallback: ["Arial", "sans-serif"],
 });
 
+const victorMono = localFont({
+  src: "../fonts/victor-mono/victor-mono-medium.otf",
+  variable: "--font-victor-mono",
+  weight: "500",
+  style: "normal",
+  display: "swap",
+  preload: false,
+  fallback: ["Arial", "sans-serif"],
+});
+
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
   icons: {
@@ -84,7 +94,10 @@ export default async function RootLayout({
   const supabaseOrigin = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin;
 
   return (
-    <html lang="ru" className={`${geistSans.variable} ${razerF5.variable} ${rubik.variable} h-full antialiased`}>
+    <html
+      lang="ru"
+      className={`${geistSans.variable} ${razerF5.variable} ${rubik.variable} ${victorMono.variable} h-full antialiased`}
+    >
       {/* Hero-видео на главной запрашивается с Supabase Storage сразу при
           заходе на сайт. Next не хоистит resource hints автоматически для
           media-запросов, поэтому DNS/TLS к этому origin иначе начинаются

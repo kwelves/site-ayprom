@@ -160,7 +160,10 @@ export function ProductCard({
       </motion.div>
 
       <div className={cn("flex flex-1 flex-col px-4", isCategoryGrid ? "py-3.5 text-center" : "pt-4 pb-5")}>
-        <span className={cn("text-base text-card-foreground", isCategoryGrid ? "font-medium" : "font-semibold")}>
+        <span
+          data-card-title
+          className={cn("text-base text-card-foreground", isCategoryGrid ? "font-medium" : "font-semibold")}
+        >
           {product.name}
         </span>
         {!isCategoryGrid && product.shortDescription && (

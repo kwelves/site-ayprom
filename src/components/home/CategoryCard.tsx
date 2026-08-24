@@ -35,7 +35,9 @@ export function CategoryCard({
       </div>
 
       <div className="px-4 py-3.5 text-center">
-        <span className={cn("text-base font-medium text-card-foreground", nameClassName)}>{name}</span>
+        <span data-card-title className={cn("text-base font-medium text-card-foreground", nameClassName)}>
+          {name}
+        </span>
       </div>
     </Link>
   );

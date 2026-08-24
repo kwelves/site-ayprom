@@ -28,7 +28,9 @@ function BrandGrid({ brands }: { brands: Brand[] }) {
                 style={brand.logoScale ? { transform: `scale(${brand.logoScale})` } : undefined}
               />
             </span>
-            <span className="text-xs font-semibold text-card-foreground sm:text-sm">{brand.name}</span>
+            <span data-card-title className="text-xs font-semibold text-card-foreground sm:text-sm">
+              {brand.name}
+            </span>
           </Link>
         </StaggerItem>
       ))}

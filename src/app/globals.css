@@ -242,6 +242,11 @@ a {
   font-family: var(--font-razer-f5), var(--font-geist-sans), sans-serif;
 }
 
+[data-site-root] [data-card-title] {
+  font-family: var(--font-victor-mono), var(--font-rubik), monospace;
+  font-weight: 500;
+}
+
 /*
  * «Меньше и мягче» вместо «совсем без анимации»: длительность режется до
  * едва заметной, а не до нуля, чтобы color/opacity-переходы (hover, фокус,

@@ -50,7 +50,9 @@ export function BrandCard({ href, brand, nameClassName, imageClassName, logoScal
       </div>
 
       <div className="px-4 py-3.5 text-center">
-        <span className={cn("text-base font-medium text-card-foreground", nameClassName)}>{brand.name}</span>
+        <span data-card-title className={cn("text-base font-medium text-card-foreground", nameClassName)}>
+          {brand.name}
+        </span>
       </div>
     </Link>
   );

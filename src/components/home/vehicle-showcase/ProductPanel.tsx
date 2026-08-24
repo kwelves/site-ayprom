@@ -196,7 +196,12 @@ export const ProductPanel = forwardRef<HTMLDivElement, ProductPanelProps>(functi
               )}
             </div>
 
-            <h3 className={cn(styles.title, "text-center text-base font-bold text-card-foreground")}>{product.name}</h3>
+            <h3
+              data-card-title
+              className={cn(styles.title, "text-center text-base font-bold text-card-foreground")}
+            >
+              {product.name}
+            </h3>
           </div>
 
           <div className={styles.actions}>
@@ -254,7 +259,9 @@ export const ProductPanel = forwardRef<HTMLDivElement, ProductPanelProps>(functi
                           style={currentImage?.scale ? { transform: `scale(${currentImage.scale})` } : undefined}
                         />
                       </div>
-                      <p className="mt-2 text-center text-sm font-semibold text-card-foreground">{product.name}</p>
+                      <p data-card-title className="mt-2 text-center text-sm font-semibold text-card-foreground">
+                        {product.name}
+                      </p>
                     </motion.div>
                   </motion.div>
                 )}

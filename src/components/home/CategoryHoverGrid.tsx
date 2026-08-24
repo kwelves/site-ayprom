@@ -99,7 +99,9 @@ export function CategoryHoverGrid({ categories }: { categories: Category[] }) {
                 </div>
 
                 <div className="px-4 py-3.5 text-center">
-                  <span className="text-sm font-medium text-card-foreground">{category.name}</span>
+                  <span data-card-title className="text-sm font-medium text-card-foreground">
+                    {category.name}
+                  </span>
                 </div>
               </div>
             </Link>
