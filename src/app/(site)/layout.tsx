@@ -9,7 +9,6 @@ import { ScrollToHash } from "@/components/layout/ScrollToHash";
 import { ResetScrollOnNavigate } from "@/components/layout/ResetScrollOnNavigate";
 import { getCategories } from "@/lib/queries/categories";
 import { getBrands } from "@/lib/queries/brands";
-import { StructuredData } from "@/components/seo/StructuredData";
 import { MotionPreferences } from "@/components/motion/MotionPreferences";
 import { HomeEntrySequence } from "@/components/home/HomeEntrySequence";
 import { getSiteUrl } from "@/lib/site-url";
@@ -62,9 +61,12 @@ const victorMono = localFont({
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
   icons: {
-    icon: [{ url: "/brand/ayprom-icon.svg", type: "image/svg+xml" }],
-    shortcut: "/brand/ayprom-icon.svg",
-    apple: "/brand/ayprom-icon-light.png",
+    icon: [
+      { url: "/brand/ayprom-icon-square.png", type: "image/png", sizes: "512x512" },
+      { url: "/brand/ayprom-icon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: "/brand/ayprom-icon-square.png",
+    apple: "/brand/ayprom-icon-square.png",
   },
   title: {
     default: "AYPROM — гидрооборудование и запчасти для спецтехники",
@@ -109,22 +111,6 @@ export default async function RootLayout({
       <body data-site-root className="flex min-h-full flex-col bg-background text-foreground">
         <MotionPreferences>
         <HomeEntrySequence>
-        <StructuredData
-          data={{
-            "@context": "https://schema.org",
-            "@type": "Organization",
-            name: "AYPROM",
-            url: getSiteUrl(),
-            email: "info@ayprom.kg",
-            address: {
-              "@type": "PostalAddress",
-              addressCountry: "KG",
-              addressLocality: "Бишкек",
-              streetAddress: "пр. Дэн Сяопина, 457/1",
-            },
-            sameAs: ["https://instagram.com/ayprom.kg", "https://tiktok.com/@ayprom.kg"],
-          }}
-        />
         <ScrollToHash />
         <ResetScrollOnNavigate />
         <Header categories={categories} brands={brands} />
