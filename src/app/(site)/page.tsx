@@ -7,6 +7,8 @@ import { AboutPreview } from "@/components/site/AboutPreview";
 import { PartnersSection } from "@/components/home/PartnersSection";
 import { getVehicleTypes } from "@/lib/queries/vehicle-types";
 import { HomeEntryContent } from "@/components/home/HomeEntrySequence";
+import { StructuredData } from "@/components/seo/StructuredData";
+import { getSiteUrl } from "@/lib/site-url";
 
 // Временно скрыто до появления реальных логотипов/кейсов партнёров.
 // Вернуть секцию можно одним переключением без восстановления удалённого UI.
@@ -22,6 +24,14 @@ export default async function Home() {
 
   return (
     <>
+      <StructuredData
+        data={{
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: "AYPROM",
+          url: getSiteUrl(),
+        }}
+      />
       <Hero vehicleTypes={vehicleTypes} />
       {/* Opaque backdrop so sections cover the fixed hero photo while scrolling */}
       <HomeEntryContent className="relative bg-background">
