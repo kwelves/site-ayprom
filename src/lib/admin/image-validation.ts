@@ -10,6 +10,15 @@ const ALLOWED_RASTER_IMAGE_TYPES = new Map([
   ["image/avif", new Set(["avif"])],
 ]);
 
+const CANONICAL_RASTER_EXTENSION = new Map([
+  ["image/jpeg", "jpg"],
+  ["image/png", "png"],
+  ["image/webp", "webp"],
+  ["image/avif", "avif"],
+]);
+
+export const ALLOWED_RASTER_MIME_TYPES = [...ALLOWED_RASTER_IMAGE_TYPES.keys()];
+
 export interface ImageDimensions {
   width: number;
   height: number;
@@ -148,7 +157,23 @@ export function readRasterImageDimensions(bytes: Uint8Array, mimeType: string): 
   return null;
 }
 
-export async function validateProductImage(file: File): Promise<void> {
+/** Результат проверки: тип и расширение выведены из проверенного содержимого,
+ *  а не из имени файла, которое прислал браузер. */
+export interface ValidatedRasterImage {
+  bytes: Uint8Array;
+  contentType: string;
+  extension: string;
+}
+
+/**
+ * Полная проверка растровой картинки: размер, соответствие типа и расширения,
+ * сигнатура содержимого и разрешение.
+ *
+ * Возвращает `extension`, выведенное из проверенного MIME-типа. Брать его из
+ * имени файла нельзя: имя целиком контролируется клиентом, и путь в хранилище
+ * не должен от него зависеть.
+ */
+export async function validateRasterImage(file: File): Promise<ValidatedRasterImage> {
   if (file.size > MAX_IMAGE_BYTES) {
     throw new Error(`Файл «${file.name}» больше 8 МБ.`);
   }
@@ -186,6 +211,19 @@ export async function validateProductImage(file: File): Promise<void> {
   ) {
     throw new Error(`Файл «${file.name}» превышает допустимое разрешение: 8000 px по стороне и 40 Мп.`);
   }
+
+  // Канонический вариант расширения для типа: у JPEG допустимы .jpg и .jpeg,
+  // в хранилище используем один.
+  const canonicalExtension = CANONICAL_RASTER_EXTENSION.get(file.type);
+  if (!canonicalExtension) {
+    throw new Error(`Неизвестный тип файла «${file.name}».`);
+  }
+
+  return { bytes, contentType: file.type, extension: canonicalExtension };
 }
 
-export { MAX_PRODUCT_IMAGES };
+export async function validateProductImage(file: File): Promise<void> {
+  await validateRasterImage(file);
+}
+
+export { MAX_PRODUCT_IMAGES, MAX_IMAGE_BYTES };

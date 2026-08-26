@@ -28,8 +28,9 @@ import {
   hashAdminPassword,
   validateNewAdminPassword,
 } from "@/lib/admin/password-credential";
-import { MAX_PRODUCT_IMAGES, validateProductImage } from "@/lib/admin/image-validation";
+import { MAX_PRODUCT_IMAGES, validateProductImage, validateRasterImage } from "@/lib/admin/image-validation";
 import { normalizeVisualScale } from "@/lib/admin/visual-scale";
+import { validateBrandLogoUpload, validateCategoryImageUpload } from "@/lib/admin/upload-validation";
 import { toProductRpcError, type ProductRpcErrorLike } from "@/lib/admin/product-rpc-error";
 import { convertBufferToWebp, enhanceProductPhotoBuffer } from "@/lib/admin/enhance-product-photo";
 import {
@@ -755,12 +756,13 @@ async function insertProductImage(
   file: File,
   order: number
 ): Promise<UploadedImage> {
-  await validateProductImage(file);
-  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-  const path = `${productSlug}/${crypto.randomUUID()}.${ext}`;
+  // Расширение и тип берутся из проверенного содержимого, а не из имени файла:
+  // имя целиком под контролем клиента и не должно определять путь в хранилище.
+  const validated = await validateRasterImage(file);
+  const path = `${productSlug}/${crypto.randomUUID()}.${validated.extension}`;
   const { error: uploadError } = await supabase.storage
     .from("product-images")
-    .upload(path, file, { contentType: file.type });
+    .upload(path, validated.bytes, { contentType: validated.contentType });
   if (uploadError) throw uploadError;
 
   const { data: publicUrlData } = supabase.storage.from("product-images").getPublicUrl(path);
@@ -925,9 +927,14 @@ async function uploadBrandLogo(
   brandSlug: string,
   file: File
 ): Promise<string> {
-  const ext = file.name.split(".").pop()?.toLowerCase() || "svg";
-  const path = `${brandSlug}/${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from("brand-logos").upload(path, file);
+  // Проверка и обезвреживание до записи. Прежде здесь не было ничего: тип и
+  // расширение брались из имени файла, а содержимое попадало в публичное
+  // хранилище без единой проверки.
+  const validated = await validateBrandLogoUpload(file);
+  const path = `${brandSlug}/${crypto.randomUUID()}.${validated.extension}`;
+  const { error } = await supabase.storage
+    .from("brand-logos")
+    .upload(path, validated.bytes, { contentType: validated.contentType });
   if (error) throw error;
   const { data } = supabase.storage.from("brand-logos").getPublicUrl(path);
   return data.publicUrl;
@@ -1107,9 +1114,13 @@ async function uploadCategoryImage(
   pathPrefix: string,
   file: File
 ): Promise<string> {
-  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-  const path = `${pathPrefix}/${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from("category-images").upload(path, file);
+  // Та же причина, что и у логотипов: до этого путь и содержимое полностью
+  // определялись клиентом.
+  const validated = await validateCategoryImageUpload(file);
+  const path = `${pathPrefix}/${crypto.randomUUID()}.${validated.extension}`;
+  const { error } = await supabase.storage
+    .from("category-images")
+    .upload(path, validated.bytes, { contentType: validated.contentType });
   if (error) throw error;
   const { data } = supabase.storage.from("category-images").getPublicUrl(path);
   return data.publicUrl;
