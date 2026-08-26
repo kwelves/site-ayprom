@@ -6,6 +6,7 @@ import type { Product, ProductListItem } from "@/types/catalog";
 
 const PRODUCT_SELECT = `
   slug, name, category_slug, short_description, description, article,
+  meta_title, meta_description,
   subcategories(slug),
   product_images(url, "order", scale),
   product_characteristics(attribute, value, "order"),
@@ -20,6 +21,8 @@ interface ProductRow {
   short_description: string;
   description: string | null;
   article: string | null;
+  meta_title: string | null;
+  meta_description: string | null;
   subcategories: { slug: string } | null;
   product_images: { url: string; order: number; scale: number | null }[];
   product_characteristics: { attribute: string; value: string; order: number }[];
@@ -46,6 +49,8 @@ function mapProduct(row: ProductRow): Product {
           .map(({ attribute, value }) => ({ attribute, value }))
       : undefined,
     article: row.article ?? undefined,
+    metaTitle: row.meta_title ?? undefined,
+    metaDescription: row.meta_description ?? undefined,
   };
 }
 

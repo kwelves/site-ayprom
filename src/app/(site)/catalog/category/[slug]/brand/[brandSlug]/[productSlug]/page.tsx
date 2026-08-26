@@ -7,6 +7,7 @@ import { getCategoryBrands } from "@/lib/queries/category-brands";
 import { getCategory } from "@/lib/queries/categories";
 import { getProduct } from "@/lib/queries/products";
 import { buildProductStructuredData } from "@/lib/product-structured-data";
+import { buildProductMetadata, MISSING_PRODUCT_METADATA } from "@/lib/product-metadata";
 
 export const revalidate = 60;
 
@@ -27,19 +28,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   const { slug, brandSlug, productSlug } = await params;
   const product = await getProduct(productSlug);
   const canonical = `/catalog/category/${slug}/brand/${brandSlug}/${productSlug}`;
-  return product
-    ? {
-        title: product.name,
-        description: product.description || product.shortDescription,
-        alternates: { canonical },
-        openGraph: {
-          type: "website",
-          title: product.name,
-          description: product.shortDescription,
-          images: product.images[0]?.url ? [{ url: product.images[0].url, alt: product.name }] : undefined,
-        },
-      }
-    : { title: "Товар", robots: { index: false } };
+  return product ? buildProductMetadata(product, canonical) : MISSING_PRODUCT_METADATA;
 }
 
 export default async function BrandProductPage({ params }: ProductPageProps) {

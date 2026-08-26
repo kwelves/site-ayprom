@@ -88,4 +88,8 @@ export interface Product extends ProductListItem {
   description?: string;
   /** Ordered, free-text attribute/value pairs — no fixed per-category vocabulary. */
   characteristics?: ProductCharacteristic[];
+  /** SEO-заголовок из админки. Переопределяет `name` в <title>, если заполнен. */
+  metaTitle?: string;
+  /** SEO-описание из админки. Имеет приоритет над description/shortDescription. */
+  metaDescription?: string;
 }
