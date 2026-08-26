@@ -28,9 +28,21 @@ import {
   hashAdminPassword,
   validateNewAdminPassword,
 } from "@/lib/admin/password-credential";
-import { MAX_PRODUCT_IMAGES, validateProductImage, validateRasterImage } from "@/lib/admin/image-validation";
+import {
+  MAX_IMAGE_BYTES,
+  MAX_PRODUCT_IMAGES,
+  validateProductImage,
+  validateRasterImage,
+} from "@/lib/admin/image-validation";
 import { normalizeVisualScale } from "@/lib/admin/visual-scale";
 import { validateBrandLogoUpload, validateCategoryImageUpload } from "@/lib/admin/upload-validation";
+import {
+  PRODUCT_IMAGE_STAGING_BUCKET,
+  STAGING_RETENTION_SECONDS,
+  buildStagingObjectPath,
+  isUuid,
+  CANONICAL_UPLOAD_EXTENSION,
+} from "@/lib/admin/product-image-staging";
 import { toProductRpcError, type ProductRpcErrorLike } from "@/lib/admin/product-rpc-error";
 import { convertBufferToWebp, enhanceProductPhotoBuffer } from "@/lib/admin/enhance-product-photo";
 import {
@@ -898,6 +910,185 @@ export async function updateProductImageScale(
   if (error) throw error;
   revalidatePath(`/admin/products/${productSlug}/edit`);
   revalidatePublicSite();
+}
+
+// QA-004: фотографии больше не передаются внутри общего запроса создания
+// товара. Браузер получает короткоживущую ссылку и грузит каждый файл отдельно
+// и напрямую в приватное промежуточное хранилище; сервер затем проверяет
+// содержимое повторно и только после этого переносит файл в публичное
+// хранилище.
+export async function createProductImageUploadTicket(
+  draftId: string,
+  contentType: string,
+  byteSize: number,
+): Promise<{ stagingId: string; objectPath: string; signedUrl: string; token: string }> {
+  await requireAdminSession();
+
+  if (!isUuid(draftId)) throw new Error("Некорректный идентификатор сессии загрузки.");
+  const extension = CANONICAL_UPLOAD_EXTENSION[contentType];
+  if (!extension) {
+    throw new Error("Фотография должна быть JPEG, PNG, WebP или AVIF.");
+  }
+  if (!Number.isInteger(byteSize) || byteSize <= 0 || byteSize > MAX_IMAGE_BYTES) {
+    throw new Error("Файл больше 8 МБ.");
+  }
+
+  const supabase = createAdminClient();
+  // Путь строится только из серверных значений: имя файла из браузера в него не
+  // попадает, иначе клиент управлял бы тем, куда пишется объект.
+  const objectPath = buildStagingObjectPath(draftId, crypto.randomUUID(), extension);
+
+  // Лимит количества проверяет база: только там видна вся сессия сразу, и его
+  // нельзя обойти повторным запросом.
+  const { data: claim, error: claimError } = await supabase
+    .rpc("claim_product_image_staging", {
+      p_draft_id: draftId,
+      p_object_path: objectPath,
+      p_content_type: contentType,
+      p_byte_size: byteSize,
+      p_ttl_seconds: STAGING_RETENTION_SECONDS,
+      p_max_files: MAX_PRODUCT_IMAGES,
+    })
+    .single<{ out_id: string; out_expires_at: string }>();
+  if (claimError) throw productRpcError(claimError, "Ошибка регистрации загрузки фотографии");
+
+  const { data: signed, error: signError } = await supabase.storage
+    .from(PRODUCT_IMAGE_STAGING_BUCKET)
+    .createSignedUploadUrl(objectPath);
+  if (signError) {
+    // Ссылку выдать не удалось — снимаем учётную запись, иначе она будет
+    // занимать место в лимите до истечения срока.
+    await supabase.rpc("release_product_image_staging", { p_ids: [claim.out_id] });
+    throw signError;
+  }
+
+  return {
+    stagingId: claim.out_id,
+    objectPath,
+    signedUrl: signed.signedUrl,
+    token: signed.token,
+  };
+}
+
+/**
+ * Переносит загруженное в публичное хранилище и привязывает к товару.
+ *
+ * Содержимое проверяется здесь повторно, уже по факту записи: подписанная
+ * ссылка ограничивает путь и размер, но не гарантирует, что внутри лежит именно
+ * заявленное. До успешной проверки объект не становится публичным.
+ *
+ * Повторный вызов безопасен: путь в публичном хранилище выводится из
+ * идентификатора учётной записи, поэтому повтор перезаписывает тот же объект и
+ * не создаёт дубликат строки.
+ */
+export async function finalizeProductImages(
+  draftId: string,
+  productSlug: string,
+): Promise<{ attached: number; failed: number }> {
+  await requireAdminSession();
+  if (!isUuid(draftId)) throw new Error("Некорректный идентификатор сессии загрузки.");
+
+  const supabase = createAdminClient();
+  const { data: product, error: productError } = await supabase
+    .from("products")
+    .select("id")
+    .eq("slug", productSlug)
+    .maybeSingle();
+  if (productError) throw productError;
+  if (!product) throw new Error("Товар не найден.");
+
+  const { data: staged, error: stagedError } = await supabase
+    .from("product_image_staging")
+    .select("id, object_path, content_type")
+    .eq("draft_id", draftId)
+    .is("finalized_at", null)
+    .order("created_at");
+  if (stagedError) throw stagedError;
+  if (!staged || staged.length === 0) return { attached: 0, failed: 0 };
+
+  const { count: existingCount } = await supabase
+    .from("product_images")
+    .select("id", { count: "exact", head: true })
+    .eq("product_id", product.id);
+  let nextOrder = existingCount ?? 0;
+
+  let attached = 0;
+  let failed = 0;
+
+  for (const row of staged) {
+    try {
+      const downloaded = await supabase.storage.from(PRODUCT_IMAGE_STAGING_BUCKET).download(row.object_path);
+      if (downloaded.error) throw downloaded.error;
+
+      const bytes = new Uint8Array(await downloaded.data.arrayBuffer());
+      const extension = CANONICAL_UPLOAD_EXTENSION[row.content_type];
+      if (!extension) throw new Error(`Недопустимый тип файла: ${row.content_type}.`);
+
+      // Повторная проверка содержимого — то же, что и для прямой загрузки.
+      const validated = await validateRasterImage(
+        new File([bytes], `staged.${extension}`, { type: row.content_type }),
+      );
+
+      const publicPath = `${productSlug}/${row.id}.${validated.extension}`;
+      const uploaded = await supabase.storage
+        .from("product-images")
+        .upload(publicPath, validated.bytes, { contentType: validated.contentType, upsert: true });
+      if (uploaded.error) throw uploaded.error;
+
+      const { data: publicUrlData } = supabase.storage.from("product-images").getPublicUrl(publicPath);
+
+      const { data: already } = await supabase
+        .from("product_images")
+        .select("id")
+        .eq("url", publicUrlData.publicUrl)
+        .maybeSingle();
+
+      if (!already) {
+        const { error: insertError } = await supabase
+          .from("product_images")
+          .insert({ product_id: product.id, url: publicUrlData.publicUrl, order: nextOrder });
+        if (insertError) throw insertError;
+        nextOrder += 1;
+      }
+
+      await supabase.rpc("finalize_product_image_staging", { p_id: row.id });
+      await supabase.storage.from(PRODUCT_IMAGE_STAGING_BUCKET).remove([row.object_path]);
+      attached += 1;
+    } catch (error) {
+      // Одна неудачная фотография не отменяет товар и остальные снимки: строка
+      // учёта остаётся незавершённой и будет убрана по сроку.
+      failed += 1;
+      console.error("Не удалось перенести фотографию из промежуточного хранилища", {
+        stagingId: row.id,
+        productSlug,
+        message: getErrorMessage(error, "неизвестная ошибка"),
+      });
+    }
+  }
+
+  revalidatePath(`/admin/products/${productSlug}/edit`);
+  revalidatePublicSite();
+  return { attached, failed };
+}
+
+/** Отмена: снимает всё недогруженное этой сессии вместе с файлами. */
+export async function discardProductImageDraft(draftId: string): Promise<void> {
+  await requireAdminSession();
+  if (!isUuid(draftId)) throw new Error("Некорректный идентификатор сессии загрузки.");
+
+  const supabase = createAdminClient();
+  const { data: staged, error } = await supabase
+    .from("product_image_staging")
+    .select("id, object_path")
+    .eq("draft_id", draftId)
+    .is("finalized_at", null);
+  if (error) throw error;
+  if (!staged || staged.length === 0) return;
+
+  await supabase.storage
+    .from(PRODUCT_IMAGE_STAGING_BUCKET)
+    .remove(staged.map((row) => row.object_path));
+  await supabase.rpc("release_product_image_staging", { p_ids: staged.map((row) => row.id) });
 }
 
 interface BrandFormFields {
