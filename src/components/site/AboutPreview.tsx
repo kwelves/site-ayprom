@@ -3,6 +3,7 @@ import Link from "next/link";
 import { MapPin, Package, Phone, ShieldCheck, SlidersHorizontal, Truck, type LucideIcon } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
+import { HOME_SEO_DESCRIPTION } from "@/lib/home-seo";
 
 interface ValueCard {
   icon: LucideIcon;
@@ -66,8 +67,8 @@ export function AboutPreview() {
         <div>
           <SectionHeading
             eyebrow="О компании"
-            title="AYPROM — гидравлика для тягачей, самосвалов и спецтехники"
-            description="Когда ломается гидравлика, техника простаивает, а простой стоит денег. Мы быстро подбираем совместимую деталь — от одного насоса до готового комплекта — и отправляем её из наличия или под заказ по Кыргызстану и странам СНГ."
+            title="Подбор гидравлики без долгого простоя техники"
+            description={HOME_SEO_DESCRIPTION}
           />
 
           <div className="mt-6 flex flex-col divide-y divide-border">
@@ -107,7 +108,10 @@ export function AboutPreview() {
             the panel is bumped to the next token in the same blue scale
             (blue-50→blue-100 fill, blue-100→blue-200 border) instead of a
             one-off opacity tweak. */}
-        <div className="relative hidden min-h-[360px] overflow-hidden rounded-2xl border border-border-interactive bg-accent-strong/60 lg:block">
+        <div
+          data-nosnippet=""
+          className="relative hidden min-h-[360px] overflow-hidden rounded-2xl border border-border-interactive bg-accent-strong/60 lg:block"
+        >
           <Image
             src="/about-hydraulic-arm.png"
             alt="Гидроцилиндр стрелы спецтехники"
@@ -163,7 +167,7 @@ export function AboutPreview() {
 
         {/* Mobile/tablet: the panel above is hidden, so contacts get their
             own plain block instead of disappearing entirely below lg. */}
-        <div className="rounded-2xl border border-border-accent bg-accent/50 p-6 lg:hidden">
+        <div data-nosnippet="" className="rounded-2xl border border-border-accent bg-accent/50 p-6 lg:hidden">
           <div className="flex items-center gap-3">
             <Image
               src="/brand/ayprom-icon.svg"

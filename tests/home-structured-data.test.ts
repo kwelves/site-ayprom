@@ -2,6 +2,7 @@ import path from "node:path";
 import sharp from "sharp";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildHomeStructuredData } from "@/lib/home-structured-data";
+import { HOME_SEO_DESCRIPTION } from "@/lib/home-seo";
 
 const originalSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 
@@ -28,6 +29,7 @@ describe("home structured data", () => {
       url: "https://www.ayprom-gidravlika.kg",
       name: "AYPROM",
       alternateName: ["AYPROM Гидравлика", "ayprom-gidravlika.kg"],
+      description: HOME_SEO_DESCRIPTION,
       publisher: { "@id": "https://www.ayprom-gidravlika.kg/#organization" },
     });
     expect(business).toMatchObject({
@@ -35,6 +37,7 @@ describe("home structured data", () => {
       url: "https://www.ayprom-gidravlika.kg",
       name: "AYPROM",
       alternateName: "AYPROM Гидравлика",
+      description: HOME_SEO_DESCRIPTION,
       telephone: "+996500461155",
       email: "info@ayprom.kg",
       address: {

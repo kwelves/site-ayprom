@@ -1,7 +1,5 @@
 import { getSiteUrl } from "@/lib/site-url";
-
-const BUSINESS_DESCRIPTION =
-  "AYPROM — магазин гидрооборудования и запчастей для тягачей, самосвалов и спецтехники в Бишкеке с доставкой по Кыргызстану и странам СНГ.";
+import { HOME_SEO_DESCRIPTION } from "@/lib/home-seo";
 
 const SAME_AS = [
   "https://instagram.com/ayprom.kg",
@@ -23,6 +21,7 @@ export function buildHomeStructuredData(): Record<string, unknown> {
         url: siteUrl,
         name: "AYPROM",
         alternateName: ["AYPROM Гидравлика", "ayprom-gidravlika.kg"],
+        description: HOME_SEO_DESCRIPTION,
         publisher: { "@id": organizationId },
         inLanguage: "ru-KG",
       },
@@ -32,7 +31,7 @@ export function buildHomeStructuredData(): Record<string, unknown> {
         url: siteUrl,
         name: "AYPROM",
         alternateName: "AYPROM Гидравлика",
-        description: BUSINESS_DESCRIPTION,
+        description: HOME_SEO_DESCRIPTION,
         logo: {
           "@type": "ImageObject",
           url: `${siteUrl}/brand/ayprom-icon-square.png`,

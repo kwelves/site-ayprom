@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { Hero } from "@/components/home/Hero";
 import { CategorySection } from "@/components/home/CategorySection";
 import { VehicleShowcaseSection } from "@/components/home/VehicleShowcaseSection";
@@ -9,15 +8,14 @@ import { getVehicleTypes } from "@/lib/queries/vehicle-types";
 import { HomeEntryContent } from "@/components/home/HomeEntrySequence";
 import { StructuredData } from "@/components/seo/StructuredData";
 import { buildHomeStructuredData } from "@/lib/home-structured-data";
+import { HOME_METADATA } from "@/lib/home-seo";
 
 // Временно скрыто до появления реальных логотипов/кейсов партнёров.
 // Вернуть секцию можно одним переключением без восстановления удалённого UI.
 const SHOW_PARTNERS_SECTION = false;
 
 export const revalidate = 60;
-export const metadata: Metadata = {
-  alternates: { canonical: "/" },
-};
+export const metadata = HOME_METADATA;
 
 export default async function Home() {
   const vehicleTypes = await getVehicleTypes();
