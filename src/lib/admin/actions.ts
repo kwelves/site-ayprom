@@ -14,7 +14,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { slugify } from "@/lib/admin/slugify";
 import {
   AdminLoginProtectionUnavailableError,
-  registerLoginAttempt,
+  beginAuthAttempt,
+  finishAuthAttempt,
 } from "@/lib/admin/login-rate-limit";
 import {
   AdminCredentialConflictError,
@@ -188,11 +189,33 @@ async function runFormAction(fn: () => Promise<void>): Promise<FormActionState> 
 
 export async function login(formData: FormData): Promise<void> {
   const password = formData.get("password");
+
+  // QA-005: бронь берётся ДО проверки пароля. Прежде PBKDF2 считался первым, и
+  // заблокированный перебирающий всё равно расходовал дорогой хеш на каждом
+  // запросе — защита работала усилителем нагрузки вместо ограничителя.
+  let reservation;
+  try {
+    reservation = await beginAuthAttempt();
+  } catch (error) {
+    if (error instanceof AdminLoginProtectionUnavailableError) {
+      redirect("/admin/login?error=security");
+    }
+    throw error;
+  }
+
+  // Ранний отказ намеренно не выполняет проверку пароля и потому отличается по
+  // времени ответа. Сообщение при этом одинаковое и не раскрывает, существует
+  // ли подходящий пароль.
+  if (!reservation.allowed || reservation.reservationId === null) {
+    redirect(`/admin/login?error=rate&retry=${Math.max(1, reservation.retryAfter)}`);
+  }
+
   const credentialState = await getAdminCredentialState();
   const passwordIsValid = typeof password === "string" && (await verifyAdminPassword(password, credentialState));
+
   let retryAfter: number;
   try {
-    retryAfter = await registerLoginAttempt(passwordIsValid);
+    retryAfter = await finishAuthAttempt(reservation.reservationId, passwordIsValid);
   } catch (error) {
     if (error instanceof AdminLoginProtectionUnavailableError) {
       redirect("/admin/login?error=security");
@@ -269,8 +292,16 @@ export async function changeAdminPassword(
     const validationError = validateNewAdminPassword(newPassword, confirmation);
     if (validationError) return { error: validationError };
 
+    // Тот же порядок, что и во входе: бронь до PBKDF2. Смена пароля тоже
+    // принимает текущий пароль, поэтому была таким же путём для перебора.
+    const reservation = await beginAuthAttempt("password-change");
+    if (!reservation.allowed || reservation.reservationId === null) {
+      const retryMinutes = Math.max(1, Math.ceil(Math.max(1, reservation.retryAfter) / 60));
+      return { error: `Слишком много попыток. Повторите примерно через ${retryMinutes} мин.` };
+    }
+
     const currentPasswordIsValid = await verifyAdminPassword(currentPassword, credentialState);
-    const retryAfter = await registerLoginAttempt(currentPasswordIsValid, "password-change");
+    const retryAfter = await finishAuthAttempt(reservation.reservationId, currentPasswordIsValid);
     if (retryAfter > 0) {
       const retryMinutes = Math.max(1, Math.ceil(retryAfter / 60));
       return { error: `Слишком много попыток. Повторите примерно через ${retryMinutes} мин.` };
