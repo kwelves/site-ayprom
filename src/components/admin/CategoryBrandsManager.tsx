@@ -14,6 +14,7 @@ import {
   reorderCategoryBrands,
 } from "@/lib/admin/actions";
 import { useConfirmDelete } from "@/lib/admin/use-confirm-delete";
+import { MAX_VISUAL_SCALE, MIN_VISUAL_SCALE, VISUAL_SCALE_STEP } from "@/lib/admin/visual-scale";
 import { useAdminToast } from "@/components/admin/ui/AdminToastProvider";
 import type { AdminBrand, AdminCategoryBrand } from "@/lib/admin/queries";
 
@@ -132,7 +133,9 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
                 Масштаб
                 <Input
                   type="number"
-                  step="0.05"
+                  step={VISUAL_SCALE_STEP}
+                  min={MIN_VISUAL_SCALE}
+                  max={MAX_VISUAL_SCALE}
                   value={brand.logoScaleOverride ?? ""}
                   onChange={(event) => {
                     const parsed = event.target.value.trim() ? Number(event.target.value) : null;

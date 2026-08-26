@@ -23,6 +23,10 @@ const eslintConfig = defineConfig([
     // every developer who follows the local-stack workflow in README breaks
     // `npm run check`.
     "supabase/.temp/**",
+    // Временные рабочие каталоги релизных задач (.tmp-<задача>-<дата>/). Внутри
+    // лежит копия проекта целиком, поэтому без этого правила `npm run check`
+    // разбирает чужой черновик и выдаёт десятки тысяч замечаний вместо своих.
+    ".tmp-*/**",
   ]),
 ]);
 

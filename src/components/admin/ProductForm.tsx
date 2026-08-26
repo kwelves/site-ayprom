@@ -339,6 +339,12 @@ export function ProductForm({
           {mode === "create" ? "Новый товар" : `Редактировать: ${product?.name}`}
         </h1>
 
+        {/* Версия товара на момент открытия формы. Сервер сверяет её перед
+            записью, поэтому правка из устаревшей вкладки не затирает молча
+            более новую редакцию. Значение передаётся строкой без разбора в
+            Date: JS обрезал бы микросекунды и сравнение всегда падало бы. */}
+        {product && <input type="hidden" name="expectedUpdatedAt" value={product.updatedAt} />}
+
         <Collapsible title="Основное" defaultOpen>
           <ProductFormBasicSection
             mode={mode}

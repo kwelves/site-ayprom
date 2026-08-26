@@ -7,6 +7,7 @@ import { describeBrandUsage } from "@/lib/admin/usage-descriptions";
 import { slugify } from "@/lib/admin/slugify";
 import { compressFileInput } from "@/lib/admin/compress-image";
 import { useImageReplace } from "@/lib/admin/use-image-replace";
+import { MAX_VISUAL_SCALE, MIN_VISUAL_SCALE, VISUAL_SCALE_STEP } from "@/lib/admin/visual-scale";
 import { BackLink } from "@/components/admin/ui/BackLink";
 import { SubmitButton } from "@/components/admin/ui/SubmitButton";
 import { FormField } from "@/components/admin/ui/FormField";
@@ -94,7 +95,15 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
           htmlFor="logoScale"
           description="Необязательно — поправка масштаба, если у SVG много лишних полей."
         >
-          <Input id="logoScale" name="logoScale" type="number" step="0.05" defaultValue={brand?.logoScale} />
+          <Input
+            id="logoScale"
+            name="logoScale"
+            type="number"
+            step={VISUAL_SCALE_STEP}
+            min={MIN_VISUAL_SCALE}
+            max={MAX_VISUAL_SCALE}
+            defaultValue={brand?.logoScale}
+          />
         </FormField>
 
         <div>

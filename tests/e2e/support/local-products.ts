@@ -90,6 +90,51 @@ export async function cleanupOwnedCategory(fixture: OwnedCategoryFixture): Promi
   if (deleteError) throw deleteError;
 }
 
+/**
+ * Один товар напрямую в базе — для сценариев, где создание через форму не
+ * является предметом теста и только замедляет прогон.
+ */
+export async function createOwnedProductFixture(categorySlug: string, name: string): Promise<string> {
+  assertOwnedSlug(categorySlug);
+  const supabase = getLocalAdminClient();
+  const slug = `${E2E_PRODUCT_PREFIX}product-${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
+  const { error } = await supabase.from("products").insert({
+    slug,
+    name,
+    category_slug: categorySlug,
+    short_description: "Owned local Playwright fixture",
+    published: false,
+    availability: "in_stock",
+    order: 1_000_000,
+  });
+  if (error) throw error;
+  return slug;
+}
+
+/**
+ * Имитирует правку товара другим администратором: двигает версию строки, не
+ * меняя содержимого. Форма, открытая до этого момента, становится устаревшей —
+ * ровно тот случай, который должна поймать проверка версии (QA-002).
+ */
+export async function touchOwnedProduct(slug: string): Promise<void> {
+  assertOwnedSlug(slug);
+  const supabase = getLocalAdminClient();
+  const { error } = await supabase
+    .from("products")
+    .update({ updated_at: new Date().toISOString() })
+    .eq("slug", slug);
+  if (error) throw error;
+}
+
+/** Текущее имя товара — чтобы доказать, что отклонённое сохранение ничего не изменило. */
+export async function readOwnedProductName(slug: string): Promise<string | null> {
+  assertOwnedSlug(slug);
+  const supabase = getLocalAdminClient();
+  const { data, error } = await supabase.from("products").select("name").eq("slug", slug).maybeSingle();
+  if (error) throw error;
+  return data?.name ?? null;
+}
+
 export async function createOwnedCatalogFixture(): Promise<OwnedCatalogFixture> {
   const supabase = getLocalAdminClient();
   const runId = `${Date.now()}${Math.random().toString(36).slice(2, 8)}`;

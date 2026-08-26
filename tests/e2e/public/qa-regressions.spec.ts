@@ -2,13 +2,19 @@ import { expect, test } from "../support/browser-observer";
 import { HERO_VIDEO_PATH_FRAGMENT, stubLocalHeroVideo } from "../support/media";
 import { assertCriticalControlsInsideViewport, assertNoHorizontalOverflow } from "../support/responsive";
 
-test.fixme("[QA-002] product relations rollback атомарно", async () => {
-  // Pending phase 2: browser flow cannot inject each child-table failure; pgTAP plus integration evidence is required.
-});
-
-test.fixme("[QA-003] reorder отвергает duplicate/foreign/unknown/missing IDs", async () => {
-  // Pending phase 2: strict RPC contracts and failure-injection fixtures do not exist yet.
-});
+// QA-002 и QA-003 закрыты в фазе 2 и намеренно не имеют браузерных проб здесь.
+//
+// Их суть — поведение базы при сбое и при некорректном входе, а браузер не может
+// ни прервать транзакцию на середине, ни отправить набор идентификаторов, которого
+// интерфейс не формирует. Проба, «проверяющая» это через UI, была бы имитацией.
+//
+// Где доказано на самом деле:
+//   QA-002 — supabase/tests/database/atomic_product_mutations.test.sql (откат
+//            после вставки, конфликт версий) и admin/product-crud.spec.ts,
+//            где проверяется видимость отказа для администратора;
+//   QA-003 — supabase/tests/database/reorder_contracts.test.sql (дубликаты,
+//            чужие и неизвестные идентификаторы, семантика слотов) и
+//            tests/reorder-scope-arguments.test.ts (передача родителя в RPC).
 
 test.fixme("[QA-004] create загружает несколько файлов независимо через staging", async () => {
   // Pending phase 3: current create-mode still sends one multipart Server Action request and no private staging exists.
@@ -89,6 +95,16 @@ test("[QA-011] production response не раскрывает X-Powered-By", asyn
   expect(poweredBy).toBeUndefined();
 });
 
-test.fixme("[QA-012] image scale bounds и spoofed content validation", async () => {
-  // Pending phases 2/3: measured limits and server-side content validation do not exist yet.
+// QA-012 состоит из двух половин, и закрыта пока одна.
+//
+// Границы масштаба закрыты в фазе 2: значения измерены по реальным данным,
+// закреплены в UI, на сервере и CHECK-констрейнтами в базе. Доказано в
+// supabase/tests/database/visual_scale_bounds.test.sql и tests/visual-scale.test.ts.
+// Браузерной пробы здесь нет намеренно: последний рубеж — констрейнт базы,
+// а через интерфейс до него не добраться.
+//
+// Вторая половина ниже остаётся открытой.
+test.fixme("[QA-012] server-side content validation отвергает spoofed формат файла", async () => {
+  // Pending phase 3: проверка содержимого загружаемого файла (а не только имени и
+  // MIME) появится вместе со staged upload — см. QA-004.
 });

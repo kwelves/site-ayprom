@@ -311,6 +311,12 @@ export interface AdminProduct {
   availability: ProductAvailability;
   metaTitle?: string;
   metaDescription?: string;
+  /** Версия строки для оптимистической блокировки при сохранении.
+   *
+   * Хранится и передаётся строго как строка из базы. Разбор в `Date` обрежет
+   * микросекунды до миллисекунд, и сравнение версий начнёт ложно срабатывать
+   * как конфликт. */
+  updatedAt: string;
   compatibleBrands: string[];
   vehicleTypes: string[];
   images: { id: string; url: string; order: number; scale: number | null }[];
@@ -323,7 +329,7 @@ export interface AdminProduct {
 
 const ADMIN_PRODUCT_SELECT = `
   id, slug, name, category_slug, short_description, description, article, published,
-  availability, meta_title, meta_description,
+  availability, meta_title, meta_description, updated_at,
   subcategories(slug),
   product_images(id, url, "order", scale),
   product_characteristics(id, attribute, value, "order"),
@@ -344,6 +350,7 @@ interface AdminProductRow {
   availability: ProductAvailability;
   meta_title: string | null;
   meta_description: string | null;
+  updated_at: string;
   subcategories: { slug: string } | null;
   product_images: { id: string; url: string; order: number; scale: number | null }[];
   product_characteristics: { id: string; attribute: string; value: string; order: number }[];
@@ -381,6 +388,7 @@ export async function getAdminProduct(slug: string): Promise<AdminProduct | null
     availability: row.availability,
     metaTitle: row.meta_title ?? undefined,
     metaDescription: row.meta_description ?? undefined,
+    updatedAt: row.updated_at,
     compatibleBrands: row.product_brands.map((pb) => pb.brand_slug),
     vehicleTypes: row.product_vehicle_types.map((pvt) => pvt.vehicle_type_slug),
     images: [...row.product_images].sort((a, b) => a.order - b.order),

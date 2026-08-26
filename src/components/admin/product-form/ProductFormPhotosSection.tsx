@@ -7,6 +7,7 @@ import { SortableList } from "@/components/admin/SortableList";
 import { ProgressBar } from "@/components/admin/ui/ProgressBar";
 import { ProductPhotoModeSelect } from "@/components/admin/ProductPhotoModeSelect";
 import { usesScriptProcessing, type ProductPhotoMode } from "@/lib/admin/product-photo-mode";
+import { MAX_VISUAL_SCALE, MIN_VISUAL_SCALE, VISUAL_SCALE_STEP } from "@/lib/admin/visual-scale";
 import type { AdminProduct } from "@/lib/admin/queries";
 
 interface ProductImage {
@@ -96,7 +97,9 @@ export function ProductFormPhotosSection({
                   Масштаб
                   <Input
                     type="number"
-                    step="0.05"
+                    step={VISUAL_SCALE_STEP}
+                    min={MIN_VISUAL_SCALE}
+                    max={MAX_VISUAL_SCALE}
                     defaultValue={img.scale ?? undefined}
                     onBlur={(e) => onImageScaleBlur(img.id, e.target.value)}
                     className="w-20"

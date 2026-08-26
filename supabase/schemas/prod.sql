@@ -484,23 +484,66 @@ ALTER FUNCTION "public"."search_catalog_products"("search_query" "text", "catego
 -- исчерпание пула соединений и частичный сбой без отката — порядок оставался
 -- в противоречивом состоянии.
 --
--- reorder_products устроен иначе остальных: он не перенумеровывает записи
--- подряд, а перераспределяет уже занятые ими значения "order". Набор значений
--- сохраняется, товары вне выборки не затрагиваются. Благодаря этому порядок
--- остаётся сквозным по всему каталогу, а перетаскивание работает в любом
--- отфильтрованном или постраничном срезе — иначе при 2000 товарах пришлось бы
--- либо отказаться от сортировки мышью, либо сделать порядок внутрикатегорийным.
-CREATE OR REPLACE FUNCTION "public"."reorder_products"("ordered_slugs" "text"[]) RETURNS "void"
-    LANGUAGE "sql"
+-- Все reorder-функции используют одну модель: они не перенумеровывают записи
+-- подряд, а перераспределяют уже занятые набором значения "order". Набор
+-- значений сохраняется, записи вне выборки не затрагиваются. Благодаря этому
+-- порядок остаётся сквозным, а перетаскивание работает в любом отфильтрованном
+-- или постраничном срезе — иначе при 2000 товарах пришлось бы либо отказаться от
+-- сортировки мышью, либо сделать порядок внутрикатегорийным.
+--
+-- Контракт набора общий (assert_reorder_identifiers) и строгий: NULL, дубликаты,
+-- неизвестные и чужие идентификаторы отвергаются до какого-либо изменения.
+-- Подкатегории, фотографии и бренды категории дополнительно ограничены
+-- родителем, который передаётся явным аргументом.
+
+CREATE OR REPLACE FUNCTION "public"."assert_reorder_identifiers"("identifiers" "anyarray") RETURNS "void"
+    LANGUAGE "plpgsql"
     SET "search_path" TO ''
     AS $$
+begin
+  if identifiers is null then
+    raise exception 'Не передан список порядка.' using errcode = '22023';
+  end if;
+
+  if exists (select 1 from unnest(identifiers) as "entry"("id") where "entry"."id" is null) then
+    raise exception 'Список порядка содержит пустой идентификатор.' using errcode = '22023';
+  end if;
+
+  if (select count(*) from unnest(identifiers) as "entry"("id"))
+     <> (select count(distinct "entry"."id") from unnest(identifiers) as "entry"("id")) then
+    raise exception 'Список порядка содержит повторяющиеся идентификаторы.' using errcode = '22023';
+  end if;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."assert_reorder_identifiers"("identifiers" "anyarray") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."reorder_products"("ordered_slugs" "text"[]) RETURNS "void"
+    LANGUAGE "plpgsql"
+    SET "search_path" TO ''
+    AS $$
+declare
+  "provided" integer;
+  "matched" integer;
+begin
+  perform "public"."assert_reorder_identifiers"("ordered_slugs");
+  "provided" := coalesce(array_length("ordered_slugs", 1), 0);
+  if "provided" = 0 then return; end if;
+
+  select count(*) into "matched" from "public"."products" where "slug" = any("ordered_slugs");
+  if "matched" <> "provided" then
+    raise exception 'Список порядка содержит неизвестные товары.' using errcode = '22023';
+  end if;
+
   with "desired" as (
     select "slug", "ordinality" as "position"
     from unnest("ordered_slugs") with ordinality as "u"("slug", "ordinality")
   ), "slots" as (
     select
       "product"."order" as "slot",
-      row_number() over (order by "product"."order", "product"."name") as "position"
+      row_number() over (order by "product"."order", "product"."slug") as "position"
     from "public"."products" as "product"
     join "desired" on "desired"."slug" = "product"."slug"
   )
@@ -510,6 +553,7 @@ CREATE OR REPLACE FUNCTION "public"."reorder_products"("ordered_slugs" "text"[])
   join "slots" on "slots"."position" = "desired"."position"
   where "product"."slug" = "desired"."slug"
     and "product"."order" is distinct from "slots"."slot";
+end;
 $$;
 
 
@@ -517,14 +561,39 @@ ALTER FUNCTION "public"."reorder_products"("ordered_slugs" "text"[]) OWNER TO "p
 
 
 CREATE OR REPLACE FUNCTION "public"."reorder_brands"("ordered_slugs" "text"[]) RETURNS "void"
-    LANGUAGE "sql"
+    LANGUAGE "plpgsql"
     SET "search_path" TO ''
     AS $$
+declare
+  "provided" integer;
+  "matched" integer;
+begin
+  perform "public"."assert_reorder_identifiers"("ordered_slugs");
+  "provided" := coalesce(array_length("ordered_slugs", 1), 0);
+  if "provided" = 0 then return; end if;
+
+  select count(*) into "matched" from "public"."brands" where "slug" = any("ordered_slugs");
+  if "matched" <> "provided" then
+    raise exception 'Список порядка содержит неизвестные бренды.' using errcode = '22023';
+  end if;
+
+  with "desired" as (
+    select "slug", "ordinality" as "position"
+    from unnest("ordered_slugs") with ordinality as "u"("slug", "ordinality")
+  ), "slots" as (
+    select
+      "brand"."order" as "slot",
+      row_number() over (order by "brand"."order", "brand"."slug") as "position"
+    from "public"."brands" as "brand"
+    join "desired" on "desired"."slug" = "brand"."slug"
+  )
   update "public"."brands" as "brand"
-  set "order" = ("desired"."ordinality" - 1)::integer
-  from unnest("ordered_slugs") with ordinality as "desired"("slug", "ordinality")
+  set "order" = "slots"."slot"
+  from "desired"
+  join "slots" on "slots"."position" = "desired"."position"
   where "brand"."slug" = "desired"."slug"
-    and "brand"."order" is distinct from ("desired"."ordinality" - 1)::integer;
+    and "brand"."order" is distinct from "slots"."slot";
+end;
 $$;
 
 
@@ -532,14 +601,39 @@ ALTER FUNCTION "public"."reorder_brands"("ordered_slugs" "text"[]) OWNER TO "pos
 
 
 CREATE OR REPLACE FUNCTION "public"."reorder_categories"("ordered_slugs" "text"[]) RETURNS "void"
-    LANGUAGE "sql"
+    LANGUAGE "plpgsql"
     SET "search_path" TO ''
     AS $$
+declare
+  "provided" integer;
+  "matched" integer;
+begin
+  perform "public"."assert_reorder_identifiers"("ordered_slugs");
+  "provided" := coalesce(array_length("ordered_slugs", 1), 0);
+  if "provided" = 0 then return; end if;
+
+  select count(*) into "matched" from "public"."categories" where "slug" = any("ordered_slugs");
+  if "matched" <> "provided" then
+    raise exception 'Список порядка содержит неизвестные категории.' using errcode = '22023';
+  end if;
+
+  with "desired" as (
+    select "slug", "ordinality" as "position"
+    from unnest("ordered_slugs") with ordinality as "u"("slug", "ordinality")
+  ), "slots" as (
+    select
+      "category"."order" as "slot",
+      row_number() over (order by "category"."order", "category"."slug") as "position"
+    from "public"."categories" as "category"
+    join "desired" on "desired"."slug" = "category"."slug"
+  )
   update "public"."categories" as "category"
-  set "order" = ("desired"."ordinality" - 1)::integer
-  from unnest("ordered_slugs") with ordinality as "desired"("slug", "ordinality")
+  set "order" = "slots"."slot"
+  from "desired"
+  join "slots" on "slots"."position" = "desired"."position"
   where "category"."slug" = "desired"."slug"
-    and "category"."order" is distinct from ("desired"."ordinality" - 1)::integer;
+    and "category"."order" is distinct from "slots"."slot";
+end;
 $$;
 
 
@@ -547,65 +641,478 @@ ALTER FUNCTION "public"."reorder_categories"("ordered_slugs" "text"[]) OWNER TO 
 
 
 CREATE OR REPLACE FUNCTION "public"."reorder_vehicle_types"("ordered_slugs" "text"[]) RETURNS "void"
-    LANGUAGE "sql"
+    LANGUAGE "plpgsql"
     SET "search_path" TO ''
     AS $$
+declare
+  "provided" integer;
+  "matched" integer;
+begin
+  perform "public"."assert_reorder_identifiers"("ordered_slugs");
+  "provided" := coalesce(array_length("ordered_slugs", 1), 0);
+  if "provided" = 0 then return; end if;
+
+  select count(*) into "matched" from "public"."vehicle_types" where "slug" = any("ordered_slugs");
+  if "matched" <> "provided" then
+    raise exception 'Список порядка содержит неизвестные типы техники.' using errcode = '22023';
+  end if;
+
+  with "desired" as (
+    select "slug", "ordinality" as "position"
+    from unnest("ordered_slugs") with ordinality as "u"("slug", "ordinality")
+  ), "slots" as (
+    select
+      "vehicle_type"."order" as "slot",
+      row_number() over (order by "vehicle_type"."order", "vehicle_type"."slug") as "position"
+    from "public"."vehicle_types" as "vehicle_type"
+    join "desired" on "desired"."slug" = "vehicle_type"."slug"
+  )
   update "public"."vehicle_types" as "vehicle_type"
-  set "order" = ("desired"."ordinality" - 1)::integer
-  from unnest("ordered_slugs") with ordinality as "desired"("slug", "ordinality")
+  set "order" = "slots"."slot"
+  from "desired"
+  join "slots" on "slots"."position" = "desired"."position"
   where "vehicle_type"."slug" = "desired"."slug"
-    and "vehicle_type"."order" is distinct from ("desired"."ordinality" - 1)::integer;
+    and "vehicle_type"."order" is distinct from "slots"."slot";
+end;
 $$;
 
 
 ALTER FUNCTION "public"."reorder_vehicle_types"("ordered_slugs" "text"[]) OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."reorder_subcategories"("ordered_ids" "uuid"[]) RETURNS "void"
-    LANGUAGE "sql"
+CREATE OR REPLACE FUNCTION "public"."reorder_subcategories"("target_category_slug" "text", "ordered_ids" "uuid"[]) RETURNS "void"
+    LANGUAGE "plpgsql"
     SET "search_path" TO ''
     AS $$
+declare
+  "provided" integer;
+  "matched" integer;
+begin
+  perform "public"."assert_reorder_identifiers"("ordered_ids");
+  if "target_category_slug" is null then
+    raise exception 'Не передана категория для порядка подкатегорий.' using errcode = '22023';
+  end if;
+  "provided" := coalesce(array_length("ordered_ids", 1), 0);
+  if "provided" = 0 then return; end if;
+
+  select count(*) into "matched"
+  from "public"."subcategories"
+  where "id" = any("ordered_ids") and "category_slug" = "target_category_slug";
+
+  if "matched" <> "provided" then
+    raise exception 'Список порядка содержит подкатегории другой категории или несуществующие.' using errcode = '22023';
+  end if;
+
+  with "desired" as (
+    select "id", "ordinality" as "position"
+    from unnest("ordered_ids") with ordinality as "u"("id", "ordinality")
+  ), "slots" as (
+    select
+      "subcategory"."order" as "slot",
+      row_number() over (order by "subcategory"."order", "subcategory"."id") as "position"
+    from "public"."subcategories" as "subcategory"
+    join "desired" on "desired"."id" = "subcategory"."id"
+    where "subcategory"."category_slug" = "target_category_slug"
+  )
   update "public"."subcategories" as "subcategory"
-  set "order" = ("desired"."ordinality" - 1)::integer
-  from unnest("ordered_ids") with ordinality as "desired"("id", "ordinality")
+  set "order" = "slots"."slot"
+  from "desired"
+  join "slots" on "slots"."position" = "desired"."position"
   where "subcategory"."id" = "desired"."id"
-    and "subcategory"."order" is distinct from ("desired"."ordinality" - 1)::integer;
+    and "subcategory"."category_slug" = "target_category_slug"
+    and "subcategory"."order" is distinct from "slots"."slot";
+end;
 $$;
 
 
-ALTER FUNCTION "public"."reorder_subcategories"("ordered_ids" "uuid"[]) OWNER TO "postgres";
+ALTER FUNCTION "public"."reorder_subcategories"("target_category_slug" "text", "ordered_ids" "uuid"[]) OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."reorder_product_images"("ordered_ids" "uuid"[]) RETURNS "void"
-    LANGUAGE "sql"
+CREATE OR REPLACE FUNCTION "public"."reorder_product_images"("target_product_slug" "text", "ordered_ids" "uuid"[]) RETURNS "void"
+    LANGUAGE "plpgsql"
     SET "search_path" TO ''
     AS $$
+declare
+  "target_product_id" "uuid";
+  "provided" integer;
+  "matched" integer;
+begin
+  perform "public"."assert_reorder_identifiers"("ordered_ids");
+  if "target_product_slug" is null then
+    raise exception 'Не передан товар для порядка фотографий.' using errcode = '22023';
+  end if;
+  "provided" := coalesce(array_length("ordered_ids", 1), 0);
+  if "provided" = 0 then return; end if;
+
+  select "id" into "target_product_id" from "public"."products" where "slug" = "target_product_slug";
+  if "target_product_id" is null then
+    raise exception 'Товар для порядка фотографий не найден.' using errcode = '22023';
+  end if;
+
+  select count(*) into "matched"
+  from "public"."product_images"
+  where "id" = any("ordered_ids") and "product_id" = "target_product_id";
+
+  if "matched" <> "provided" then
+    raise exception 'Список порядка содержит фотографии другого товара или несуществующие.' using errcode = '22023';
+  end if;
+
+  with "desired" as (
+    select "id", "ordinality" as "position"
+    from unnest("ordered_ids") with ordinality as "u"("id", "ordinality")
+  ), "slots" as (
+    select
+      "image"."order" as "slot",
+      row_number() over (order by "image"."order", "image"."id") as "position"
+    from "public"."product_images" as "image"
+    join "desired" on "desired"."id" = "image"."id"
+    where "image"."product_id" = "target_product_id"
+  )
   update "public"."product_images" as "image"
-  set "order" = ("desired"."ordinality" - 1)::integer
-  from unnest("ordered_ids") with ordinality as "desired"("id", "ordinality")
+  set "order" = "slots"."slot"
+  from "desired"
+  join "slots" on "slots"."position" = "desired"."position"
   where "image"."id" = "desired"."id"
-    and "image"."order" is distinct from ("desired"."ordinality" - 1)::integer;
+    and "image"."product_id" = "target_product_id"
+    and "image"."order" is distinct from "slots"."slot";
+end;
 $$;
 
 
-ALTER FUNCTION "public"."reorder_product_images"("ordered_ids" "uuid"[]) OWNER TO "postgres";
+ALTER FUNCTION "public"."reorder_product_images"("target_product_slug" "text", "ordered_ids" "uuid"[]) OWNER TO "postgres";
 
 
--- Порядок брендов задаётся внутри категории, поэтому ключ составной.
 CREATE OR REPLACE FUNCTION "public"."reorder_category_brands"("target_category_slug" "text", "ordered_brand_slugs" "text"[]) RETURNS "void"
-    LANGUAGE "sql"
+    LANGUAGE "plpgsql"
     SET "search_path" TO ''
     AS $$
+declare
+  "provided" integer;
+  "matched" integer;
+begin
+  perform "public"."assert_reorder_identifiers"("ordered_brand_slugs");
+  if "target_category_slug" is null then
+    raise exception 'Не передана категория для порядка брендов.' using errcode = '22023';
+  end if;
+  "provided" := coalesce(array_length("ordered_brand_slugs", 1), 0);
+  if "provided" = 0 then return; end if;
+
+  select count(*) into "matched"
+  from "public"."category_brands"
+  where "brand_slug" = any("ordered_brand_slugs") and "category_slug" = "target_category_slug";
+
+  if "matched" <> "provided" then
+    raise exception 'Список порядка содержит бренды, не привязанные к этой категории.' using errcode = '22023';
+  end if;
+
+  with "desired" as (
+    select "brand_slug", "ordinality" as "position"
+    from unnest("ordered_brand_slugs") with ordinality as "u"("brand_slug", "ordinality")
+  ), "slots" as (
+    select
+      "link"."order" as "slot",
+      row_number() over (order by "link"."order", "link"."brand_slug") as "position"
+    from "public"."category_brands" as "link"
+    join "desired" on "desired"."brand_slug" = "link"."brand_slug"
+    where "link"."category_slug" = "target_category_slug"
+  )
   update "public"."category_brands" as "link"
-  set "order" = ("desired"."ordinality" - 1)::integer
-  from unnest("ordered_brand_slugs") with ordinality as "desired"("brand_slug", "ordinality")
-  where "link"."category_slug" = "target_category_slug"
-    and "link"."brand_slug" = "desired"."brand_slug"
-    and "link"."order" is distinct from ("desired"."ordinality" - 1)::integer;
+  set "order" = "slots"."slot"
+  from "desired"
+  join "slots" on "slots"."position" = "desired"."position"
+  where "link"."brand_slug" = "desired"."brand_slug"
+    and "link"."category_slug" = "target_category_slug"
+    and "link"."order" is distinct from "slots"."slot";
+end;
 $$;
 
 
 ALTER FUNCTION "public"."reorder_category_brands"("target_category_slug" "text", "ordered_brand_slugs" "text"[]) OWNER TO "postgres";
+
+
+
+-- Создание и редактирование товара выполняются одной транзакцией: строка
+-- товара, характеристики, бренды, типы техники и публикация меняются вместе,
+-- поэтому частичный товар невозможен без компенсирующей логики. Обновление
+-- дополнительно проверяет версию (expected_updated_at) и удерживает строку
+-- FOR UPDATE, чтобы правка из устаревшей вкладки не затирала более новую.
+--
+-- Фотографии сюда не входят: Storage не участвует в транзакции Postgres, его
+-- жизненный цикл — предмет отдельной фазы.
+
+CREATE OR REPLACE FUNCTION "public"."resolve_product_references"(
+  "p_category_slug" "text",
+  "p_subcategory_slug" "text",
+  "p_compatible_brands" "text"[],
+  "p_vehicle_types" "text"[]
+) RETURNS "uuid"
+    LANGUAGE "plpgsql"
+    SET "search_path" TO ''
+    AS $$
+declare
+  "v_subcategory_id" "uuid";
+begin
+  if "p_compatible_brands" is not null
+     and array_position("p_compatible_brands", null) is not null then
+    raise exception 'Список брендов содержит пустое значение.' using errcode = '22023';
+  end if;
+  if "p_vehicle_types" is not null
+     and array_position("p_vehicle_types", null) is not null then
+    raise exception 'Список типов техники содержит пустое значение.' using errcode = '22023';
+  end if;
+
+  if (select count(*) from unnest(coalesce("p_compatible_brands", '{}')) as "b"("slug"))
+     <> (select count(distinct "b"."slug") from unnest(coalesce("p_compatible_brands", '{}')) as "b"("slug")) then
+    raise exception 'Один бренд нельзя выбрать несколько раз.' using errcode = '22023';
+  end if;
+  if (select count(*) from unnest(coalesce("p_vehicle_types", '{}')) as "v"("slug"))
+     <> (select count(distinct "v"."slug") from unnest(coalesce("p_vehicle_types", '{}')) as "v"("slug")) then
+    raise exception 'Один тип техники нельзя выбрать несколько раз.' using errcode = '22023';
+  end if;
+
+  if not exists (select 1 from "public"."categories" where "slug" = "p_category_slug") then
+    raise exception 'Выбранная категория не найдена.' using errcode = '22023';
+  end if;
+
+  if (select count(*) from "public"."brands"
+      where "slug" = any(coalesce("p_compatible_brands", '{}')))
+     <> coalesce(array_length("p_compatible_brands", 1), 0) then
+    raise exception 'Один из выбранных брендов не найден.' using errcode = '22023';
+  end if;
+
+  if (select count(*) from "public"."vehicle_types"
+      where "slug" = any(coalesce("p_vehicle_types", '{}')))
+     <> coalesce(array_length("p_vehicle_types", 1), 0) then
+    raise exception 'Один из выбранных типов техники не найден.' using errcode = '22023';
+  end if;
+
+  if "p_subcategory_slug" is not null and "p_subcategory_slug" <> '' then
+    select "id" into "v_subcategory_id"
+    from "public"."subcategories"
+    where "category_slug" = "p_category_slug" and "slug" = "p_subcategory_slug";
+
+    if "v_subcategory_id" is null then
+      raise exception 'Выбранная подкатегория не принадлежит выбранной категории.' using errcode = '22023';
+    end if;
+  end if;
+
+  return "v_subcategory_id";
+end;
+$$;
+
+
+ALTER FUNCTION "public"."resolve_product_references"("p_category_slug" "text", "p_subcategory_slug" "text", "p_compatible_brands" "text"[], "p_vehicle_types" "text"[]) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."write_product_characteristics"(
+  "p_product_id" "uuid",
+  "p_characteristics" "jsonb"
+) RETURNS "void"
+    LANGUAGE "plpgsql"
+    SET "search_path" TO ''
+    AS $$
+begin
+  if "p_characteristics" is null then
+    return;
+  end if;
+  if jsonb_typeof("p_characteristics") <> 'array' then
+    raise exception 'Характеристики должны быть массивом.' using errcode = '22023';
+  end if;
+
+  if exists (
+    select 1
+    from jsonb_array_elements("p_characteristics") as "entry"
+    where coalesce(btrim("entry"->>'attribute'), '') = ''
+       or coalesce(btrim("entry"->>'value'), '') = ''
+  ) then
+    raise exception 'Характеристика не может иметь пустое название или значение.' using errcode = '22023';
+  end if;
+
+  insert into "public"."product_characteristics" ("product_id", "attribute", "value", "order")
+  select
+    "p_product_id",
+    btrim("entry"->>'attribute'),
+    btrim("entry"->>'value'),
+    ("ordinality" - 1)::integer
+  from jsonb_array_elements("p_characteristics") with ordinality as "t"("entry", "ordinality");
+end;
+$$;
+
+
+ALTER FUNCTION "public"."write_product_characteristics"("p_product_id" "uuid", "p_characteristics" "jsonb") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."create_product_with_relations"(
+  "p_slug_base" "text",
+  "p_name" "text",
+  "p_category_slug" "text",
+  "p_subcategory_slug" "text",
+  "p_short_description" "text",
+  "p_description" "text",
+  "p_article" "text",
+  "p_published" boolean,
+  "p_availability" "public"."product_availability",
+  "p_meta_title" "text",
+  "p_meta_description" "text",
+  "p_characteristics" "jsonb",
+  "p_compatible_brands" "text"[],
+  "p_vehicle_types" "text"[]
+-- Выходные колонки названы out_*: имена RETURNS TABLE становятся переменными
+-- PL/pgSQL, и колонка с именем "slug" конфликтовала бы с products.slug внутри
+-- цикла подбора уникального значения.
+) RETURNS TABLE("out_id" "uuid", "out_slug" "text")
+    LANGUAGE "plpgsql"
+    SET "search_path" TO ''
+    AS $$
+declare
+  "v_subcategory_id" "uuid";
+  "v_slug" "text";
+  "v_base" "text";
+  "v_suffix" integer := 2;
+  "v_order" integer;
+  "v_product_id" "uuid";
+begin
+  if coalesce(btrim("p_name"), '') = '' then
+    raise exception 'Заполните обязательные поля: название, категория.' using errcode = '22023';
+  end if;
+  if coalesce(btrim("p_category_slug"), '') = '' then
+    raise exception 'Заполните обязательные поля: название, категория.' using errcode = '22023';
+  end if;
+
+  "v_subcategory_id" := "public"."resolve_product_references"(
+    "p_category_slug", "p_subcategory_slug", "p_compatible_brands", "p_vehicle_types"
+  );
+
+  "v_base" := coalesce(nullif(btrim("p_slug_base"), ''), 'product');
+  "v_slug" := "v_base";
+  while exists (select 1 from "public"."products" where "slug" = "v_slug") loop
+    "v_slug" := "v_base" || '-' || "v_suffix";
+    "v_suffix" := "v_suffix" + 1;
+  end loop;
+
+  select coalesce(max("order"), -1) + 1 into "v_order" from "public"."products";
+
+  insert into "public"."products" (
+    "slug", "name", "category_slug", "subcategory_id", "short_description", "description",
+    "article", "published", "availability", "meta_title", "meta_description", "order"
+  ) values (
+    "v_slug", btrim("p_name"), "p_category_slug", "v_subcategory_id", "p_short_description",
+    "p_description", "p_article", "p_published", "p_availability", "p_meta_title",
+    "p_meta_description", "v_order"
+  )
+  returning "products"."id" into "v_product_id";
+
+  perform "public"."write_product_characteristics"("v_product_id", "p_characteristics");
+
+  insert into "public"."product_brands" ("product_id", "brand_slug")
+  select "v_product_id", "b"."slug" from unnest(coalesce("p_compatible_brands", '{}')) as "b"("slug");
+
+  insert into "public"."product_vehicle_types" ("product_id", "vehicle_type_slug")
+  select "v_product_id", "v"."slug" from unnest(coalesce("p_vehicle_types", '{}')) as "v"("slug");
+
+  return query select "v_product_id", "v_slug";
+end;
+$$;
+
+
+ALTER FUNCTION "public"."create_product_with_relations"("p_slug_base" "text", "p_name" "text", "p_category_slug" "text", "p_subcategory_slug" "text", "p_short_description" "text", "p_description" "text", "p_article" "text", "p_published" boolean, "p_availability" "public"."product_availability", "p_meta_title" "text", "p_meta_description" "text", "p_characteristics" "jsonb", "p_compatible_brands" "text"[], "p_vehicle_types" "text"[]) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."update_product_with_relations"(
+  "p_slug" "text",
+  "p_expected_updated_at" timestamp with time zone,
+  "p_name" "text",
+  "p_category_slug" "text",
+  "p_subcategory_slug" "text",
+  "p_short_description" "text",
+  "p_description" "text",
+  "p_article" "text",
+  "p_published" boolean,
+  "p_availability" "public"."product_availability",
+  "p_meta_title" "text",
+  "p_meta_description" "text",
+  "p_characteristics" "jsonb",
+  "p_compatible_brands" "text"[],
+  "p_vehicle_types" "text"[]
+) RETURNS TABLE("out_id" "uuid", "out_updated_at" timestamp with time zone)
+    LANGUAGE "plpgsql"
+    SET "search_path" TO ''
+    AS $$
+declare
+  "v_subcategory_id" "uuid";
+  "v_product_id" "uuid";
+  "v_current_updated_at" timestamp with time zone;
+  "v_new_updated_at" timestamp with time zone;
+begin
+  if coalesce(btrim("p_name"), '') = '' then
+    raise exception 'Заполните обязательные поля: название, категория.' using errcode = '22023';
+  end if;
+  if coalesce(btrim("p_category_slug"), '') = '' then
+    raise exception 'Заполните обязательные поля: название, категория.' using errcode = '22023';
+  end if;
+  if "p_expected_updated_at" is null then
+    raise exception 'Форма не передала версию товара. Обновите страницу и повторите.' using errcode = '22023';
+  end if;
+
+  "v_subcategory_id" := "public"."resolve_product_references"(
+    "p_category_slug", "p_subcategory_slug", "p_compatible_brands", "p_vehicle_types"
+  );
+
+  -- FOR UPDATE удерживает строку до конца транзакции: два параллельных
+  -- сохранения выстраиваются в очередь, и второе увидит уже новую версию,
+  -- а не перезапишет чужую правку.
+  select "products"."id", "products"."updated_at"
+    into "v_product_id", "v_current_updated_at"
+  from "public"."products"
+  where "products"."slug" = "p_slug"
+  for update;
+
+  if "v_product_id" is null then
+    raise exception 'Товар не найден.' using errcode = '22023';
+  end if;
+
+  if "v_current_updated_at" is distinct from "p_expected_updated_at" then
+    raise exception 'Товар был изменён другим администратором. Обновите страницу, чтобы увидеть актуальную версию.'
+      using errcode = '55000';
+  end if;
+
+  "v_new_updated_at" := now();
+
+  -- Публикация записывается здесь же, а не отдельным запросом после связей:
+  -- прежде порядок был важен, потому что триггер отвязки хотспотов мог
+  -- сработать до сбоя на связях. Внутри транзакции его эффект откатывается
+  -- вместе со всем остальным, поэтому разделение больше не нужно.
+  update "public"."products" set
+    "name" = btrim("p_name"),
+    "category_slug" = "p_category_slug",
+    "subcategory_id" = "v_subcategory_id",
+    "short_description" = "p_short_description",
+    "description" = "p_description",
+    "article" = "p_article",
+    "published" = "p_published",
+    "availability" = "p_availability",
+    "meta_title" = "p_meta_title",
+    "meta_description" = "p_meta_description",
+    "updated_at" = "v_new_updated_at"
+  where "products"."id" = "v_product_id";
+
+  delete from "public"."product_characteristics" where "product_id" = "v_product_id";
+  perform "public"."write_product_characteristics"("v_product_id", "p_characteristics");
+
+  delete from "public"."product_brands" where "product_id" = "v_product_id";
+  insert into "public"."product_brands" ("product_id", "brand_slug")
+  select "v_product_id", "b"."slug" from unnest(coalesce("p_compatible_brands", '{}')) as "b"("slug");
+
+  delete from "public"."product_vehicle_types" where "product_id" = "v_product_id";
+  insert into "public"."product_vehicle_types" ("product_id", "vehicle_type_slug")
+  select "v_product_id", "v"."slug" from unnest(coalesce("p_vehicle_types", '{}')) as "v"("slug");
+
+  return query select "v_product_id", "v_new_updated_at";
+end;
+$$;
+
+
+ALTER FUNCTION "public"."update_product_with_relations"("p_slug" "text", "p_expected_updated_at" timestamp with time zone, "p_name" "text", "p_category_slug" "text", "p_subcategory_slug" "text", "p_short_description" "text", "p_description" "text", "p_article" "text", "p_published" boolean, "p_availability" "public"."product_availability", "p_meta_title" "text", "p_meta_description" "text", "p_characteristics" "jsonb", "p_compatible_brands" "text"[], "p_vehicle_types" "text"[]) OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."update_vehicle_hotspots"("target_vehicle_type_slug" "text", "hotspot_updates" "jsonb") RETURNS "void"
@@ -1158,7 +1665,8 @@ CREATE TABLE IF NOT EXISTS "public"."brands" (
     "logo" "text" NOT NULL,
     "logo_scale" numeric,
     "order" integer DEFAULT 0 NOT NULL,
-    "aliases" "text"[] DEFAULT '{}'::"text"[] NOT NULL
+    "aliases" "text"[] DEFAULT '{}'::"text"[] NOT NULL,
+    CONSTRAINT "brands_logo_scale_bounds_check" CHECK ((("logo_scale" IS NULL) OR (("logo_scale" >= 0.1) AND ("logo_scale" <= 5.0))))
 );
 
 
@@ -1172,9 +1680,9 @@ CREATE TABLE IF NOT EXISTS "public"."categories" (
     "icon" "text" NOT NULL,
     "image" "text" NOT NULL,
     "intro" "text",
-    "type" "text" NOT NULL,
+    "type" "text",
     "order" integer DEFAULT 0 NOT NULL,
-    CONSTRAINT "categories_type_check" CHECK (("type" = ANY (ARRAY['subcategory'::"text", 'brand'::"text"])))
+    CONSTRAINT "categories_type_check" CHECK ((("type" IS NULL) OR ("type" = ANY (ARRAY['subcategory'::"text", 'brand'::"text"]))))
 );
 
 
@@ -1185,7 +1693,8 @@ CREATE TABLE IF NOT EXISTS "public"."category_brands" (
     "category_slug" "text" NOT NULL,
     "brand_slug" "text" NOT NULL,
     "logo_scale_override" numeric,
-    "order" integer DEFAULT 0 NOT NULL
+    "order" integer DEFAULT 0 NOT NULL,
+    CONSTRAINT "category_brands_logo_scale_override_bounds_check" CHECK ((("logo_scale_override" IS NULL) OR (("logo_scale_override" >= 0.1) AND ("logo_scale_override" <= 5.0))))
 );
 
 
@@ -1218,7 +1727,8 @@ CREATE TABLE IF NOT EXISTS "public"."product_images" (
     "product_id" "uuid" NOT NULL,
     "url" "text" NOT NULL,
     "order" integer DEFAULT 0 NOT NULL,
-    "scale" numeric
+    "scale" numeric,
+    CONSTRAINT "product_images_scale_bounds_check" CHECK ((("scale" IS NULL) OR (("scale" >= 0.1) AND ("scale" <= 5.0))))
 );
 
 
@@ -1763,14 +2273,29 @@ GRANT ALL ON FUNCTION "public"."reorder_categories"("ordered_slugs" "text"[]) TO
 REVOKE ALL ON FUNCTION "public"."reorder_vehicle_types"("ordered_slugs" "text"[]) FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."reorder_vehicle_types"("ordered_slugs" "text"[]) TO "service_role";
 
-REVOKE ALL ON FUNCTION "public"."reorder_subcategories"("ordered_ids" "uuid"[]) FROM PUBLIC;
-GRANT ALL ON FUNCTION "public"."reorder_subcategories"("ordered_ids" "uuid"[]) TO "service_role";
+REVOKE ALL ON FUNCTION "public"."assert_reorder_identifiers"("identifiers" "anyarray") FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."assert_reorder_identifiers"("identifiers" "anyarray") TO "service_role";
 
-REVOKE ALL ON FUNCTION "public"."reorder_product_images"("ordered_ids" "uuid"[]) FROM PUBLIC;
-GRANT ALL ON FUNCTION "public"."reorder_product_images"("ordered_ids" "uuid"[]) TO "service_role";
+REVOKE ALL ON FUNCTION "public"."reorder_subcategories"("target_category_slug" "text", "ordered_ids" "uuid"[]) FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."reorder_subcategories"("target_category_slug" "text", "ordered_ids" "uuid"[]) TO "service_role";
+
+REVOKE ALL ON FUNCTION "public"."reorder_product_images"("target_product_slug" "text", "ordered_ids" "uuid"[]) FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."reorder_product_images"("target_product_slug" "text", "ordered_ids" "uuid"[]) TO "service_role";
 
 REVOKE ALL ON FUNCTION "public"."reorder_category_brands"("target_category_slug" "text", "ordered_brand_slugs" "text"[]) FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."reorder_category_brands"("target_category_slug" "text", "ordered_brand_slugs" "text"[]) TO "service_role";
+
+REVOKE ALL ON FUNCTION "public"."resolve_product_references"("p_category_slug" "text", "p_subcategory_slug" "text", "p_compatible_brands" "text"[], "p_vehicle_types" "text"[]) FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."resolve_product_references"("p_category_slug" "text", "p_subcategory_slug" "text", "p_compatible_brands" "text"[], "p_vehicle_types" "text"[]) TO "service_role";
+
+REVOKE ALL ON FUNCTION "public"."write_product_characteristics"("p_product_id" "uuid", "p_characteristics" "jsonb") FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."write_product_characteristics"("p_product_id" "uuid", "p_characteristics" "jsonb") TO "service_role";
+
+REVOKE ALL ON FUNCTION "public"."create_product_with_relations"("p_slug_base" "text", "p_name" "text", "p_category_slug" "text", "p_subcategory_slug" "text", "p_short_description" "text", "p_description" "text", "p_article" "text", "p_published" boolean, "p_availability" "public"."product_availability", "p_meta_title" "text", "p_meta_description" "text", "p_characteristics" "jsonb", "p_compatible_brands" "text"[], "p_vehicle_types" "text"[]) FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."create_product_with_relations"("p_slug_base" "text", "p_name" "text", "p_category_slug" "text", "p_subcategory_slug" "text", "p_short_description" "text", "p_description" "text", "p_article" "text", "p_published" boolean, "p_availability" "public"."product_availability", "p_meta_title" "text", "p_meta_description" "text", "p_characteristics" "jsonb", "p_compatible_brands" "text"[], "p_vehicle_types" "text"[]) TO "service_role";
+
+REVOKE ALL ON FUNCTION "public"."update_product_with_relations"("p_slug" "text", "p_expected_updated_at" timestamp with time zone, "p_name" "text", "p_category_slug" "text", "p_subcategory_slug" "text", "p_short_description" "text", "p_description" "text", "p_article" "text", "p_published" boolean, "p_availability" "public"."product_availability", "p_meta_title" "text", "p_meta_description" "text", "p_characteristics" "jsonb", "p_compatible_brands" "text"[], "p_vehicle_types" "text"[]) FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."update_product_with_relations"("p_slug" "text", "p_expected_updated_at" timestamp with time zone, "p_name" "text", "p_category_slug" "text", "p_subcategory_slug" "text", "p_short_description" "text", "p_description" "text", "p_article" "text", "p_published" boolean, "p_availability" "public"."product_availability", "p_meta_title" "text", "p_meta_description" "text", "p_characteristics" "jsonb", "p_compatible_brands" "text"[], "p_vehicle_types" "text"[]) TO "service_role";
 
 REVOKE ALL ON FUNCTION "public"."update_vehicle_hotspots"("target_vehicle_type_slug" "text", "hotspot_updates" "jsonb") FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."update_vehicle_hotspots"("target_vehicle_type_slug" "text", "hotspot_updates" "jsonb") TO "service_role";

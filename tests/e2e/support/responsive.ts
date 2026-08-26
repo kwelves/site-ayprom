@@ -74,6 +74,16 @@ export async function assertCriticalControlsInsideViewport(
   expect(controls.length, `${label}: required controls list не должна быть пустой`).toBeGreaterThan(0);
   const evidence: ControlRect[] = [];
   for (const control of controls) {
+    // count() не ждёт появления элемента: на стримящейся странице он вернёт 0
+    // ещё до того, как отрисуется содержимое, и проверка упадёт на полностью
+    // исправной вёрстке. Сначала дожидаемся присутствия контрола, и только
+    // потом измеряем — предмет проверки здесь положение и обрезка, а не
+    // скорость отрисовки.
+    await expect(
+      control.locator,
+      `${label}: required control "${control.name}" не появился в DOM`,
+    ).toBeAttached();
+
     const total = await control.locator.count();
     expect(total, `${label}: required control "${control.name}" отсутствует в DOM`).toBeGreaterThan(0);
     const rects = await control.locator.evaluateAll((elements, controlName) =>

@@ -29,6 +29,8 @@ import {
   validateNewAdminPassword,
 } from "@/lib/admin/password-credential";
 import { MAX_PRODUCT_IMAGES, validateProductImage } from "@/lib/admin/image-validation";
+import { normalizeVisualScale } from "@/lib/admin/visual-scale";
+import { toProductRpcError, type ProductRpcErrorLike } from "@/lib/admin/product-rpc-error";
 import { convertBufferToWebp, enhanceProductPhotoBuffer } from "@/lib/admin/enhance-product-photo";
 import {
   DEFAULT_PRODUCT_PHOTO_MODE,
@@ -73,6 +75,10 @@ import {
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
+}
+
+function productRpcError(error: ProductRpcErrorLike, context: string): Error {
+  return toProductRpcError(error, (details) => console.error(context, details));
 }
 
 function productListFiltersFromConfig(config: AdminProductListConfig) {
@@ -350,71 +356,11 @@ function parseProductFormData(formData: FormData): ProductFormFields {
   };
 }
 
-async function resolveSubcategoryId(
-  supabase: ReturnType<typeof createAdminClient>,
-  categorySlug: string,
-  subcategorySlug: string | null
-): Promise<string | null> {
-  if (!subcategorySlug) return null;
-  const { data, error } = await supabase
-    .from("subcategories")
-    .select("id")
-    .eq("category_slug", categorySlug)
-    .eq("slug", subcategorySlug)
-    .maybeSingle();
-  if (error) throw error;
-  if (!data) {
-    throw new Error("Выбранная подкатегория не принадлежит выбранной категории.");
-  }
-  return data.id;
-}
-
-// Relation mutations below replace the submitted associations after the
-// product row is written. Check every foreign key first, so a malformed
-// direct Server Action request cannot publish/unpublish the product (and fire
-// the hotspot-detach trigger) before an invalid association fails later.
-async function validateProductReferences(
-  supabase: ReturnType<typeof createAdminClient>,
-  fields: ProductFormFields,
-  subcategoryId: string | null
-): Promise<void> {
-  if (new Set(fields.compatibleBrands).size !== fields.compatibleBrands.length) {
-    throw new Error("Один бренд нельзя выбрать несколько раз.");
-  }
-  if (new Set(fields.vehicleTypes).size !== fields.vehicleTypes.length) {
-    throw new Error("Один тип техники нельзя выбрать несколько раз.");
-  }
-
-  const [
-    { data: category, error: categoryError },
-    { data: brands, error: brandsError },
-    { data: vehicleTypes, error: vehicleTypesError },
-  ] = await Promise.all([
-    supabase.from("categories").select("slug").eq("slug", fields.categorySlug).maybeSingle(),
-    fields.compatibleBrands.length > 0
-      ? supabase.from("brands").select("slug").in("slug", fields.compatibleBrands)
-      : Promise.resolve({ data: [], error: null }),
-    fields.vehicleTypes.length > 0
-      ? supabase.from("vehicle_types").select("slug").in("slug", fields.vehicleTypes)
-      : Promise.resolve({ data: [], error: null }),
-  ]);
-  if (categoryError) throw categoryError;
-  if (brandsError) throw brandsError;
-  if (vehicleTypesError) throw vehicleTypesError;
-  if (!category) throw new Error("Выбранная категория не найдена.");
-  if ((brands?.length ?? 0) !== fields.compatibleBrands.length) {
-    throw new Error("Один из выбранных брендов не найден.");
-  }
-  if ((vehicleTypes?.length ?? 0) !== fields.vehicleTypes.length) {
-    throw new Error("Один из выбранных типов техники не найден.");
-  }
-  // resolveSubcategoryId has already established that a present subcategory
-  // belongs to the selected category; keeping this explicit documents that it
-  // was validated before the product's publication state can change.
-  if (fields.subcategorySlug && !subcategoryId) {
-    throw new Error("Выбранная подкатегория не найдена.");
-  }
-}
+// Проверка ссылок товара и разрешение подкатегории живут в Postgres
+// (resolve_product_references): они должны выполняться в той же транзакции, что
+// и запись, иначе между проверкой и записью остаётся окно, в котором связь
+// может исчезнуть. Прежние клиентские версии этих проверок удалены, чтобы не
+// возникло двух расходящихся источников правды.
 
 // Shared by every create action's "append at the end" ordering: the next
 // row's order is one past the current max (or 0 for the first row).
@@ -515,76 +461,38 @@ export async function createProduct(
   await Promise.all(photos.map(validateProductImage));
   const processedPhotos = photos.length > 0 ? await applyPhotoModeToAll(photos, photoMode) : [];
 
-  const [slug, subcategoryId, nextOrder] = await Promise.all([
-    generateUniqueSlug(supabase, "products", fields.slugSeed, "product"),
-    resolveSubcategoryId(supabase, fields.categorySlug, fields.subcategorySlug),
-    getNextOrder(supabase, "products"),
-  ]);
-  await validateProductReferences(supabase, fields, subcategoryId);
-
-  const { data: product, error } = await supabase
-    .from("products")
-    .insert({
-      slug,
-      name: fields.name,
-      category_slug: fields.categorySlug,
-      subcategory_id: subcategoryId,
-      short_description: fields.shortDescription,
-      description: fields.description,
-      article: fields.article,
-      published: fields.published,
-      availability: fields.availability,
-      meta_title: fields.metaTitle,
-      meta_description: fields.metaDescription,
-      order: nextOrder,
+  // Товар и все его связи пишутся одной транзакцией внутри Postgres. Прежде это
+  // были отдельные запросы с компенсирующим DELETE, который сам мог не
+  // сработать и оставить в базе частичный товар. Проверка ссылок, подбор
+  // уникального slug и следующий порядок выполняются там же, поэтому два
+  // одновременных создания больше не могут выбрать одно и то же значение.
+  //
+  // Фотографии сознательно остаются снаружи: Storage не участвует в транзакции
+  // Postgres, а загрузка — медленный шаг, из-за которого одна неудачная
+  // фотография не должна отменять уже корректный товар. Её жизненный цикл —
+  // предмет фазы 3.
+  const { data: created, error } = await supabase
+    .rpc("create_product_with_relations", {
+      p_slug_base: slugify(fields.slugSeed) || "product",
+      p_name: fields.name,
+      p_category_slug: fields.categorySlug,
+      p_subcategory_slug: fields.subcategorySlug,
+      p_short_description: fields.shortDescription,
+      p_description: fields.description,
+      p_article: fields.article,
+      p_published: fields.published,
+      p_availability: fields.availability,
+      p_meta_title: fields.metaTitle,
+      p_meta_description: fields.metaDescription,
+      p_characteristics: fields.characteristics,
+      p_compatible_brands: fields.compatibleBrands,
+      p_vehicle_types: fields.vehicleTypes,
     })
-    .select("id")
-    .single();
-  if (error) throw error;
+    .single<{ out_id: string; out_slug: string }>();
+  if (error) throw productRpcError(error, "Ошибка создания товара");
 
-  // Characteristics/brands/vehicle-types are fast metadata writes over values
-  // already checked by validateProductReferences above — a failure here means
-  // something is actually wrong, so it still rolls back the whole product.
-  // Photos are handled separately below, after this succeeds: uploading is
-  // the slow, network/CPU-heavy step, and one failed photo shouldn't discard
-  // an otherwise-valid product (that's exactly what edit mode avoids — see
-  // uploadProductImage — by persisting each photo against an already-saved
-  // product instead of bundling it into an all-or-nothing submission).
-  const metadataResults = await Promise.allSettled([
-    fields.characteristics.length > 0
-      ? supabase
-          .from("product_characteristics")
-          .insert(fields.characteristics.map((c, i) => ({ product_id: product.id, attribute: c.attribute, value: c.value, order: i })))
-          .then(({ error: charError }) => {
-            if (charError) throw charError;
-          })
-      : Promise.resolve(),
-    fields.compatibleBrands.length > 0
-      ? supabase
-          .from("product_brands")
-          .insert(fields.compatibleBrands.map((brandSlug) => ({ product_id: product.id, brand_slug: brandSlug })))
-          .then(({ error: brandError }) => {
-            if (brandError) throw brandError;
-          })
-      : Promise.resolve(),
-    fields.vehicleTypes.length > 0
-      ? supabase
-          .from("product_vehicle_types")
-          .insert(fields.vehicleTypes.map((vehicleTypeSlug) => ({ product_id: product.id, vehicle_type_slug: vehicleTypeSlug })))
-          .then(({ error: vehicleTypeError }) => {
-            if (vehicleTypeError) throw vehicleTypeError;
-          })
-      : Promise.resolve(),
-  ]);
-  const failedMetadata = metadataResults.find((result) => result.status === "rejected");
-
-  if (failedMetadata?.status === "rejected") {
-    const { error: rollbackError } = await supabase.from("products").delete().eq("id", product.id);
-    const cleanupSuffix = rollbackError ? ` Очистка: не удалось удалить неполную запись: ${rollbackError.message}.` : "";
-    throw new Error(
-      `Товар не создан: ${getErrorMessage(failedMetadata.reason, "ошибка сохранения связанных данных")}.${cleanupSuffix}`,
-    );
-  }
+  const productId = created.out_id;
+  const slug = created.out_slug;
 
   // Each photo uploads and inserts independently (allSettled, not all): a
   // failed photo is reported to the admin via the redirect's photoError
@@ -594,12 +502,12 @@ export async function createProduct(
   let photoErrorCount = 0;
   if (processedPhotos.length > 0) {
     const photoResults = await Promise.allSettled(
-      processedPhotos.map((file, i) => insertProductImage(supabase, product.id, slug, file, i))
+      processedPhotos.map((file, i) => insertProductImage(supabase, productId, slug, file, i))
     );
     photoErrorCount = photoResults.filter((result) => result.status === "rejected").length;
     if (photoErrorCount > 0) {
       console.error("Не удалось загрузить часть фотографий при создании товара", {
-        productId: product.id,
+        productId,
         slug,
         failed: photoErrorCount,
         total: processedPhotos.length,
@@ -636,85 +544,36 @@ export async function updateProduct(
   const fields = parseProductFormData(formData);
   const supabase = createAdminClient();
 
-  const { data: existing, error: findError } = await supabase
-    .from("products")
-    .select("id, published")
-    .eq("slug", slug)
-    .maybeSingle();
-  if (findError) throw findError;
-  if (!existing) throw new Error("Товар не найден.");
+  // Версия, которую видел администратор при открытии формы. Передаётся строкой
+  // ровно в том виде, в каком пришла из базы: разбор в Date обрезал бы
+  // микросекунды до миллисекунд, и любое сохранение выглядело бы конфликтом.
+  const expectedUpdatedAt = String(formData.get("expectedUpdatedAt") ?? "").trim() || null;
 
-  const subcategoryId = await resolveSubcategoryId(supabase, fields.categorySlug, fields.subcategorySlug);
-  await validateProductReferences(supabase, fields, subcategoryId);
-
+  // Строка товара, все три дочерние таблицы и публикация меняются одной
+  // транзакцией. Прежде это были отдельные запросы без компенсации: сбой на
+  // середине оставлял товар обновлённым, но, например, с полностью стёртыми
+  // совместимыми брендами. Публикация писалась отдельным запросом после связей
+  // именно из-за этого — внутри транзакции такая предосторожность не нужна.
   const { error: updateError } = await supabase
-    .from("products")
-    .update({
-      name: fields.name,
-      category_slug: fields.categorySlug,
-      subcategory_id: subcategoryId,
-      short_description: fields.shortDescription,
-      description: fields.description,
-      article: fields.article,
-      availability: fields.availability,
-      meta_title: fields.metaTitle,
-      meta_description: fields.metaDescription,
-      updated_at: new Date().toISOString(),
+    .rpc("update_product_with_relations", {
+      p_slug: slug,
+      p_expected_updated_at: expectedUpdatedAt,
+      p_name: fields.name,
+      p_category_slug: fields.categorySlug,
+      p_subcategory_slug: fields.subcategorySlug,
+      p_short_description: fields.shortDescription,
+      p_description: fields.description,
+      p_article: fields.article,
+      p_published: fields.published,
+      p_availability: fields.availability,
+      p_meta_title: fields.metaTitle,
+      p_meta_description: fields.metaDescription,
+      p_characteristics: fields.characteristics,
+      p_compatible_brands: fields.compatibleBrands,
+      p_vehicle_types: fields.vehicleTypes,
     })
-    .eq("id", existing.id);
-  if (updateError) throw updateError;
-
-  // Delete+insert instead of diffing — simpler and reliable at this data
-  // volume, and both child tables only ever reflect the form's current state.
-  // The three pairs below touch separate child tables with no cross-dependency,
-  // so they run concurrently instead of one after another.
-  await Promise.all([
-    (async () => {
-      const { error: deleteCharError } = await supabase.from("product_characteristics").delete().eq("product_id", existing.id);
-      if (deleteCharError) throw deleteCharError;
-      if (fields.characteristics.length > 0) {
-        const { error: charError } = await supabase
-          .from("product_characteristics")
-          .insert(fields.characteristics.map((c, i) => ({ product_id: existing.id, attribute: c.attribute, value: c.value, order: i })));
-        if (charError) throw charError;
-      }
-    })(),
-    (async () => {
-      const { error: deleteBrandError } = await supabase.from("product_brands").delete().eq("product_id", existing.id);
-      if (deleteBrandError) throw deleteBrandError;
-      if (fields.compatibleBrands.length > 0) {
-        const { error: brandError } = await supabase
-          .from("product_brands")
-          .insert(fields.compatibleBrands.map((brandSlug) => ({ product_id: existing.id, brand_slug: brandSlug })));
-        if (brandError) throw brandError;
-      }
-    })(),
-    (async () => {
-      const { error: deleteVehicleTypeError } = await supabase
-        .from("product_vehicle_types")
-        .delete()
-        .eq("product_id", existing.id);
-      if (deleteVehicleTypeError) throw deleteVehicleTypeError;
-      if (fields.vehicleTypes.length > 0) {
-        const { error: vehicleTypeError } = await supabase
-          .from("product_vehicle_types")
-          .insert(fields.vehicleTypes.map((vehicleTypeSlug) => ({ product_id: existing.id, vehicle_type_slug: vehicleTypeSlug })));
-        if (vehicleTypeError) throw vehicleTypeError;
-      }
-    })(),
-  ]);
-
-  // The unpublish trigger clears vehicle-showcase assignments. Publication is
-  // deliberately written only after every dependent relation succeeded, so a
-  // later relation failure cannot report an error while silently detaching a
-  // product from the public showcase.
-  if (existing.published !== fields.published) {
-    const { error: publicationError } = await supabase
-      .from("products")
-      .update({ published: fields.published, updated_at: new Date().toISOString() })
-      .eq("id", existing.id);
-    if (publicationError) throw publicationError;
-  }
+    .single<{ out_id: string; out_updated_at: string }>();
+  if (updateError) throw productRpcError(updateError, "Ошибка обновления товара");
 
   revalidatePath(`/admin/products/${slug}/edit`);
   revalidatePath("/admin/products");
@@ -1009,7 +868,12 @@ export async function deleteProductImage(imageId: string): Promise<void> {
 export async function reorderProductImages(productSlug: string, orderedImageIds: string[]): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
-  const { error } = await supabase.rpc("reorder_product_images", { ordered_ids: orderedImageIds });
+  // Товар передаётся в RPC, а не только в revalidatePath: без него порядок
+  // фотографий не был ограничен родителем и принимал чужие идентификаторы.
+  const { error } = await supabase.rpc("reorder_product_images", {
+    target_product_slug: productSlug,
+    ordered_ids: orderedImageIds,
+  });
   if (error) throw error;
   revalidatePath(`/admin/products/${productSlug}/edit`);
   revalidatePublicSite();
@@ -1025,7 +889,10 @@ export async function updateProductImageScale(
 ): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
-  const { error } = await supabase.from("product_images").update({ scale }).eq("id", imageId);
+  const { error } = await supabase
+    .from("product_images")
+    .update({ scale: normalizeVisualScale(scale) })
+    .eq("id", imageId);
   if (error) throw error;
   revalidatePath(`/admin/products/${productSlug}/edit`);
   revalidatePublicSite();
@@ -1043,13 +910,14 @@ function parseBrandFormData(formData: FormData): BrandFormFields {
   const slugSeed = String(formData.get("slug") ?? "").trim() || name;
   const country = String(formData.get("country") ?? "").trim();
   const logoScaleRaw = String(formData.get("logoScale") ?? "").trim();
-  const parsedLogoScale = logoScaleRaw ? Number(logoScaleRaw) : null;
 
   if (!name || !country) {
     throw new Error("Заполните обязательные поля: название, страна.");
   }
 
-  return { name, slugSeed, country, logoScale: Number.isFinite(parsedLogoScale) ? parsedLogoScale : null };
+  // Прежде нечисловой ввод молча превращался в null: админ видел «сохранено», а
+  // масштаб терялся. Теперь недопустимое значение отвергается с сообщением.
+  return { name, slugSeed, country, logoScale: normalizeVisualScale(logoScaleRaw) };
 }
 
 async function uploadBrandLogo(
@@ -1579,7 +1447,12 @@ export async function deleteSubcategory(subcategoryId: string, redirectAfterDele
 export async function reorderSubcategories(categorySlug: string, orderedIds: string[]): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
-  const { error } = await supabase.rpc("reorder_subcategories", { ordered_ids: orderedIds });
+  // Категория передаётся в RPC по той же причине, что и товар для фотографий:
+  // иначе порядок принимал подкатегории чужой категории.
+  const { error } = await supabase.rpc("reorder_subcategories", {
+    target_category_slug: categorySlug,
+    ordered_ids: orderedIds,
+  });
   if (error) throw error;
   revalidatePath(`/admin/categories/${categorySlug}/subcategories`);
   revalidatePublicSite();
@@ -1621,7 +1494,7 @@ export async function updateCategoryBrandOverride(
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("category_brands")
-    .update({ logo_scale_override: logoScaleOverride })
+    .update({ logo_scale_override: normalizeVisualScale(logoScaleOverride) })
     .eq("category_slug", categorySlug)
     .eq("brand_slug", brandSlug);
   if (error) throw error;

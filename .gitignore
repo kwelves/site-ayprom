@@ -61,4 +61,8 @@ next-env.d.ts
 # uploaded to Supabase Storage — the site serves it from there, not /public/)
 /public/videos/hero-web/
 
+# временные рабочие каталоги релизных задач (.tmp-<задача>-<дата>/): внутри
+# лежит копия проекта целиком, в историю такому попадать нельзя
+/.tmp-*/
+
 .vercel
