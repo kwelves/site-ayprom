@@ -9,6 +9,7 @@ import { ProductPhotoModeSelect } from "@/components/admin/ProductPhotoModeSelec
 import { usesScriptProcessing, type ProductPhotoMode } from "@/lib/admin/product-photo-mode";
 import { MAX_VISUAL_SCALE, MIN_VISUAL_SCALE, VISUAL_SCALE_STEP } from "@/lib/admin/visual-scale";
 import type { AdminProduct } from "@/lib/admin/queries";
+import type { StagedPhoto } from "@/lib/admin/use-staged-photo-upload";
 
 interface ProductImage {
   id: string;
@@ -33,6 +34,10 @@ interface ProductFormPhotosSectionProps {
   photoInputRef: RefObject<HTMLInputElement | null>;
   onFileInputChange: (event: ChangeEvent<HTMLInputElement>) => void;
   isSubmitting: boolean;
+  /** QA-004: файлы, уже загруженные в промежуточное хранилище (режим создания). */
+  stagedPhotos: StagedPhoto[];
+  onStagedRetry: (key: string) => void;
+  onStagedCancel: (key: string) => void;
 }
 
 // Sequential server-side processing (applyPhotoModeToAll) has no real
@@ -60,6 +65,9 @@ export function ProductFormPhotosSection({
   photoInputRef,
   onFileInputChange,
   isSubmitting,
+  stagedPhotos,
+  onStagedRetry,
+  onStagedCancel,
 }: ProductFormPhotosSectionProps) {
   const [progressPercent, setProgressPercent] = useState(0);
   const showProgress = isSubmitting && usesScriptProcessing(photoMode) && pendingPhotoCount > 0;
@@ -152,16 +160,60 @@ export function ProductFormPhotosSection({
 
       <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-input px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary">
         {pendingPhotoCount > 0 ? `Выбрано фото: ${pendingPhotoCount}` : "Выбрать фото"}
+        {/* Без `name`: файлы больше не попадают в запрос сохранения товара —
+            они уже загружены в промежуточное хранилище, а форма присылает
+            только ссылки на них. */}
         <input
           ref={photoInputRef}
           type="file"
-          name="photos"
           accept="image/jpeg,image/png,image/webp,image/avif"
           multiple
           className="hidden"
           onChange={onFileInputChange}
         />
       </label>
+
+      {/* Ход загрузки по каждому файлу отдельно: админ видит, что именно
+          происходит, и может повторить только сорвавшийся снимок, а не всю
+          отправку целиком. */}
+      {stagedPhotos.length > 0 && (
+        <ul className="mt-3 space-y-2">
+          {stagedPhotos.map((photo) => (
+            <li key={photo.key} className="rounded-md border border-border px-3 py-2">
+              <div className="flex items-center gap-3">
+                <span className="flex-1 truncate text-xs text-muted-foreground">{photo.fileName}</span>
+                {photo.status === "uploaded" && (
+                  <span className="shrink-0 text-xs text-success">Загружено</span>
+                )}
+                {photo.status === "failed" && (
+                  <button
+                    type="button"
+                    onClick={() => onStagedRetry(photo.key)}
+                    className="shrink-0 text-xs text-primary hover:underline"
+                  >
+                    Повторить
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => onStagedCancel(photo.key)}
+                  className="shrink-0 text-xs text-danger hover:underline"
+                >
+                  {photo.status === "uploading" ? "Отменить" : "Убрать"}
+                </button>
+              </div>
+              {photo.status === "uploading" && (
+                <ProgressBar className="mt-2" percent={photo.progress} label={`Загрузка ${photo.progress}%`} />
+              )}
+              {photo.status === "failed" && photo.error && (
+                <p role="alert" className="mt-1 text-xs text-danger">
+                  {photo.error}
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
 
       {showProgress && (
         <ProgressBar

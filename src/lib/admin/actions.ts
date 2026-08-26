@@ -465,14 +465,20 @@ export async function createProduct(
   await requireAdminSession();
   const fields = parseProductFormData(formData);
   const supabase = createAdminClient();
-  const photos = formData.getAll("photos").filter((file): file is File => file instanceof File && file.size > 0);
   const photoMode = parsePhotoMode(formData);
 
-  if (photos.length > MAX_PRODUCT_IMAGES) {
+  // QA-004: файлы больше не приходят внутри этого запроса. К моменту сохранения
+  // они уже лежат в приватном промежуточном хранилище, а форма присылает только
+  // идентификаторы учёта — в том порядке, в котором админ расставил снимки.
+  const photoDraftId = String(formData.get("photoDraftId") ?? "").trim();
+  const photoStagingIds = String(formData.get("photoStagingIds") ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  if (photoStagingIds.length > MAX_PRODUCT_IMAGES) {
     throw new Error(`Можно загрузить не более ${MAX_PRODUCT_IMAGES} фотографий товара.`);
   }
-  await Promise.all(photos.map(validateProductImage));
-  const processedPhotos = photos.length > 0 ? await applyPhotoModeToAll(photos, photoMode) : [];
 
   // Товар и все его связи пишутся одной транзакцией внутри Postgres. Прежде это
   // были отдельные запросы с компенсирующим DELETE, который сам мог не
@@ -507,28 +513,21 @@ export async function createProduct(
   const productId = created.out_id;
   const slug = created.out_slug;
 
-  // Each photo uploads and inserts independently (allSettled, not all): a
-  // failed photo is reported to the admin via the redirect's photoError
-  // count, not treated as fatal — the product and every photo that did
-  // succeed stay saved, and any missing photo can be added from the edit
-  // page exactly like edit mode's own per-photo upload already works today.
+  // Перенос из промежуточного хранилища в публичное. Одна неудачная фотография
+  // не отменяет товар: он и все успешно перенесённые снимки остаются
+  // сохранёнными, а о неудачных админ узнаёт из счётчика при переходе и может
+  // догрузить их на странице редактирования.
   let photoErrorCount = 0;
-  if (processedPhotos.length > 0) {
-    const photoResults = await Promise.allSettled(
-      processedPhotos.map((file, i) => insertProductImage(supabase, productId, slug, file, i))
-    );
-    photoErrorCount = photoResults.filter((result) => result.status === "rejected").length;
-    if (photoErrorCount > 0) {
-      console.error("Не удалось загрузить часть фотографий при создании товара", {
-        productId,
-        slug,
-        failed: photoErrorCount,
-        total: processedPhotos.length,
-        reasons: photoResults
-          .filter((result): result is PromiseRejectedResult => result.status === "rejected")
-          .map((result) => getErrorMessage(result.reason, "неизвестная ошибка")),
-      });
-    }
+  if (photoStagingIds.length > 0 && isUuid(photoDraftId)) {
+    const result = await attachStagedProductImages({
+      supabase,
+      draftId: photoDraftId,
+      stagingIds: photoStagingIds,
+      productId,
+      productSlug: slug,
+      photoMode,
+    });
+    photoErrorCount = result.failed;
   }
 
   revalidatePath("/admin/products");
@@ -981,35 +980,47 @@ export async function createProductImageUploadTicket(
  * идентификатора учётной записи, поэтому повтор перезаписывает тот же объект и
  * не создаёт дубликат строки.
  */
-export async function finalizeProductImages(
-  draftId: string,
-  productSlug: string,
-): Promise<{ attached: number; failed: number }> {
-  await requireAdminSession();
-  if (!isUuid(draftId)) throw new Error("Некорректный идентификатор сессии загрузки.");
+/**
+ * Общий перенос из промежуточного хранилища в публичное.
+ *
+ * Содержимое проверяется здесь повторно, уже по факту записи: подписанная
+ * ссылка ограничивает путь и размер, но не гарантирует, что внутри лежит
+ * заявленное. До успешной проверки объект не становится публичным.
+ *
+ * Повторный вызов безопасен: путь в публичном хранилище выводится из
+ * идентификатора учётной записи, поэтому повтор перезаписывает тот же объект и
+ * не создаёт дубликат строки.
+ */
+async function attachStagedProductImages(options: {
+  supabase: ReturnType<typeof createAdminClient>;
+  draftId: string;
+  stagingIds: string[];
+  productId: string;
+  productSlug: string;
+  photoMode: ProductPhotoMode;
+}): Promise<{ attached: number; failed: number }> {
+  const { supabase, draftId, stagingIds, productId, productSlug, photoMode } = options;
+  const requested = stagingIds.filter(isUuid);
+  if (requested.length === 0) return { attached: 0, failed: 0 };
 
-  const supabase = createAdminClient();
-  const { data: product, error: productError } = await supabase
-    .from("products")
-    .select("id")
-    .eq("slug", productSlug)
-    .maybeSingle();
-  if (productError) throw productError;
-  if (!product) throw new Error("Товар не найден.");
-
-  const { data: staged, error: stagedError } = await supabase
+  const { data: found, error: stagedError } = await supabase
     .from("product_image_staging")
     .select("id, object_path, content_type")
     .eq("draft_id", draftId)
-    .is("finalized_at", null)
-    .order("created_at");
+    .in("id", requested)
+    .is("finalized_at", null);
   if (stagedError) throw stagedError;
-  if (!staged || staged.length === 0) return { attached: 0, failed: 0 };
+  if (!found || found.length === 0) return { attached: 0, failed: 0 };
+
+  // Порядок прикрепления — тот, в котором админ расставил снимки в форме, а не
+  // тот, в котором они успели догрузиться.
+  const byId = new Map(found.map((row) => [row.id, row]));
+  const staged = requested.map((id) => byId.get(id)).filter((row) => row !== undefined);
 
   const { count: existingCount } = await supabase
     .from("product_images")
     .select("id", { count: "exact", head: true })
-    .eq("product_id", product.id);
+    .eq("product_id", productId);
   let nextOrder = existingCount ?? 0;
 
   let attached = 0;
@@ -1024,10 +1035,14 @@ export async function finalizeProductImages(
       const extension = CANONICAL_UPLOAD_EXTENSION[row.content_type];
       if (!extension) throw new Error(`Недопустимый тип файла: ${row.content_type}.`);
 
-      // Повторная проверка содержимого — то же, что и для прямой загрузки.
-      const validated = await validateRasterImage(
-        new File([bytes], `staged.${extension}`, { type: row.content_type }),
-      );
+      // Повторная проверка содержимого — та же, что и для прямой загрузки.
+      const staging = new File([bytes], `staged.${extension}`, { type: row.content_type });
+      await validateRasterImage(staging);
+
+      // Обработка по выбранному режиму сохраняется: раньше она выполнялась до
+      // отправки, теперь — здесь, где у сервера есть исходные байты.
+      const [processed] = await applyPhotoModeToAll([staging], photoMode);
+      const validated = await validateRasterImage(processed);
 
       const publicPath = `${productSlug}/${row.id}.${validated.extension}`;
       const uploaded = await supabase.storage
@@ -1046,7 +1061,7 @@ export async function finalizeProductImages(
       if (!already) {
         const { error: insertError } = await supabase
           .from("product_images")
-          .insert({ product_id: product.id, url: publicUrlData.publicUrl, order: nextOrder });
+          .insert({ product_id: productId, url: publicUrlData.publicUrl, order: nextOrder });
         if (insertError) throw insertError;
         nextOrder += 1;
       }
@@ -1066,8 +1081,6 @@ export async function finalizeProductImages(
     }
   }
 
-  revalidatePath(`/admin/products/${productSlug}/edit`);
-  revalidatePublicSite();
   return { attached, failed };
 }
 

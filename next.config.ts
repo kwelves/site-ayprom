@@ -39,10 +39,25 @@ const nextConfig: NextConfig = {
     // Product-card thumbnails deliberately use 60 while full galleries use
     // the default 75. Next 16 requires every optimizer quality explicitly.
     qualities: [60, 75],
+    // Next 16 отказывается оптимизировать картинки с адресов, ведущих в
+    // локальную сеть: это защита от подлога запросов к внутренним ресурсам.
+    // Локальный стек Supabase всегда живёт на 127.0.0.1, поэтому без этого
+    // послабления в среде разработки и тестов не открывается ни одно фото
+    // товара (HTTP 400, «resolved to private ip»).
+    //
+    // Включается ТОЛЬКО когда локально само хранилище. В production hostname —
+    // домен Supabase, условие ложно, и защита остаётся в силе; послабление
+    // физически не может попасть в боевую сборку.
+    dangerouslyAllowLocalIP: ["localhost", "127.0.0.1", "::1", "[::1]"].includes(supabaseUrl.hostname),
     remotePatterns: [
       {
-        protocol: "https",
+        // Протокол берётся из самого адреса Supabase, а не задан жёстко:
+        // production работает по https, а локальный стек — по http, и на
+        // захардкоженном https оптимизатор отвергал любую картинку каталога в
+        // тестовой среде (HTTP 400).
+        protocol: supabaseUrl.protocol.replace(":", "") as "http" | "https",
         hostname: supabaseUrl.hostname,
+        port: supabaseUrl.port || undefined,
         pathname: "/storage/v1/object/public/**",
       },
     ],

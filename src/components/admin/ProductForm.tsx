@@ -14,6 +14,7 @@ import type { FormActionState } from "@/lib/admin/actions";
 import { slugify } from "@/lib/admin/slugify";
 import { compressImage, compressFileListInput } from "@/lib/admin/compress-image";
 import { hasAlphaChannel } from "@/lib/admin/image-validation";
+import { useStagedPhotoUpload } from "@/lib/admin/use-staged-photo-upload";
 import {
   DEFAULT_PRODUCT_PHOTO_MODE,
   PRODUCT_PHOTO_MODE_COOKIE,
@@ -101,6 +102,11 @@ export function ProductForm({
   const [photoMode, setPhotoMode] = useState<ProductPhotoMode>(initialPhotoMode ?? DEFAULT_PRODUCT_PHOTO_MODE);
   const [photoAlphaWarning, setPhotoAlphaWarning] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  // QA-004: при создании товара фотографии грузятся отдельно и заранее, а не
+  // внутри общего запроса сохранения. Идентификатор сессии живёт столько же,
+  // сколько открытая форма, и связывает загруженное с этой попыткой.
+  const [photoDraftId] = useState(() => crypto.randomUUID());
+  const stagedPhotos = useStagedPhotoUpload(photoDraftId);
   const [actionError, setActionError] = useState<string | null>(null);
   const [dismissedFormError, setDismissedFormError] = useState<FormActionState>(null);
   const [isUnpublishDialogOpen, setIsUnpublishDialogOpen] = useState(false);
@@ -275,7 +281,19 @@ export function ProductForm({
       setPhotoAlphaWarning(false);
       await compressFileListInput(input, usesWebpOutput(photoMode) ? "image/webp" : "image/jpeg");
     }
-    setPendingPhotoCount(input.files?.length ?? 0);
+
+    // Загрузка начинается сразу после выбора, не дожидаясь сохранения товара:
+    // так админ видит ход по каждому файлу и может повторить неудачный, а не
+    // получает один долгий непрозрачный запрос в конце.
+    const selected = Array.from(input.files ?? []);
+    if (selected.length > 0) {
+      const rejection = stagedPhotos.addFiles(selected);
+      if (rejection) setActionError(rejection);
+    }
+    // Ввод очищается: файлы уже приняты в свой список и не должны уехать
+    // повторно внутри формы.
+    input.value = "";
+    setPendingPhotoCount(0);
   }
 
   function handleDeleteProduct() {
@@ -345,6 +363,15 @@ export function ProductForm({
             Date: JS обрезал бы микросекунды и сравнение всегда падало бы. */}
         {product && <input type="hidden" name="expectedUpdatedAt" value={product.updatedAt} />}
 
+        {/* Файлы в запрос сохранения больше не попадают — только ссылки на уже
+            загруженное, в том порядке, в котором админ их расставил. */}
+        {mode === "create" && (
+          <>
+            <input type="hidden" name="photoDraftId" value={photoDraftId} />
+            <input type="hidden" name="photoStagingIds" value={stagedPhotos.stagingIds.join(",")} />
+          </>
+        )}
+
         <Collapsible title="Основное" defaultOpen>
           <ProductFormBasicSection
             mode={mode}
@@ -411,6 +438,9 @@ export function ProductForm({
             pendingPhotoCount={pendingPhotoCount}
             photoInputRef={photoInputRef}
             onFileInputChange={handleFileInputChange}
+            stagedPhotos={stagedPhotos.photos}
+            onStagedRetry={stagedPhotos.retry}
+            onStagedCancel={stagedPhotos.cancel}
             isSubmitting={isSubmitting}
           />
         </Collapsible>

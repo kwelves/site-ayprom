@@ -126,6 +126,22 @@ export async function touchOwnedProduct(slug: string): Promise<void> {
   if (error) throw error;
 }
 
+/** Сколько фотографий действительно привязано к товару (QA-004). */
+export async function countOwnedProductImages(slug: string): Promise<number> {
+  assertOwnedSlug(slug);
+  const supabase = getLocalAdminClient();
+  const { data: product, error } = await supabase.from("products").select("id").eq("slug", slug).maybeSingle();
+  if (error) throw error;
+  if (!product) return -1;
+
+  const { count, error: countError } = await supabase
+    .from("product_images")
+    .select("id", { count: "exact", head: true })
+    .eq("product_id", product.id);
+  if (countError) throw countError;
+  return count ?? 0;
+}
+
 /** Текущее имя товара — чтобы доказать, что отклонённое сохранение ничего не изменило. */
 export async function readOwnedProductName(slug: string): Promise<string | null> {
   assertOwnedSlug(slug);
