@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { AboutPreview } from "@/components/site/AboutPreview";
 import {
   HOME_METADATA,
+  HOME_HERO_TITLE,
   HOME_SEO_DESCRIPTION,
   HOME_SEO_FULL_TITLE,
   HOME_SEO_TITLE,
@@ -12,6 +13,7 @@ describe("главная страница в поиске", () => {
   it("задаёт короткий локальный title и единое маркетинговое описание", () => {
     expect(HOME_SEO_TITLE).toBe("Гидравлика и запчасти для спецтехники в Бишкеке");
     expect(HOME_SEO_FULL_TITLE).toBe("Гидравлика и запчасти для спецтехники в Бишкеке — AYPROM");
+    expect(HOME_HERO_TITLE).toBe("AYPROM — гидравлика и запчасти для спецтехники в Бишкеке");
     expect(HOME_SEO_FULL_TITLE.length).toBeLessThanOrEqual(60);
     expect(HOME_SEO_DESCRIPTION.length).toBeLessThanOrEqual(160);
 
