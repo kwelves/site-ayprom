@@ -10,10 +10,31 @@ import { useHashNavClick } from "@/lib/use-hash-nav-click";
 import { useHomeEntrySequence } from "@/components/home/HomeEntrySequence";
 import { DURATION } from "@/lib/motion";
 import { HOME_SEO_TITLE } from "@/lib/home-seo";
+import {
+  HERO_MOBILE_MEDIA_QUERY,
+  HERO_VIDEO_SOURCES,
+  createHeroMotionWatch,
+  heroVideoSource,
+  canSustainPlayback,
+  createDownloadRateWatch,
+  isFullyBuffered,
+  nextHeroUpgradeState,
+  type HeroUpgradeEvent,
+  type HeroUpgradeState,
+} from "@/lib/hero-video";
 import type { VehicleType } from "@/types/catalog";
 
 const VIDEO_RECOVERY_DELAY_MS = 1_000;
 const MAX_VIDEO_RECOVERY_ATTEMPTS = 1;
+
+/**
+ * Упреждение при подмене ступеней. Перемотка качественной версии к нужному
+ * времени не мгновенна, поэтому цель берётся впереди текущего кадра, а старт
+ * ждёт, пока стартовая ступень до неё доедет. 0,4 с с запасом покрывают
+ * перемотку внутри уже загруженного отрезка и остаются меньше расстояния
+ * между ключевыми кадрами.
+ */
+const SWAP_LEAD_SECONDS = 0.4;
 
 export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
   const handleHashClick = useHashNavClick();
@@ -27,16 +48,21 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
   const heroIsVisibleRef = useRef(true);
   const pageIsHiddenRef = useRef(false);
   const videoFailedRef = useRef(false);
-  const [videoLoaded, setVideoLoaded] = useState(false);
+  // QA-006. `videoRef` — стартовая ступень, она же единственная до подмены.
+  const qualityVideoRef = useRef<HTMLVideoElement>(null);
+  const upgradeStateRef = useRef<HeroUpgradeState>("idle");
+  const motionWatchRef = useRef(createHeroMotionWatch());
+  const rateWatchRef = useRef(createDownloadRateWatch());
+  const [motionConfirmed, setMotionConfirmed] = useState(false);
+  const [qualityVisible, setQualityVisible] = useState(false);
   const prefersReducedMotion = useReducedMotion();
   const { revealVideo, revealHeader, contentVisible } = useHomeEntrySequence();
 
-  // `loadeddata` can fire before React hydrates and attaches its handler.
-  // HAVE_CURRENT_DATA (2) is already a decoded current frame, which is the
-  // exact readiness criterion for the boot overlay — do not wait for the
-  // larger playback buffer at readyState 3 on a warm repeat visit.
-  useEffect(() => {
-    if ((videoRef.current?.readyState ?? 0) >= 2) setVideoLoaded(true);
+  const advanceUpgrade = useCallback((event: HeroUpgradeEvent) => {
+    const next = nextHeroUpgradeState(upgradeStateRef.current, event);
+    const changed = next !== upgradeStateRef.current;
+    upgradeStateRef.current = next;
+    return changed;
   }, []);
 
   // The video is useful only while its section is on screen. Keep that state
@@ -52,12 +78,21 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
     [isHeroPlaybackContextActive],
   );
 
+  // После подмены играет качественная ступень, до неё — стартовая. Пауза же
+  // всегда касается обеих: если вкладку спрятали в момент перехода, играющей
+  // не должна остаться ни одна.
+  const activeVideo = useCallback(
+    () => (upgradeStateRef.current === "done" ? qualityVideoRef.current : videoRef.current),
+    [],
+  );
+
   const syncVideoPlayback = useCallback(() => {
-    const video = videoRef.current;
+    const video = activeVideo();
     if (!video) return;
 
     if (!canPlayVideo()) {
-      video.pause();
+      videoRef.current?.pause();
+      qualityVideoRef.current?.pause();
       return;
     }
 
@@ -89,7 +124,7 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
       // itself. The explicit one-time flag above avoids recursive retries.
       syncVideoPlaybackRef.current();
     });
-  }, [canPlayVideo]);
+  }, [activeVideo, canPlayVideo]);
 
   useEffect(() => {
     syncVideoPlaybackRef.current = syncVideoPlayback;
@@ -106,7 +141,11 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
   }, [isHeroPlaybackContextActive]);
 
   const handleVideoError = useCallback(() => {
-    setVideoLoaded(false);
+    setMotionConfirmed(false);
+    // Восстановление начинает воспроизведение заново, поэтому наблюдение за
+    // движением тоже начинается с чистого листа: кадры до сбоя ничего не
+    // подтверждают.
+    motionWatchRef.current = createHeroMotionWatch();
     videoFailedRef.current = true;
     // A missing stream must never keep navigation or the page inaccessible.
     // There is intentionally no poster: the inverse base remains in place
@@ -130,12 +169,16 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
     [],
   );
 
-  // A real decoded frame, not merely the request start, opens the first-view
-  // sequence. Let its short opacity transition finish under the opaque boot
-  // layer, then fade the layer and only then reveal the header. That keeps the
-  // intended visual order: video → header → content.
+  // Заставка снимается по ПОДТВЕРЖДЁННОМУ движению, а не по `loadeddata`.
+  // Прежний критерий («первый кадр декодирован») на медленной сети открывал
+  // hero с неподвижной картинкой: воспроизведение так и не начиналось, а
+  // заставка уже ушла. Теперь нужны и событие `playing`, и два показанных
+  // кадра с разным временем внутри ролика — см. `createHeroMotionWatch`.
+  // Дальше — прежний порядок: короткий проявочный переход видео заканчивается
+  // под непрозрачным слоем, затем гаснет слой, и только потом появляется
+  // шапка: видео → шапка → содержимое.
   useEffect(() => {
-    if (!videoLoaded) return;
+    if (!motionConfirmed) return;
     if (prefersReducedMotion) {
       revealVideo();
       revealHeader();
@@ -156,7 +199,246 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
       if (videoTimer !== undefined) window.clearTimeout(videoTimer);
       if (headerTimer !== undefined) window.clearTimeout(headerTimer);
     };
-  }, [prefersReducedMotion, revealHeader, revealVideo, videoLoaded]);
+  }, [motionConfirmed, prefersReducedMotion, revealHeader, revealVideo]);
+
+  // Наблюдение за реально показанными кадрами стартовой ступени.
+  //
+  // `requestVideoFrameCallback` сообщает о кадре, отправленном на экран, и
+  // приносит его время внутри ролика — только так можно отличить «показан
+  // один застывший кадр» от «пошло движение». Firefox его не поддерживает:
+  // там признаком служит продвижение `currentTime`, менее точное, но
+  // приходящее тоже лишь при реальном воспроизведении.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    let cancelled = false;
+    let frameHandle: number | null = null;
+
+    const settle = (confirmed: boolean) => {
+      if (confirmed && !cancelled) setMotionConfirmed(true);
+    };
+
+    // Наблюдатель читается из ref, а не захватывается: сбой видео заменяет
+    // его новым, и захваченный экземпляр подтвердил бы движение по кадрам,
+    // показанным ещё до сбоя.
+    const markPlaying = () => {
+      motionWatchRef.current.observePlaying();
+      settle(motionWatchRef.current.confirmed);
+    };
+
+    const onFrame: VideoFrameRequestCallback = (_now, metadata) => {
+      if (cancelled) return;
+      settle(motionWatchRef.current.observeFrame(metadata.mediaTime));
+      frameHandle = video.requestVideoFrameCallback(onFrame);
+    };
+
+    const onTimeUpdate = () => {
+      settle(motionWatchRef.current.observeFrame(video.currentTime));
+    };
+
+    video.addEventListener("playing", markPlaying);
+    if (typeof video.requestVideoFrameCallback === "function") {
+      frameHandle = video.requestVideoFrameCallback(onFrame);
+    } else {
+      video.addEventListener("timeupdate", onTimeUpdate);
+    }
+
+    // На тёплом повторном визите видео успевает заиграть до гидратации:
+    // событие `playing` уже прошло, и ждать его второй раз бессмысленно.
+    if (!video.paused && video.currentTime > 0) markPlaying();
+
+    return () => {
+      cancelled = true;
+      video.removeEventListener("playing", markPlaying);
+      video.removeEventListener("timeupdate", onTimeUpdate);
+      if (frameHandle !== null && typeof video.cancelVideoFrameCallback === "function") {
+        video.cancelVideoFrameCallback(frameHandle);
+      }
+    };
+  }, []);
+
+  // Качественная ступень запрашивается только когда стартовая ЦЕЛИКОМ в
+  // буфере. Если начать раньше, тяжёлый файл отберёт канал у того видео,
+  // которое прямо сейчас на экране, и лечение станет болезнью. На быстрой
+  // сети это доли секунды, на 1,5 Мбит/с — около четырнадцати.
+  useEffect(() => {
+    const startup = videoRef.current;
+    if (!startup) return;
+
+    const considerUpgrade = () => {
+      if (upgradeStateRef.current !== "idle") return;
+      if (!isFullyBuffered(startup.buffered, startup.duration)) return;
+      if (!advanceUpgrade("startup-fully-buffered")) return;
+
+      const quality = qualityVideoRef.current;
+      if (!quality) return;
+      quality.preload = "auto";
+      quality.src = heroVideoSource("quality", window.matchMedia(HERO_MOBILE_MEDIA_QUERY).matches);
+      quality.load();
+      rateWatchRef.current.observe(0, performance.now());
+      // Отсчёт скорости начинается здесь, от нулевого буфера. Если начинать
+      // его с первого события `progress`, на быстром канале весь рост уже
+      // произошёл: Chrome набирает 15,2 с одним махом и останавливается, все
+      // последующие замеры дают нулевой прирост, и подмена не наступает
+      // никогда — проверено, за 40 секунд не сдвинулось.
+    };
+
+    // `suspend` приходит, когда браузер перестал докачивать — обычно потому,
+    // что файл кончился. `progress` страхует случаи, где `suspend` не пришёл.
+    startup.addEventListener("progress", considerUpgrade);
+    startup.addEventListener("suspend", considerUpgrade);
+    considerUpgrade();
+
+    return () => {
+      startup.removeEventListener("progress", considerUpgrade);
+      startup.removeEventListener("suspend", considerUpgrade);
+    };
+  }, [advanceUpgrade]);
+
+  // Синхронная подмена ступеней.
+  useEffect(() => {
+    const quality = qualityVideoRef.current;
+    const startup = videoRef.current;
+    if (!quality || !startup) return;
+
+    let cancelled = false;
+    let rafHandle: number | null = null;
+    let frameHandle: number | null = null;
+    let releaseTimer: number | undefined;
+
+    // Отказ качественной ступени — состояние терминальное. Повторять попытку
+    // нельзя: стартовая сейчас играет, и новая загрузка отняла бы у неё
+    // канал ради версии, которая один раз уже не доехала.
+    const abandon = () => {
+      advanceUpgrade("quality-failed");
+    };
+
+    const finishSwap = () => {
+      if (cancelled) return;
+      advanceUpgrade("swap-finished");
+      setQualityVisible(true);
+      // Стартовая ступень гасится только после того, как перекрёстное
+      // затухание закончилось — иначе на её месте мелькнёт пустота.
+      releaseTimer = window.setTimeout(
+        () => startup.pause(),
+        prefersReducedMotion ? 0 : DURATION.base * 1000 + 80,
+      );
+    };
+
+    const startQualityPlayback = () => {
+      if (cancelled) return;
+      void quality
+        .play()
+        .then(() => {
+          if (cancelled) return;
+          // Показывать качественную ступень можно только когда она реально
+          // отрисовала кадр: иначе затухание откроет пустой прямоугольник.
+          if (typeof quality.requestVideoFrameCallback === "function") {
+            frameHandle = quality.requestVideoFrameCallback(() => finishSwap());
+          } else {
+            finishSwap();
+          }
+        })
+        .catch(abandon);
+    };
+
+    const beginSwap = () => {
+      if (upgradeStateRef.current !== "ready") return;
+      if (!advanceUpgrade("swap-started")) return;
+
+      const duration = startup.duration;
+      if (!Number.isFinite(duration) || duration <= 0) {
+        abandon();
+        return;
+      }
+
+      // Обе ступени — один материал с посекундно совпадающими ключевыми
+      // кадрами, поэтому подмена сводится к попаданию в одно время. Перемотка
+      // занимает заметное время, за которое стартовая ступень уходит вперёд,
+      // поэтому цель берётся с упреждением, а старт ждёт, пока стартовая
+      // ступень до неё доедет. Без упреждения качественная ступень вступала
+      // бы на доли секунды позади — это и был бы видимый скачок.
+      const raw = startup.currentTime + SWAP_LEAD_SECONDS;
+      const wraps = raw >= duration;
+      const target = wraps ? raw - duration : raw;
+
+      const onSeeked = () => {
+        quality.removeEventListener("seeked", onSeeked);
+        if (cancelled) return;
+
+        let previousTime = startup.currentTime;
+        let seenWrap = false;
+        const waitForAlignment = () => {
+          if (cancelled) return;
+          const now = startup.currentTime;
+          // Ролик зациклен: резкое падение времени означает, что круг
+          // начался заново, и только после этого цель за границей цикла
+          // становится достижимой.
+          if (now < previousTime - 1) seenWrap = true;
+          previousTime = now;
+
+          if ((!wraps || seenWrap) && now >= target) {
+            startQualityPlayback();
+            return;
+          }
+          rafHandle = window.requestAnimationFrame(waitForAlignment);
+        };
+        waitForAlignment();
+      };
+
+      quality.addEventListener("seeked", onSeeked);
+      quality.currentTime = target;
+    };
+
+    // Момент подмены определяется измеренной скоростью загрузки, и это третья
+    // попытка после двух неудачных.
+    //
+    // `canplaythrough` не годится: браузер оптимистичен, и на канале 1,5
+    // Мбит/с подмена по нему происходила при недокачанном файле — дальше
+    // качественная ступень спотыкалась почти непрерывно (измерено 19 провалов
+    // показа и 19 событий ожидания после подмены).
+    //
+    // «Файл целиком в буфере» не годится тем более: этого не наступает
+    // никогда. Приостановленному `<video>` Chrome докачивает 15,23 с из 25,42
+    // и останавливается до начала воспроизведения — проверено, буфер не
+    // сдвинулся за 60 секунд наблюдения, и подмена не происходила вовсе.
+    //
+    // Работает прямое измерение: сколько секунд видео приезжает за секунду
+    // реального времени. Больше полутора — поток обгоняет воспроизведение с
+    // запасом; меньше — споткнётся, сколько ни жди, и тогда правильное
+    // поведение это остаться на стартовой ступени.
+    const considerQualityReady = () => {
+      if (upgradeStateRef.current !== "loading") return;
+      const rateWatch = rateWatchRef.current;
+      const buffered = quality.buffered;
+      rateWatch.observe(
+        buffered.length > 0 ? buffered.end(buffered.length - 1) : 0,
+        performance.now(),
+      );
+      if (!canSustainPlayback(rateWatch.ratio, rateWatch.bufferedSeconds)) return;
+      if (!advanceUpgrade("quality-ready")) return;
+      beginSwap();
+    };
+
+    quality.addEventListener("progress", considerQualityReady);
+    quality.addEventListener("suspend", considerQualityReady);
+    quality.addEventListener("canplaythrough", considerQualityReady);
+    quality.addEventListener("error", abandon);
+
+    return () => {
+      cancelled = true;
+      quality.removeEventListener("progress", considerQualityReady);
+      quality.removeEventListener("suspend", considerQualityReady);
+      quality.removeEventListener("canplaythrough", considerQualityReady);
+      quality.removeEventListener("error", abandon);
+      if (rafHandle !== null) window.cancelAnimationFrame(rafHandle);
+      if (frameHandle !== null && typeof quality.cancelVideoFrameCallback === "function") {
+        quality.cancelVideoFrameCallback(frameHandle);
+      }
+      if (releaseTimer !== undefined) window.clearTimeout(releaseTimer);
+    };
+  }, [advanceUpgrade, prefersReducedMotion]);
 
   // The backdrop is fixed, but it does not need to keep decoding beneath the
   // rest of the page. A single gate handles document visibility, BFCache
@@ -186,7 +468,10 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
 
     const pauseForPageHide = () => {
       pageIsHiddenRef.current = true;
+      // Обе ступени: после подмены играет качественная, а во время самой
+      // подмены — обе сразу.
       videoRef.current?.pause();
+      qualityVideoRef.current?.pause();
     };
 
     const resumeAfterPageShow = () => {
@@ -229,6 +514,12 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
           the browser recompute (and repaint) this full-screen layer on every tick of the
           address-bar show/hide animation during mobile scroll, which read as jitter/flicker. */}
       <div className="fixed inset-0 -z-10 bg-inverse">
+        {/* Стартовая ступень (QA-006). Лёгкая версия 1280x720 / 720x1280 весом
+            2,5–2,7 МБ: на канале около 1,5 Мбит/с она начинает двигаться за
+            0,55 с и доигрывает круг без провалов показа, тогда как одна лишь
+            качественная ступень в тех же условиях не запускалась вовсе.
+            `preload="metadata"` — ровно то, на чём измерялось; браузер всё
+            равно докачивает файл по ходу воспроизведения. */}
         <video
           ref={videoRef}
           autoPlay
@@ -245,33 +536,33 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
             }
             videoFailedRef.current = false;
             recoveryAttemptsRef.current = 0;
-            setVideoLoaded(true);
+            // Заставку это событие больше не снимает: декодированный кадр не
+            // означает воспроизведения. Оно лишь подтверждает, что поток жив.
             syncVideoPlayback();
           }}
           // There is intentionally no static poster. If the CDN stream fails,
           // do not leave navigation and content inaccessible behind a blank
           // video layer; the site can still be used while the browser retries.
           onError={handleVideoError}
-          // The hero intentionally has no static poster: it begins on the
-          // first decoded frame of the streamed video. `loadeddata` fires
-          // earlier than `canplay`, so a valid CDN stream becomes visible
-          // without waiting for a larger playback buffer.
-          className={`h-full w-full object-cover transition-opacity duration-fast ${videoLoaded ? "opacity-100" : "opacity-0"}`}
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-fast ${motionConfirmed ? "opacity-100" : "opacity-0"}`}
         >
-          {/* Перекодировано по качеству (CRF), а не фиксированным битрейтом
-              (см. scripts/generate-hero-video.mjs) — теперь это настоящий 2K
-              (2560x1440 / 1440x2560) для ВСЕХ экранов, а не только для
-              редких мониторов шире 2560px, как было раньше. */}
-          <source
-            src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/site-media/hero/2026-08-18-2k/hero-background-mobile.mp4`}
-            type="video/mp4"
-            media="(max-width: 767px)"
-          />
-          <source
-            src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/site-media/hero/2026-08-18-2k/hero-background-desktop.mp4`}
-            type="video/mp4"
-          />
+          <source src={HERO_VIDEO_SOURCES.startup.mobile} type="video/mp4" media={HERO_MOBILE_MEDIA_QUERY} />
+          <source src={HERO_VIDEO_SOURCES.startup.desktop} type="video/mp4" />
         </video>
+        {/* Качественная ступень: настоящий 2K (2560x1440 / 1440x2560) для всех
+            экранов. Источник не объявляется разметкой намеренно — файл должен
+            запрашиваться не сразу, а только когда стартовая ступень целиком в
+            буфере, иначе он отберёт у неё канал. Адрес проставляется кодом,
+            рамка выбирается тем же медиавыражением, что и у стартовой. */}
+        <video
+          ref={qualityVideoRef}
+          muted
+          loop
+          playsInline
+          preload="none"
+          aria-hidden
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-base ${qualityVisible ? "opacity-100" : "opacity-0"}`}
+        />
         {/* Directional gradient instead of a flat overlay: the top of the video
             stays bright (sky, the truck itself), darkening only toward the
             bottom where the text sits — guarantees contrast there regardless

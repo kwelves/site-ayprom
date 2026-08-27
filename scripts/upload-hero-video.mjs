@@ -17,7 +17,7 @@
  * Требует переменные окружения (как и scripts/check-supabase-schema.mjs):
  *   NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SECRET_KEY
  *
- * Использование: node scripts/upload-hero-video.mjs
+ * Использование: node scripts/upload-hero-video.mjs [--tier=quality|startup]
  */
 
 import nextEnv from "@next/env";
@@ -36,22 +36,51 @@ if (missingEnvironment.length > 0) {
 }
 
 const SOURCE_DIR = path.resolve("public/videos/hero-web");
-const REMOTE_PREFIX = "hero/2026-08-18-2k";
 const BUCKET = "site-media";
 // Год в секундах — файлы версионированы по пути (см. комментарий выше),
 // поэтому долгий кэш безопасен: смена контента = новый путь, не перезапись.
 const CACHE_CONTROL = "31536000";
 
-const FILES = [
-  { local: "hero-desktop-2k.mp4", remote: `${REMOTE_PREFIX}/hero-background-desktop.mp4` },
-  { local: "hero-mobile-2k.mp4", remote: `${REMOTE_PREFIX}/hero-background-mobile.mp4` },
-];
+// Ступени заливаются раздельно и в разные версионированные папки. Стартовая
+// ступень (QA-006) добавляется рядом с качественной, а не вместо неё: пока
+// Hero не выкачен, новые файлы просто лежат в бакете и ни на что не влияют,
+// а откат сводится к откату кода без повторной загрузки.
+const TIERS = {
+  quality: {
+    prefix: "hero/2026-08-18-2k",
+    files: [
+      { local: "hero-desktop-2k.mp4", remote: "hero-background-desktop.mp4" },
+      { local: "hero-mobile-2k.mp4", remote: "hero-background-mobile.mp4" },
+    ],
+  },
+  startup: {
+    prefix: "hero/2026-08-27-startup",
+    files: [
+      { local: "hero-desktop-startup.mp4", remote: "hero-startup-desktop.mp4" },
+      { local: "hero-mobile-startup.mp4", remote: "hero-startup-mobile.mp4" },
+    ],
+  },
+};
+
+function parseTier(argv) {
+  const arg = argv.find((value) => value.startsWith("--tier="));
+  const tier = arg ? arg.slice(7) : "quality";
+  if (!TIERS[tier]) {
+    throw new Error(`Некорректное значение --tier: ${tier} (ожидается ${Object.keys(TIERS).join("|")})`);
+  }
+  return tier;
+}
 
 async function main() {
+  const tier = parseTier(process.argv.slice(2));
+  const { prefix, files } = TIERS[tier];
   const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SECRET_KEY);
 
-  for (const { local, remote } of FILES) {
-    const localPath = path.join(SOURCE_DIR, local);
+  console.log(`ступень=${tier} → ${BUCKET}/${prefix}`);
+
+  for (const entry of files) {
+    const remote = `${prefix}/${entry.remote}`;
+    const localPath = path.join(SOURCE_DIR, entry.local);
     const body = await fs.readFile(localPath);
     const sizeMb = (body.length / 1024 / 1024).toFixed(2);
 
@@ -72,7 +101,7 @@ async function main() {
     console.log(`  готово: ${publicUrl.publicUrl}`);
   }
 
-  console.log("\nГотово. Обновите пути в src/components/home/Hero.tsx на новый префикс.");
+  console.log(`\nГотово. Ступень ${tier} лежит в ${BUCKET}/${prefix}; сверьте путь в src/components/home/Hero.tsx.`);
 }
 
 main().catch((error) => {

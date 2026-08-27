@@ -8,10 +8,15 @@ vi.mock("framer-motion", () => ({ useReducedMotion: () => false }));
 vi.mock("next/link", () => ({
   default: ({ children, ...props }: React.ComponentProps<"a">) => <a {...props}>{children}</a>,
 }));
+const entrySequence = vi.hoisted(() => ({
+  revealVideo: vi.fn(),
+  revealHeader: vi.fn(),
+}));
+
 vi.mock("@/components/home/HomeEntrySequence", () => ({
   useHomeEntrySequence: () => ({
-    revealVideo: () => undefined,
-    revealHeader: () => undefined,
+    revealVideo: entrySequence.revealVideo,
+    revealHeader: entrySequence.revealHeader,
     contentVisible: true,
   }),
 }));
@@ -43,12 +48,72 @@ async function settlePlaybackAttempt() {
   await Promise.resolve();
 }
 
+// QA-006: hero состоит из двух `<video>` — стартовой ступени и качественной.
+// `pause` заглушён на прототипе, поэтому один общий счётчик вызовов больше
+// ничего не значит: считать нужно по конкретному элементу. `mock.instances`
+// хранит `this` каждого вызова.
+function pausesOn(element: Element | null): number {
+  return pause.mock.instances.filter((instance) => instance === element).length;
+}
+
+function heroVideos(container: HTMLElement) {
+  const [startup, quality] = Array.from(container.querySelectorAll("video"));
+  return { startup, quality };
+}
+
+/** jsdom не даёт задать эти свойства напрямую — подменяем их на элементе. */
+function defineMediaState(video: HTMLVideoElement, state: { duration?: number; bufferedTo?: number }) {
+  if (state.duration !== undefined) {
+    Object.defineProperty(video, "duration", { configurable: true, value: state.duration });
+  }
+  if (state.bufferedTo !== undefined) {
+    const end = state.bufferedTo;
+    Object.defineProperty(video, "buffered", {
+      configurable: true,
+      value: { length: 1, start: () => 0, end: () => end } as unknown as TimeRanges,
+    });
+  }
+}
+
+function setCurrentTime(video: HTMLVideoElement, value: number) {
+  Object.defineProperty(video, "currentTime", { configurable: true, value });
+}
+
+/**
+ * Подмена ступеней начинается с перемотки качественной версии на общее время.
+ * В jsdom она не может завершиться (события `seeked` там нет), поэтому решение
+ * «начинать подмену» наблюдается по самой записи в `currentTime`, а не по её
+ * результату: иначе проверка проходила бы одинаково и с правильным, и с
+ * неправильным условием запуска.
+ */
+function trackSeeks(video: HTMLVideoElement): number[] {
+  const seeks: number[] = [];
+  Object.defineProperty(video, "currentTime", {
+    configurable: true,
+    get: () => 0,
+    set: (value: number) => {
+      seeks.push(value);
+    },
+  });
+  return seeks;
+}
+
 beforeEach(() => {
   observers = [];
   play.mockReset().mockResolvedValue(undefined);
   pause.mockReset();
   load.mockReset();
+  entrySequence.revealVideo.mockReset();
+  entrySequence.revealHeader.mockReset();
   setVisibility("visible");
+  // Рамка качественной ступени выбирается тем же медиавыражением, что и
+  // стартовая; в jsdom `matchMedia` нет вовсе.
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: false,
+    media: query,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
   Object.defineProperty(HTMLMediaElement.prototype, "play", { configurable: true, value: play });
   Object.defineProperty(HTMLMediaElement.prototype, "pause", { configurable: true, value: pause });
   Object.defineProperty(HTMLMediaElement.prototype, "load", { configurable: true, value: load });
@@ -64,7 +129,8 @@ afterEach(() => {
 
 describe("Hero video playback", () => {
   it("pauses outside Hero or in a hidden tab, then resumes only when both are visible", async () => {
-    render(<Hero vehicleTypes={[]} />);
+    const { container } = render(<Hero vehicleTypes={[]} />);
+    const { startup, quality } = heroVideos(container);
     const observer = observers[0];
     expect(observer).toBeDefined();
     expect(play).toHaveBeenCalledTimes(1);
@@ -72,7 +138,10 @@ describe("Hero video playback", () => {
 
     setVisibility("hidden");
     document.dispatchEvent(new Event("visibilitychange"));
-    expect(pause).toHaveBeenCalledTimes(1);
+    // Останавливаются ОБЕ ступени. Если бы гасилась только видимая, то после
+    // подмены качественная продолжала бы декодировать в скрытой вкладке.
+    expect(pausesOn(startup)).toBe(1);
+    expect(pausesOn(quality)).toBe(1);
 
     setVisibility("visible");
     document.dispatchEvent(new Event("visibilitychange"));
@@ -80,7 +149,8 @@ describe("Hero video playback", () => {
     await settlePlaybackAttempt();
 
     observer.emit(false);
-    expect(pause).toHaveBeenCalledTimes(2);
+    expect(pausesOn(startup)).toBe(2);
+    expect(pausesOn(quality)).toBe(2);
 
     observer.emit(true);
     expect(play).toHaveBeenCalledTimes(3);
@@ -88,11 +158,13 @@ describe("Hero video playback", () => {
 
   it("pauses before page cache and resumes on pageshow, then cleans its observer up", async () => {
     const view = render(<Hero vehicleTypes={[]} />);
+    const { startup, quality } = heroVideos(view.container);
     const observer = observers[0];
     await settlePlaybackAttempt();
 
     window.dispatchEvent(new Event("pagehide"));
-    expect(pause).toHaveBeenCalledTimes(1);
+    expect(pausesOn(startup)).toBe(1);
+    expect(pausesOn(quality)).toBe(1);
 
     window.dispatchEvent(new Event("pageshow"));
     expect(play).toHaveBeenCalledTimes(2);
@@ -110,11 +182,12 @@ describe("Hero video playback", () => {
         }),
     );
 
-    render(<Hero vehicleTypes={[]} />);
+    const { container } = render(<Hero vehicleTypes={[]} />);
+    const { startup } = heroVideos(container);
     expect(play).toHaveBeenCalledTimes(1);
 
     window.dispatchEvent(new Event("pagehide"));
-    expect(pause).toHaveBeenCalledTimes(1);
+    expect(pausesOn(startup)).toBe(1);
 
     window.dispatchEvent(new Event("pageshow"));
     // The original attempt is still pending, so this event only asks for one
@@ -155,5 +228,176 @@ describe("Hero video playback", () => {
     fireEvent.error(video!);
     vi.advanceTimersByTime(1_000);
     expect(load).toHaveBeenCalledTimes(2);
+  });
+});
+
+// QA-006. Ниже — доказательства двух свойств, ради которых hero переделан:
+// заставка снимается только по реальному движению, а тяжёлая ступень грузится
+// только после того, как лёгкая целиком в буфере.
+describe("Hero two-tier video", () => {
+  it("не показывает видео и не открывает заставку по одному только loadeddata", () => {
+    const { container } = render(<Hero vehicleTypes={[]} />);
+    const { startup } = heroVideos(container);
+
+    fireEvent.loadedData(startup);
+
+    // Это и был прежний дефект: декодированный кадр принимался за готовность,
+    // и на медленной сети заставка уходила, открывая неподвижную картинку.
+    expect(startup.className).toContain("opacity-0");
+    expect(entrySequence.revealVideo).not.toHaveBeenCalled();
+  });
+
+  it("не считает движением playing без смены кадра", () => {
+    const { container } = render(<Hero vehicleTypes={[]} />);
+    const { startup } = heroVideos(container);
+
+    setCurrentTime(startup, 0);
+    fireEvent.playing(startup);
+    fireEvent.timeUpdate(startup);
+    fireEvent.timeUpdate(startup);
+
+    expect(startup.className).toContain("opacity-0");
+  });
+
+  it("показывает видео после playing и двух разных кадров", () => {
+    const { container } = render(<Hero vehicleTypes={[]} />);
+    const { startup } = heroVideos(container);
+
+    setCurrentTime(startup, 0);
+    fireEvent.playing(startup);
+    fireEvent.timeUpdate(startup);
+    setCurrentTime(startup, 1 / 24);
+    fireEvent.timeUpdate(startup);
+
+    expect(startup.className).toContain("opacity-100");
+  });
+
+  it("не запрашивает качественную ступень, пока стартовая не в буфере целиком", () => {
+    const { container } = render(<Hero vehicleTypes={[]} />);
+    const { startup, quality } = heroVideos(container);
+
+    defineMediaState(startup, { duration: 25.416667, bufferedTo: 12 });
+    fireEvent.progress(startup);
+
+    // Иначе тяжёлый файл отобрал бы канал у видео, которое сейчас на экране.
+    expect(quality.getAttribute("src")).toBeNull();
+  });
+
+  it("запрашивает качественную ступень, когда стартовая догрузилась", () => {
+    const { container } = render(<Hero vehicleTypes={[]} />);
+    const { startup, quality } = heroVideos(container);
+
+    defineMediaState(startup, { duration: 25.416667, bufferedTo: 25.416667 });
+    fireEvent.progress(startup);
+
+    expect(quality.src).toContain("/2026-08-18-2k/");
+    expect(quality.preload).toBe("auto");
+    expect(quality.className).toContain("opacity-0");
+  });
+
+  it("запрашивает качественную ступень ровно один раз", () => {
+    const { container } = render(<Hero vehicleTypes={[]} />);
+    const { startup, quality } = heroVideos(container);
+
+    defineMediaState(startup, { duration: 25.416667, bufferedTo: 25.416667 });
+    fireEvent.progress(startup);
+    const first = quality.src;
+    load.mockClear();
+
+    fireEvent.progress(startup);
+    fireEvent.suspend(startup);
+
+    expect(quality.src).toBe(first);
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it("не начинает подмену по одному только canplaythrough", () => {
+    const { container } = render(<Hero vehicleTypes={[]} />);
+    const { startup, quality } = heroVideos(container);
+    const seeks = trackSeeks(quality);
+
+    defineMediaState(startup, { duration: 25.416667, bufferedTo: 25.416667 });
+    fireEvent.progress(startup);
+
+    // `canplaythrough` — оптимистичная оценка браузера. На канале, который
+    // впятеро медленнее потока, она неверна: подмена по ней происходила при
+    // недокачанном файле, и дальше качественная ступень спотыкалась почти
+    // непрерывно (измерено 19 провалов показа после подмены).
+    defineMediaState(quality, { duration: 25.416667, bufferedTo: 9 });
+    fireEvent.canPlayThrough(quality);
+
+    expect(seeks).toHaveLength(0);
+    expect(quality.className).toContain("opacity-0");
+  });
+
+  it("не начинает подмену, когда загрузка медленнее воспроизведения", () => {
+    const now = vi.spyOn(performance, "now");
+    const { container } = render(<Hero vehicleTypes={[]} />);
+    const { startup, quality } = heroVideos(container);
+    const seeks = trackSeeks(quality);
+
+    // Отсчёт скорости начинается в момент запроса качественной ступени.
+    now.mockReturnValue(0);
+    defineMediaState(startup, { duration: 25.416667, bufferedTo: 25.416667 });
+    fireEvent.progress(startup);
+
+    // За 10 секунд реального времени приехало 12 секунд видео минус ноль,
+    // то есть 1,2 секунды видео в секунду — меньше требуемого запаса.
+    now.mockReturnValue(10_000);
+    defineMediaState(quality, { duration: 25.416667, bufferedTo: 12 });
+    fireEvent.progress(quality);
+
+    expect(seeks).toHaveLength(0);
+    now.mockRestore();
+  });
+
+  it("начинает подмену, когда загрузка обгоняет воспроизведение", () => {
+    const now = vi.spyOn(performance, "now");
+    const { container } = render(<Hero vehicleTypes={[]} />);
+    const { startup, quality } = heroVideos(container);
+    const seeks = trackSeeks(quality);
+
+    // Отсчёт скорости начинается в момент запроса качественной ступени.
+    now.mockReturnValue(0);
+    defineMediaState(startup, { duration: 25.416667, bufferedTo: 25.416667 });
+    fireEvent.progress(startup);
+
+    // За 2 секунды приехало 15 секунд видео — запас более чем семикратный.
+    now.mockReturnValue(2_000);
+    defineMediaState(quality, { duration: 25.416667, bufferedTo: 15 });
+    fireEvent.progress(quality);
+
+    // Цель берётся с упреждением от текущего времени стартовой ступени,
+    // чтобы перемотка успела завершиться до момента вступления.
+    expect(seeks).toHaveLength(1);
+    expect(seeks[0]).toBeGreaterThan(0);
+    now.mockRestore();
+  });
+
+  it("отказ качественной ступени оставляет стартовую видимой и не повторяет попытку", () => {
+    const { container } = render(<Hero vehicleTypes={[]} />);
+    const { startup, quality } = heroVideos(container);
+
+    setCurrentTime(startup, 0);
+    fireEvent.playing(startup);
+    fireEvent.timeUpdate(startup);
+    setCurrentTime(startup, 1 / 24);
+    fireEvent.timeUpdate(startup);
+
+    defineMediaState(startup, { duration: 25.416667, bufferedTo: 25.416667 });
+    fireEvent.progress(startup);
+    expect(quality.src).not.toBe("");
+
+    load.mockClear();
+    fireEvent.error(quality);
+    // Повторная загрузка отняла бы канал у играющей стартовой ступени ради
+    // версии, которая один раз уже не доехала.
+    fireEvent.progress(startup);
+    fireEvent.suspend(startup);
+
+    expect(load).not.toHaveBeenCalled();
+    expect(quality.className).toContain("opacity-0");
+    expect(startup.className).toContain("opacity-100");
+    expect(pausesOn(startup)).toBe(0);
   });
 });
