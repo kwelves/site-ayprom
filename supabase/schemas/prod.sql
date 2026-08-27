@@ -2584,31 +2584,42 @@ GRANT USAGE ON SCHEMA "public" TO "service_role";
 
 
 
-REVOKE ALL ON FUNCTION "public"."record_admin_mutation"() FROM PUBLIC;
+-- QA-013: публичному каталогу нужны ровно две функции поиска. Раньше
+-- `normalize_catalog_search` держалась на умолчании «EXECUTE для PUBLIC»;
+-- после снятия этого умолчания её доступ объявляется явно.
+REVOKE ALL ON FUNCTION "public"."normalize_catalog_search"("value" "text") FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."normalize_catalog_search"("value" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."normalize_catalog_search"("value" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."normalize_catalog_search"("value" "text") TO "service_role";
+
+REVOKE ALL ON FUNCTION "public"."detach_vehicle_hotspots_from_unpublished_product"() FROM PUBLIC, "anon", "authenticated";
+GRANT ALL ON FUNCTION "public"."detach_vehicle_hotspots_from_unpublished_product"() TO "service_role";
+
+REVOKE ALL ON FUNCTION "public"."record_admin_mutation"() FROM PUBLIC, "anon", "authenticated";
 
 
 
-REVOKE ALL ON FUNCTION "public"."refresh_product_search_from_brand"() FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."refresh_product_search_from_brand"() FROM PUBLIC, "anon", "authenticated";
 
 
 
-REVOKE ALL ON FUNCTION "public"."refresh_product_search_from_category"() FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."refresh_product_search_from_category"() FROM PUBLIC, "anon", "authenticated";
 
 
 
-REVOKE ALL ON FUNCTION "public"."refresh_product_search_from_child"() FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."refresh_product_search_from_child"() FROM PUBLIC, "anon", "authenticated";
 
 
 
-REVOKE ALL ON FUNCTION "public"."refresh_product_search_from_product"() FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."refresh_product_search_from_product"() FROM PUBLIC, "anon", "authenticated";
 
 
 
-REVOKE ALL ON FUNCTION "public"."refresh_product_search_from_subcategory"() FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."refresh_product_search_from_subcategory"() FROM PUBLIC, "anon", "authenticated";
 
 
 
-REVOKE ALL ON FUNCTION "public"."refresh_product_search_text"("target_product_id" "uuid") FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."refresh_product_search_text"("target_product_id" "uuid") FROM PUBLIC, "anon", "authenticated";
 
 -- Найдено нагрузочной проверкой Фазы 3.2, а не раньше: все прежние проверки
 -- этой функции шли через MCP execute_sql или "psql -U postgres" —
@@ -2626,7 +2637,7 @@ GRANT EXECUTE ON FUNCTION "public"."refresh_product_search_text"("target_product
 
 
 
-REVOKE ALL ON FUNCTION "public"."register_admin_login_attempt"("attempt_key_hash" "text", "password_is_valid" boolean, "attempt_scope" "text") FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."register_admin_login_attempt"("attempt_key_hash" "text", "password_is_valid" boolean, "attempt_scope" "text") FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON FUNCTION "public"."register_admin_login_attempt"("attempt_key_hash" "text", "password_is_valid" boolean, "attempt_scope" "text") TO "service_role";
 
 
@@ -2634,28 +2645,28 @@ GRANT ALL ON FUNCTION "public"."register_admin_login_attempt"("attempt_key_hash"
 -- service_role. Postgres выдаёт EXECUTE роли PUBLIC по умолчанию, а anon и
 -- authenticated наследуют от неё, поэтому право снимается именно с PUBLIC —
 -- иначе любой посетитель мог бы переставлять порядок каталога.
-REVOKE ALL ON FUNCTION "public"."reorder_products"("ordered_slugs" "text"[]) FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."reorder_products"("ordered_slugs" "text"[]) FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON FUNCTION "public"."reorder_products"("ordered_slugs" "text"[]) TO "service_role";
 
-REVOKE ALL ON FUNCTION "public"."reorder_brands"("ordered_slugs" "text"[]) FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."reorder_brands"("ordered_slugs" "text"[]) FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON FUNCTION "public"."reorder_brands"("ordered_slugs" "text"[]) TO "service_role";
 
-REVOKE ALL ON FUNCTION "public"."reorder_categories"("ordered_slugs" "text"[]) FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."reorder_categories"("ordered_slugs" "text"[]) FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON FUNCTION "public"."reorder_categories"("ordered_slugs" "text"[]) TO "service_role";
 
-REVOKE ALL ON FUNCTION "public"."reorder_vehicle_types"("ordered_slugs" "text"[]) FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."reorder_vehicle_types"("ordered_slugs" "text"[]) FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON FUNCTION "public"."reorder_vehicle_types"("ordered_slugs" "text"[]) TO "service_role";
 
-REVOKE ALL ON FUNCTION "public"."assert_reorder_identifiers"("identifiers" "anyarray") FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."assert_reorder_identifiers"("identifiers" "anyarray") FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON FUNCTION "public"."assert_reorder_identifiers"("identifiers" "anyarray") TO "service_role";
 
-REVOKE ALL ON FUNCTION "public"."reorder_subcategories"("target_category_slug" "text", "ordered_ids" "uuid"[]) FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."reorder_subcategories"("target_category_slug" "text", "ordered_ids" "uuid"[]) FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON FUNCTION "public"."reorder_subcategories"("target_category_slug" "text", "ordered_ids" "uuid"[]) TO "service_role";
 
-REVOKE ALL ON FUNCTION "public"."reorder_product_images"("target_product_slug" "text", "ordered_ids" "uuid"[]) FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."reorder_product_images"("target_product_slug" "text", "ordered_ids" "uuid"[]) FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON FUNCTION "public"."reorder_product_images"("target_product_slug" "text", "ordered_ids" "uuid"[]) TO "service_role";
 
-REVOKE ALL ON FUNCTION "public"."reorder_category_brands"("target_category_slug" "text", "ordered_brand_slugs" "text"[]) FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."reorder_category_brands"("target_category_slug" "text", "ordered_brand_slugs" "text"[]) FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON FUNCTION "public"."reorder_category_brands"("target_category_slug" "text", "ordered_brand_slugs" "text"[]) TO "service_role";
 
 REVOKE ALL ON FUNCTION "public"."record_admin_auth_failure"("p_key_hash" "text", "p_scope" "text", "p_attempt_at" timestamp with time zone) FROM PUBLIC, "anon", "authenticated";
@@ -2685,40 +2696,42 @@ GRANT ALL ON FUNCTION "public"."finalize_product_image_staging"("p_id" "uuid") T
 REVOKE ALL ON TABLE "public"."product_image_staging" FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON TABLE "public"."product_image_staging" TO "service_role";
 
-REVOKE ALL ON FUNCTION "public"."resolve_product_references"("p_category_slug" "text", "p_subcategory_slug" "text", "p_compatible_brands" "text"[], "p_vehicle_types" "text"[]) FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."resolve_product_references"("p_category_slug" "text", "p_subcategory_slug" "text", "p_compatible_brands" "text"[], "p_vehicle_types" "text"[]) FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON FUNCTION "public"."resolve_product_references"("p_category_slug" "text", "p_subcategory_slug" "text", "p_compatible_brands" "text"[], "p_vehicle_types" "text"[]) TO "service_role";
 
-REVOKE ALL ON FUNCTION "public"."write_product_characteristics"("p_product_id" "uuid", "p_characteristics" "jsonb") FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."write_product_characteristics"("p_product_id" "uuid", "p_characteristics" "jsonb") FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON FUNCTION "public"."write_product_characteristics"("p_product_id" "uuid", "p_characteristics" "jsonb") TO "service_role";
 
-REVOKE ALL ON FUNCTION "public"."create_product_with_relations"("p_slug_base" "text", "p_name" "text", "p_category_slug" "text", "p_subcategory_slug" "text", "p_short_description" "text", "p_description" "text", "p_article" "text", "p_published" boolean, "p_availability" "public"."product_availability", "p_meta_title" "text", "p_meta_description" "text", "p_characteristics" "jsonb", "p_compatible_brands" "text"[], "p_vehicle_types" "text"[]) FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."create_product_with_relations"("p_slug_base" "text", "p_name" "text", "p_category_slug" "text", "p_subcategory_slug" "text", "p_short_description" "text", "p_description" "text", "p_article" "text", "p_published" boolean, "p_availability" "public"."product_availability", "p_meta_title" "text", "p_meta_description" "text", "p_characteristics" "jsonb", "p_compatible_brands" "text"[], "p_vehicle_types" "text"[]) FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON FUNCTION "public"."create_product_with_relations"("p_slug_base" "text", "p_name" "text", "p_category_slug" "text", "p_subcategory_slug" "text", "p_short_description" "text", "p_description" "text", "p_article" "text", "p_published" boolean, "p_availability" "public"."product_availability", "p_meta_title" "text", "p_meta_description" "text", "p_characteristics" "jsonb", "p_compatible_brands" "text"[], "p_vehicle_types" "text"[]) TO "service_role";
 
-REVOKE ALL ON FUNCTION "public"."update_product_with_relations"("p_slug" "text", "p_expected_updated_at" timestamp with time zone, "p_name" "text", "p_category_slug" "text", "p_subcategory_slug" "text", "p_short_description" "text", "p_description" "text", "p_article" "text", "p_published" boolean, "p_availability" "public"."product_availability", "p_meta_title" "text", "p_meta_description" "text", "p_characteristics" "jsonb", "p_compatible_brands" "text"[], "p_vehicle_types" "text"[]) FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."update_product_with_relations"("p_slug" "text", "p_expected_updated_at" timestamp with time zone, "p_name" "text", "p_category_slug" "text", "p_subcategory_slug" "text", "p_short_description" "text", "p_description" "text", "p_article" "text", "p_published" boolean, "p_availability" "public"."product_availability", "p_meta_title" "text", "p_meta_description" "text", "p_characteristics" "jsonb", "p_compatible_brands" "text"[], "p_vehicle_types" "text"[]) FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON FUNCTION "public"."update_product_with_relations"("p_slug" "text", "p_expected_updated_at" timestamp with time zone, "p_name" "text", "p_category_slug" "text", "p_subcategory_slug" "text", "p_short_description" "text", "p_description" "text", "p_article" "text", "p_published" boolean, "p_availability" "public"."product_availability", "p_meta_title" "text", "p_meta_description" "text", "p_characteristics" "jsonb", "p_compatible_brands" "text"[], "p_vehicle_types" "text"[]) TO "service_role";
 
-REVOKE ALL ON FUNCTION "public"."update_vehicle_hotspots"("target_vehicle_type_slug" "text", "hotspot_updates" "jsonb") FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."update_vehicle_hotspots"("target_vehicle_type_slug" "text", "hotspot_updates" "jsonb") FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON FUNCTION "public"."update_vehicle_hotspots"("target_vehicle_type_slug" "text", "hotspot_updates" "jsonb") TO "service_role";
 
-REVOKE ALL ON FUNCTION "public"."update_vehicle_hotspot_assignments"("assignment_updates" "jsonb") FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."update_vehicle_hotspot_assignments"("assignment_updates" "jsonb") FROM PUBLIC, "anon", "authenticated";
 REVOKE ALL ON FUNCTION "public"."update_vehicle_hotspot_assignments"("assignment_updates" "jsonb") FROM "anon";
 REVOKE ALL ON FUNCTION "public"."update_vehicle_hotspot_assignments"("assignment_updates" "jsonb") FROM "authenticated";
 GRANT ALL ON FUNCTION "public"."update_vehicle_hotspot_assignments"("assignment_updates" "jsonb") TO "service_role";
 
-REVOKE ALL ON FUNCTION "public"."restore_vehicle_hotspots"("target_vehicle_type_slug" "text", "expected_hotspot_updates" "jsonb", "prior_hotspot_updates" "jsonb") FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."restore_vehicle_hotspots"("target_vehicle_type_slug" "text", "expected_hotspot_updates" "jsonb", "prior_hotspot_updates" "jsonb") FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON FUNCTION "public"."restore_vehicle_hotspots"("target_vehicle_type_slug" "text", "expected_hotspot_updates" "jsonb", "prior_hotspot_updates" "jsonb") TO "service_role";
 
-REVOKE ALL ON FUNCTION "public"."import_products_batch"("rows" "jsonb") FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."import_products_batch"("rows" "jsonb") FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON FUNCTION "public"."import_products_batch"("rows" "jsonb") TO "service_role";
 
 
 
+REVOKE ALL ON FUNCTION "public"."search_catalog_products"("search_query" "text", "category_filter" "text", "subcategory_filter" "text", "brand_filter" "text", "vehicle_type_filter" "text") FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."search_catalog_products"("search_query" "text", "category_filter" "text", "subcategory_filter" "text", "brand_filter" "text", "vehicle_type_filter" "text") TO "anon";
 GRANT ALL ON FUNCTION "public"."search_catalog_products"("search_query" "text", "category_filter" "text", "subcategory_filter" "text", "brand_filter" "text", "vehicle_type_filter" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."search_catalog_products"("search_query" "text", "category_filter" "text", "subcategory_filter" "text", "brand_filter" "text", "vehicle_type_filter" "text") TO "service_role";
 
 
 
+REVOKE ALL ON TABLE "public"."admin_audit_log" FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON TABLE "public"."admin_audit_log" TO "service_role";
 
 
@@ -2730,12 +2743,11 @@ REVOKE ALL ON TABLE "public"."admin_auth_events" FROM PUBLIC;
 
 
 
-GRANT UPDATE ON SEQUENCE "public"."admin_audit_log_id_seq" TO "anon";
-GRANT UPDATE ON SEQUENCE "public"."admin_audit_log_id_seq" TO "authenticated";
-GRANT UPDATE ON SEQUENCE "public"."admin_audit_log_id_seq" TO "service_role";
+REVOKE ALL ON SEQUENCE "public"."admin_audit_log_id_seq" FROM PUBLIC, "anon", "authenticated";
+GRANT ALL ON SEQUENCE "public"."admin_audit_log_id_seq" TO "service_role";
 
 
-GRANT UPDATE ON SEQUENCE "public"."admin_auth_events_id_seq" TO "service_role";
+GRANT ALL ON SEQUENCE "public"."admin_auth_events_id_seq" TO "service_role";
 
 REVOKE ALL ON SEQUENCE "public"."admin_auth_events_id_seq" FROM "anon";
 REVOKE ALL ON SEQUENCE "public"."admin_auth_events_id_seq" FROM "authenticated";
@@ -2743,80 +2755,82 @@ REVOKE ALL ON SEQUENCE "public"."admin_auth_events_id_seq" FROM PUBLIC;
 
 
 
+REVOKE ALL ON TABLE "public"."admin_login_rate_limits" FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON TABLE "public"."admin_login_rate_limits" TO "service_role";
 
 
 
-GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."brands" TO "anon";
-GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."brands" TO "authenticated";
+GRANT SELECT ON TABLE "public"."brands" TO "anon";
+GRANT SELECT ON TABLE "public"."brands" TO "authenticated";
 GRANT ALL ON TABLE "public"."brands" TO "service_role";
 
 
 
-GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."categories" TO "anon";
-GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."categories" TO "authenticated";
+GRANT SELECT ON TABLE "public"."categories" TO "anon";
+GRANT SELECT ON TABLE "public"."categories" TO "authenticated";
 GRANT ALL ON TABLE "public"."categories" TO "service_role";
 
 
 
-GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."category_brands" TO "anon";
-GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."category_brands" TO "authenticated";
+GRANT SELECT ON TABLE "public"."category_brands" TO "anon";
+GRANT SELECT ON TABLE "public"."category_brands" TO "authenticated";
 GRANT ALL ON TABLE "public"."category_brands" TO "service_role";
 
 
 
-GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."product_brands" TO "anon";
-GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."product_brands" TO "authenticated";
+GRANT SELECT ON TABLE "public"."product_brands" TO "anon";
+GRANT SELECT ON TABLE "public"."product_brands" TO "authenticated";
 GRANT ALL ON TABLE "public"."product_brands" TO "service_role";
 
 
 
-GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."product_characteristics" TO "anon";
-GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."product_characteristics" TO "authenticated";
+GRANT SELECT ON TABLE "public"."product_characteristics" TO "anon";
+GRANT SELECT ON TABLE "public"."product_characteristics" TO "authenticated";
 GRANT ALL ON TABLE "public"."product_characteristics" TO "service_role";
 
 
 
-GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."product_images" TO "anon";
-GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."product_images" TO "authenticated";
+GRANT SELECT ON TABLE "public"."product_images" TO "anon";
+GRANT SELECT ON TABLE "public"."product_images" TO "authenticated";
 GRANT ALL ON TABLE "public"."product_images" TO "service_role";
 
 
 
-GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."product_vehicle_types" TO "anon";
-GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."product_vehicle_types" TO "authenticated";
+GRANT SELECT ON TABLE "public"."product_vehicle_types" TO "anon";
+GRANT SELECT ON TABLE "public"."product_vehicle_types" TO "authenticated";
 GRANT ALL ON TABLE "public"."product_vehicle_types" TO "service_role";
 
 
 
-GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."products" TO "anon";
-GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."products" TO "authenticated";
+GRANT SELECT ON TABLE "public"."products" TO "anon";
+GRANT SELECT ON TABLE "public"."products" TO "authenticated";
 GRANT ALL ON TABLE "public"."products" TO "service_role";
 
 
 
-GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."subcategories" TO "anon";
-GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."subcategories" TO "authenticated";
+GRANT SELECT ON TABLE "public"."subcategories" TO "anon";
+GRANT SELECT ON TABLE "public"."subcategories" TO "authenticated";
 GRANT ALL ON TABLE "public"."subcategories" TO "service_role";
 
 
 
-GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."vehicle_hotspots" TO "anon";
-GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."vehicle_hotspots" TO "authenticated";
+GRANT SELECT ON TABLE "public"."vehicle_hotspots" TO "anon";
+GRANT SELECT ON TABLE "public"."vehicle_hotspots" TO "authenticated";
 GRANT ALL ON TABLE "public"."vehicle_hotspots" TO "service_role";
 
 
 
-GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."vehicle_types" TO "anon";
-GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."vehicle_types" TO "authenticated";
+GRANT SELECT ON TABLE "public"."vehicle_types" TO "anon";
+GRANT SELECT ON TABLE "public"."vehicle_types" TO "authenticated";
 GRANT ALL ON TABLE "public"."vehicle_types" TO "service_role";
 
 
 
+-- QA-013: default privileges — вторая половина проблемы. Без этих REVOKE-- каждая новая таблица, созданная миграцией от роли `postgres`, снова-- получала бы TRUNCATE для `anon`, а каждая новая функция — EXECUTE.-- Разовый REVOKE по существующим объектам такую регрессию не удержит.
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "postgres";
-ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT UPDATE ON SEQUENCES TO "anon";
-ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT UPDATE ON SEQUENCES TO "authenticated";
-ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT UPDATE ON SEQUENCES TO "service_role";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" REVOKE ALL ON SEQUENCES FROM "anon";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" REVOKE ALL ON SEQUENCES FROM "authenticated";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "service_role";
 
 
 
@@ -2824,6 +2838,13 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT UPDATE ON 
 
 
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "postgres";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" REVOKE ALL ON FUNCTIONS FROM PUBLIC, "anon", "authenticated";
+-- Отдельная строка без `IN SCHEMA` — не дубль предыдущей: итоговые права
+-- нового объекта считаются как объединение глобальной и схемной записи, и при
+-- отсутствии глобальной её место занимает встроенное умолчание Postgres, где у
+-- функций есть EXECUTE для PUBLIC. Без этой строки PUBLIC возвращается.
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "service_role";
 
 
 
@@ -2831,6 +2852,6 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUN
 
 
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "postgres";
-ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLES TO "anon";
-ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLES TO "authenticated";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" REVOKE ALL ON TABLES FROM "anon";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" REVOKE ALL ON TABLES FROM "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "service_role";

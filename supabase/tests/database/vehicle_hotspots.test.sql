@@ -80,6 +80,14 @@ as $function$
   where hotspot.vehicle_type_slug = target_slug;
 $function$;
 
+-- QA-013 снял умолчание «EXECUTE для PUBLIC» у функций, создаваемых ролью
+-- postgres, поэтому временные помощники теста тоже перестали быть доступны
+-- другим ролям. Сценарии ниже выполняются под service_role, и права на
+-- помощников теперь выдаются явно — как и на любую другую функцию.
+grant execute on function pg_temp.hotspot_updates(text, text, text) to service_role;
+grant execute on function pg_temp.duplicate_product_updates(text, text) to service_role;
+grant execute on function pg_temp.foreign_hotspot_updates(text) to service_role;
+
 select is(
   (
     select count(*)

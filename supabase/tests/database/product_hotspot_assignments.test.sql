@@ -36,6 +36,10 @@ as $function$
     and hotspot.hotspot_number = target_hotspot_number;
 $function$;
 
+-- QA-013: см. комментарий в vehicle_hotspots.test.sql — временные помощники
+-- больше не достаются другим ролям через PUBLIC, права выдаются явно.
+grant execute on function pg_temp.assignment_update(text, integer, text, text) to service_role;
+
 select has_function(
   'public',
   'update_vehicle_hotspot_assignments',
