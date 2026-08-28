@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/Button";
 import { useHashNavClick } from "@/lib/use-hash-nav-click";
 import { useHomeEntrySequence } from "@/components/home/HomeEntrySequence";
 import { DURATION } from "@/lib/motion";
-import { HOME_SEO_TITLE } from "@/lib/home-seo";
 import {
   HERO_MOBILE_MEDIA_QUERY,
   HERO_VIDEO_SOURCES,
@@ -28,6 +27,7 @@ import type { VehicleType } from "@/types/catalog";
 
 const VIDEO_RECOVERY_DELAY_MS = 1_000;
 const MAX_VIDEO_RECOVERY_ATTEMPTS = 1;
+const HERO_TITLE = "AYPROM — гидравлика и запчасти для спецтехники";
 
 /**
  * Упреждение при подмене ступеней. Перемотка качественной версии к нужному
@@ -743,7 +743,7 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
       >
         <div inert={!contentVisible} className="max-w-2xl">
           <h1 className="animate-fade-up text-shadow-md text-balance text-3xl font-bold tracking-tight text-inverse-foreground sm:text-4xl lg:text-5xl">
-            {HOME_SEO_TITLE}
+            {HERO_TITLE}
           </h1>
           {vehicleTypes.length > 0 && (
             <div

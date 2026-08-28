@@ -128,6 +128,14 @@ afterEach(() => {
 });
 
 describe("Hero video playback", () => {
+  it("показывает бренд в заголовке без географического хвоста", () => {
+    const view = render(<Hero vehicleTypes={[]} />);
+
+    expect(view.getByRole("heading", { level: 1 }).textContent).toBe(
+      "AYPROM — гидравлика и запчасти для спецтехники",
+    );
+  });
+
   it("pauses outside Hero or in a hidden tab, then resumes only when both are visible", async () => {
     const { container } = render(<Hero vehicleTypes={[]} />);
     const { startup, quality } = heroVideos(container);
