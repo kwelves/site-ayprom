@@ -532,6 +532,169 @@ describe("Hero two-tier video", () => {
     now.mockRestore();
   });
 
+  // Сторож зависшей качественной ступени. Поток может встать и без ошибки:
+  // соединение открыто, новые байты не идут, браузер ждёт. `error` при этом не
+  // приходит вовсе, и hero замирает на живом с точки зрения браузера кадре.
+  //
+  // В jsdom нет кадровых колбэков, поэтому работает запасной признак движения —
+  // изменение `currentTime` по событию `timeupdate`.
+  async function completeSwapWithWatchdog(container: HTMLElement) {
+    const state = await completeSwap(container);
+    // `trackSeeks` подменил `currentTime` геттером-нулём; для сторожа нужно
+    // время, которое можно двигать.
+    setCurrentTime(state.quality, 0);
+    return state;
+  }
+
+  /** Сдвигает и часы, и таймеры: сторож смотрит на `performance.now`. */
+  function advance(now: { mockReturnValue(value: number): unknown }, fromMs: number, byMs: number) {
+    now.mockReturnValue(fromMs + byMs);
+    act(() => {
+      vi.advanceTimersByTime(byMs);
+    });
+  }
+
+  it("постоянное зависание качественной ступени возвращает стартовую", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "setTimeout", "clearTimeout"] });
+    const { container } = render(<Hero vehicleTypes={[]} />);
+    const { startup, quality, now } = await completeSwapWithWatchdog(container);
+    expect(quality.className).toContain("opacity-100");
+
+    advance(now, 2_000, 6_000);
+
+    expect(quality.className).toContain("opacity-0");
+    expect(startup.className).toContain("opacity-100");
+    now.mockRestore();
+  });
+
+  it("короткая пауза меньше порога возвратом не считается", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "setTimeout", "clearTimeout"] });
+    const { container } = render(<Hero vehicleTypes={[]} />);
+    const { quality, now } = await completeSwapWithWatchdog(container);
+
+    advance(now, 2_000, 4_000);
+
+    expect(quality.className).toContain("opacity-100");
+    now.mockRestore();
+  });
+
+  it("возобновившийся кадр сбрасывает отсчёт сторожа", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "setTimeout", "clearTimeout"] });
+    const { container } = render(<Hero vehicleTypes={[]} />);
+    const { quality, now } = await completeSwapWithWatchdog(container);
+
+    advance(now, 2_000, 4_000);
+    expect(quality.className).toContain("opacity-100");
+
+    // Кадр показан: отсчёт начинается заново с отметки 6000.
+    setCurrentTime(quality, 1.5);
+    act(() => {
+      fireEvent.timeUpdate(quality);
+    });
+
+    advance(now, 6_000, 4_000);
+    expect(quality.className).toContain("opacity-100");
+
+    // А вот теперь пять секунд без движения действительно прошли.
+    advance(now, 10_000, 2_000);
+    expect(quality.className).toContain("opacity-0");
+    now.mockRestore();
+  });
+
+  it("скрытая вкладка не считается зависанием", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "setTimeout", "clearTimeout"] });
+    const { container } = render(<Hero vehicleTypes={[]} />);
+    const { quality, now } = await completeSwapWithWatchdog(container);
+
+    setVisibility("hidden");
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    advance(now, 2_000, 30_000);
+
+    expect(quality.className).toContain("opacity-100");
+
+    // Возвращение начинает отсчёт заново, а не досчитывает накопленный простой.
+    setVisibility("visible");
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    advance(now, 32_000, 4_000);
+    expect(quality.className).toContain("opacity-100");
+
+    // Но сторож должен именно возобновиться, а не остаться выключенным: после
+    // возвращения настоящее зависание обязано быть замечено.
+    advance(now, 36_000, 2_000);
+    expect(quality.className).toContain("opacity-0");
+    now.mockRestore();
+  });
+
+  it("ушедший с экрана hero не считается зависанием", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "setTimeout", "clearTimeout"] });
+    const { container } = render(<Hero vehicleTypes={[]} />);
+    const { quality, now } = await completeSwapWithWatchdog(container);
+    const observer = observers[0];
+
+    act(() => {
+      observer.emit(false);
+    });
+    advance(now, 2_000, 30_000);
+
+    expect(quality.className).toContain("opacity-100");
+    now.mockRestore();
+  });
+
+  it("уход в page cache не считается зависанием", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "setTimeout", "clearTimeout"] });
+    const { container } = render(<Hero vehicleTypes={[]} />);
+    const { quality, now } = await completeSwapWithWatchdog(container);
+
+    act(() => {
+      window.dispatchEvent(new Event("pagehide"));
+    });
+    advance(now, 2_000, 30_000);
+
+    expect(quality.className).toContain("opacity-100");
+    now.mockRestore();
+  });
+
+  it("ошибка и сторож не выполняют возврат дважды", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "setTimeout", "clearTimeout"] });
+    const { container } = render(<Hero vehicleTypes={[]} />);
+    const { quality, now } = await completeSwapWithWatchdog(container);
+
+    act(() => {
+      fireEvent.error(quality);
+    });
+    const pausesAfterError = pausesOn(quality);
+    expect(pausesAfterError).toBe(1);
+
+    // Сторож после отказа уже снят, но даже если бы сработал — переход
+    // `failed` терминальный, и второй возврат не выполнится.
+    advance(now, 2_000, 30_000);
+    expect(pausesOn(quality)).toBe(pausesAfterError);
+    expect(quality.className).toContain("opacity-0");
+    now.mockRestore();
+  });
+
+  it("сработавший сторож делает последующую ошибку безвредной", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "setTimeout", "clearTimeout"] });
+    const { container } = render(<Hero vehicleTypes={[]} />);
+    const { startup, quality, now } = await completeSwapWithWatchdog(container);
+
+    advance(now, 2_000, 6_000);
+    const pausesAfterWatchdog = pausesOn(quality);
+    expect(pausesAfterWatchdog).toBe(1);
+
+    act(() => {
+      fireEvent.error(quality);
+    });
+
+    expect(pausesOn(quality)).toBe(pausesAfterWatchdog);
+    expect(startup.className).toContain("opacity-100");
+    now.mockRestore();
+  });
+
   it("отказ качественной ступени оставляет стартовую видимой и не повторяет попытку", () => {
     const { container } = render(<Hero vehicleTypes={[]} />);
     const { startup, quality } = heroVideos(container);

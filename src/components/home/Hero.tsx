@@ -17,10 +17,12 @@ import {
   heroVideoSource,
   canSustainPlayback,
   createDownloadRateWatch,
+  createStallWatch,
   isFullyBuffered,
   nextHeroUpgradeState,
   type HeroUpgradeEvent,
   type HeroUpgradeState,
+  type StallWatch,
 } from "@/lib/hero-video";
 import type { VehicleType } from "@/types/catalog";
 
@@ -35,6 +37,12 @@ const MAX_VIDEO_RECOVERY_ATTEMPTS = 1;
  * между ключевыми кадрами.
  */
 const SWAP_LEAD_SECONDS = 0.4;
+
+/** Как часто сторож проверяет, не остановилась ли качественная ступень. */
+const STALL_CHECK_INTERVAL_MS = 1_000;
+
+/** Как часто перепроверяется готовность качественной ступени к подмене. */
+const QUALITY_READINESS_POLL_MS = 500;
 
 export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
   const handleHashClick = useHashNavClick();
@@ -54,6 +62,7 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
   const motionWatchRef = useRef(createHeroMotionWatch());
   const rateWatchRef = useRef(createDownloadRateWatch());
   const resumeSwapRef = useRef<() => void>(() => undefined);
+  const stallWatchRef = useRef<StallWatch | null>(null);
   const [motionConfirmed, setMotionConfirmed] = useState(false);
   const [qualityVisible, setQualityVisible] = useState(false);
   const prefersReducedMotion = useReducedMotion();
@@ -99,6 +108,8 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
     // навсегда осталось бы `swapping`, а возобновление выбрало бы стартовую
     // ступень. Откат в `ready` позволяет повторить попытку при возвращении.
     advanceUpgrade("swap-interrupted");
+    // Штатная пауза — не зависание: сторож замирает вместе с видео.
+    stallWatchRef.current?.suspend();
     videoRef.current?.pause();
     qualityVideoRef.current?.pause();
   }, [advanceUpgrade]);
@@ -115,6 +126,9 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
     // Контекст снова активен. Если подмена была прервана, повторяем её здесь:
     // файл уже скачан, повторить нужно только выравнивание и запуск.
     if (upgradeStateRef.current === "ready") resumeSwapRef.current();
+    // Отсчёт зависания начинается заново, а не продолжается с простоем,
+    // накопленным за время, когда видео и не должно было двигаться.
+    stallWatchRef.current?.resume(performance.now());
 
     // `play()` is asynchronous. Do not stack calls while a source is loading:
     // repeated play/pause pairs are a common source of AbortError noise and a
@@ -327,6 +341,39 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
     let frameHandle: number | null = null;
     let releaseTimer: number | undefined;
     let pendingSeeked: (() => void) | null = null;
+    let stallTimer: number | undefined;
+    let stallFrameHandle: number | null = null;
+    let lastQualityTime = Number.NaN;
+
+    // Сторож зависшей качественной ступени. Возврат к стартовой был привязан
+    // только к событию `error`, но поток может встать и без ошибки:
+    // соединение открыто, новые байты не идут, браузер ждёт. Ошибки нет, а
+    // hero замер. Отсчёт ведётся от последнего ПОКАЗАННОГО кадра, а не от
+    // `play()`: абсолютный таймаут сработал бы и на исправном видео.
+    const observeQualityMovement = () => {
+      stallWatchRef.current?.observeMovement(performance.now());
+    };
+
+    const onQualityTimeUpdate = () => {
+      // Запасной признак движения там, где нет кадровых колбэков: важно
+      // именно ИЗМЕНЕНИЕ времени — событие приходит и на месте.
+      if (quality.currentTime === lastQualityTime) return;
+      lastQualityTime = quality.currentTime;
+      observeQualityMovement();
+    };
+
+    const stopStallWatch = () => {
+      if (stallTimer !== undefined) {
+        window.clearInterval(stallTimer);
+        stallTimer = undefined;
+      }
+      if (stallFrameHandle !== null && typeof quality.cancelVideoFrameCallback === "function") {
+        quality.cancelVideoFrameCallback(stallFrameHandle);
+        stallFrameHandle = null;
+      }
+      quality.removeEventListener("timeupdate", onQualityTimeUpdate);
+      stallWatchRef.current = null;
+    };
 
     // Прерванная подмена повторяется целиком, поэтому предыдущая попытка
     // должна быть разобрана до последнего слушателя: иначе второй заход
@@ -359,7 +406,11 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
     const abandon = () => {
       resetSwapAttempt();
       const qualityWasVisible = upgradeStateRef.current === "done";
+      // `failed` терминально, поэтому переход происходит ровно один раз: если
+      // ошибка и сторож сработали одновременно, возврат выполнится тоже один
+      // раз, а второй вызов выйдет здесь.
       if (!advanceUpgrade("quality-failed")) return;
+      stopStallWatch();
 
       if (releaseTimer !== undefined) {
         window.clearTimeout(releaseTimer);
@@ -374,10 +425,33 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
       syncVideoPlaybackRef.current();
     };
 
+    const startStallWatch = () => {
+      stallWatchRef.current = createStallWatch(performance.now());
+      lastQualityTime = quality.currentTime;
+
+      if (typeof quality.requestVideoFrameCallback === "function") {
+        const onFrame: VideoFrameRequestCallback = () => {
+          observeQualityMovement();
+          stallFrameHandle = quality.requestVideoFrameCallback(onFrame);
+        };
+        stallFrameHandle = quality.requestVideoFrameCallback(onFrame);
+      } else {
+        quality.addEventListener("timeupdate", onQualityTimeUpdate);
+      }
+
+      stallTimer = window.setInterval(() => {
+        if (!stallWatchRef.current?.isStalled(performance.now())) return;
+        abandon();
+      }, STALL_CHECK_INTERVAL_MS);
+    };
+
     const finishSwap = () => {
       if (cancelled) return;
       advanceUpgrade("swap-finished");
       setQualityVisible(true);
+      // Сторож включается только после завершённой подмены: до неё зависание
+      // качественной ступени ничем не грозит — на экране стартовая.
+      startStallWatch();
       // Стартовая ступень гасится только после того, как перекрёстное
       // затухание закончилось — иначе на её месте мелькнёт пустота.
       releaseTimer = window.setTimeout(
@@ -489,6 +563,21 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
       beginSwap();
     };
 
+    // Опрос вместо одной лишь подписки на события. Если весь буфер приезжает
+    // раньше, чем набирается минимальная выборка для замера скорости, все
+    // события `progress` укладываются в это окно, а `suspend` не приходит
+    // вовсе — ответ ведь не завершён. Тогда решение о подмене не принималось
+    // никогда: проверено на ответе, который отдал 20 МБ за 258 мс и остался
+    // открытым. Опрос снимает зависимость от того, какие события браузер
+    // решит прислать, и сам прекращается, как только стадия загрузки пройдена.
+    const readinessPoll = window.setInterval(() => {
+      if (upgradeStateRef.current === "idle" || upgradeStateRef.current === "loading") {
+        considerQualityReady();
+        return;
+      }
+      window.clearInterval(readinessPoll);
+    }, QUALITY_READINESS_POLL_MS);
+
     quality.addEventListener("progress", considerQualityReady);
     quality.addEventListener("suspend", considerQualityReady);
     quality.addEventListener("canplaythrough", considerQualityReady);
@@ -501,7 +590,9 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
       quality.removeEventListener("suspend", considerQualityReady);
       quality.removeEventListener("canplaythrough", considerQualityReady);
       quality.removeEventListener("error", abandon);
+      window.clearInterval(readinessPoll);
       resetSwapAttempt();
+      stopStallWatch();
       if (releaseTimer !== undefined) window.clearTimeout(releaseTimer);
     };
   }, [advanceUpgrade, prefersReducedMotion]);

@@ -222,6 +222,66 @@ export function createDownloadRateWatch(minSampleMs = 250): DownloadRateWatch {
  * запасом И уже накоплен ощутимый буфер. Одного запаса по скорости мало:
  * короткий всплеск скорости не должен выдаваться за устойчивый канал.
  */
+/**
+ * Сторож зависшей качественной ступени.
+ *
+ * Возврат к стартовой ступени был привязан только к событию `error`, а поток
+ * может остановиться и без ошибки: соединение остаётся открытым, новые байты
+ * не приходят, браузер бесконечно ждёт. Ошибки в этом случае нет вовсе, и hero
+ * замирает на живом с точки зрения браузера, но неподвижном кадре.
+ *
+ * Отсчёт ведётся не от `play()`, а от последнего признака ДВИЖЕНИЯ: показанный
+ * кадр либо сдвиг `currentTime` там, где кадровых колбэков нет. Абсолютный
+ * таймаут от запуска был бы неверен — он сработал бы и на исправном видео,
+ * которое просто долго играет.
+ *
+ * Штатная пауза (скрытая вкладка, page cache, ушедший с экрана hero) — не
+ * зависание: на это время наблюдение приостанавливается, а при возвращении
+ * отсчёт начинается заново, а не продолжается с накопленным простоем.
+ */
+export const QUALITY_STALL_TIMEOUT_MS = 5_000;
+
+export interface StallWatch {
+  /** Отмечает признак движения: показанный кадр или сдвиг `currentTime`. */
+  observeMovement(atMs: number): void;
+  /** Приостанавливает наблюдение: штатная пауза зависанием не считается. */
+  suspend(): void;
+  /** Возобновляет наблюдение с чистого отсчёта; на активном сторо́же — no-op. */
+  resume(atMs: number): void;
+  isStalled(atMs: number, timeoutMs?: number): boolean;
+  readonly active: boolean;
+}
+
+export function createStallWatch(startedAtMs: number): StallWatch {
+  let lastMovementAt = startedAtMs;
+  let active = true;
+
+  return {
+    observeMovement(atMs: number) {
+      if (!active || !Number.isFinite(atMs)) return;
+      lastMovementAt = atMs;
+    },
+    suspend() {
+      active = false;
+    },
+    resume(atMs: number) {
+      // Повторный `resume` не должен сдвигать отсчёт: `syncVideoPlayback`
+      // вызывается часто, и иначе живое зависание маскировалось бы каждым
+      // проходом по обычному пути.
+      if (active || !Number.isFinite(atMs)) return;
+      active = true;
+      lastMovementAt = atMs;
+    },
+    isStalled(atMs: number, timeoutMs = QUALITY_STALL_TIMEOUT_MS) {
+      if (!active) return false;
+      return atMs - lastMovementAt >= timeoutMs;
+    },
+    get active() {
+      return active;
+    },
+  };
+}
+
 export function canSustainPlayback(
   ratio: number | null,
   bufferedSeconds: number,

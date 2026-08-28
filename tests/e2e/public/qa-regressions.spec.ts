@@ -1,5 +1,5 @@
 import { expect, test } from "../support/browser-observer";
-import { HERO_VIDEO_PATH_FRAGMENT, stubLocalHeroVideo } from "../support/media";
+import { heroTierOf, stubLocalHeroVideo, type HeroTier } from "../support/media";
 import { assertCriticalControlsInsideViewport, assertNoHorizontalOverflow } from "../support/responsive";
 
 // QA-002 и QA-003 закрыты в фазе 2 и намеренно не имеют браузерных проб здесь.
@@ -24,31 +24,59 @@ test.fixme("[QA-005] blocked login не выполняет PBKDF2", async () => 
   // Pending phase 4: browser timing is insufficient; reservation RPC and server-side instrumentation are required.
 });
 
-test("[QA-006] hero не передаёт video до visibility/network gate", async ({ page, browserObserver }, testInfo) => {
-  const videoRequests: string[] = [];
+// Прежняя проверка описывала отменённую концепцию (poster-first, без autoplay,
+// ноль запросов до visibility/network gate) и держалась на `test.fail`. Она
+// проверяла требование, которого больше нет. Утверждённая формулировка QA-006
+// другая: первой запрашивается лёгкая ступень, заставка уходит по реальному
+// движению, тяжёлая ступень догружается только потом.
+test("[QA-006] hero запрашивает лёгкую ступень первой и снимает заставку по движению", async ({
+  page,
+  browserObserver,
+}, testInfo) => {
+  const videoRequests: { tier: HeroTier; path: string; at: number }[] = [];
+  const startedAt = Date.now();
   page.on("request", (request) => {
-    if (request.url().includes(HERO_VIDEO_PATH_FRAGMENT)) videoRequests.push(new URL(request.url()).pathname);
+    const tier = heroTierOf(request.url());
+    if (tier) videoRequests.push({ tier, path: new URL(request.url()).pathname, at: Date.now() - startedAt });
   });
   await stubLocalHeroVideo(page);
   const response = await page.goto("/");
   expect(response?.status()).toBe(200);
 
-  const video = page.locator("video").first();
-  await expect(video).toBeVisible();
-  browserObserver.assertClean();
-  const actual = await video.evaluate((element) => ({
-    hasPoster: Boolean(element.getAttribute("poster")?.trim()),
-    hasAutoplay: element.hasAttribute("autoplay"),
-    preload: element.getAttribute("preload"),
-  }));
-  const target = { ...actual, requestCount: videoRequests.length };
+  // Адрес тяжёлой ступени проставляется кодом, а не разметкой. Проверяется
+  // именно отданный сервером HTML: к моменту, когда до элемента доберётся
+  // тест, код уже успевает проставить адрес, и чтение атрибута дало бы гонку.
+  const html = await response!.text();
+  expect(html).toContain("2026-08-27-startup/");
+  expect(html).not.toContain("2026-08-18-2k/");
+
+  const [startup] = await page.locator("video").all();
+  await expect(startup).toBeVisible();
+
+  // Заставка снимается по подтверждённому движению. Аварийный таймер тоже
+  // снял бы её, но позже — поэтому запас здесь заведомо меньше него.
+  await expect(page.getByRole("progressbar", { name: "Загрузка сайта" })).toBeHidden({ timeout: 4_000 });
+
+  const first = videoRequests[0];
+  const target = {
+    firstTier: first?.tier ?? null,
+    hasPoster: Boolean(await startup.getAttribute("poster")),
+    startupPreload: await startup.getAttribute("preload"),
+    startupAutoplay: await startup.evaluate((element) => element.hasAttribute("autoplay")),
+  };
   await testInfo.attach("qa-006-video-requests.json", {
     body: Buffer.from(JSON.stringify({ target, videoRequests }, null, 2)),
     contentType: "application/json",
   });
-  const defectObserved = !target.hasPoster || target.hasAutoplay || target.preload !== "none" || target.requestCount > 0;
-  test.fail(defectObserved, "QA-006: hero начинает video path без poster-first visibility/network gate.");
-  expect(target).toEqual({ hasPoster: true, hasAutoplay: false, preload: "none", requestCount: 0 });
+  browserObserver.assertClean();
+
+  expect(target).toEqual({
+    firstTier: "startup",
+    // Постера намеренно нет: hero начинается с первого кадра самого видео.
+    hasPoster: false,
+    startupPreload: "metadata",
+    startupAutoplay: true,
+  });
 });
 
 test("[QA-009] login имеет semantic main", async ({ page, browserObserver }) => {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   canSustainPlayback,
   createDownloadRateWatch,
+  createStallWatch,
   HERO_VIDEO_SOURCES,
   createHeroMotionWatch,
   heroVideoSource,
@@ -165,6 +166,74 @@ describe("измерение скорости загрузки", () => {
     watch.observe(0, 0);
     watch.observe(15, 2000);
     expect(watch.ratio).toBeCloseTo(7.5, 3);
+  });
+});
+
+// Возврат к стартовой ступени был привязан только к событию `error`, но поток
+// может встать и без ошибки: соединение открыто, новые байты не идут, браузер
+// ждёт. Ошибки нет — а hero замер.
+describe("сторож зависшей качественной ступени", () => {
+  it("свежий сторож активен и зависанием не считается", () => {
+    const watch = createStallWatch(1000);
+    expect(watch.active).toBe(true);
+    expect(watch.isStalled(1000)).toBe(false);
+    expect(watch.isStalled(5999)).toBe(false);
+  });
+
+  it("отсутствие движения дольше порога — зависание", () => {
+    const watch = createStallWatch(1000);
+    expect(watch.isStalled(6000)).toBe(true);
+  });
+
+  it("показанный кадр сбрасывает отсчёт", () => {
+    const watch = createStallWatch(1000);
+    watch.observeMovement(5000);
+    expect(watch.isStalled(9000)).toBe(false);
+    expect(watch.isStalled(10_000)).toBe(true);
+  });
+
+  // Скрытая вкладка, page cache и ушедший с экрана hero — штатная пауза.
+  it("приостановленный сторож не срабатывает никогда", () => {
+    const watch = createStallWatch(1000);
+    watch.suspend();
+    expect(watch.active).toBe(false);
+    expect(watch.isStalled(1_000_000)).toBe(false);
+  });
+
+  it("возобновление начинает отсчёт заново, а не продолжает простой", () => {
+    const watch = createStallWatch(1000);
+    watch.suspend();
+    watch.resume(100_000);
+    expect(watch.isStalled(104_000)).toBe(false);
+    expect(watch.isStalled(105_000)).toBe(true);
+  });
+
+  // `syncVideoPlayback` вызывается часто; если бы каждый вызов сдвигал отсчёт,
+  // живое зависание маскировалось бы навсегда.
+  it("повторное возобновление активного сторожа ничего не сдвигает", () => {
+    const watch = createStallWatch(1000);
+    watch.resume(100_000);
+    expect(watch.isStalled(6000)).toBe(true);
+  });
+
+  it("приостановленный сторож не принимает движение", () => {
+    const watch = createStallWatch(1000);
+    watch.suspend();
+    watch.observeMovement(50_000);
+    watch.resume(60_000);
+    expect(watch.isStalled(64_000)).toBe(false);
+  });
+
+  it("порог можно задать явно", () => {
+    const watch = createStallWatch(0);
+    expect(watch.isStalled(2000, 3000)).toBe(false);
+    expect(watch.isStalled(3000, 3000)).toBe(true);
+  });
+
+  it("игнорирует нечисловые отметки времени", () => {
+    const watch = createStallWatch(1000);
+    watch.observeMovement(Number.NaN);
+    expect(watch.isStalled(6000)).toBe(true);
   });
 });
 
