@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/cron/cleanup-product-image-staging",
-      "schedule": "17 * * * *"
+      "schedule": "17 3 * * *"
     }
   ]
 }
