@@ -27,6 +27,7 @@
     "e2e:install": "playwright install chromium",
     "check:colors": "node scripts/check-color-tokens.mjs",
     "schema:check": "node scripts/check-supabase-schema.mjs",
+    "schema:declarative": "node scripts/check-declarative-schema.mjs",
     "photos:enhance": "node scripts/enhance-product-photos.mjs",
     "images:vehicle-webp": "node scripts/generate-vehicle-webp.mjs",
     "video:hero": "node scripts/generate-hero-video.mjs",

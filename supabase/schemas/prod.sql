@@ -1937,7 +1937,11 @@ CREATE TABLE IF NOT EXISTS "public"."admin_auth_events" (
     "attempt_key_hash" "text" NOT NULL,
     CONSTRAINT "admin_auth_events_scope_check" CHECK (("scope" = ANY (ARRAY['login'::"text", 'password-change'::"text"]))),
     CONSTRAINT "admin_auth_events_outcome_check" CHECK (("outcome" = ANY (ARRAY['success'::"text", 'failure'::"text", 'blocked'::"text"]))),
-    CONSTRAINT "admin_auth_events_key_hash_check" CHECK (("length"("attempt_key_hash") = 64))
+    -- QA-014: имя не выдумано, а взято из базы. В миграции этот CHECK объявлен
+    -- безымянно прямо на колонке, и имя ему присваивает Postgres по правилу
+    -- «таблица_колонка_check». Здесь стояло `admin_auth_events_key_hash_check`
+    -- — такого констрейнта не существует.
+    CONSTRAINT "admin_auth_events_attempt_key_hash_check" CHECK (("length"("attempt_key_hash") = 64))
 );
 
 
@@ -1979,6 +1983,31 @@ CREATE INDEX "admin_auth_reservations_active_idx"
     WHERE ("finished_at" IS NULL);
 
 ALTER TABLE "public"."admin_auth_reservations" ENABLE ROW LEVEL SECURITY;
+
+
+-- QA-014: таблица создана миграцией 20260821171707_admin_credentials, но в этот
+-- файл её так и не перенесли. Файл не выполняется, поэтому на саму базу пропажа
+-- не влияла — опасность в другом: он служит входом для генерации будущих
+-- миграций, и `supabase db diff` на разошедшемся файле выписал бы миграцию,
+-- УДАЛЯЮЩУЮ таблицу с хешем пароля администратора.
+CREATE TABLE IF NOT EXISTS "public"."admin_credentials" (
+    "credential_key" "text" NOT NULL,
+    "password_hash" "text" NOT NULL,
+    "session_version" bigint NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "admin_credentials_session_version_check" CHECK (("session_version" >= 2)),
+    CONSTRAINT "admin_credentials_singleton_check" CHECK (("credential_key" = 'primary'::"text"))
+);
+
+ALTER TABLE "public"."admin_credentials" OWNER TO "postgres";
+
+ALTER TABLE ONLY "public"."admin_credentials"
+    ADD CONSTRAINT "admin_credentials_pkey" PRIMARY KEY ("credential_key");
+
+ALTER TABLE "public"."admin_credentials" ENABLE ROW LEVEL SECURITY;
+
+REVOKE ALL ON TABLE "public"."admin_credentials" FROM PUBLIC, "anon", "authenticated";
+GRANT ALL ON TABLE "public"."admin_credentials" TO "service_role";
 
 
 CREATE TABLE IF NOT EXISTS "public"."admin_login_rate_limits" (
