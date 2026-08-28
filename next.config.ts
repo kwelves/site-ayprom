@@ -10,6 +10,10 @@ const contentSecurityPolicy = buildContentSecurityPolicy({
 });
 
 const nextConfig: NextConfig = {
+  // Не раскрывать технологический стек в каждом HTTP-ответе. Next.js по
+  // умолчанию добавляет `X-Powered-By: Next.js`; официальный способ убрать
+  // его — этот флаг. Поведение страниц и маршрутов от него не меняется.
+  poweredByHeader: false,
   // Admin pages are dynamic, so Next.js 16 otherwise discards their client
   // route payload immediately (dynamic stale time defaults to zero). A short
   // Router Cache window makes back/forward navigation and recently visited
