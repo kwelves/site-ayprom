@@ -53,6 +53,7 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
   const upgradeStateRef = useRef<HeroUpgradeState>("idle");
   const motionWatchRef = useRef(createHeroMotionWatch());
   const rateWatchRef = useRef(createDownloadRateWatch());
+  const resumeSwapRef = useRef<() => void>(() => undefined);
   const [motionConfirmed, setMotionConfirmed] = useState(false);
   const [qualityVisible, setQualityVisible] = useState(false);
   const prefersReducedMotion = useReducedMotion();
@@ -86,15 +87,34 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
     [],
   );
 
+  /**
+   * Полная остановка обеих ступеней. Отдельная функция, потому что вызывается
+   * из двух мест (потеря контекста воспроизведения и `pagehide`), и оба обязаны
+   * откатить подмену, если она застала их на полпути.
+   */
+  const haltPlayback = useCallback(() => {
+    // Между `play()` качественной ступени и её первым отрисованным кадром
+    // проходит заметное время. Пауза в этот промежуток означает, что кадров
+    // больше не будет, значит подмена не завершится сама никогда — состояние
+    // навсегда осталось бы `swapping`, а возобновление выбрало бы стартовую
+    // ступень. Откат в `ready` позволяет повторить попытку при возвращении.
+    advanceUpgrade("swap-interrupted");
+    videoRef.current?.pause();
+    qualityVideoRef.current?.pause();
+  }, [advanceUpgrade]);
+
   const syncVideoPlayback = useCallback(() => {
     const video = activeVideo();
     if (!video) return;
 
     if (!canPlayVideo()) {
-      videoRef.current?.pause();
-      qualityVideoRef.current?.pause();
+      haltPlayback();
       return;
     }
+
+    // Контекст снова активен. Если подмена была прервана, повторяем её здесь:
+    // файл уже скачан, повторить нужно только выравнивание и запуск.
+    if (upgradeStateRef.current === "ready") resumeSwapRef.current();
 
     // `play()` is asynchronous. Do not stack calls while a source is loading:
     // repeated play/pause pairs are a common source of AbortError noise and a
@@ -124,7 +144,7 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
       // itself. The explicit one-time flag above avoids recursive retries.
       syncVideoPlaybackRef.current();
     });
-  }, [activeVideo, canPlayVideo]);
+  }, [activeVideo, canPlayVideo, haltPlayback]);
 
   useEffect(() => {
     syncVideoPlaybackRef.current = syncVideoPlayback;
@@ -306,12 +326,52 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
     let rafHandle: number | null = null;
     let frameHandle: number | null = null;
     let releaseTimer: number | undefined;
+    let pendingSeeked: (() => void) | null = null;
 
-    // Отказ качественной ступени — состояние терминальное. Повторять попытку
-    // нельзя: стартовая сейчас играет, и новая загрузка отняла бы у неё
-    // канал ради версии, которая один раз уже не доехала.
+    // Прерванная подмена повторяется целиком, поэтому предыдущая попытка
+    // должна быть разобрана до последнего слушателя: иначе второй заход
+    // оставил бы висеть чужой обработчик `seeked` и параллельный цикл
+    // выравнивания, которые доведут до `play()` уже неактуальную цель.
+    const resetSwapAttempt = () => {
+      if (pendingSeeked) {
+        quality.removeEventListener("seeked", pendingSeeked);
+        pendingSeeked = null;
+      }
+      if (rafHandle !== null) {
+        window.cancelAnimationFrame(rafHandle);
+        rafHandle = null;
+      }
+      if (frameHandle !== null && typeof quality.cancelVideoFrameCallback === "function") {
+        quality.cancelVideoFrameCallback(frameHandle);
+        frameHandle = null;
+      }
+    };
+
+    // Отказ качественной ступени. Повторять попытку нельзя: новая загрузка
+    // отняла бы канал у видео, которое сейчас на экране, ради версии, которая
+    // один раз уже не доехала. Поэтому `failed` — состояние терминальное.
+    //
+    // Отказ может прийти и ПОСЛЕ подмены: оборванный на середине файл ломается
+    // не сразу — заголовок целый, длительность объявлена, весь ролик числится
+    // в буфере, подмена проходит штатно, и лишь дойдя до обрыва
+    // воспроизведение падает. Стартовая ступень к этому моменту уже погашена,
+    // поэтому её нужно вернуть, иначе hero замирает на мёртвом кадре.
     const abandon = () => {
-      advanceUpgrade("quality-failed");
+      resetSwapAttempt();
+      const qualityWasVisible = upgradeStateRef.current === "done";
+      if (!advanceUpgrade("quality-failed")) return;
+
+      if (releaseTimer !== undefined) {
+        window.clearTimeout(releaseTimer);
+        releaseTimer = undefined;
+      }
+      quality.pause();
+
+      if (!qualityWasVisible) return;
+      // Стартовая ступень загружена целиком и стоит на паузе там, где её
+      // оставили, поэтому возвращается мгновенно и без новых запросов.
+      setQualityVisible(false);
+      syncVideoPlaybackRef.current();
     };
 
     const finishSwap = () => {
@@ -345,6 +405,7 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
 
     const beginSwap = () => {
       if (upgradeStateRef.current !== "ready") return;
+      resetSwapAttempt();
       if (!advanceUpgrade("swap-started")) return;
 
       const duration = startup.duration;
@@ -365,6 +426,7 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
 
       const onSeeked = () => {
         quality.removeEventListener("seeked", onSeeked);
+        pendingSeeked = null;
         if (cancelled) return;
 
         let previousTime = startup.currentTime;
@@ -387,9 +449,15 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
         waitForAlignment();
       };
 
+      pendingSeeked = onSeeked;
       quality.addEventListener("seeked", onSeeked);
       quality.currentTime = target;
     };
+
+    // Возобновление после прерванной подмены идёт через `syncVideoPlayback` —
+    // единственную точку, куда сходятся все изменения контекста
+    // воспроизведения (видимость вкладки, page cache, уход hero с экрана).
+    resumeSwapRef.current = beginSwap;
 
     // Момент подмены определяется измеренной скоростью загрузки, и это третья
     // попытка после двух неудачных.
@@ -428,14 +496,12 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
 
     return () => {
       cancelled = true;
+      resumeSwapRef.current = () => undefined;
       quality.removeEventListener("progress", considerQualityReady);
       quality.removeEventListener("suspend", considerQualityReady);
       quality.removeEventListener("canplaythrough", considerQualityReady);
       quality.removeEventListener("error", abandon);
-      if (rafHandle !== null) window.cancelAnimationFrame(rafHandle);
-      if (frameHandle !== null && typeof quality.cancelVideoFrameCallback === "function") {
-        quality.cancelVideoFrameCallback(frameHandle);
-      }
+      resetSwapAttempt();
       if (releaseTimer !== undefined) window.clearTimeout(releaseTimer);
     };
   }, [advanceUpgrade, prefersReducedMotion]);
@@ -468,10 +534,8 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
 
     const pauseForPageHide = () => {
       pageIsHiddenRef.current = true;
-      // Обе ступени: после подмены играет качественная, а во время самой
-      // подмены — обе сразу.
-      videoRef.current?.pause();
-      qualityVideoRef.current?.pause();
+      // Обе ступени, и с откатом незавершённой подмены — см. haltPlayback.
+      haltPlayback();
     };
 
     const resumeAfterPageShow = () => {
@@ -491,7 +555,7 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
       window.removeEventListener("pageshow", resumeAfterPageShow);
       window.removeEventListener("pagehide", pauseForPageHide);
     };
-  }, [isHeroPlaybackContextActive, recoverVideo, syncVideoPlayback]);
+  }, [haltPlayback, isHeroPlaybackContextActive, recoverVideo, syncVideoPlayback]);
 
   // Not a plain scrollIntoView({block: "start"}) — that aligns the next
   // section's top edge with the very top of the viewport, but the sticky

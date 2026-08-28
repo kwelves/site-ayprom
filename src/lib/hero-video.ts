@@ -116,14 +116,34 @@ export type HeroUpgradeEvent =
   | "quality-ready"
   | "quality-failed"
   | "swap-started"
+  | "swap-interrupted"
   | "swap-finished";
 
+/**
+ * `swap-interrupted` возвращает в `ready`, а не в `failed`.
+ *
+ * Подмена — не мгновенная операция: между `play()` качественной ступени и её
+ * первым отрисованным кадром проходит заметное время, и если ровно в этот
+ * промежуток вкладку спрятать, обе ступени встают на паузу. Без отката
+ * состояние навсегда застревало в `swapping`: кадры не показываются, значит
+ * `swap-finished` не наступит, а возобновление выбирает стартовую ступень —
+ * посетитель молча остаётся на 720p до перезагрузки страницы.
+ *
+ * Файл при этом уже скачан, так что повторять нужно только выравнивание и
+ * запуск. Поэтому откат именно в `ready`, а не в `loading` и не в `failed`.
+ */
 const TRANSITIONS: Record<HeroUpgradeState, Partial<Record<HeroUpgradeEvent, HeroUpgradeState>>> = {
   idle: { "startup-fully-buffered": "loading" },
   loading: { "quality-ready": "ready", "quality-failed": "failed" },
   ready: { "swap-started": "swapping", "quality-failed": "failed" },
-  swapping: { "swap-finished": "done", "quality-failed": "failed" },
-  done: {},
+  swapping: { "swap-finished": "done", "swap-interrupted": "ready", "quality-failed": "failed" },
+  // `done` не терминально для отказа. Оборванный на середине файл ломается не
+  // сразу: заголовок у него целый, браузер объявляет полную длительность и
+  // рапортует весь ролик как «в буфере», подмена проходит штатно — и только
+  // дойдя до обрыва, воспроизведение падает с ошибкой декодирования.
+  // Проверено живьём: без этого перехода hero замирал на мёртвом кадре,
+  // потому что стартовая ступень к тому моменту уже погашена.
+  done: { "quality-failed": "failed" },
   failed: {},
 };
 

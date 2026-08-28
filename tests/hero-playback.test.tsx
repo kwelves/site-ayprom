@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Hero } from "@/components/home/Hero";
 
@@ -371,6 +371,164 @@ describe("Hero two-tier video", () => {
     // чтобы перемотка успела завершиться до момента вступления.
     expect(seeks).toHaveLength(1);
     expect(seeks[0]).toBeGreaterThan(0);
+    now.mockRestore();
+  });
+
+  // Подмена не мгновенна: между `play()` качественной ступени и её первым
+  // отрисованным кадром проходит заметное время. Если ровно в этот промежуток
+  // спрятать вкладку, обе ступени встают на паузу — и без отката состояние
+  // навсегда застревало бы в `swapping`: кадров больше нет, значит завершение
+  // не наступит, а возобновление выберет стартовую ступень. Посетитель молча
+  // остался бы на 720p до перезагрузки страницы.
+  function driveToSwapping(container: HTMLElement) {
+    const { startup, quality } = heroVideos(container);
+    const seeks = trackSeeks(quality);
+    const now = vi.spyOn(performance, "now");
+
+    // Движение подтверждается до подмены — так же, как в жизни: качественная
+    // ступень запрашивается только после того, как стартовая уже играет.
+    setCurrentTime(startup, 0);
+    fireEvent.playing(startup);
+    fireEvent.timeUpdate(startup);
+    setCurrentTime(startup, 1 / 24);
+    fireEvent.timeUpdate(startup);
+    expect(startup.className).toContain("opacity-100");
+
+    now.mockReturnValue(0);
+    defineMediaState(startup, { duration: 25.416667, bufferedTo: 25.416667 });
+    fireEvent.progress(startup);
+    now.mockReturnValue(2_000);
+    defineMediaState(quality, { duration: 25.416667, bufferedTo: 15 });
+    fireEvent.progress(quality);
+
+    expect(seeks).toHaveLength(1);
+    return { startup, quality, seeks, now };
+  }
+
+  it("сокрытие вкладки во время подмены останавливает обе ступени и повторяет подмену при возврате", () => {
+    const { container } = render(<Hero vehicleTypes={[]} />);
+    const { startup, quality, seeks, now } = driveToSwapping(container);
+
+    setVisibility("hidden");
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(pausesOn(startup)).toBe(1);
+    expect(pausesOn(quality)).toBe(1);
+
+    setVisibility("visible");
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    // Вторая перемотка означает, что подмена начата заново, а не потеряна.
+    expect(seeks).toHaveLength(2);
+    now.mockRestore();
+  });
+
+  it("уход в page cache во время подмены не теряет её: pageshow начинает подмену заново", () => {
+    const { container } = render(<Hero vehicleTypes={[]} />);
+    const { startup, quality, seeks, now } = driveToSwapping(container);
+
+    window.dispatchEvent(new Event("pagehide"));
+    expect(pausesOn(startup)).toBe(1);
+    expect(pausesOn(quality)).toBe(1);
+
+    window.dispatchEvent(new Event("pageshow"));
+
+    expect(seeks).toHaveLength(2);
+    now.mockRestore();
+  });
+
+  it("уход hero с экрана во время подмены тоже откатывает её", () => {
+    const { container } = render(<Hero vehicleTypes={[]} />);
+    const { startup, quality, seeks, now } = driveToSwapping(container);
+    const observer = observers[0];
+
+    observer.emit(false);
+    expect(pausesOn(startup)).toBe(1);
+    expect(pausesOn(quality)).toBe(1);
+
+    observer.emit(true);
+
+    expect(seeks).toHaveLength(2);
+    now.mockRestore();
+  });
+
+  it("повторные сокрытия вкладки не наслаивают параллельные попытки подмены", () => {
+    const { container } = render(<Hero vehicleTypes={[]} />);
+    const { seeks, now } = driveToSwapping(container);
+
+    // Каждый возврат должен начинать подмену заново ровно один раз. Если бы
+    // прошлая попытка не разбиралась, вместе с новой остались бы висеть её
+    // обработчик перемотки и цикл выравнивания — и оба довели бы дело до
+    // запуска уже неактуальной цели.
+    setVisibility("hidden");
+    document.dispatchEvent(new Event("visibilitychange"));
+    setVisibility("visible");
+    document.dispatchEvent(new Event("visibilitychange"));
+    setVisibility("hidden");
+    document.dispatchEvent(new Event("visibilitychange"));
+    setVisibility("visible");
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    // Каждое возвращение повторяет подмену ровно один раз, а не наслаивает
+    // параллельные попытки.
+    expect(seeks).toHaveLength(3);
+    now.mockRestore();
+  });
+
+  /** Доводит подмену до конца: в jsdom нет ни `seeked`, ни кадровых колбэков. */
+  async function completeSwap(container: HTMLElement) {
+    const state = driveToSwapping(container);
+    // Цель бралась от нулевого времени стартовой ступени, поэтому достаточно
+    // сдвинуть её вперёд, чтобы выравнивание сошлось с первой же попытки.
+    setCurrentTime(state.startup, 5);
+    // Завершение подмены происходит в колбэке промиса `play()`, а не в самом
+    // событии, поэтому обновление состояния React нужно дождаться внутри act.
+    await act(async () => {
+      fireEvent.seeked(state.quality);
+      await settlePlaybackAttempt();
+    });
+    return state;
+  }
+
+  // Оборванный на середине файл ломается не сразу: заголовок целый, весь ролик
+  // числится в буфере, подмена проходит штатно — и лишь дойдя до обрыва,
+  // воспроизведение падает с ошибкой декодирования. Проверено живьём: без
+  // возврата к стартовой ступени hero замирал на мёртвом кадре.
+  it("отказ качественной ступени ПОСЛЕ подмены возвращает стартовую", async () => {
+    const { container } = render(<Hero vehicleTypes={[]} />);
+    const { startup, quality, now } = await completeSwap(container);
+
+    expect(quality.className).toContain("opacity-100");
+    const loadsBeforeFailure = load.mock.calls.length;
+
+    fireEvent.error(quality);
+
+    expect(quality.className).toContain("opacity-0");
+    expect(startup.className).toContain("opacity-100");
+    // Возврат идёт без новых запросов: файл стартовой ступени уже загружен и
+    // стоит на паузе там, где его оставили.
+    expect(load).toHaveBeenCalledTimes(loadsBeforeFailure);
+    now.mockRestore();
+  });
+
+  it("после возврата к стартовой ступени качественная больше не запрашивается", async () => {
+    const { container } = render(<Hero vehicleTypes={[]} />);
+    const { startup, quality, seeks, now } = await completeSwap(container);
+
+    fireEvent.error(quality);
+    const seeksAfterFailure = seeks.length;
+
+    // Ни повторная догрузка, ни возвращение вкладки не должны воскрешать
+    // ступень, которая уже сломалась.
+    defineMediaState(quality, { duration: 25.416667, bufferedTo: 25.416667 });
+    fireEvent.progress(quality);
+    setVisibility("hidden");
+    document.dispatchEvent(new Event("visibilitychange"));
+    setVisibility("visible");
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    expect(seeks).toHaveLength(seeksAfterFailure);
+    expect(quality.className).toContain("opacity-0");
+    expect(startup.className).toContain("opacity-100");
     now.mockRestore();
   });
 

@@ -186,6 +186,31 @@ describe("переходы догрузки качественной ступе�
     expect(state).toBe("done");
   });
 
+  // Подмена не мгновенна, и вкладку могут спрятать ровно между запуском
+  // качественной ступени и её первым отрисованным кадром. Кадров после этого
+  // не будет, значит `swap-finished` не наступит никогда — без отката
+  // состояние застревало бы в `swapping` до перезагрузки страницы.
+  it("прерывание подмены возвращает в ready, а не в failed", () => {
+    expect(nextHeroUpgradeState("swapping", "swap-interrupted")).toBe("ready");
+  });
+
+  it("после прерывания подмену можно начать заново", () => {
+    let state: HeroUpgradeState = "swapping";
+    state = nextHeroUpgradeState(state, "swap-interrupted");
+    state = nextHeroUpgradeState(state, "swap-started");
+    expect(state).toBe("swapping");
+    expect(nextHeroUpgradeState(state, "swap-finished")).toBe("done");
+  });
+
+  it("прерывание не действует на состояния, где подмена не идёт", () => {
+    expect(nextHeroUpgradeState("idle", "swap-interrupted")).toBe("idle");
+    expect(nextHeroUpgradeState("loading", "swap-interrupted")).toBe("loading");
+    expect(nextHeroUpgradeState("ready", "swap-interrupted")).toBe("ready");
+    // Завершённую подмену откатывать нечем и незачем.
+    expect(nextHeroUpgradeState("done", "swap-interrupted")).toBe("done");
+    expect(nextHeroUpgradeState("failed", "swap-interrupted")).toBe("failed");
+  });
+
   it("отказ на любом шаге переводит в failed", () => {
     expect(nextHeroUpgradeState("loading", "quality-failed")).toBe("failed");
     expect(nextHeroUpgradeState("ready", "quality-failed")).toBe("failed");
@@ -201,9 +226,13 @@ describe("переходы догрузки качественной ступе�
     expect(nextHeroUpgradeState("failed", "swap-started")).toBe("failed");
   });
 
-  it("done — терминальное состояние", () => {
+  // `done` терминально для всего, кроме отказа: оборванный на середине файл
+  // ломается уже ПОСЛЕ подмены, и тогда нужно вернуться к стартовой ступени.
+  it("done — терминальное состояние для всего, кроме отказа", () => {
     expect(nextHeroUpgradeState("done", "startup-fully-buffered")).toBe("done");
-    expect(nextHeroUpgradeState("done", "quality-failed")).toBe("done");
+    expect(nextHeroUpgradeState("done", "swap-started")).toBe("done");
+    expect(nextHeroUpgradeState("done", "swap-interrupted")).toBe("done");
+    expect(nextHeroUpgradeState("done", "quality-failed")).toBe("failed");
   });
 });
 
