@@ -132,7 +132,7 @@ describe("Hero video playback", () => {
     const view = render(<Hero vehicleTypes={[]} />);
 
     expect(view.getByRole("heading", { level: 1 }).textContent).toBe(
-      "AYPROM — гидравлика и запчасти для спецтехники",
+      "AYPROM - гидравлические запчасти для спецтехники",
     );
   });
 

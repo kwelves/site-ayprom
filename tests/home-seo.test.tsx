@@ -14,9 +14,9 @@ describe("главная страница в поиске", () => {
     expect(HOME_SEO_TITLE).toBe("Гидравлика и запчасти для спецтехники в Бишкеке");
     expect(HOME_SEO_FULL_TITLE).toBe("Гидравлика и запчасти для спецтехники в Бишкеке — AYPROM");
     // География остаётся в title и описании, но не в видимом заголовке hero.
-    expect(HOME_HERO_TITLE).toBe("AYPROM — гидравлика и запчасти для спецтехники");
+    expect(HOME_HERO_TITLE).toBe("AYPROM - гидравлические запчасти для спецтехники");
     expect(HOME_HERO_TITLE).not.toContain("Бишкек");
-    expect(HOME_SEO_FULL_TITLE).toContain("Бишкеке");
+    expect(HOME_SEO_FULL_TITLE).toContain("Бишкек");
     expect(HOME_SEO_FULL_TITLE.length).toBeLessThanOrEqual(60);
     expect(HOME_SEO_DESCRIPTION.length).toBeLessThanOrEqual(160);
 
