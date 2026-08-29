@@ -19,6 +19,11 @@ const nextConfig: NextConfig = {
   // Router Cache window makes back/forward navigation and recently visited
   // tabs instant; Server Actions already call revalidatePath after writes.
   experimental: {
+    // В приложении два независимых root layout: публичный сайт и админка.
+    // Обычный сегментный not-found не может гарантировать единый документ для
+    // URL, которые вообще не совпали ни с одним route. Next 16 обрабатывает
+    // такой случай на уровне роутера через app/global-not-found.tsx.
+    globalNotFound: true,
     staleTimes: {
       dynamic: 30,
     },
