@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const HOME_SEO_TITLE = "Гидравлика и запчасти для спецтехники в Бишкеке";
 export const HOME_SEO_FULL_TITLE = `${HOME_SEO_TITLE} — AYPROM`;
-export const HOME_HERO_TITLE = "AYPROM — гидравлика и запчасти для спецтехники";
+export const HOME_HERO_TITLE = "AYPROM - гидравлические запчасти для спецтехники";
 export const HOME_SEO_DESCRIPTION =
   "Гидравлика и запчасти для тягачей, самосвалов и спецтехники. Подберём по марке и артикулу. Гарантия на комплекты 12 месяцев, доставка по Кыргызстану и СНГ.";
 

@@ -13,7 +13,7 @@ describe("главная страница в поиске", () => {
   it("задаёт короткий локальный title и единое маркетинговое описание", () => {
     expect(HOME_SEO_TITLE).toBe("Гидравлика и запчасти для спецтехники в Бишкеке");
     expect(HOME_SEO_FULL_TITLE).toBe("Гидравлика и запчасти для спецтехники в Бишкеке — AYPROM");
-    expect(HOME_HERO_TITLE).toBe("AYPROM — гидравлика и запчасти для спецтехники");
+    expect(HOME_HERO_TITLE).toBe("AYPROM - гидравлические запчасти для спецтехники");
     expect(HOME_HERO_TITLE).not.toContain("Бишкек");
     expect(HOME_SEO_FULL_TITLE).toContain("Бишкек");
     expect(HOME_SEO_FULL_TITLE.length).toBeLessThanOrEqual(60);
