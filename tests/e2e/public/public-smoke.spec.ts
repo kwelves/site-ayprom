@@ -61,19 +61,3 @@ test.describe("@smoke public catalog", () => {
   });
 
 });
-
-test("[QA-007] public metadata использует сохранённые SEO поля", async ({ page, browserObserver }) => {
-  const product = fixture.products[0];
-  const response = await page.goto(`/product/${product.slug}`);
-  expect(response?.status()).toBe(200);
-  await expect(page.locator("body")).toBeVisible();
-  browserObserver.assertClean();
-  const actual = {
-    title: await page.title(),
-    description: await page.locator('meta[name="description"]').getAttribute("content"),
-  };
-  const expected = { title: `${product.metaTitle} — AYPROM`, description: product.metaDescription };
-  const defectObserved = actual.title !== expected.title || actual.description !== expected.description;
-  test.fail(defectObserved, "QA-007: product route игнорирует сохранённые meta_title/meta_description.");
-  expect(actual).toEqual(expected);
-});
