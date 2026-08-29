@@ -19,7 +19,7 @@ export default async function AdminLoginPage({ searchParams }: LoginPageProps) {
   const retryMinutes = Number.isFinite(parsedRetry) ? Math.max(1, Math.ceil(parsedRetry / 60)) : 15;
 
   return (
-    <div className="flex min-h-full flex-1 items-center justify-center px-4">
+    <main className="flex min-h-full flex-1 items-center justify-center px-4">
       <form action={login} className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-sm">
         <h1 className="text-lg font-semibold text-card-foreground">Вход в админку</h1>
 
@@ -66,12 +66,12 @@ export default async function AdminLoginPage({ searchParams }: LoginPageProps) {
 
         <Link
           href="/"
-          className="mt-2 flex items-center justify-center gap-1.5 py-3 text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:py-0"
+          className="mt-2 flex items-center justify-center gap-1.5 rounded-md py-3 text-sm font-medium text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:py-0"
         >
           <ArrowLeft aria-hidden="true" className="h-4 w-4" />
           Вернуться на сайт
         </Link>
       </form>
-    </div>
+    </main>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -41,6 +41,7 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
 
   const panelRef = useRef<HTMLDivElement>(null);
   const toggleButtonRef = useRef<HTMLButtonElement>(null);
+  const mobilePanelId = useId();
 
   // While the panel is open, treat two things as "dismiss": tapping
   // anywhere outside it (the site visible below, now that its height is
@@ -88,6 +89,12 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
     <header
       aria-hidden={!headerVisible}
       inert={!headerVisible}
+      onKeyDown={(event) => {
+        if (event.key !== "Escape" || !open || event.defaultPrevented) return;
+        event.preventDefault();
+        closeMenu();
+        toggleButtonRef.current?.focus();
+      }}
       className={cn(
         "sticky top-0 z-50 w-full border-b border-transparent transition-[opacity,translate,background-color,backdrop-filter,border-color] duration-base ease-ui",
         headerVisible ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0",
@@ -157,7 +164,7 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
                 href={item.href}
                 onClick={(event) => handleHashClick(item.href, event)}
                 className={cn(
-                  "rounded-md px-3 py-2 text-sm font-medium transition-colors duration-fast ease-ui",
+                  "rounded-md px-3 py-2 text-sm font-medium transition-colors duration-fast ease-ui focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
                   overPhoto
                     ? "text-inverse-foreground hover:bg-inverse-foreground/10"
                     : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
@@ -185,12 +192,13 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
           ref={toggleButtonRef}
           type="button"
           className={cn(
-            "inline-flex h-11 w-11 items-center justify-center rounded-md transition-[color,scale] duration-fast ease-ui active:scale-90 md:hidden",
+            "inline-flex h-11 w-11 items-center justify-center rounded-md transition-[color,scale] duration-fast ease-ui active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 md:hidden",
             overPhoto ? "text-inverse-foreground" : "text-muted-foreground"
           )}
           onClick={() => (open ? closeMenu() : setOpen(true))}
-          aria-label="Открыть меню"
+          aria-label={open ? "Закрыть меню" : "Открыть меню"}
           aria-expanded={open}
+          aria-controls={mobilePanelId}
         >
           <span className="relative flex h-6 w-6" aria-hidden="true">
             <Menu
@@ -215,6 +223,7 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
           frame — that measurement plus parent opacity made iOS Safari
           repeatedly re-composite this sticky layer over the playing video. */}
       <div
+        id={mobilePanelId}
         ref={panelRef}
         aria-hidden={!open || undefined}
         inert={!open}
@@ -267,6 +276,9 @@ function MobileNavItem({
   onNavigate: () => void;
   handleHashClick: (href: string, event: React.MouseEvent) => void;
 }) {
+  const panelId = useId();
+  const toggleButtonRef = useRef<HTMLButtonElement>(null);
+
   // The mobile panel lives in normal document flow (open, it pushes the
   // page content below it down), so closing it collapses that height and
   // shifts everything under it — including whatever position
@@ -287,12 +299,20 @@ function MobileNavItem({
     window.setTimeout(() => handleHashClick(href, event), DURATION.base * 1000);
   };
 
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key !== "Escape" || !isExpanded) return;
+    event.preventDefault();
+    event.stopPropagation();
+    onToggleExpand();
+    toggleButtonRef.current?.focus();
+  };
+
   if (!item.dropdown) {
     return (
       <Link
         href={item.href}
         onClick={(event) => handleMobileNavClick(event, item.href)}
-        className="rounded-md flex min-h-11 items-center px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors duration-fast ease-ui hover:bg-muted hover:text-primary"
+        className="rounded-md flex min-h-11 items-center px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors duration-fast ease-ui hover:bg-muted hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
       >
         {item.label}
       </Link>
@@ -300,27 +320,30 @@ function MobileNavItem({
   }
 
   return (
-    <div>
+    <div onKeyDown={handleKeyDown}>
       <div className="flex items-center">
         <Link
           href={item.href}
           onClick={(event) => handleMobileNavClick(event, item.href)}
-          className="flex-1 rounded-md flex min-h-11 items-center px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors duration-fast ease-ui hover:bg-muted hover:text-primary"
+          className="flex-1 rounded-md flex min-h-11 items-center px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors duration-fast ease-ui hover:bg-muted hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         >
           {item.label}
         </Link>
         <button
+          ref={toggleButtonRef}
           type="button"
           onClick={onToggleExpand}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors duration-fast ease-ui hover:bg-muted hover:text-primary"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors duration-fast ease-ui hover:bg-muted hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           aria-expanded={isExpanded}
-          aria-label={`Показать подраздел «${item.label}»`}
+          aria-controls={panelId}
+          aria-label={`${isExpanded ? "Скрыть" : "Показать"} подраздел «${item.label}»`}
         >
           <ChevronDown className={cn("h-4 w-4 transition-transform duration-base ease-ui", isExpanded && "rotate-180")} />
         </button>
       </div>
 
       <div
+        id={panelId}
         aria-hidden={!isExpanded || undefined}
         inert={!isExpanded}
         className={cn(
@@ -342,7 +365,7 @@ function MobileNavItem({
                   key={sub.href}
                   href={sub.href}
                   onClick={onNavigate}
-                  className="flex items-start gap-3 rounded-lg p-2 transition-colors duration-fast ease-ui hover:bg-muted"
+                  className="flex items-start gap-3 rounded-lg p-2 transition-colors duration-fast ease-ui hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                 >
                   {sub.logo ? (
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-card">
