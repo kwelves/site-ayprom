@@ -1,4 +1,5 @@
 import { expect, test } from "../support/browser-observer";
+import { expectNoSeriousOrCriticalA11yViolations } from "../support/a11y";
 import { heroTierOf, stubLocalHeroVideo, type HeroTier } from "../support/media";
 import { assertCriticalControlsInsideViewport, assertNoHorizontalOverflow } from "../support/responsive";
 
@@ -79,15 +80,14 @@ test("[QA-006] hero запрашивает лёгкую ступень перв�
   });
 });
 
-test("[QA-009] login имеет semantic main", async ({ page, browserObserver }) => {
+test("[QA-009] login имеет semantic main", async ({ page, browserObserver }, testInfo) => {
   const response = await page.goto("/admin/login");
   expect(response?.status()).toBe(200);
   await expect(page.locator("body")).toBeVisible();
   browserObserver.assertClean();
-  const mainCount = await page.getByRole("main").count();
-  const defectObserved = mainCount !== 1;
-  test.fail(defectObserved, "QA-009: login document не содержит ровно один semantic <main>.");
-  expect(mainCount).toBe(1);
+  await expect(page.getByRole("main")).toHaveCount(1);
+  await expect(page.getByRole("main").getByRole("heading", { level: 1, name: "Вход в админку" })).toBeVisible();
+  await expectNoSeriousOrCriticalA11yViolations(page, testInfo);
 });
 
 test("[QA-010] узкий login viewport не имеет overflow и clipped controls", async ({ page }, testInfo) => {

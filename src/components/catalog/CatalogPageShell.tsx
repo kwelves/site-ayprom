@@ -23,7 +23,7 @@ export function CatalogPageShell({ items = [], children }: CatalogPageShellProps
           <Breadcrumb items={items} />
         </div>
       ) : (
-        <BackButton />
+        <BackButton fallbackHref="/" />
       )}
       <div className="mt-14">{children}</div>
     </Container>

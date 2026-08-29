@@ -112,6 +112,7 @@ export const test = base.extend<{ browserObserver: BrowserObserver }>({
       const allowedPredicates: BrowserFailurePredicate[] = [
         allowExpectedSameOriginNextPrefetchAbort(),
         allowLocalSpeedInsightsAbsence(),
+        allowChromiumWebGLDriverNoise(),
       ];
       const record = (failure: BrowserFailure) => {
         if (!allowedPredicates.some((predicate) => predicate(failure))) failures.push(failure);
@@ -239,6 +240,14 @@ export function allowLocalSpeedInsightsAbsence(): BrowserFailurePredicate {
     }
     return failure.type === "console" && failure.detail === SPEED_INSIGHTS_404_CONSOLE;
   };
+}
+
+export function allowChromiumWebGLDriverNoise(): BrowserFailurePredicate {
+  return (failure) =>
+    failure.type === "console" &&
+    /^warning: \[\.WebGL-[^\]]+\]GL Driver Message \(OpenGL, Performance, GL_CLOSE_PATH_NV, High\): GPU stall due to ReadPixels(?: \(this message will no longer repeat\))?$/.test(
+      failure.detail,
+    );
 }
 
 export { expect } from "@playwright/test";
