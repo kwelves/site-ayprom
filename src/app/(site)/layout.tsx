@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
 import localFont from "next/font/local";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Header } from "@/components/layout/Header";
@@ -13,11 +12,6 @@ import { MotionPreferences } from "@/components/motion/MotionPreferences";
 import { HomeEntrySequence } from "@/components/home/HomeEntrySequence";
 import { getSiteUrl } from "@/lib/site-url";
 import "../globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
 
 const razerF5 = localFont({
   src: [
@@ -98,7 +92,7 @@ export default async function RootLayout({
   return (
     <html
       lang="ru"
-      className={`${geistSans.variable} ${razerF5.variable} ${rubik.variable} ${victorMono.variable} h-full antialiased`}
+      className={`${razerF5.variable} ${rubik.variable} ${victorMono.variable} h-full antialiased`}
     >
       {/* Hero-видео на главной запрашивается с Supabase Storage сразу при
           заходе на сайт. Next не хоистит resource hints автоматически для

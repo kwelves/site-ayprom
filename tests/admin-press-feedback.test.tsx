@@ -1,12 +1,8 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import AdminLayout from "@/app/admin/layout";
-
-vi.mock("next/font/google", () => ({
-  Geist: () => ({ variable: "mock-geist" }),
-}));
 
 const css = readFileSync(fileURLToPath(new URL("../src/app/globals.css", import.meta.url)), "utf8");
 
