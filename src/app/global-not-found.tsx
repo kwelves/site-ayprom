@@ -7,6 +7,10 @@ import "./globals.css";
 // global-not-found обходится без обоих root layout, поэтому сам объявляет
 // локальные шрифты и не зависит от сети. Это также не возвращает в build
 // дополнительную загрузку Google Fonts.
+// `preload: false` обязателен и повторяет решение `(site)/layout.tsx`: Next
+// собирает preload-теги этого файла в общий head, поэтому с preload по
+// умолчанию каждая страница сайта тянула отдельные `.p.`-копии шрифтов 404 и
+// не использовала их. `display: swap` с fallback сохраняет читаемость 404.
 const razerF5 = localFont({
   src: [
     {
@@ -22,6 +26,7 @@ const razerF5 = localFont({
   ],
   variable: "--font-razer-f5",
   display: "swap",
+  preload: false,
   fallback: ["Arial", "sans-serif"],
 });
 
@@ -31,6 +36,7 @@ const rubik = localFont({
   weight: "300 900",
   style: "normal",
   display: "swap",
+  preload: false,
   fallback: ["Arial", "sans-serif"],
 });
 
