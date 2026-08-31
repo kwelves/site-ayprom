@@ -22,7 +22,11 @@ export function WhatsAppBadge() {
         bottom: "max(1rem, env(safe-area-inset-bottom))",
       }}
     >
-      <span aria-hidden="true" className="absolute inset-0 rounded-full bg-whatsapp animate-whatsapp-pulse" />
+      <span
+        data-whatsapp-pulse
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 rounded-full bg-whatsapp animate-whatsapp-pulse"
+      />
       <svg
         aria-hidden="true"
         viewBox="0 0 448 512"

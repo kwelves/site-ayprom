@@ -117,10 +117,11 @@ test("[QA-011] production response не раскрывает X-Powered-By", asyn
   expect(response.status()).toBe(200);
   await expect(page.locator("body")).toBeVisible();
   browserObserver.assertClean();
-  const poweredBy = response.headers()["x-powered-by"];
-  const defectObserved = poweredBy !== undefined;
-  test.fail(defectObserved, "QA-011: production document раскрывает X-Powered-By.");
-  expect(poweredBy).toBeUndefined();
+  // Никакого условного `test.fail` здесь быть не может. Условие вида
+  // `test.fail(poweredBy !== undefined)` описывает не контракт, а факт: если
+  // заголовок вернётся, проба объявит его «ожидаемым падением» и пройдёт.
+  // Защита должна быть fail-closed — обычный обязательный expect.
+  expect(response.headers()["x-powered-by"]).toBeUndefined();
 });
 
 // QA-012 состоит из двух половин, и закрыта пока одна.
