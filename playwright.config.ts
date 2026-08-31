@@ -45,7 +45,13 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Один воркер везде, а не только под CI. Публичные спеки создают fixtures
+  // `qa-e2e-*` в общей локальной базе, а публичные страницы читают весь список
+  // категорий (`src/lib/queries/categories.ts`). При нескольких воркерах чужая
+  // fixture попадает в шапку и каталог соседнего теста, а её очистка обрывает
+  // его навигацию: набор плавает по причинам, которых нет ни в продукте, ни в
+  // контрактном прогоне. Прогон дольше, зато локальный результат совпадает с CI.
+  workers: 1,
   timeout: 45_000,
   expect: { timeout: 10_000 },
   reporter: process.env.CI
