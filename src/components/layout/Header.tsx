@@ -28,7 +28,7 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
   const pathname = usePathname();
   const handleHashClick = useHashNavClick();
   const mainNav = buildMainNav(categories, brands);
-  const { headerVisible } = useHomeEntrySequence();
+  const { headerVisible, isHomeRoute } = useHomeEntrySequence();
 
   // Closes the whole mobile menu and, in the same breath, whatever
   // dropdown was expanded inside it — used everywhere the panel closes
@@ -83,7 +83,7 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
   // On the homepage the header floats transparently over the fixed hero video
   // until scroll. The hero's short top gradient supplies contrast; deriving
   // this during render keeps white navigation in the first server-rendered frame.
-  const overPhoto = pathname === "/" && !scrolled && !open;
+  const overPhoto = isHomeRoute && !scrolled && !open;
 
   return (
     <header
@@ -98,7 +98,7 @@ export function Header({ categories, brands }: { categories: Category[]; brands:
       className={cn(
         "sticky top-0 z-50 w-full border-b border-transparent transition-[opacity,translate,background-color,backdrop-filter,border-color] duration-base ease-ui",
         headerVisible ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0",
-        overPhoto ? "bg-transparent" : pathname === "/" ? undefined : "bg-muted",
+        overPhoto ? "bg-transparent" : isHomeRoute ? undefined : "bg-muted",
         scrolled && "border-border bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60",
         !scrolled && open && "bg-background"
       )}

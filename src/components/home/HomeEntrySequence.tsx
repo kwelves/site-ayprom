@@ -19,6 +19,8 @@ interface HomeEntrySequenceValue {
   /** True only after the hero video has produced its first frame. */
   revealVideo: () => void;
   revealHeader: () => void;
+  /** Hydration-safe route state for server-rendered children of this provider. */
+  isHomeRoute: boolean;
   headerVisible: boolean;
   contentVisible: boolean;
 }
@@ -26,6 +28,7 @@ interface HomeEntrySequenceValue {
 const HomeEntrySequenceContext = createContext<HomeEntrySequenceValue>({
   revealVideo: () => undefined,
   revealHeader: () => undefined,
+  isHomeRoute: false,
   headerVisible: true,
   contentVisible: true,
 });
@@ -40,6 +43,11 @@ export function HomeEntrySequence({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isHome = pathname === "/";
   const prefersReducedMotion = useReducedMotion();
+  // Server Components passed into this Client Component are rendered as
+  // slots, so on the server their context consumers see the defaults above.
+  // Keep the provider's first client render on those same values, then arm
+  // route-specific state before paint while the opaque boot overlay is up.
+  const [sequenceArmed, setSequenceArmed] = useState(false);
   const [phase, setPhase] = useState<HomeEntryPhase>(() => (isHome ? "awaiting-video" : "content"));
   const [bootOverlayPhase, setBootOverlayPhase] = useState<BootOverlayPhase>(() => (isHome ? "visible" : "hidden"));
   // This is deliberately a lifetime flag of the shared site layout. App
@@ -48,6 +56,16 @@ export function HomeEntrySequence({ children }: { children: React.ReactNode }) {
   const [initialBootComplete, setInitialBootComplete] = useState(() => !isHome);
   const isInitialHomeBoot = isHome && !initialBootComplete;
   const bootContentLocked = isInitialHomeBoot && phase !== "content";
+
+  useLayoutEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) setSequenceArmed(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useLayoutEffect(() => {
     // Mark the lifecycle guard before the next paint after leaving home. A
@@ -109,10 +127,11 @@ export function HomeEntrySequence({ children }: { children: React.ReactNode }) {
     () => ({
       revealVideo,
       revealHeader,
-      headerVisible: !isInitialHomeBoot || phase !== "awaiting-video",
-      contentVisible: !isInitialHomeBoot || phase === "content",
+      isHomeRoute: sequenceArmed && isHome,
+      headerVisible: !sequenceArmed || !isInitialHomeBoot || phase !== "awaiting-video",
+      contentVisible: !sequenceArmed || !isInitialHomeBoot || phase === "content",
     }),
-    [isInitialHomeBoot, phase, revealHeader, revealVideo],
+    [isHome, isInitialHomeBoot, phase, revealHeader, revealVideo, sequenceArmed],
   );
 
   return (
