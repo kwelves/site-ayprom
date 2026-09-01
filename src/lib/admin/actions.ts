@@ -11,6 +11,7 @@ import {
   SESSION_DURATION_SECONDS,
 } from "@/lib/admin/session";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveCardImageUrl } from "@/lib/product-image-variants";
 import { slugify } from "@/lib/admin/slugify";
 import {
   AdminLoginProtectionUnavailableError,
@@ -783,6 +784,10 @@ export async function reorderProducts(orderedSlugs: string[]): Promise<void> {
 interface UploadedImage {
   id: string;
   url: string;
+  /** Card-context preview (thumbnail_url → gallery_url → url) — always
+   * equals `url` right after a fresh upload, since no variant exists yet;
+   * see resolveCardImageUrl(). */
+  previewUrl: string;
   order: number;
   scale: number | null;
 }
@@ -812,7 +817,7 @@ async function insertProductImage(
   const { data: inserted, error: insertError } = await supabase
     .from("product_images")
     .insert({ product_id: productId, url: publicUrlData.publicUrl, order })
-    .select("id, url, order, scale")
+    .select("id, url, order, scale, thumbnail_url, gallery_url")
     .single();
   if (insertError) {
     const { error: cleanupError } = await supabase.storage.from("product-images").remove([path]);
@@ -825,7 +830,13 @@ async function insertProductImage(
     }
     throw insertError;
   }
-  return inserted;
+  return {
+    id: inserted.id,
+    url: inserted.url,
+    previewUrl: resolveCardImageUrl(inserted),
+    order: inserted.order,
+    scale: inserted.scale,
+  };
 }
 
 // Returns the inserted row directly rather than relying on revalidatePath +

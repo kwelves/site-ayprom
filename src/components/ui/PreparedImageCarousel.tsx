@@ -6,6 +6,10 @@ import { ImageFallback } from "@/components/ui/ImageFallback";
 
 export interface PreparedCarouselImage {
   url: string;
+  /** Always-durable master to retry once before the "no photo" placeholder,
+   * when `url` is a generated variant that might 404 independently of the
+   * DB row. See resolveImageFallbackUrl(). */
+  fallbackUrl?: string;
   scale?: number;
 }
 
@@ -133,6 +137,7 @@ export function PreparedImageLayers({
       >
         <ImageFallback
           src={image?.url}
+          fallbackSrc={image?.fallbackUrl}
           alt={alt}
           sizes={sizes}
           className={imageClassName}

@@ -7,6 +7,11 @@ import { cn } from "@/lib/utils";
 
 interface ImageFallbackProps {
   src?: string;
+  /** Retried once, in place of `src`, before the placeholder shows — for a
+   * generated variant (thumbnail/gallery) that 404s or fails to decode
+   * independently of the DB row, e.g. an interrupted backfill. The always-
+   * durable master to fall back to; see resolveImageFallbackUrl(). */
+  fallbackSrc?: string;
   alt: string;
   sizes: string;
   className?: string;
@@ -15,14 +20,17 @@ interface ImageFallbackProps {
   quality?: number;
   style?: React.CSSProperties;
   fallbackLabel?: string;
-  /** Serves `src` as-is, bypassing Vercel Image Optimization (and its quota). */
+  /** Serves the active src as-is, bypassing Vercel Image Optimization (and its quota). */
   unoptimized?: boolean;
   onLoad?: () => void;
   onError?: () => void;
 }
 
+type Attempt = "primary" | "fallback" | "failed";
+
 export function ImageFallback({
   src,
+  fallbackSrc,
   alt,
   sizes,
   className,
@@ -35,9 +43,10 @@ export function ImageFallback({
   onLoad,
   onError,
 }: ImageFallbackProps) {
-  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState<Attempt>("primary");
   const onErrorRef = useRef(onError);
   const previousSrcRef = useRef<string | undefined | symbol>(Symbol("initial-src"));
+  const canRetryWithFallback = Boolean(fallbackSrc && fallbackSrc !== src);
 
   useEffect(() => {
     onErrorRef.current = onError;
@@ -46,11 +55,26 @@ export function ImageFallback({
   useEffect(() => {
     if (previousSrcRef.current === src) return;
     previousSrcRef.current = src;
-    setFailed(false);
+    setAttempt("primary");
     if (!src) onErrorRef.current?.();
   }, [src]);
 
-  if (failed || !src) {
+  const handleUnrecoverable = () => {
+    setAttempt("failed");
+    onError?.();
+  };
+
+  const handleFailure = () => {
+    if (attempt === "primary" && canRetryWithFallback) {
+      setAttempt("fallback");
+      return;
+    }
+    handleUnrecoverable();
+  };
+
+  const activeSrc = attempt === "fallback" ? fallbackSrc : src;
+
+  if (attempt === "failed" || !activeSrc) {
     return (
       <div
         role="img"
@@ -65,7 +89,7 @@ export function ImageFallback({
 
   return (
     <Image
-      src={src}
+      src={activeSrc}
       alt={alt}
       fill
       sizes={sizes}
@@ -75,18 +99,14 @@ export function ImageFallback({
       quality={quality}
       unoptimized={unoptimized}
       style={style}
-      onError={() => {
-        setFailed(true);
-        onError?.();
-      }}
+      onError={handleFailure}
       onLoad={async (event) => {
         const image = event.currentTarget;
         try {
           if (typeof image.decode === "function") await image.decode();
           onLoad?.();
         } catch {
-          setFailed(true);
-          onError?.();
+          handleFailure();
         }
       }}
       draggable={false}

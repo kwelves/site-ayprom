@@ -6,6 +6,7 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ADMIN_PAGE_SIZE } from "@/lib/admin/pagination";
+import { resolveCardImageUrl } from "@/lib/product-image-variants";
 import type { CategoryIcon } from "@/types/catalog";
 import type { ProductAvailability } from "@/lib/admin/product-availability";
 import type { AdminProductListSort } from "@/lib/admin/product-list-config";
@@ -44,7 +45,7 @@ interface AdminProductListRow {
   order: number;
   updated_at: string;
   categories: { name: string } | null;
-  product_images: { url: string; order: number }[];
+  product_images: { url: string; order: number; thumbnail_url: string | null; gallery_url: string | null }[];
   vehicle_hotspots: { id: string }[];
 }
 
@@ -204,7 +205,7 @@ export async function getAdminProducts(filters: AdminProductFilters = {}): Promi
   let query = supabase
     .from("products")
     .select(
-      "id, slug, name, article, short_description, published, availability, order, updated_at, categories(name), product_images(url, order), vehicle_hotspots(id)",
+      "id, slug, name, article, short_description, published, availability, order, updated_at, categories(name), product_images(url, order, thumbnail_url, gallery_url), vehicle_hotspots(id)",
       { count: "exact" },
     );
   query = applyAdminProductQueryPlan(query, getAdminProductQueryPlan(filters)).range(from, from + pageSize - 1);
@@ -226,7 +227,10 @@ export async function getAdminProducts(filters: AdminProductFilters = {}): Promi
       hotspotCount: row.vehicle_hotspots?.length ?? 0,
       order: row.order,
       updatedAt: row.updated_at,
-      coverImage: [...row.product_images].sort((a, b) => a.order - b.order)[0]?.url ?? null,
+      coverImage: (() => {
+        const cover = [...row.product_images].sort((a, b) => a.order - b.order)[0];
+        return cover ? resolveCardImageUrl(cover) : null;
+      })(),
     })),
     total,
     page,
@@ -319,7 +323,16 @@ export interface AdminProduct {
   updatedAt: string;
   compatibleBrands: string[];
   vehicleTypes: string[];
-  images: { id: string; url: string; order: number; scale: number | null }[];
+  images: {
+    id: string;
+    url: string;
+    /** Card-context preview (thumbnail_url → gallery_url → url) — used only
+     * by the small edit-form thumbnail. `url` stays the master reference
+     * shown/edited elsewhere in the row and is never swapped for a variant. */
+    previewUrl: string;
+    order: number;
+    scale: number | null;
+  }[];
   characteristics: { id: string; attribute: string; value: string; order: number }[];
   /** Number of Special equipment hotspots currently showing this product.
    * The product form uses it to warn before an unpublish operation clears
@@ -331,7 +344,7 @@ const ADMIN_PRODUCT_SELECT = `
   id, slug, name, category_slug, short_description, description, article, published,
   availability, meta_title, meta_description, updated_at,
   subcategories(slug),
-  product_images(id, url, "order", scale),
+  product_images(id, url, "order", scale, thumbnail_url, gallery_url),
   product_characteristics(id, attribute, value, "order"),
   product_brands(brand_slug),
   product_vehicle_types(vehicle_type_slug),
@@ -352,7 +365,14 @@ interface AdminProductRow {
   meta_description: string | null;
   updated_at: string;
   subcategories: { slug: string } | null;
-  product_images: { id: string; url: string; order: number; scale: number | null }[];
+  product_images: {
+    id: string;
+    url: string;
+    order: number;
+    scale: number | null;
+    thumbnail_url: string | null;
+    gallery_url: string | null;
+  }[];
   product_characteristics: { id: string; attribute: string; value: string; order: number }[];
   product_brands: { brand_slug: string }[];
   product_vehicle_types: { vehicle_type_slug: string }[];
@@ -391,7 +411,15 @@ export async function getAdminProduct(slug: string): Promise<AdminProduct | null
     updatedAt: row.updated_at,
     compatibleBrands: row.product_brands.map((pb) => pb.brand_slug),
     vehicleTypes: row.product_vehicle_types.map((pvt) => pvt.vehicle_type_slug),
-    images: [...row.product_images].sort((a, b) => a.order - b.order),
+    images: [...row.product_images]
+      .sort((a, b) => a.order - b.order)
+      .map((image) => ({
+        id: image.id,
+        url: image.url,
+        previewUrl: resolveCardImageUrl(image),
+        order: image.order,
+        scale: image.scale,
+      })),
     characteristics: [...row.product_characteristics].sort((a, b) => a.order - b.order),
     hotspotCount: row.vehicle_hotspots?.length ?? 0,
   };

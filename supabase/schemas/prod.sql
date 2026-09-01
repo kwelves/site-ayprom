@@ -402,14 +402,14 @@ CREATE OR REPLACE FUNCTION "public"."search_catalog_products"("search_query" "te
     subcategory.slug as subcategory_slug,
     product.short_description,
     product.article,
-    cover.url as cover_url,
+    coalesce(cover.thumbnail_url, cover.gallery_url, cover.url) as cover_url,
     cover.scale as cover_scale,
     coalesce(brands.slugs, '{}') as compatible_brands
   from public.products as product
   cross join normalized_query
   left join public.subcategories as subcategory on subcategory.id = product.subcategory_id
   left join lateral (
-    select image.url, image.scale
+    select image.url, image.thumbnail_url, image.gallery_url, image.scale
     from public.product_images as image
     where image.product_id = product.id
     order by image."order", image.id
@@ -2130,7 +2130,10 @@ CREATE TABLE IF NOT EXISTS "public"."product_images" (
     "url" "text" NOT NULL,
     "order" integer DEFAULT 0 NOT NULL,
     "scale" numeric,
-    CONSTRAINT "product_images_scale_bounds_check" CHECK ((("scale" IS NULL) OR (("scale" >= 0.1) AND ("scale" <= 5.0))))
+    "thumbnail_url" "text",
+    "gallery_url" "text",
+    CONSTRAINT "product_images_scale_bounds_check" CHECK ((("scale" IS NULL) OR (("scale" >= 0.1) AND ("scale" <= 5.0)))),
+    CONSTRAINT "product_images_variants_both_or_neither_check" CHECK ((("thumbnail_url" IS NULL) = ("gallery_url" IS NULL)))
 );
 
 

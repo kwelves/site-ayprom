@@ -2,13 +2,18 @@ import { cache } from "react";
 import * as Sentry from "@sentry/nextjs";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeSearchQuery } from "@/lib/normalize-search";
+import {
+  resolveCardImageUrl,
+  resolveGalleryImageUrl,
+  resolveImageFallbackUrl,
+} from "@/lib/product-image-variants";
 import type { Product, ProductListItem } from "@/types/catalog";
 
 const PRODUCT_SELECT = `
   slug, name, category_slug, short_description, description, article,
   meta_title, meta_description,
   subcategories(slug),
-  product_images(url, "order", scale),
+  product_images(url, "order", scale, thumbnail_url, gallery_url),
   product_characteristics(attribute, value, "order"),
   product_brands(brands(slug, name, country, logo, logo_scale)),
   product_vehicle_types(vehicle_type_slug)
@@ -24,7 +29,13 @@ interface ProductRow {
   meta_title: string | null;
   meta_description: string | null;
   subcategories: { slug: string } | null;
-  product_images: { url: string; order: number; scale: number | null }[];
+  product_images: {
+    url: string;
+    order: number;
+    scale: number | null;
+    thumbnail_url: string | null;
+    gallery_url: string | null;
+  }[];
   product_characteristics: { attribute: string; value: string; order: number }[];
   product_brands: { brands: { slug: string } }[];
   product_vehicle_types: { vehicle_type_slug: string }[];
@@ -38,9 +49,19 @@ function mapProduct(row: ProductRow): Product {
     subcategory: row.subcategories?.slug,
     compatibleBrands: row.product_brands.map((pb) => pb.brands.slug),
     vehicleTypes: row.product_vehicle_types.map((pvt) => pvt.vehicle_type_slug),
+    // Галерея/zoom/OG: приоритет gallery_url, thumbnail здесь не подходит по
+    // размеру. resolved может быть сгенерированным вариантом, поэтому
+    // fallbackUrl несёт неизменно надёжный master на случай его 404.
     images: [...row.product_images]
       .sort((a, b) => a.order - b.order)
-      .map((img) => ({ url: img.url, scale: img.scale ?? undefined })),
+      .map((img) => {
+        const resolved = resolveGalleryImageUrl(img);
+        return {
+          url: resolved,
+          fallbackUrl: resolveImageFallbackUrl(img, resolved),
+          scale: img.scale ?? undefined,
+        };
+      }),
     shortDescription: row.short_description,
     description: row.description ?? undefined,
     characteristics: row.product_characteristics.length
@@ -93,7 +114,13 @@ interface LegacyProductCardRow {
   short_description: string;
   article: string | null;
   subcategories: { slug: string } | null;
-  product_images: { url: string; order: number; scale: number | null }[];
+  product_images: {
+    url: string;
+    order: number;
+    scale: number | null;
+    thumbnail_url: string | null;
+    gallery_url: string | null;
+  }[];
   product_brands: { brand_slug: string }[];
 }
 
@@ -127,7 +154,7 @@ async function getLegacyProductPage(filters: ProductFilters, page: number, pageS
   const cardSelect = `
     slug, name, category_slug, short_description, article,
     ${subcategorySelect},
-    product_images(url, "order", scale),
+    product_images(url, "order", scale, thumbnail_url, gallery_url),
     product_brands(brand_slug)
     ${relationSelect ? `,${relationSelect}` : ""}
   `;
@@ -160,7 +187,11 @@ async function getLegacyProductPage(filters: ProductFilters, page: number, pageS
       subcategory_slug: row.subcategories?.slug ?? null,
       short_description: row.short_description,
       article: row.article,
-      cover_url: row.product_images[0]?.url ?? null,
+      // Карточка каталога: приоритет thumbnail_url — см.
+      // src/lib/product-image-variants.ts. RPC-путь (getProducts) уже
+      // применяет тот же порядок в SQL; здесь его дублирует fallback-путь
+      // (RPC отсутствует / getProductsWithoutSubcategory).
+      cover_url: row.product_images[0] ? resolveCardImageUrl(row.product_images[0]) : null,
       cover_scale: row.product_images[0]?.scale ?? null,
       compatible_brands: row.product_brands.map((brand) => brand.brand_slug),
     }),
@@ -237,7 +268,7 @@ export async function getProductsWithoutSubcategory(
       `
         slug, name, category_slug, short_description, article,
         subcategories(slug),
-        product_images(url, "order", scale),
+        product_images(url, "order", scale, thumbnail_url, gallery_url),
         product_brands(brand_slug)
       `,
       { count: "exact" },
@@ -259,7 +290,11 @@ export async function getProductsWithoutSubcategory(
       subcategory_slug: null,
       short_description: row.short_description,
       article: row.article,
-      cover_url: row.product_images[0]?.url ?? null,
+      // Карточка каталога: приоритет thumbnail_url — см.
+      // src/lib/product-image-variants.ts. RPC-путь (getProducts) уже
+      // применяет тот же порядок в SQL; здесь его дублирует fallback-путь
+      // (RPC отсутствует / getProductsWithoutSubcategory).
+      cover_url: row.product_images[0] ? resolveCardImageUrl(row.product_images[0]) : null,
       cover_scale: row.product_images[0]?.scale ?? null,
       compatible_brands: row.product_brands.map((brand) => brand.brand_slug),
     }),
@@ -289,7 +324,7 @@ export async function getSitemapProducts(): Promise<SitemapProduct[]> {
       .select(`
         slug, name, category_slug, short_description, article, updated_at,
         subcategories(slug),
-        product_images(url, "order", scale),
+        product_images(url, "order", scale, thumbnail_url, gallery_url),
         product_brands(brand_slug)
       `)
       .order("slug")
@@ -308,7 +343,10 @@ export async function getSitemapProducts(): Promise<SitemapProduct[]> {
           subcategory_slug: row.subcategories?.slug ?? null,
           short_description: row.short_description,
           article: row.article,
-          cover_url: row.product_images[0]?.url ?? null,
+          // Sitemap-изображения — SEO-сигнал для поисковика, не карточка:
+          // приоритет gallery_url (крупный вариант), thumbnail здесь не
+          // подходит по размеру — см. resolveGalleryImageUrl().
+          cover_url: row.product_images[0] ? resolveGalleryImageUrl(row.product_images[0]) : null,
           cover_scale: row.product_images[0]?.scale ?? null,
           compatible_brands: row.product_brands.map((brand) => brand.brand_slug),
         }),

@@ -1,12 +1,15 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { resolveGalleryImageUrl, resolveImageFallbackUrl } from "@/lib/product-image-variants";
 import type { VehicleType } from "@/types/catalog";
 
 export interface HotspotProduct {
   slug: string;
   name: string;
   shortDescription: string;
-  images: { url: string; scale?: number }[];
+  /** Gallery/zoom context (ProductPanel has a zoom modal) — priority
+   * gallery_url, never thumbnail. See resolveGalleryImageUrl(). */
+  images: { url: string; fallbackUrl?: string; scale?: number }[];
 }
 
 export interface VehicleHotspot {
@@ -34,7 +37,13 @@ interface HotspotRow {
     slug: string;
     name: string;
     short_description: string;
-    product_images: { url: string; order: number; scale: number | null }[];
+    product_images: {
+      url: string;
+      order: number;
+      scale: number | null;
+      thumbnail_url: string | null;
+      gallery_url: string | null;
+    }[];
   } | null;
 }
 
@@ -43,7 +52,14 @@ function mapHotspot(row: HotspotRow): VehicleHotspot {
   const images = product
     ? [...product.product_images]
         .sort((a, b) => a.order - b.order)
-        .map((image) => ({ url: image.url, scale: image.scale ?? undefined }))
+        .map((image) => {
+          const resolved = resolveGalleryImageUrl(image);
+          return {
+            url: resolved,
+            fallbackUrl: resolveImageFallbackUrl(image, resolved),
+            scale: image.scale ?? undefined,
+          };
+        })
     : [];
   return {
     id: row.id,
@@ -77,7 +93,7 @@ export const getVehicleShowcaseData = cache(async (): Promise<VehicleShowcaseEnt
         .select(
           `
             id, hotspot_number, label, x_pct, y_pct, vehicle_type_slug,
-            products(slug, name, short_description, product_images(url, "order", scale))
+            products(slug, name, short_description, product_images(url, "order", scale, thumbnail_url, gallery_url))
           `,
         )
         .order("hotspot_number"),

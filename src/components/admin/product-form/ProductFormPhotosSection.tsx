@@ -14,6 +14,10 @@ import type { StagedPhoto } from "@/lib/admin/use-staged-photo-upload";
 interface ProductImage {
   id: string;
   url: string;
+  /** Card-context preview (thumbnail_url → gallery_url → url) — used only
+   * for the small thumbnail below; `url` stays the master reference shown
+   * as text and passed to delete/reorder/scale actions. */
+  previewUrl: string;
   order: number;
   scale: number | null;
 }
@@ -100,7 +104,7 @@ export function ProductFormPhotosSection({
             renderItem={(img) => (
               <div className="flex items-center gap-3">
                 <Image
-                  src={img.url}
+                  src={img.previewUrl}
                   alt=""
                   width={48}
                   height={48}

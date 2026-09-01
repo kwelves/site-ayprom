@@ -73,8 +73,11 @@ export interface ProductListItem {
   /** Can be empty: the catalog officially supports products without photos
    * and renders ImageFallback until an image is added. `scale` mirrors
    * Brand.logoScale — a per-photo visual correction for images with
-   * more/less baked-in padding than the rest. */
-  images: { url: string; scale?: number }[];
+   * more/less baked-in padding than the rest. `fallbackUrl` is set only in
+   * gallery contexts (see resolveGalleryImageUrl) where `url` may be a
+   * generated variant; card contexts resolve to a single best URL with no
+   * fallback chain — see src/lib/product-image-variants.ts. */
+  images: { url: string; fallbackUrl?: string; scale?: number }[];
   /** Required so the product card never renders without any text. */
   shortDescription: string;
   article?: string;
