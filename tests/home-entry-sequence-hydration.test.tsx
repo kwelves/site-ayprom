@@ -5,8 +5,10 @@ import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HomeEntrySequence, useHomeEntrySequence } from "@/components/home/HomeEntrySequence";
 
+const navigationMock = vi.hoisted(() => ({ pathname: "/" as string | null }));
+
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/",
+  usePathname: () => navigationMock.pathname,
 }));
 
 vi.mock("framer-motion", () => ({
@@ -17,7 +19,10 @@ vi.mock("next/image", () => ({
   default: ({ alt, src }: { alt: string; src: string }) => <span role="img" aria-label={alt} data-src={src} />,
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  navigationMock.pathname = "/";
+});
 
 function SequenceProbe() {
   const { contentVisible, headerVisible, isHomeRoute } = useHomeEntrySequence();
@@ -33,6 +38,26 @@ function SequenceProbe() {
 }
 
 describe("HomeEntrySequence hydration contract", () => {
+  it("keeps the prerender shell stable when the pathname appears only in the browser", () => {
+    navigationMock.pathname = null;
+    const serverMarkup = renderToString(
+      <HomeEntrySequence>
+        <SequenceProbe />
+      </HomeEntrySequence>,
+    );
+
+    navigationMock.pathname = "/";
+    const firstClientMarkup = renderToString(
+      <HomeEntrySequence>
+        <SequenceProbe />
+      </HomeEntrySequence>,
+    );
+
+    expect(firstClientMarkup).toBe(serverMarkup);
+    expect(serverMarkup).not.toContain('aria-hidden="true"');
+    expect(serverMarkup).not.toContain('aria-label="Загрузка сайта"');
+  });
+
   it("keeps server slots and the first client render on the same safe context values", async () => {
     const serverMarkup = renderToString(
       <HomeEntrySequence>

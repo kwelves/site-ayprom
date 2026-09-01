@@ -55,7 +55,11 @@ export function HomeEntrySequence({ children }: { children: React.ReactNode }) {
   // never put an already usable site back behind the introductory loader.
   const [initialBootComplete, setInitialBootComplete] = useState(() => !isHome);
   const isInitialHomeBoot = isHome && !initialBootComplete;
-  const bootContentLocked = isInitialHomeBoot && phase !== "content";
+  // `usePathname()` is not guaranteed to expose the browser pathname while a
+  // route is being prerendered (notably behind Proxy/rewrites on Vercel). Keep
+  // every route-dependent DOM change behind the same post-mount gate as the
+  // context values so the server shell and first client render stay identical.
+  const bootContentLocked = sequenceArmed && isInitialHomeBoot && phase !== "content";
 
   useLayoutEffect(() => {
     let cancelled = false;
@@ -152,7 +156,9 @@ export function HomeEntrySequence({ children }: { children: React.ReactNode }) {
       >
         {children}
       </div>
-      {isInitialHomeBoot && bootOverlayPhase !== "hidden" && <HomeBootOverlay exiting={bootOverlayPhase === "exiting"} />}
+      {sequenceArmed && isInitialHomeBoot && bootOverlayPhase !== "hidden" && (
+        <HomeBootOverlay exiting={bootOverlayPhase === "exiting"} />
+      )}
     </HomeEntrySequenceContext.Provider>
   );
 }
