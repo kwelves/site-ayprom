@@ -279,7 +279,13 @@ export function ProductForm({
       setPhotoAlphaWarning(files && files.length > 0 ? await anyFileLacksAlpha(files) : false);
     } else {
       setPhotoAlphaWarning(false);
-      await compressFileListInput(input, usesWebpOutput(photoMode) ? "image/webp" : "image/jpeg");
+      try {
+        await compressFileListInput(input, usesWebpOutput(photoMode) ? "image/webp" : "image/jpeg");
+      } catch (error) {
+        input.value = "";
+        setActionError(error instanceof Error ? error.message : "Не удалось подготовить фотографию к загрузке.");
+        return;
+      }
     }
 
     // Загрузка начинается сразу после выбора, не дожидаясь сохранения товара:

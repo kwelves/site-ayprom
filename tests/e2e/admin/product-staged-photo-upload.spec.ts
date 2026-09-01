@@ -1,4 +1,5 @@
 import path from "node:path";
+import { MAX_SERVER_ACTION_FILE_BYTES } from "@/lib/admin/compress-image";
 import {
   cleanupOwnedCategory,
   cleanupOwnedProduct,
@@ -37,6 +38,34 @@ async function buildTestPhoto(): Promise<Buffer> {
     create: { width: 64, height: 64, channels: 4, background: { r: 20, g: 80, b: 200, alpha: 1 } },
   })
     .png()
+    .toBuffer();
+}
+
+/**
+ * Детерминированный высокоэнтропийный PNG с настоящим альфа-каналом. Он
+ * заведомо больше порога клиентского сжатия (300 КБ), поэтому проверяет не
+ * исходный PNG, а именно ветку PNG -> WebP без белой подложки.
+ */
+async function buildDetailedTransparentPhoto(): Promise<Buffer> {
+  const width = 1200;
+  const height = 900;
+  const pixels = Buffer.allocUnsafe(width * height * 4);
+  let state = 0x6d2b79f5;
+  for (let index = 0; index < pixels.length; index += 4) {
+    state ^= state << 13;
+    state ^= state >>> 17;
+    state ^= state << 5;
+    pixels[index] = state & 0xff;
+    pixels[index + 1] = (state >>> 8) & 0xff;
+    pixels[index + 2] = (state >>> 16) & 0xff;
+    // Не полностью прозрачный шум: изображение остаётся содержательным, а
+    // alpha_is_used гарантированно присутствует в итоговом WebP.
+    pixels[index + 3] = 48 + ((state >>> 24) & 0xcf);
+  }
+
+  const sharp = (await import("sharp")).default;
+  return sharp(pixels, { raw: { width, height, channels: 4 } })
+    .png({ compressionLevel: 6 })
     .toBuffer();
 }
 
@@ -147,6 +176,74 @@ test("генерирует варианты при загрузке реалис
     await expect(page.getByText("Фотография удалена")).toBeVisible({ timeout: 30_000 });
     await expect.poll(async () => (await readOwnedProductImages(slug)).length).toBe(0);
 
+    await expect.poll(() => downloadOwnedProductImageObject(slug, image.url)).toBeNull();
+    await expect.poll(() => downloadOwnedProductImageObject(slug, image.thumbnail_url!)).toBeNull();
+    await expect.poll(() => downloadOwnedProductImageObject(slug, image.gallery_url!)).toBeNull();
+  } finally {
+    try {
+      await cleanupOwnedProduct(slug);
+    } finally {
+      await cleanupOwnedCategory(category);
+    }
+  }
+});
+
+test("адаптивно загружает детализированный PNG и сохраняет альфа-канал", async ({
+  page,
+  browserObserver,
+}) => {
+  const category = await createOwnedCategoryFixture();
+  const slug = await createOwnedProductFixture(category.slug, "QA image alpha edit");
+
+  try {
+    const source = await buildDetailedTransparentPhoto();
+    expect(source.byteLength).toBeGreaterThan(MAX_SERVER_ACTION_FILE_BYTES);
+
+    await page.goto(`/admin/products/${slug}/edit`);
+    await page.getByRole("button", { name: "Фотографии" }).click();
+    browserObserver.allow(allowExpectedNextActionPostAbort(`/admin/products/${slug}/edit`));
+
+    const upload = page.locator("label", { hasText: "Загрузить фото" }).locator('input[type="file"]');
+    await upload.setInputFiles({
+      name: "detailed-alpha.png",
+      mimeType: "image/png",
+      buffer: source,
+    });
+
+    // Сборка E2E использует bodySizeLimit=4mb. Успешный Server Action здесь
+    // одновременно доказывает, что весь multipart body уложился в этот предел.
+    await expect.poll(async () => (await readOwnedProductImages(slug)).length, { timeout: 45_000 }).toBe(1);
+
+    const [image] = await readOwnedProductImages(slug);
+    expect(image.url).toMatch(/\/master\.webp$/);
+    expect(image.thumbnail_url).toMatch(/\/variants\/v1\/thumbnail-[0-9a-f]{16}\.webp$/);
+    expect(image.gallery_url).toMatch(/\/variants\/v1\/gallery-[0-9a-f]{16}\.webp$/);
+
+    const [master, thumbnail, gallery] = await Promise.all([
+      downloadOwnedProductImageObject(slug, image.url),
+      downloadOwnedProductImageObject(slug, image.thumbnail_url!),
+      downloadOwnedProductImageObject(slug, image.gallery_url!),
+    ]);
+    expect(master).not.toBeNull();
+    expect(thumbnail).not.toBeNull();
+    expect(gallery).not.toBeNull();
+    expect(master!.byteLength).toBeLessThanOrEqual(MAX_SERVER_ACTION_FILE_BYTES);
+
+    const sharp = (await import("sharp")).default;
+    const metadata = await Promise.all([
+      sharp(master!).metadata(),
+      sharp(thumbnail!).metadata(),
+      sharp(gallery!).metadata(),
+    ]);
+    for (const item of metadata) {
+      expect(item.format).toBe("webp");
+      expect(item.hasAlpha).toBe(true);
+    }
+
+    const imageRow = page.getByText(image.url, { exact: true }).locator("..");
+    await imageRow.getByRole("button", { name: "Удалить" }).click();
+    await expect(page.getByText("Фотография удалена")).toBeVisible({ timeout: 30_000 });
+    await expect.poll(async () => (await readOwnedProductImages(slug)).length).toBe(0);
     await expect.poll(() => downloadOwnedProductImageObject(slug, image.url)).toBeNull();
     await expect.poll(() => downloadOwnedProductImageObject(slug, image.thumbnail_url!)).toBeNull();
     await expect.poll(() => downloadOwnedProductImageObject(slug, image.gallery_url!)).toBeNull();

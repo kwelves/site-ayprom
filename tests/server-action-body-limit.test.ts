@@ -1,9 +1,13 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { MAX_IMAGE_BYTES } from "@/lib/admin/image-validation";
+import {
+  MAX_SERVER_ACTION_FILE_BYTES,
+  SERVER_ACTION_BODY_LIMIT_BYTES,
+} from "@/lib/admin/compress-image";
 
 /**
- * Транспорт Server Action не должен быть жёстче собственной валидации файла.
+ * Клиентский файл и сырой Server Action body должны укладываться в отдельный
+ * production-лимит Vercel Functions 4.5 МБ.
  *
  * Пока `bodySizeLimit` оставался дефолтным (1 МБ), загрузка фотографии в
  * режиме редактирования товара обрывалась на уровне транспорта раньше, чем
@@ -20,6 +24,7 @@ import { MAX_IMAGE_BYTES } from "@/lib/admin/image-validation";
  */
 describe("serverActions.bodySizeLimit", () => {
   const config = readFileSync("next.config.ts", "utf8");
+  const VERCEL_FUNCTION_BODY_LIMIT_BYTES = 4.5 * 1024 * 1024;
 
   function parseByteSize(value: string): number {
     const match = value.trim().match(/^(\d+(?:\.\d+)?)\s*(b|kb|mb|gb)?$/i);
@@ -33,14 +38,13 @@ describe("serverActions.bodySizeLimit", () => {
     expect(config).toMatch(/bodySizeLimit:\s*["']/);
   });
 
-  it("не меньше лимита валидации изображения", () => {
+  it("совпадает с общим контрактом и оставляет запас до лимита Vercel", () => {
     const declared = config.match(/bodySizeLimit:\s*["']([^"']+)["']/)?.[1];
     expect(declared).toBeDefined();
 
     const limitBytes = parseByteSize(declared!);
-    // Строго больше: multipart добавляет к телу границы, заголовки частей и
-    // служебные поля формы, поэтому ровно MAX_IMAGE_BYTES не хватило бы для
-    // файла ровно на границе допустимого.
-    expect(limitBytes).toBeGreaterThan(MAX_IMAGE_BYTES);
+    expect(limitBytes).toBe(SERVER_ACTION_BODY_LIMIT_BYTES);
+    expect(limitBytes).toBeGreaterThan(MAX_SERVER_ACTION_FILE_BYTES);
+    expect(limitBytes).toBeLessThan(VERCEL_FUNCTION_BODY_LIMIT_BYTES);
   });
 });
