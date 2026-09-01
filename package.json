@@ -33,6 +33,7 @@
     "schema:declarative": "node scripts/check-declarative-schema.mjs",
     "photos:enhance": "node scripts/enhance-product-photos.mjs",
     "images:vehicle-webp": "node scripts/generate-vehicle-webp.mjs",
+    "images:backfill-variants": "node --env-file-if-exists=.env.local scripts/backfill-product-image-variants.mjs",
     "video:hero": "node scripts/generate-hero-video.mjs",
     "video:hero:upload": "node scripts/upload-hero-video.mjs"
   },

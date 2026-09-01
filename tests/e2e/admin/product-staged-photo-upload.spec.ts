@@ -1,9 +1,13 @@
+import path from "node:path";
 import {
   cleanupOwnedCategory,
   cleanupOwnedProduct,
   countOwnedProductImages,
   createOwnedCategoryFixture,
+  createOwnedProductFixture,
+  downloadOwnedProductImageObject,
   E2E_PRODUCT_PREFIX,
+  readOwnedProductImages,
 } from "../support/local-products";
 import {
   allowExpectedNextActionPostAbort,
@@ -72,6 +76,80 @@ test("[QA-004] фотография грузится отдельно и при�
     // Главное: фотография действительно перенесена в публичное хранилище и
     // привязана к товару, а не осталась в промежуточном.
     await expect.poll(() => countOwnedProductImages(slug), { timeout: 30_000 }).toBe(1);
+
+    const [image] = await readOwnedProductImages(slug);
+    expect(image.url).toContain(`/${slug}/`);
+    expect(image.thumbnail_url).toMatch(/\/variants\/v1\/thumbnail-[0-9a-f]{16}\.webp$/);
+    expect(image.gallery_url).toMatch(/\/variants\/v1\/gallery-[0-9a-f]{16}\.webp$/);
+
+    const sharp = (await import("sharp")).default;
+    const thumbnail = await downloadOwnedProductImageObject(slug, image.thumbnail_url!);
+    const gallery = await downloadOwnedProductImageObject(slug, image.gallery_url!);
+    expect(thumbnail).not.toBeNull();
+    expect(gallery).not.toBeNull();
+    expect((await sharp(thumbnail!).metadata()).format).toBe("webp");
+    expect((await sharp(gallery!).metadata()).format).toBe("webp");
+  } finally {
+    try {
+      await cleanupOwnedProduct(slug);
+    } finally {
+      await cleanupOwnedCategory(category);
+    }
+  }
+});
+
+test("генерирует варианты при загрузке реалистичного фото в edit и удаляет master вместе с ними", async ({
+  page,
+  browserObserver,
+}) => {
+  const category = await createOwnedCategoryFixture();
+  const slug = await createOwnedProductFixture(category.slug, "QA image variants edit");
+
+  try {
+    await page.goto(`/admin/products/${slug}/edit`);
+    await page.getByRole("button", { name: "Фотографии" }).click();
+    // После получения return value клиенту Next может оборвать оставшийся
+    // RSC-хвост Server Action; данные и UI ниже подтверждают завершение самой
+    // операции, поэтому разрешаем только этот точный POST текущего маршрута.
+    browserObserver.allow(allowExpectedNextActionPostAbort(`/admin/products/${slug}/edit`));
+    const upload = page.locator("label", { hasText: "Загрузить фото" }).locator('input[type="file"]');
+    await upload.setInputFiles(path.join(process.cwd(), "public", "category-hydraulic-pumps", "1-gear-pumps.jpg"));
+
+    await expect.poll(async () => (await readOwnedProductImages(slug)).length, { timeout: 30_000 }).toBe(1);
+
+    const [image] = await readOwnedProductImages(slug);
+    await expect(page.getByText(image.url, { exact: true })).toBeVisible();
+    expect(image.url).toMatch(/\/master\.jpe?g$/);
+    expect(image.thumbnail_url).toMatch(/\/variants\/v1\/thumbnail-[0-9a-f]{16}\.webp$/);
+    expect(image.gallery_url).toMatch(/\/variants\/v1\/gallery-[0-9a-f]{16}\.webp$/);
+
+    const [master, thumbnail, gallery] = await Promise.all([
+      downloadOwnedProductImageObject(slug, image.url),
+      downloadOwnedProductImageObject(slug, image.thumbnail_url!),
+      downloadOwnedProductImageObject(slug, image.gallery_url!),
+    ]);
+    expect(master).not.toBeNull();
+    expect(thumbnail).not.toBeNull();
+    expect(gallery).not.toBeNull();
+
+    const sharp = (await import("sharp")).default;
+    const [masterMeta, thumbnailMeta, galleryMeta] = await Promise.all([
+      sharp(master!).metadata(),
+      sharp(thumbnail!).metadata(),
+      sharp(gallery!).metadata(),
+    ]);
+    expect(masterMeta).toMatchObject({ format: "jpeg", width: 1200, height: 900 });
+    expect(thumbnailMeta).toMatchObject({ format: "webp", width: 640, height: 480 });
+    expect(galleryMeta).toMatchObject({ format: "webp", width: 1200, height: 900 });
+
+    const imageRow = page.getByText(image.url, { exact: true }).locator("..");
+    await imageRow.getByRole("button", { name: "Удалить" }).click();
+    await expect(page.getByText("Фотография удалена")).toBeVisible({ timeout: 30_000 });
+    await expect.poll(async () => (await readOwnedProductImages(slug)).length).toBe(0);
+
+    await expect.poll(() => downloadOwnedProductImageObject(slug, image.url)).toBeNull();
+    await expect.poll(() => downloadOwnedProductImageObject(slug, image.thumbnail_url!)).toBeNull();
+    await expect.poll(() => downloadOwnedProductImageObject(slug, image.gallery_url!)).toBeNull();
   } finally {
     try {
       await cleanupOwnedProduct(slug);

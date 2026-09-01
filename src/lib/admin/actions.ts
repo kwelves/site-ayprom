@@ -12,6 +12,11 @@ import {
 } from "@/lib/admin/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveCardImageUrl } from "@/lib/product-image-variants";
+import {
+  generateProductImageVariants,
+  VARIANT_UPLOAD_OPTIONS,
+} from "@/lib/admin/product-image-variants.core.mjs";
+import { isAlreadyExistsError } from "@/lib/admin/product-image-backfill.core.mjs";
 import { slugify } from "@/lib/admin/slugify";
 import {
   AdminLoginProtectionUnavailableError,
@@ -641,9 +646,12 @@ export async function deleteProduct(slug: string, redirectAfterDelete = true): P
 
   const { data: product, error: findError } = await supabase
     .from("products")
-    .select("id, product_images(url)")
+    .select("id, product_images(url, thumbnail_url, gallery_url)")
     .eq("slug", slug)
-    .maybeSingle<{ id: string; product_images: { url: string }[] }>();
+    .maybeSingle<{
+      id: string;
+      product_images: { url: string; thumbnail_url: string | null; gallery_url: string | null }[];
+    }>();
   if (findError) throw findError;
   if (!product) {
     // Deletion is idempotent: a stale tab or a repeated confirmation already
@@ -660,9 +668,9 @@ export async function deleteProduct(slug: string, redirectAfterDelete = true): P
   const { error: deleteError } = await supabase.from("products").delete().eq("id", product.id);
   if (deleteError) throw deleteError;
 
-  const storagePaths = product.product_images
-    .map((image) => extractStoragePath(image.url, "product-images"))
-    .filter((path): path is string => Boolean(path));
+  // Master и оба варианта каждого фото; дедупликация — внутри
+  // collectImageStoragePaths, плюс между фотографиями через Set.
+  const storagePaths = [...new Set(product.product_images.flatMap(collectImageStoragePaths))];
   if (storagePaths.length > 0) {
     const { error: removeError } = await supabase.storage.from("product-images").remove(storagePaths);
     if (removeError) {
@@ -806,37 +814,73 @@ async function insertProductImage(
   // Расширение и тип берутся из проверенного содержимого, а не из имени файла:
   // имя целиком под контролем клиента и не должно определять путь в хранилище.
   const validated = await validateRasterImage(file);
-  const path = `${productSlug}/${crypto.randomUUID()}.${validated.extension}`;
-  const { error: uploadError } = await supabase.storage
-    .from("product-images")
-    .upload(path, validated.bytes, { contentType: validated.contentType });
-  if (uploadError) throw uploadError;
 
-  const { data: publicUrlData } = supabase.storage.from("product-images").getPublicUrl(path);
+  // Идентификатор строки выпускается здесь, до вставки: он входит в путь
+  // варианта (<slug>/<image-id>/variants/v1/...), а строку БД план требует
+  // создавать только после успешной загрузки master и обоих вариантов.
+  // Ждать сгенерированный базой id было бы циклической зависимостью.
+  const imageId = crypto.randomUUID();
+  const masterPath = `${productSlug}/${imageId}/master.${validated.extension}`;
 
-  const { data: inserted, error: insertError } = await supabase
-    .from("product_images")
-    .insert({ product_id: productId, url: publicUrlData.publicUrl, order })
-    .select("id, url, order, scale, thumbnail_url, gallery_url")
-    .single();
-  if (insertError) {
-    const { error: cleanupError } = await supabase.storage.from("product-images").remove([path]);
+  // Всё, что уже легло в Storage: при любом сбое дальше по цепочке эти
+  // объекты надо снять, иначе останется мусор, на который никто не ссылается.
+  const uploadedPaths: string[] = [];
+  const cleanupUploaded = async (reason: string) => {
+    if (uploadedPaths.length === 0) return;
+    const { error: cleanupError } = await supabase.storage.from("product-images").remove(uploadedPaths);
     if (cleanupError) {
-      console.error("Не удалось удалить orphan-файл фотографии", {
+      console.error("Не удалось удалить orphan-файлы фотографии", {
         productSlug,
-        path,
+        imageId,
+        reason,
+        paths: uploadedPaths,
         message: cleanupError.message,
       });
     }
-    throw insertError;
-  }
-  return {
-    id: inserted.id,
-    url: inserted.url,
-    previewUrl: resolveCardImageUrl(inserted),
-    order: inserted.order,
-    scale: inserted.scale,
   };
+
+  const { error: masterUploadError } = await supabase.storage
+    .from("product-images")
+    .upload(masterPath, validated.bytes, { contentType: validated.contentType });
+  if (masterUploadError) throw masterUploadError;
+  uploadedPaths.push(masterPath);
+
+  try {
+    const master = Buffer.from(validated.bytes);
+    const { thumbnail, gallery } = await generateProductImageVariants(master, { productSlug, imageId });
+
+    for (const variant of [thumbnail, gallery]) {
+      await uploadImageVariant(supabase, variant);
+      uploadedPaths.push(variant.path);
+    }
+
+    const publicUrl = (path: string) => supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl;
+
+    const { data: inserted, error: insertError } = await supabase
+      .from("product_images")
+      .insert({
+        id: imageId,
+        product_id: productId,
+        url: publicUrl(masterPath),
+        thumbnail_url: publicUrl(thumbnail.path),
+        gallery_url: publicUrl(gallery.path),
+        order,
+      })
+      .select("id, url, order, scale, thumbnail_url, gallery_url")
+      .single();
+    if (insertError) throw insertError;
+
+    return {
+      id: inserted.id,
+      url: inserted.url,
+      previewUrl: resolveCardImageUrl(inserted),
+      order: inserted.order,
+      scale: inserted.scale,
+    };
+  } catch (error) {
+    await cleanupUploaded(error instanceof Error ? error.message : "unknown");
+    throw error;
+  }
 }
 
 // Returns the inserted row directly rather than relying on revalidatePath +
@@ -890,27 +934,74 @@ function extractStoragePath(publicUrl: string, bucket: string): string | null {
   return index === -1 ? null : publicUrl.slice(index + marker.length);
 }
 
+/**
+ * Загрузка варианта, безопасная к повтору.
+ *
+ * Имя файла варианта — хеш его содержимого, поэтому объект по такому пути
+ * либо отсутствует, либо байт-в-байт совпадает с тем, что мы собираемся
+ * записать. Значит конфликт имени — это «уже загружено» (повторный
+ * finalize, повторный проход backfill), а не расхождение: перезаписывать
+ * нечего, и `upsert` остаётся выключенным, как требует план.
+ */
+async function uploadImageVariant(
+  supabase: ReturnType<typeof createAdminClient>,
+  variant: { path: string; body: Buffer },
+): Promise<void> {
+  const { error } = await supabase.storage
+    .from("product-images")
+    .upload(variant.path, variant.body, VARIANT_UPLOAD_OPTIONS);
+  if (!error) return;
+  if (isAlreadyExistsError(error)) return;
+  throw error;
+}
+
+/**
+ * Все файлы одного изображения в product-images: master и оба WebP-варианта.
+ *
+ * Дедупликация обязательна, а не косметика: у фотографий, загруженных до
+ * появления вариантов, thumbnail_url/gallery_url равны NULL, а у частично
+ * обработанных строк колонки могут указывать на тот же объект — Storage API
+ * на повторяющемся пути в одном запросе ведёт себя неопределённо.
+ */
+function collectImageStoragePaths(
+  image: { url: string; thumbnail_url?: string | null; gallery_url?: string | null },
+): string[] {
+  const paths = [image.url, image.thumbnail_url, image.gallery_url]
+    .filter((url): url is string => Boolean(url))
+    .map((url) => extractStoragePath(url, "product-images"))
+    .filter((path): path is string => Boolean(path));
+  return [...new Set(paths)];
+}
+
 export async function deleteProductImage(imageId: string): Promise<void> {
   await requireAdminSession();
   const supabase = createAdminClient();
 
   const { data: image, error: findError } = await supabase
     .from("product_images")
-    .select("url, products(slug)")
+    .select("url, thumbnail_url, gallery_url, products(slug)")
     .eq("id", imageId)
-    .maybeSingle<{ url: string; products: { slug: string } }>();
+    .maybeSingle<{
+      url: string;
+      thumbnail_url: string | null;
+      gallery_url: string | null;
+      products: { slug: string };
+    }>();
   if (findError) throw findError;
   if (!image) return;
 
   const { error: deleteError } = await supabase.from("product_images").delete().eq("id", imageId);
   if (deleteError) throw deleteError;
 
-  const storagePath = extractStoragePath(image.url, "product-images");
-  if (storagePath) {
-    const { error: removeError } = await supabase.storage.from("product-images").remove([storagePath]);
+  // Master и оба варианта: строка ушла, поэтому оставшиеся объекты уже
+  // никем не адресуются.
+  const storagePaths = collectImageStoragePaths(image);
+  if (storagePaths.length > 0) {
+    const { error: removeError } = await supabase.storage.from("product-images").remove(storagePaths);
     if (removeError) {
-      console.error("Не удалось очистить файл удалённой фотографии", {
+      console.error("Не удалось очистить файлы удалённой фотографии", {
         imageId,
+        paths: storagePaths,
         message: removeError.message,
       });
     }
@@ -1086,24 +1177,40 @@ async function attachStagedProductImages(options: {
       const [processed] = await applyPhotoModeToAll([staging], photoMode);
       const validated = await validateRasterImage(processed);
 
-      const publicPath = `${productSlug}/${row.id}.${validated.extension}`;
+      // Идентификатор staging-строки стабилен между повторами finalize,
+      // поэтому и master, и варианты ложатся по одним и тем же путям —
+      // повторный проход не плодит дубликаты объектов.
+      const publicPath = `${productSlug}/${row.id}/master.${validated.extension}`;
       const uploaded = await supabase.storage
         .from("product-images")
         .upload(publicPath, validated.bytes, { contentType: validated.contentType, upsert: true });
       if (uploaded.error) throw uploaded.error;
 
-      const { data: publicUrlData } = supabase.storage.from("product-images").getPublicUrl(publicPath);
+      const { thumbnail, gallery } = await generateProductImageVariants(Buffer.from(validated.bytes), {
+        productSlug,
+        imageId: row.id,
+      });
+      for (const variant of [thumbnail, gallery]) {
+        await uploadImageVariant(supabase, variant);
+      }
+
+      const publicUrl = (path: string) => supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl;
+      const masterUrl = publicUrl(publicPath);
 
       const { data: already } = await supabase
         .from("product_images")
         .select("id")
-        .eq("url", publicUrlData.publicUrl)
+        .eq("url", masterUrl)
         .maybeSingle();
 
       if (!already) {
-        const { error: insertError } = await supabase
-          .from("product_images")
-          .insert({ product_id: productId, url: publicUrlData.publicUrl, order: nextOrder });
+        const { error: insertError } = await supabase.from("product_images").insert({
+          product_id: productId,
+          url: masterUrl,
+          thumbnail_url: publicUrl(thumbnail.path),
+          gallery_url: publicUrl(gallery.path),
+          order: nextOrder,
+        });
         if (insertError) throw insertError;
         nextOrder += 1;
       }

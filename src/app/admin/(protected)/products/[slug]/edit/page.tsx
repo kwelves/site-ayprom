@@ -9,6 +9,12 @@ import { ProductForm } from "@/components/admin/ProductForm";
 
 export const revalidate = 0;
 
+// uploadProductImage на этом маршруте теперь генерирует два WebP-варианта
+// из master. При пакетном выборе браузер отправляет до MAX_PRODUCT_IMAGES
+// отдельных Server Actions параллельно; каждому нужен запас на два
+// sharp-прохода и три операции Storage.
+export const maxDuration = 60;
+
 interface EditProductPageProps {
   params: Promise<{ slug: string }>;
 }

@@ -21,10 +21,35 @@ export type OwnedCategoryFixture = {
   name: string;
 };
 
+export type OwnedProductImage = {
+  id: string;
+  url: string;
+  thumbnail_url: string | null;
+  gallery_url: string | null;
+};
+
 function assertOwnedSlug(slug: string) {
   if (!slug.startsWith(E2E_PRODUCT_PREFIX)) {
     throw new Error(`Отказ очистки чужого fixture slug: ${slug}`);
   }
+}
+
+function ownedProductImageStoragePath(slug: string, publicUrl: string): string | null {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) throw new Error("NEXT_PUBLIC_SUPABASE_URL не задан для local E2E.");
+
+  let parsed: URL;
+  try {
+    parsed = new URL(publicUrl);
+  } catch {
+    return null;
+  }
+  if (parsed.origin !== new URL(supabaseUrl).origin) return null;
+
+  const marker = "/storage/v1/object/public/product-images/";
+  if (!parsed.pathname.startsWith(marker)) return null;
+  const path = decodeURIComponent(parsed.pathname.slice(marker.length));
+  return path.startsWith(`${slug}/`) ? path : null;
 }
 
 export async function cleanupOwnedProduct(slug: string): Promise<void> {
@@ -36,8 +61,29 @@ export async function cleanupOwnedProduct(slug: string): Promise<void> {
   const ownedIds = (data ?? []).map((row) => row.id);
   if (ownedIds.length === 0) return;
 
+  const { data: images, error: imagesError } = await supabase
+    .from("product_images")
+    .select("url, thumbnail_url, gallery_url")
+    .in("product_id", ownedIds);
+  if (imagesError) throw imagesError;
+
   const { error: deleteError } = await supabase.from("products").delete().in("id", ownedIds);
   if (deleteError) throw deleteError;
+
+  const storagePaths = [
+    ...new Set(
+      (images ?? []).flatMap((image) =>
+        [image.url, image.thumbnail_url, image.gallery_url]
+          .filter((url): url is string => Boolean(url))
+          .map((url) => ownedProductImageStoragePath(slug, url))
+          .filter((path): path is string => Boolean(path)),
+      ),
+    ),
+  ];
+  if (storagePaths.length > 0) {
+    const { error: storageError } = await supabase.storage.from("product-images").remove(storagePaths);
+    if (storageError) throw storageError;
+  }
 }
 
 export async function expectOwnedProductAbsent(slug: string): Promise<boolean> {
@@ -140,6 +186,33 @@ export async function countOwnedProductImages(slug: string): Promise<number> {
     .eq("product_id", product.id);
   if (countError) throw countError;
   return count ?? 0;
+}
+
+export async function readOwnedProductImages(slug: string): Promise<OwnedProductImage[]> {
+  assertOwnedSlug(slug);
+  const supabase = getLocalAdminClient();
+  const { data: product, error } = await supabase.from("products").select("id").eq("slug", slug).maybeSingle();
+  if (error) throw error;
+  if (!product) return [];
+
+  const { data, error: imageError } = await supabase
+    .from("product_images")
+    .select("id, url, thumbnail_url, gallery_url")
+    .eq("product_id", product.id)
+    .order("order")
+    .order("id");
+  if (imageError) throw imageError;
+  return data ?? [];
+}
+
+export async function downloadOwnedProductImageObject(slug: string, publicUrl: string): Promise<Buffer | null> {
+  assertOwnedSlug(slug);
+  const path = ownedProductImageStoragePath(slug, publicUrl);
+  if (!path) throw new Error(`URL изображения не принадлежит E2E-товару ${slug}.`);
+
+  const { data, error } = await getLocalAdminClient().storage.from("product-images").download(path);
+  if (error || !data) return null;
+  return Buffer.from(await data.arrayBuffer());
 }
 
 /** Текущее имя товара — чтобы доказать, что отклонённое сохранение ничего не изменило. */
