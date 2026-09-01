@@ -32,6 +32,21 @@ const product: ProductListItem = {
 };
 
 describe("ProductCard carousel", () => {
+  it("уплотняет только обычную карточку на мобильном и возвращает прежние размеры с sm", () => {
+    render(<ProductCard product={product} href="/product/test-product" />);
+
+    const title = screen.getByText("Тестовый товар");
+    const description = screen.getByText("Описание");
+    const image = document.querySelector("img");
+    const textBlock = title.parentElement;
+
+    expect(image?.className).toContain("p-2 sm:p-4");
+    expect(textBlock?.className).toContain("px-3 pt-2.5 pb-3 sm:px-4 sm:pt-4 sm:pb-5");
+    expect(title.className).toContain("text-sm font-semibold sm:text-base");
+    expect(description.className).toContain("text-xs leading-4");
+    expect(description.className).toContain("sm:text-sm sm:leading-relaxed");
+  });
+
   it("keeps the decoded frame atomic instead of crossfading two products", async () => {
     render(<ProductCard product={product} href="/product/test-product" />);
 
@@ -58,9 +73,16 @@ describe("ProductCard carousel", () => {
   it("показывает компактную товарную карточку внутри сетки категории", () => {
     render(<ProductCard product={product} href="/product/test-product" variant="category-grid" />);
 
+    const title = screen.getByText("Тестовый товар");
+    const image = document.querySelector("img");
+
     expect(screen.getByText("Товар")).toBeTruthy();
     expect(screen.queryByText("Описание")).toBeNull();
     expect(document.querySelector(".aspect-4\\/3")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Показать фото 1" })).toBeNull();
+    expect(image?.className).toContain("p-5");
+    expect(image?.className).not.toContain("p-2");
+    expect(title.className).toContain("text-base font-medium");
+    expect(title.className).not.toContain("text-sm");
   });
 });

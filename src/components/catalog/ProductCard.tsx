@@ -118,7 +118,7 @@ export function ProductCard({
           sizes={CARD_IMAGE_SIZES}
           quality={CARD_IMAGE_QUALITY}
           layerClassName="absolute inset-0"
-          imageClassName={isCategoryGrid ? "p-5" : "p-4"}
+          imageClassName={isCategoryGrid ? "p-5" : "p-2 sm:p-4"}
           carousel={carousel}
         />
 
@@ -159,15 +159,27 @@ export function ProductCard({
         )}
       </motion.div>
 
-      <div className={cn("flex flex-1 flex-col px-4", isCategoryGrid ? "py-3.5 text-center" : "pt-4 pb-5")}>
+      <div
+        className={cn(
+          "flex flex-1 flex-col",
+          isCategoryGrid
+            ? "px-4 py-3.5 text-center"
+            : "px-3 pt-2.5 pb-3 sm:px-4 sm:pt-4 sm:pb-5",
+        )}
+      >
         <span
           data-card-title
-          className={cn("text-base text-card-foreground", isCategoryGrid ? "font-medium" : "font-semibold")}
+          className={cn(
+            "text-card-foreground",
+            isCategoryGrid ? "text-base font-medium" : "text-sm font-semibold sm:text-base",
+          )}
         >
           {product.name}
         </span>
         {!isCategoryGrid && product.shortDescription && (
-          <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{product.shortDescription}</p>
+          <p className="mt-1.5 line-clamp-2 text-xs leading-4 text-muted-foreground sm:text-sm sm:leading-relaxed">
+            {product.shortDescription}
+          </p>
         )}
       </div>
 

@@ -25,7 +25,7 @@ export function CatalogPageShell({ items = [], children }: CatalogPageShellProps
       ) : (
         <BackButton fallbackHref="/" />
       )}
-      <div className="mt-14">{children}</div>
+      <div className="mt-8 sm:mt-14">{children}</div>
     </Container>
   );
 }
