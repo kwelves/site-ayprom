@@ -99,7 +99,14 @@ export function ProductFormPhotosSection({
             enableStepButtons
             renderItem={(img) => (
               <div className="flex items-center gap-3">
-                <Image src={img.url} alt="" width={48} height={48} className="h-12 w-12 rounded-md bg-muted/40 object-contain" />
+                <Image
+                  src={img.url}
+                  alt=""
+                  width={48}
+                  height={48}
+                  unoptimized
+                  className="h-12 w-12 rounded-md bg-muted/40 object-contain"
+                />
                 <span className="flex-1 truncate text-xs text-muted-foreground">{img.url}</span>
                 <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
                   Масштаб

@@ -16,7 +16,6 @@ import type { ProductListItem } from "@/types/catalog";
 
 const SWIPE_THRESHOLD = 40;
 const CARD_IMAGE_SIZES = "(max-width: 639px) 45vw, (max-width: 1023px) 30vw, 320px";
-const CARD_IMAGE_QUALITY = 60;
 
 // Unlike CategoryCard/BrandCard (which lift + scale on hover), product cards
 // use a static hover — only border/shadow change, no transform. In a long
@@ -116,7 +115,7 @@ export function ProductCard({
           images={product.images}
           alt={product.name}
           sizes={CARD_IMAGE_SIZES}
-          quality={CARD_IMAGE_QUALITY}
+          unoptimized
           layerClassName="absolute inset-0"
           imageClassName={isCategoryGrid ? "p-5" : "p-2 sm:p-4"}
           carousel={carousel}
@@ -133,7 +132,7 @@ export function ProductCard({
             key={`${product.images[neighborIndex].url}-${neighborIndex}`}
             url={product.images[neighborIndex].url}
             sizes={CARD_IMAGE_SIZES}
-            quality={CARD_IMAGE_QUALITY}
+            unoptimized
           />
         ))}
 

@@ -426,7 +426,14 @@ export function ProductsList({
             className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/40"
           >
             {product.coverImage && (
-              <Image src={product.coverImage} alt="" width={48} height={48} className="h-full w-full object-contain" />
+              <Image
+                src={product.coverImage}
+                alt=""
+                width={48}
+                height={48}
+                unoptimized
+                className="h-full w-full object-contain"
+              />
             )}
           </button>
           <div className="contents md:block md:min-w-0 md:flex-1">

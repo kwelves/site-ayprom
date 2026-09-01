@@ -131,6 +131,7 @@ export const ProductPanel = forwardRef<HTMLDivElement, ProductPanelProps>(functi
                   images={images}
                   alt={product.name}
                   sizes={PANEL_IMAGE_SIZES}
+                  unoptimized
                   layerClassName={styles.slide}
                   imageClassName="object-contain"
                   carousel={carousel}
@@ -141,6 +142,7 @@ export const ProductPanel = forwardRef<HTMLDivElement, ProductPanelProps>(functi
                     key={`${images[neighborIndex].url}-${neighborIndex}`}
                     url={images[neighborIndex].url}
                     sizes={PANEL_IMAGE_SIZES}
+                    unoptimized
                   />
                 ))}
               </motion.div>

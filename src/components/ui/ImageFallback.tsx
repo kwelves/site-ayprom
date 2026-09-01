@@ -15,6 +15,8 @@ interface ImageFallbackProps {
   quality?: number;
   style?: React.CSSProperties;
   fallbackLabel?: string;
+  /** Serves `src` as-is, bypassing Vercel Image Optimization (and its quota). */
+  unoptimized?: boolean;
   onLoad?: () => void;
   onError?: () => void;
 }
@@ -29,6 +31,7 @@ export function ImageFallback({
   quality,
   style,
   fallbackLabel = "Фотография пока не добавлена",
+  unoptimized,
   onLoad,
   onError,
 }: ImageFallbackProps) {
@@ -70,6 +73,7 @@ export function ImageFallback({
       loading={loading}
       fetchPriority={fetchPriority}
       quality={quality}
+      unoptimized={unoptimized}
       style={style}
       onError={() => {
         setFailed(true);

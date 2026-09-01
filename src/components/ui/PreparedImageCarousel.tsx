@@ -99,6 +99,8 @@ interface PreparedImageLayersProps {
   layerClassName: string;
   imageClassName?: string;
   quality?: number;
+  /** Serves every layer's `src` as-is, bypassing Vercel Image Optimization (and its quota). */
+  unoptimized?: boolean;
   carousel: ReturnType<typeof usePreparedImageCarousel>;
 }
 
@@ -109,6 +111,7 @@ export function PreparedImageLayers({
   layerClassName,
   imageClassName,
   quality,
+  unoptimized,
   carousel,
 }: PreparedImageLayersProps) {
   const layerIndices = carousel.hasPendingImage
@@ -136,6 +139,7 @@ export function PreparedImageLayers({
           style={image?.scale && image.scale !== 1 ? { transform: `scale(${image.scale})` } : undefined}
           loading="eager"
           quality={quality}
+          unoptimized={unoptimized}
           onLoad={isPending ? () => carousel.markReady(key) : undefined}
           onError={isPending ? () => carousel.markReady(key) : undefined}
         />
@@ -144,7 +148,17 @@ export function PreparedImageLayers({
   });
 }
 
-export function GalleryNeighborWarmup({ url, sizes, quality }: { url: string; sizes: string; quality?: number }) {
+export function GalleryNeighborWarmup({
+  url,
+  sizes,
+  quality,
+  unoptimized,
+}: {
+  url: string;
+  sizes: string;
+  quality?: number;
+  unoptimized?: boolean;
+}) {
   const { props } = getImageProps({
     src: url,
     alt: "",
@@ -152,6 +166,7 @@ export function GalleryNeighborWarmup({ url, sizes, quality }: { url: string; si
     sizes,
     loading: "eager",
     quality,
+    unoptimized,
   });
 
   return (

@@ -83,6 +83,7 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
           images={images}
           alt={alt}
           sizes={GALLERY_IMAGE_SIZES}
+          unoptimized
           layerClassName="absolute inset-0"
           imageClassName="p-6"
           carousel={carousel}
@@ -93,6 +94,7 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
             key={`${images[neighborIndex].url}-${neighborIndex}`}
             url={images[neighborIndex].url}
             sizes={GALLERY_IMAGE_SIZES}
+            unoptimized
           />
         ))}
 
