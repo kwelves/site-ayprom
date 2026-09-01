@@ -1,3 +1,4 @@
+import type { Page } from "@playwright/test";
 import { expectNoSeriousOrCriticalA11yViolations } from "../support/a11y";
 import { allowExpectedDocumentStatus, expect, test } from "../support/browser-observer";
 import {
@@ -9,6 +10,26 @@ import { stubLocalHeroVideo } from "../support/media";
 
 test.describe.configure({ mode: "serial" });
 let fixture: OwnedCatalogFixture;
+
+/**
+ * Проверки товара привязываются к основному содержимому страницы, а не к
+ * документу целиком.
+ *
+ * При клиентской навигации (submit формы поиска, переход по странице
+ * пагинации) App Router на короткое время держит в DOM оба сегмента: новый
+ * уже вставлен, старый ещё не убран. Замерено: на ~300 мс карточка
+ * существует вне `#main-content` и только потом попадает внутрь. Локатор по
+ * всему документу в этот момент видит два одинаковых элемента и падает со
+ * strict mode violation — при том, что пользователь видит корректную
+ * страницу с одной карточкой.
+ *
+ * Привязка к `#main-content` убирает эту гонку и заодно делает проверку
+ * строже по смыслу: товар обязан быть именно в основном содержимом, а не
+ * где-либо в документе.
+ */
+function mainContent(page: Page) {
+  return page.locator("#main-content");
+}
 
 test.beforeAll(async () => {
   fixture = await createOwnedCatalogFixture();
@@ -34,7 +55,7 @@ test.describe("@smoke public catalog", () => {
     await page.getByRole("textbox", { name: "Поиск по каталогу" }).fill(product.name);
     await page.getByRole("button", { name: "Найти" }).click();
     expect(new URL(page.url()).searchParams.get("q")).toBe(product.name);
-    await expect(page.getByText(product.name, { exact: true })).toBeVisible();
+    await expect(mainContent(page).getByText(product.name, { exact: true })).toBeVisible();
   });
 
   test("пагинация работает на детерминированных owned fixtures", async ({ page }) => {
@@ -42,7 +63,7 @@ test.describe("@smoke public catalog", () => {
     const response = await page.goto(`/catalog?${params}`);
     expect(response?.status()).toBe(200);
     await expect(page.getByRole("link", { name: "2", exact: true })).toHaveAttribute("aria-current", "page");
-    await expect(page.getByText(fixture.products[24].name, { exact: true })).toBeVisible();
+    await expect(mainContent(page).getByText(fixture.products[24].name, { exact: true })).toBeVisible();
   });
 
   test("публичная карточка товара доступна по стабильному route", async ({ page }) => {
