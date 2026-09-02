@@ -43,6 +43,7 @@ export default async function SubcategoryProductsPage({ params, searchParams }: 
 
   return (
     <CatalogPageShell
+      canonicalPath={action}
       items={[
         { label: category.name, href: `/catalog/category/${slug}` },
         { label: subcategory.name },

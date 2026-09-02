@@ -54,6 +54,7 @@ export default async function BrandSubcategoryPage({ params, searchParams }: Bra
 
   return (
     <CatalogPageShell
+      canonicalPath={action}
       items={[
         { label: brand.name, href: `/catalog/brand/${slug}` },
         { label: category.name, href: `/catalog/brand/${slug}/category/${categorySlug}` },

@@ -71,7 +71,7 @@ export default async function BrandPage({ params }: BrandPageProps) {
   const sizing = getCardGridSizing(categories.length);
 
   return (
-    <CatalogPageShell items={[{ label: brand.name }]}>
+    <CatalogPageShell canonicalPath={`/catalog/brand/${slug}`} items={[{ label: brand.name }]}>
       <BrandHeader brand={brand} />
 
       {categories.length === 0 ? (

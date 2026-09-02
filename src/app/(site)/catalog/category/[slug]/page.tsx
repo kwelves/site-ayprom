@@ -74,6 +74,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   if (!category) {
     notFound();
   }
+  const categoryPath = `/catalog/category/${category.slug}`;
 
   if (category.type === null) {
     const { q, page: pageParam } = await searchParams;
@@ -82,7 +83,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     const action = `/catalog/category/${slug}`;
 
     return (
-      <CatalogPageShell items={[{ label: category.name }]}>
+      <CatalogPageShell canonicalPath={categoryPath} items={[{ label: category.name }]}>
         <Reveal>
           <SectionHeading as="h1" className="mx-auto max-w-2xl text-center" title={category.name} />
         </Reveal>
@@ -119,7 +120,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     // default CategoryCard/BrandCard sizing) so brand cards are pixel-for-pixel
     // the same size as the homepage catalog cards at every breakpoint.
     return (
-      <CatalogPageShell items={[{ label: category.name }]}>
+      <CatalogPageShell canonicalPath={categoryPath} items={[{ label: category.name }]}>
         <Reveal>
           <SectionHeading as="h1" className="mx-auto max-w-2xl text-center" title={category.name} />
         </Reveal>
@@ -146,7 +147,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
   if (subcategories.length === 0 && directProductPage.total === 0) {
     return (
-      <CatalogPageShell items={[{ label: category.name }]}>
+      <CatalogPageShell canonicalPath={categoryPath} items={[{ label: category.name }]}>
         <Reveal>
           <div className="text-center">
             <p className="text-sm font-semibold uppercase tracking-wide text-primary">Каталог</p>
@@ -162,10 +163,8 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
   const mixedItems = buildMixedCategoryGridItems(subcategories, directProductPage.items);
   const sizing = getCategoryGridSizing(mixedItems.length);
-  const categoryPath = `/catalog/category/${category.slug}`;
-
   return (
-    <CatalogPageShell items={[{ label: category.name }]}>
+    <CatalogPageShell canonicalPath={categoryPath} items={[{ label: category.name }]}>
       <Reveal>
         <SectionHeading
           as="h1"

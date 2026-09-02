@@ -2,11 +2,9 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ProductDetail } from "@/components/catalog/ProductDetail";
 import { CatalogPageShell } from "@/components/catalog/CatalogPageShell";
-import { StructuredData } from "@/components/seo/StructuredData";
 import { getCategory } from "@/lib/queries/categories";
 import { getProduct } from "@/lib/queries/products";
 import { categorySupportsDirectProducts } from "@/lib/category-routing";
-import { buildProductStructuredData } from "@/lib/product-structured-data";
 import { buildProductMetadata, MISSING_PRODUCT_METADATA } from "@/lib/product-metadata";
 
 export const revalidate = 60;
@@ -53,12 +51,12 @@ export default async function DirectCategoryProductPage({ params }: ProductPageP
   const canonicalPath = `/catalog/category/${slug}/${productSlug}`;
   return (
     <CatalogPageShell
+      canonicalPath={canonicalPath}
       items={[
         { label: category.name, href: `/catalog/category/${slug}` },
         { label: product.name },
       ]}
     >
-      <StructuredData data={buildProductStructuredData(product, canonicalPath)} />
       <ProductDetail product={product} />
     </CatalogPageShell>
   );

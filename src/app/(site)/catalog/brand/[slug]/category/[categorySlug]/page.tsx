@@ -39,6 +39,7 @@ export async function generateMetadata({ params }: BrandCategoryPageProps): Prom
 
 export default async function BrandCategoryPage({ params }: BrandCategoryPageProps) {
   const { slug, categorySlug } = await params;
+  const canonicalPath = `/catalog/brand/${slug}/category/${categorySlug}`;
   const [brand, category] = await Promise.all([getBrand(slug), getCategory(categorySlug)]);
 
   // Brand-type categories never link here — /catalog/brand/[slug] sends
@@ -53,6 +54,7 @@ export default async function BrandCategoryPage({ params }: BrandCategoryPagePro
   if (subcategories.length === 0) {
     return (
       <CatalogPageShell
+        canonicalPath={canonicalPath}
         items={[
           { label: brand.name, href: `/catalog/brand/${slug}` },
           { label: category.name },
@@ -75,6 +77,7 @@ export default async function BrandCategoryPage({ params }: BrandCategoryPagePro
 
   return (
     <CatalogPageShell
+      canonicalPath={canonicalPath}
       items={[
         { label: brand.name, href: `/catalog/brand/${slug}` },
         { label: category.name },

@@ -44,6 +44,7 @@ export default async function BrandInCategoryPage({ params, searchParams }: Bran
 
   return (
     <CatalogPageShell
+      canonicalPath={action}
       items={[
         { label: category.name, href: `/catalog/category/${slug}` },
         { label: brand.name },
