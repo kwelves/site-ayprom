@@ -31,7 +31,14 @@ export function CategoryCard({
       {/* Extra internal padding keeps the product smaller within the frame so the
           card reads airier now that it's just a photo + caption. */}
       <div className="relative aspect-4/3 w-full shrink-0 bg-muted/40">
-        <Image src={image} alt={name} fill sizes={sizes} className={cn("object-contain p-5", imageClassName)} />
+        <Image
+          src={image}
+          alt={name}
+          fill
+          unoptimized
+          sizes={sizes}
+          className={cn("object-contain p-5", imageClassName)}
+        />
       </div>
 
       <div className="px-4 py-3.5 text-center">

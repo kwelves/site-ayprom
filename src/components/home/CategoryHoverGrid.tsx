@@ -93,6 +93,7 @@ export function CategoryHoverGrid({ categories }: { categories: Category[] }) {
                     // Lighthouse отмечал это как image-redundant-alt).
                     alt=""
                     fill
+                    unoptimized
                     sizes="(max-width: 639px) 45vw, (max-width: 1023px) 30vw, 320px"
                     className="object-contain p-5"
                   />
