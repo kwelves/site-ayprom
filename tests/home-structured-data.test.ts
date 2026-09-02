@@ -28,7 +28,7 @@ describe("home structured data", () => {
       "@id": "https://www.ayprom-gidravlika.kg/#website",
       url: "https://www.ayprom-gidravlika.kg",
       name: "AYPROM",
-      alternateName: ["AYPROM Гидравлика", "ayprom-gidravlika.kg"],
+      alternateName: ["Айпром", "AYPROM Гидравлика", "Айпром Гидравлика", "ayprom-gidravlika.kg"],
       description: HOME_SEO_DESCRIPTION,
       publisher: { "@id": "https://www.ayprom-gidravlika.kg/#organization" },
     });
@@ -36,10 +36,15 @@ describe("home structured data", () => {
       "@id": "https://www.ayprom-gidravlika.kg/#organization",
       url: "https://www.ayprom-gidravlika.kg",
       name: "AYPROM",
-      alternateName: "AYPROM Гидравлика",
+      alternateName: ["Айпром", "AYPROM Гидравлика", "Айпром Гидравлика"],
       description: HOME_SEO_DESCRIPTION,
       telephone: "+996500461155",
-      email: "info@ayprom.kg",
+      contactPoint: {
+        "@type": "ContactPoint",
+        telephone: "+996500461155",
+        contactType: "sales",
+        availableLanguage: ["ru", "ky"],
+      },
       address: {
         addressCountry: "KG",
         addressLocality: "Бишкек",
@@ -50,6 +55,7 @@ describe("home structured data", () => {
         width: 512,
         height: 512,
       },
+      hasMap: "https://go.2gis.com/NEFoK",
     });
     expect(business?.sameAs).toEqual(
       expect.arrayContaining([

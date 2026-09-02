@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { AtSign, Mail, MapPin } from "lucide-react";
+import { AtSign, MapPin, Phone } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { FooterBackground } from "@/components/layout/FooterBackground";
 import { Reveal } from "@/components/motion/Reveal";
@@ -68,9 +68,9 @@ export function Footer({ categories, brands }: { categories: Category[]; brands:
                   </a>
                 </li>
                 <li className="flex items-center gap-3">
-                  <Mail className="h-4 w-4 shrink-0 text-inverse-accent" />
-                  <a href="mailto:info@ayprom.kg" className="py-1.5 transition-colors duration-fast ease-ui hover:text-inverse-accent">
-                    info@ayprom.kg
+                  <Phone className="h-4 w-4 shrink-0 text-inverse-accent" />
+                  <a href="tel:+996500461155" className="py-1.5 transition-colors duration-fast ease-ui hover:text-inverse-accent">
+                    +996 500 461 155
                   </a>
                 </li>
                 <li className="flex items-center gap-3">

@@ -75,8 +75,12 @@ export const metadata: Metadata = {
     title: "AYPROM — гидрооборудование и запчасти для спецтехники",
     description:
       "Каталог гидрооборудования и запчастей для грузовой и специальной техники в Бишкеке.",
+    images: [{ url: "/brand/ayprom-icon-square.png", width: 512, height: 512, alt: "AYPROM" }],
   },
-  twitter: { card: "summary_large_image" },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/brand/ayprom-icon-square.png"],
+  },
 };
 
 export const revalidate = 60;

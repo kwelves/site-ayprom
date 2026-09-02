@@ -21,10 +21,12 @@ export const HOME_METADATA = {
     title: HOME_SEO_FULL_TITLE,
     description: HOME_SEO_DESCRIPTION,
     url: "/",
+    images: [{ url: "/brand/ayprom-icon-square.png", width: 512, height: 512, alt: "AYPROM" }],
   },
   twitter: {
     card: "summary_large_image",
     title: HOME_SEO_FULL_TITLE,
     description: HOME_SEO_DESCRIPTION,
+    images: ["/brand/ayprom-icon-square.png"],
   },
 } satisfies Metadata;

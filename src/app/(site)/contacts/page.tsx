@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { MapPin, Phone, Mail, AtSign, Truck, type LucideIcon } from "lucide-react";
+import { MapPin, Phone, MessageCircle, AtSign, Truck, type LucideIcon } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/motion/Reveal";
@@ -44,10 +44,10 @@ const contactCards: ContactCard[] = [
     value: "+996 707 17 06 96",
   },
   {
-    icon: Mail,
-    label: "Email",
-    href: "mailto:info@ayprom.kg",
-    value: "info@ayprom.kg",
+    icon: MessageCircle,
+    label: "WhatsApp",
+    href: "https://wa.me/996500461155",
+    value: "+996 500 461 155",
   },
   {
     icon: AtSign,
