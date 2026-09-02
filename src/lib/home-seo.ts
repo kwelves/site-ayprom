@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { OG_IMAGE } from "@/lib/og-image";
 
 export const HOME_SEO_TITLE = "Гидравлика и запчасти для спецтехники в Бишкеке";
 export const HOME_SEO_FULL_TITLE = `${HOME_SEO_TITLE} — AYPROM`;
@@ -21,12 +22,12 @@ export const HOME_METADATA = {
     title: HOME_SEO_FULL_TITLE,
     description: HOME_SEO_DESCRIPTION,
     url: "/",
-    images: [{ url: "/brand/ayprom-icon-square.png", width: 512, height: 512, alt: "AYPROM" }],
+    images: [{ url: OG_IMAGE.url, width: OG_IMAGE.width, height: OG_IMAGE.height, alt: OG_IMAGE.alt }],
   },
   twitter: {
     card: "summary_large_image",
     title: HOME_SEO_FULL_TITLE,
     description: HOME_SEO_DESCRIPTION,
-    images: ["/brand/ayprom-icon-square.png"],
+    images: [OG_IMAGE.url],
   },
 } satisfies Metadata;

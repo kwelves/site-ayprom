@@ -28,8 +28,15 @@ const linkClassName = "text-card-foreground transition-colors hover:text-primary
 const contactCards: ContactCard[] = [
   {
     icon: MapPin,
-    label: "Адрес",
-    content: <p className="text-card-foreground">г. Бишкек, пр. Дэн Сяопина, 457/1</p>,
+    label: "Адрес и часы работы",
+    // График живёт в этой же карточке, а не в отдельной седьмой: сетка карточек
+    // рассчитана на 2 и 3 колонки, и лишняя карточка оставляла бы неполный ряд.
+    content: (
+      <>
+        <p className="text-card-foreground">г. Бишкек, пр. Дэн Сяопина, 457/1</p>
+        <p className="mt-1 font-normal text-muted-foreground">Пн–Сб, 09:00–18:00 · вс — выходной</p>
+      </>
+    ),
   },
   {
     icon: Phone,

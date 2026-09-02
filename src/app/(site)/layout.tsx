@@ -11,6 +11,7 @@ import { getBrands } from "@/lib/queries/brands";
 import { MotionPreferences } from "@/components/motion/MotionPreferences";
 import { HomeEntrySequence } from "@/components/home/HomeEntrySequence";
 import { getSiteUrl } from "@/lib/site-url";
+import { OG_IMAGE } from "@/lib/og-image";
 import "../globals.css";
 
 const razerF5 = localFont({
@@ -75,11 +76,11 @@ export const metadata: Metadata = {
     title: "AYPROM — гидрооборудование и запчасти для спецтехники",
     description:
       "Каталог гидрооборудования и запчастей для грузовой и специальной техники в Бишкеке.",
-    images: [{ url: "/brand/ayprom-icon-square.png", width: 512, height: 512, alt: "AYPROM" }],
+    images: [{ url: OG_IMAGE.url, width: OG_IMAGE.width, height: OG_IMAGE.height, alt: OG_IMAGE.alt }],
   },
   twitter: {
     card: "summary_large_image",
-    images: ["/brand/ayprom-icon-square.png"],
+    images: [OG_IMAGE.url],
   },
 };
 

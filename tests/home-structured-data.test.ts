@@ -3,6 +3,7 @@ import sharp from "sharp";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildHomeStructuredData } from "@/lib/home-structured-data";
 import { HOME_SEO_DESCRIPTION } from "@/lib/home-seo";
+import { OG_IMAGE } from "@/lib/og-image";
 
 const originalSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 
@@ -56,11 +57,20 @@ describe("home structured data", () => {
         height: 512,
       },
       hasMap: "https://go.2gis.com/NEFoK",
+      openingHoursSpecification: [
+        {
+          "@type": "OpeningHoursSpecification",
+          dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+          opens: "09:00",
+          closes: "18:00",
+        },
+      ],
     });
     expect(business?.sameAs).toEqual(
       expect.arrayContaining([
         "https://instagram.com/ayprom.kg",
         "https://tiktok.com/@ayprom.kg",
+        "https://www.threads.com/@ayprom.kg",
         "https://2gis.kg/bishkek/firm/70000001102769110",
         "https://yandex.com/maps/org/ayprom/169874849937/",
       ]),
@@ -74,5 +84,14 @@ describe("home structured data", () => {
     expect(metadata.format).toBe("png");
     expect(metadata.width).toBe(512);
     expect(metadata.height).toBe(512);
+  });
+
+  it("держит карточку предпросмотра в размере, который ждут og:image и twitter:card", async () => {
+    const ogPath = path.join(process.cwd(), "public", ...OG_IMAGE.url.split("/").filter(Boolean));
+    const metadata = await sharp(ogPath).metadata();
+
+    expect(metadata.format).toBe("png");
+    expect(metadata.width).toBe(OG_IMAGE.width);
+    expect(metadata.height).toBe(OG_IMAGE.height);
   });
 });

@@ -4,8 +4,20 @@ import { HOME_SEO_DESCRIPTION } from "@/lib/home-seo";
 const SAME_AS = [
   "https://instagram.com/ayprom.kg",
   "https://tiktok.com/@ayprom.kg",
+  "https://www.threads.com/@ayprom.kg",
   "https://2gis.kg/bishkek/firm/70000001102769110",
   "https://yandex.com/maps/org/ayprom/169874849937/",
+];
+
+// Воскресенье не указано намеренно: в schema.org закрытый день — это просто
+// отсутствие интервала, а не запись с нулевой длительностью.
+const OPENING_HOURS = [
+  {
+    "@type": "OpeningHoursSpecification",
+    dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+    opens: "09:00",
+    closes: "18:00",
+  },
 ];
 
 export function buildHomeStructuredData(): Record<string, unknown> {
@@ -52,6 +64,7 @@ export function buildHomeStructuredData(): Record<string, unknown> {
           streetAddress: "пр. Дэн Сяопина, 457/1",
         },
         areaServed: ["Кыргызстан", "Страны СНГ"],
+        openingHoursSpecification: OPENING_HOURS,
         hasMap: "https://go.2gis.com/NEFoK",
         sameAs: SAME_AS,
       },
