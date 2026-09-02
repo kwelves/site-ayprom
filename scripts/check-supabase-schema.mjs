@@ -95,6 +95,11 @@ const schemaResponse = await fetch(`${supabaseUrl}/rest/v1/`, {
   headers: {
     Accept: "application/openapi+json",
     apikey: secretKey,
+    // Legacy service-role JWT (который локальный CLI экспортирует в CI)
+    // требует Bearer-заголовок, чтобы PostgREST строил OpenAPI от service_role.
+    // Одного `apikey` достаточно для нового sb_secret, но с JWT запрос иначе
+    // видит только публичные таблицы и ложно объявляет admin-таблицы пропавшими.
+    Authorization: `Bearer ${secretKey}`,
   },
 });
 
