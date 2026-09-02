@@ -7,6 +7,7 @@ import { CatalogPageShell } from "@/components/catalog/CatalogPageShell";
 import { getBrand, getBrands } from "@/lib/queries/brands";
 import { getBrandCategories } from "@/lib/queries/categories";
 import { getCardGridSizing } from "@/lib/category-grid";
+import { getBrandSeo } from "@/lib/brand-seo";
 import { cn } from "@/lib/utils";
 import type { Brand } from "@/types/catalog";
 
@@ -25,13 +26,14 @@ interface BrandPageProps {
 export async function generateMetadata({ params }: BrandPageProps): Promise<Metadata> {
   const { slug } = await params;
   const brand = await getBrand(slug);
-  return brand
-    ? {
-        title: brand.name,
-        description: `Каталог гидрооборудования и запчастей, совместимых с техникой ${brand.name}.`,
-        alternates: { canonical: `/catalog/brand/${slug}` },
-      }
-    : { title: "Каталог", robots: { index: false } };
+  if (!brand) return { title: "Каталог", robots: { index: false } };
+
+  const seo = getBrandSeo(slug);
+  return {
+    title: seo?.title ?? brand.name,
+    description: seo?.description ?? `Каталог гидрооборудования и запчастей, совместимых с техникой ${brand.name}.`,
+    alternates: { canonical: `/catalog/brand/${slug}` },
+  };
 }
 
 function BrandHeader({ brand }: { brand: Brand }) {
@@ -69,6 +71,7 @@ export default async function BrandPage({ params }: BrandPageProps) {
 
   const categories = await getBrandCategories(slug);
   const sizing = getCardGridSizing(categories.length);
+  const seo = getBrandSeo(slug);
 
   return (
     <CatalogPageShell canonicalPath={`/catalog/brand/${slug}`} items={[{ label: brand.name }]}>
@@ -101,6 +104,12 @@ export default async function BrandPage({ params }: BrandPageProps) {
             ))}
           </StaggerGroup>
         </>
+      )}
+
+      {seo && (
+        <Reveal>
+          <p className="mx-auto mt-14 max-w-2xl text-center text-muted-foreground">{seo.intro}</p>
+        </Reveal>
       )}
     </CatalogPageShell>
   );
