@@ -9,6 +9,7 @@ import { getCategoryBrandSlugs } from "@/lib/queries/category-brands";
 import { getDirectProductCategorySlugs } from "@/lib/queries/categories";
 import { getProducts, parseCatalogPage } from "@/lib/queries/products";
 import { getProductHref } from "@/lib/product-href";
+import { getVehicleTypeSeo } from "@/lib/vehicle-type-seo";
 
 export const revalidate = 60;
 
@@ -20,13 +21,14 @@ interface VehicleTypePageProps {
 export async function generateMetadata({ params }: VehicleTypePageProps): Promise<Metadata> {
   const { slug } = await params;
   const vehicleType = await getVehicleType(slug);
-  return vehicleType
-    ? {
-        title: vehicleType.name,
-        description: `Гидрооборудование и запчасти для техники: ${vehicleType.name}.`,
-        alternates: { canonical: `/catalog/vehicle-type/${slug}` },
-      }
-    : { title: "Каталог", robots: { index: false } };
+  if (!vehicleType) return { title: "Каталог", robots: { index: false } };
+
+  const seo = getVehicleTypeSeo(slug);
+  return {
+    title: seo?.title ?? vehicleType.name,
+    description: seo?.description ?? `Гидрооборудование и запчасти для техники: ${vehicleType.name}.`,
+    alternates: { canonical: `/catalog/vehicle-type/${slug}` },
+  };
 }
 
 // Cross-category listing (like /catalog/brand/[slug]) rather than a page
@@ -43,6 +45,7 @@ export default async function VehicleTypePage({ params, searchParams }: VehicleT
     getDirectProductCategorySlugs(),
   ]);
   const action = `/catalog/vehicle-type/${slug}`;
+  const seo = getVehicleTypeSeo(slug);
 
   if (!vehicleType) {
     notFound();
@@ -73,6 +76,12 @@ export default async function VehicleTypePage({ params, searchParams }: VehicleT
         href={(product) => getProductHref(product, categoryBrandSlugs, directProductCategorySlugs)}
         emptyLabel="Для этого типа техники пока нет товаров. Скоро они здесь появятся."
       />
+
+      {seo && (
+        <Reveal>
+          <p className="mx-auto mt-14 max-w-2xl text-center text-muted-foreground">{seo.intro}</p>
+        </Reveal>
+      )}
     </>
   );
 }
