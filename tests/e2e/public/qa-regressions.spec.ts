@@ -17,13 +17,15 @@ import { assertCriticalControlsInsideViewport, assertNoHorizontalOverflow } from
 //            чужие и неизвестные идентификаторы, семантика слотов) и
 //            tests/reorder-scope-arguments.test.ts (передача родителя в RPC).
 
-test.fixme("[QA-004] create загружает несколько файлов независимо через staging", async () => {
-  // Pending phase 3: current create-mode still sends one multipart Server Action request and no private staging exists.
-});
-
-test.fixme("[QA-005] blocked login не выполняет PBKDF2", async () => {
-  // Pending phase 4: browser timing is insufficient; reservation RPC and server-side instrumentation are required.
-});
+// QA-004 закрыт настоящим admin browser-flow, а не публичной заглушкой:
+// tests/e2e/admin/product-staged-photo-upload.spec.ts проверяет независимый
+// signed upload, finalize, WebP-варианты и очистку. Контракты state machine —
+// в supabase/tests/database/product_image_staging.test.sql.
+//
+// QA-005 не имеет честной browser-пробы: UI timing не доказывает порядок
+// server-side PBKDF2. Он закреплён fail-closed тестами
+// supabase/tests/database/admin_auth_reservation.test.sql и
+// tests/auth-reservation-order.test.ts.
 
 // Прежняя проверка описывала отменённую концепцию (poster-first, без autoplay,
 // ноль запросов до visibility/network gate) и держалась на `test.fail`. Она
@@ -124,16 +126,13 @@ test("[QA-011] production response не раскрывает X-Powered-By", asyn
   expect(response.headers()["x-powered-by"]).toBeUndefined();
 });
 
-// QA-012 состоит из двух половин, и закрыта пока одна.
-//
+// QA-012 закрыт на правильных уровнях, без пропуска в browser suite.
 // Границы масштаба закрыты в фазе 2: значения измерены по реальным данным,
 // закреплены в UI, на сервере и CHECK-констрейнтами в базе. Доказано в
 // supabase/tests/database/visual_scale_bounds.test.sql и tests/visual-scale.test.ts.
 // Браузерной пробы здесь нет намеренно: последний рубеж — констрейнт базы,
 // а через интерфейс до него не добраться.
 //
-// Вторая половина ниже остаётся открытой.
-test.fixme("[QA-012] server-side content validation отвергает spoofed формат файла", async () => {
-  // Pending phase 3: проверка содержимого загружаемого файла (а не только имени и
-  // MIME) появится вместе со staged upload — см. QA-004.
-});
+// Проверка содержимого и spoofed MIME закреплена в
+// tests/upload-validation.test.ts; staged finalize повторно декодирует raster
+// на сервере, что покрыто product-staged-photo-upload.spec.ts.

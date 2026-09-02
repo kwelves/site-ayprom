@@ -91,8 +91,8 @@ function explainDumpFailure(error) {
   }
   if (output.includes("enoent") || output.includes("не является внутренней") || output.includes("is not recognized")) {
     return [
-      "Не удалось запустить Supabase CLI через npx.",
-      "Проверьте, что установлены зависимости (`npm ci`) и доступен npx.",
+      "Не удалось запустить Supabase CLI.",
+      "Установите Supabase CLI и проверьте `supabase --version`.",
     ];
   }
   return ["Не удалось снять схему локальной базы."];
@@ -112,12 +112,11 @@ async function dumpLiveSchema() {
   const directory = await mkdtemp(path.join(os.tmpdir(), "ayprom-schema-"));
   const dumpPath = path.join(directory, "live-schema.sql");
   try {
-    // Supabase CLI не установлен локально и доступен только через npx, а Node 24
-    // на Windows отказывается запускать `npx.cmd` без shell. Команда собирается
-    // одной строкой с явным экранированием пути: передача массива аргументов при
-    // `shell: true` считается устаревшей именно потому, что не экранирует их.
+    // CI устанавливает и закрепляет Supabase CLI отдельным setup-action. Прямой
+    // вызов использует именно эту версию; `npx supabase` мог бы незаметно
+    // скачать другую latest-версию и сделать schema gate невоспроизводимым.
     // Единственная подстановка — временный каталог из `mkdtemp`, не пользовательский ввод.
-    execSync(`npx supabase db dump --local --schema public -f "${dumpPath}"`, {
+    execSync(`supabase db dump --local --schema public -f "${dumpPath}"`, {
       stdio: ["ignore", "pipe", "pipe"],
       timeout: DUMP_TIMEOUT_MS,
     });

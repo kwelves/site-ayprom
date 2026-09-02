@@ -60,18 +60,12 @@ jobs:
       - name: Start local Supabase and apply migrations
         run: supabase start
 
-      # supabase/schemas — источник истины для структуры, миграции генерируются
-      # из него через `supabase db diff -f`. Если кто-то правит миграцию руками
-      # и забывает синхронизировать декларацию (или наоборот), диф перестаёт
-      # быть пустым и расхождение видно сразу, а не через месяцы.
+      # QA-014: штатный проектный guard снимает public-схему локальной базы,
+      # поднятой из миграций, и сопоставляет имена объектов с prod.sql.
+      # Нельзя проверять текст `supabase db diff`: формат его вывода менялся,
+      # а обычный diff сравнивает migrations с live DB, не декларативный файл.
       - name: Declarative schema matches migrations
-        run: |
-          output=$(supabase db diff 2>&1)
-          echo "$output"
-          if ! grep -q "No schema changes found" <<< "$output"; then
-            echo "::error::supabase/schemas разошлись с supabase/migrations — сгенерируйте миграцию через 'supabase db diff -f <name>'"
-            exit 1
-          fi
+        run: npm run schema:declarative
 
       # `supabase status -o env` quotes values (KEY="value") for shell sourcing,
       # but $GITHUB_ENV takes KEY=value literally — quotes included — so
@@ -89,6 +83,9 @@ jobs:
 
       - name: Database integration and RLS tests
         run: supabase test db
+
+      - name: Local API and Storage schema match migrations
+        run: npm run schema:check
 
       - name: Lint, types, and unit tests
         run: npm run check
