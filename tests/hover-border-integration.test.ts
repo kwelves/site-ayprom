@@ -21,9 +21,10 @@ const gridSurfaces = [
   "src/app/(site)/contacts/page.tsx",
 ] as const;
 
+// CategoryHoverGrid сюда не входит намеренно: он больше не рисует карточку
+// сам, а отдаёт её общему CategoryCard — это проверяет отдельный тест ниже.
 const interactiveCardSurfaces = [
   ...sharedCardComponents,
-  "src/components/home/CategoryHoverGrid.tsx",
   "src/components/home/BrandSection.tsx",
   "src/app/(site)/contacts/page.tsx",
 ] as const;
@@ -41,12 +42,32 @@ describe("единый hover-border публичных карточек", () => 
     expect(component).not.toContain("bg-primary/25");
   });
 
+  it("держит рамку карточки одной строкой дизайн-системы", () => {
+    expect(read("src/lib/card-system.ts")).toContain(
+      'export const CARD_FRAME_CLASSNAME = "rounded-xl border border-card-edge bg-card";',
+    );
+  });
+
   it.each(interactiveCardSurfaces)("%s использует единый цвет края карточки", (file) => {
-    expect(read(file)).toContain("border-card-edge");
+    const source = read(file);
+    // Рамку можно взять либо константой системы, либо, для поверхностей вне
+    // семейства карточек-обложек, тем же токеном напрямую. Своего цвета края
+    // не заводит никто.
+    expect(source.includes("CARD_FRAME_CLASSNAME") || source.includes("border-card-edge")).toBe(true);
   });
 
   it.each(sharedCardComponents)("%s подключает карточку к общему контейнеру", (file) => {
     expect(read(file)).toContain("data-hover-border-item");
+  });
+
+  it("сетка категорий на главной переиспользует общую карточку, а не свою копию", () => {
+    const source = read("src/components/home/CategoryHoverGrid.tsx");
+
+    expect(source).toContain("<CategoryCard");
+    // Обёртка с собственным padding между `data-hover-border-item` и рамкой
+    // раздувала halo: подсветка отсчитывалась от края обёртки, а не карточки.
+    expect(source).not.toContain("data-hover-border-item");
+    expect(source).not.toContain("<Image");
   });
 
   it.each(gridSurfaces)("%s использует HoverBorderGrid", (file) => {

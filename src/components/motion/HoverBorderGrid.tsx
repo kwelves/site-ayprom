@@ -7,7 +7,14 @@ import { DURATION } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 const ITEM_SELECTOR = "[data-hover-border-item]";
-const OVERHANG = 5;
+/**
+ * На сколько подсветка выступает за край карточки. Значение системное: при
+ * минимальном зазоре сетки (CARD_GRID_GAP.base = 16px) между подсветками
+ * соседних карточек остаётся 16 − 6·2 = 4px, то есть они не смыкаются.
+ * Карточка подключается к сетке своим видимым краем — обёртка с padding
+ * между `data-hover-border-item` и рамкой раздула бы halo именно здесь.
+ */
+export const HOVER_BORDER_OVERHANG = 6;
 const POSITION_EPSILON = 0.25;
 const HOVER_TRANSITION = { type: "spring", bounce: 0.2, duration: 0.5 } as const;
 
@@ -73,10 +80,10 @@ export function HoverBorderGrid({ children, className }: HoverBorderGridProps) {
     const containerRect = container.getBoundingClientRect();
     const itemRect = item.getBoundingClientRect();
     const next: HighlightRect = {
-      x: itemRect.left - containerRect.left - OVERHANG,
-      y: itemRect.top - containerRect.top - OVERHANG,
-      width: itemRect.width + OVERHANG * 2,
-      height: itemRect.height + OVERHANG * 2,
+      x: itemRect.left - containerRect.left - HOVER_BORDER_OVERHANG,
+      y: itemRect.top - containerRect.top - HOVER_BORDER_OVERHANG,
+      width: itemRect.width + HOVER_BORDER_OVERHANG * 2,
+      height: itemRect.height + HOVER_BORDER_OVERHANG * 2,
       instant,
     };
 

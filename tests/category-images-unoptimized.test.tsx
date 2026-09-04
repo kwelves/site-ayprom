@@ -32,7 +32,10 @@ const imageUrl =
 describe("category image delivery", () => {
   it("отдаёт изображение CategoryCard напрямую, без Vercel Image Optimization", () => {
     const view = render(<CategoryCard href="/catalog/category/hydraulic-pumps" image={imageUrl} name="Насосы" />);
-    const image = view.getByRole("img", { name: "Насосы" });
+    // alt намеренно пустой: название категории стоит видимым текстом под
+    // фотографией, повтор читался бы скринридером дважды (image-redundant-alt).
+    const image = view.container.querySelector("img")!;
+    expect(image.getAttribute("alt")).toBe("");
 
     expect(image.getAttribute("src")).toBe(imageUrl);
     expect(image.getAttribute("data-unoptimized")).toBe("true");

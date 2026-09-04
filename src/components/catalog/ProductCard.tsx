@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, type PanInfo } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  CARD_CAPTION_CLASSNAME,
+  CARD_FRAME_CLASSNAME,
+  CARD_MEDIA_INSET_CLASSNAME,
+  CARD_TITLE_CLASSNAME,
+} from "@/lib/card-system";
 import { cn } from "@/lib/utils";
 import { useIsTouchDevice } from "@/lib/use-is-touch-device";
 import {
@@ -81,7 +87,10 @@ export function ProductCard({
   return (
     <div
       data-hover-border-item
-      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-card-edge bg-card transition-[box-shadow,scale] duration-fast ease-ui active:scale-[0.98] active:shadow-sm"
+      className={cn(
+        "group relative flex h-full flex-col overflow-hidden transition-[box-shadow,scale] duration-fast ease-ui active:scale-[0.98] active:shadow-sm",
+        CARD_FRAME_CLASSNAME,
+      )}
     >
       <Link
         href={href}
@@ -90,7 +99,10 @@ export function ProductCard({
       />
 
       <motion.div
-        className="relative z-10 w-full shrink-0 touch-pan-y overflow-hidden bg-muted/40 p-4"
+        className={cn(
+          "relative z-10 w-full shrink-0 touch-pan-y overflow-hidden bg-muted/40",
+          CARD_MEDIA_INSET_CLASSNAME,
+        )}
         drag={hasMultiple && isTouchDevice ? "x" : false}
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={0}
@@ -102,13 +114,9 @@ export function ProductCard({
           router.push(href);
         }}
       >
-        {/* Инсет живёт на самой фото-зоне, а не на <img>. Padding на картинке
-            оставлял бы контейнер 4:3, но её контентную коробку — шире 4:3
-            ((W-32)/(0.75W-32)), и object-contain вписывал бы кадр по высоте,
-            добавляя лишние ~6px слева и справа: зазор переставал быть
-            одинаковым по четырём сторонам, а текст ниже не попадал на одну
-            вертикаль с фотографией. Здесь 4:3 получает именно область
-            изображения, а видимый зазор равен px-4 текстового блока. */}
+        {/* Инсет стоит на зоне выше, а не на <img> — почему именно так,
+            расписано в card-system.ts. Здесь 4:3 получает ровно область
+            изображения, поэтому её край совпадает с краем текста ниже. */}
         <div className="relative aspect-4/3 w-full">
           <PreparedImageLayers
             images={product.images}
@@ -160,16 +168,16 @@ export function ProductCard({
       <div
         className={cn(
           "flex flex-1 flex-col",
-          isCategoryGrid
-            ? "px-4 py-3.5 text-center"
-            : "px-4 pt-2.5 pb-3 sm:pt-4 sm:pb-5",
+          // Горизонтальный инсет одинаков у обеих разновидностей и равен
+          // инсету фото-зоны — текст и фотография стоят на одной вертикали.
+          isCategoryGrid ? CARD_CAPTION_CLASSNAME : "px-4 pt-2.5 pb-3 sm:pt-4 sm:pb-5",
         )}
       >
         <span
           data-card-title
           className={cn(
             "text-card-foreground",
-            isCategoryGrid ? "text-base font-medium" : "text-sm font-semibold sm:text-base",
+            isCategoryGrid ? CARD_TITLE_CLASSNAME : "text-sm font-semibold sm:text-base",
           )}
         >
           {product.name}

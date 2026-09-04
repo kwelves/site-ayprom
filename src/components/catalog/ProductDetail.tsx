@@ -3,6 +3,8 @@ import { HoverBorderGrid } from "@/components/motion/HoverBorderGrid";
 import { ProductGallery } from "@/components/catalog/ProductGallery";
 import { ProductCard } from "@/components/catalog/ProductCard";
 import { PtoNameplateGuide } from "@/components/catalog/PtoNameplateGuide";
+import { CARD_GRID_GAP_CLASSNAME } from "@/lib/card-system";
+import { cn } from "@/lib/utils";
 import { getProducts } from "@/lib/queries/products";
 import { getCategoryBrandSlugs } from "@/lib/queries/category-brands";
 import { getDirectProductCategorySlugs } from "@/lib/queries/categories";
@@ -77,7 +79,7 @@ export async function ProductDetail({ product }: { product: Product }) {
             Похожие товары
           </h2>
           <HoverBorderGrid className="mt-6">
-            <div className="grid grid-cols-2 gap-5 md:grid-cols-3 lg:grid-cols-4">
+            <div className={cn("grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4", CARD_GRID_GAP_CLASSNAME)}>
               {relatedProducts.map((relatedProduct) => (
                 <ProductCard
                   key={relatedProduct.slug}

@@ -5,6 +5,8 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/motion/Reveal";
 import { HoverBorderGrid } from "@/components/motion/HoverBorderGrid";
 import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
+import { CARD_GRID_GAP_CLASSNAME } from "@/lib/card-system";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Контакты",
@@ -107,7 +109,7 @@ export default function ContactsPage() {
       </Reveal>
 
       <HoverBorderGrid className="mx-auto mt-12 max-w-4xl">
-        <StaggerGroup className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StaggerGroup className={cn("grid sm:grid-cols-2 lg:grid-cols-3", CARD_GRID_GAP_CLASSNAME)}>
           {contactCards.map((card) => (
             <StaggerItem key={card.label}>
               {card.href ? (

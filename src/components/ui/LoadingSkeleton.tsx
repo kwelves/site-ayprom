@@ -1,3 +1,4 @@
+import { CARD_GRID_GAP_CLASSNAME } from "@/lib/card-system";
 import { cn } from "@/lib/utils";
 
 export function LoadingSkeleton({ className }: { className?: string }) {
@@ -5,7 +6,7 @@ export function LoadingSkeleton({ className }: { className?: string }) {
     <div className={cn("animate-pulse", className)} aria-busy="true" aria-label="Загрузка">
       <div className="h-7 w-48 rounded bg-surface-strong" />
       <div className="mt-3 h-4 w-full max-w-xl rounded bg-surface-strong" />
-      <div className="mt-8 grid grid-cols-2 gap-5 md:grid-cols-3 lg:grid-cols-4">
+      <div className={cn("mt-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4", CARD_GRID_GAP_CLASSNAME)}>
         {Array.from({ length: 8 }, (_, index) => (
           <div key={index} className="overflow-hidden rounded-xl border border-border bg-card">
             {/* Повторяет геометрию фото-зоны ProductCard: инсет 16px вокруг

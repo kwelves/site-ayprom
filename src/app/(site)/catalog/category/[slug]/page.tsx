@@ -14,7 +14,7 @@ import { getCategory, getCategories } from "@/lib/queries/categories";
 import { getSubcategories } from "@/lib/queries/subcategories";
 import { getCategoryBrands } from "@/lib/queries/category-brands";
 import { getProducts, getProductsWithoutSubcategory, parseCatalogPage } from "@/lib/queries/products";
-import { getCategoryGridSizing, getCardGridSizing } from "@/lib/category-grid";
+import { CARD_GRID_GAP_CLASSNAME, getCardGridSizing } from "@/lib/card-system";
 import { buildMixedCategoryGridItems } from "@/lib/mixed-category-grid";
 import { cn } from "@/lib/utils";
 import type { Brand } from "@/types/catalog";
@@ -42,7 +42,7 @@ function BrandCardGrid({
   const sizing = getCardGridSizing(brands.length);
   return (
     <HoverBorderGrid className={cn(className, sizing.containerClassName)}>
-      <StaggerGroup className="flex flex-wrap justify-center gap-5">
+      <StaggerGroup className={cn("flex flex-wrap justify-center", CARD_GRID_GAP_CLASSNAME)}>
         {brands.map((brand) => (
           <StaggerItem key={brand.slug} className={sizing.itemClassName}>
             <BrandCard href={`/catalog/category/${categorySlug}/brand/${brand.slug}`} brand={brand} />
@@ -165,7 +165,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   }
 
   const mixedItems = buildMixedCategoryGridItems(subcategories, directProductPage.items);
-  const sizing = getCategoryGridSizing(mixedItems.length);
+  const sizing = getCardGridSizing(mixedItems.length);
   return (
     <CatalogPageShell canonicalPath={categoryPath} items={[{ label: category.name }]}>
       <Reveal>
@@ -188,7 +188,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
           sizing.containerClassName
         )}
       >
-        <StaggerGroup className="flex flex-wrap justify-center gap-4 sm:gap-6 lg:gap-8">
+        <StaggerGroup className={cn("flex flex-wrap justify-center", CARD_GRID_GAP_CLASSNAME)}>
           {mixedItems.map(({ kind, item }) => (
             <StaggerItem key={`${kind}:${item.slug}`} className={sizing.itemClassName}>
               {kind === "subcategory" ? (
@@ -197,8 +197,6 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
                   image={item.image}
                   name={item.name}
                   sizes="(max-width: 1023px) 30vw, 380px"
-                  imageClassName={sizing.imageClassName}
-                  nameClassName={sizing.nameClassName}
                 />
               ) : (
                 <ProductCard product={item} href={`${categoryPath}/${item.slug}`} variant="category-grid" />

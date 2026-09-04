@@ -7,7 +7,7 @@ import { CategoryCard } from "@/components/home/CategoryCard";
 import { CatalogPageShell } from "@/components/catalog/CatalogPageShell";
 import { getBrand, getBrands } from "@/lib/queries/brands";
 import { getBrandCategories } from "@/lib/queries/categories";
-import { getCardGridSizing } from "@/lib/category-grid";
+import { CARD_GRID_GAP_CLASSNAME, getCardGridSizing } from "@/lib/card-system";
 import { getBrandSeo } from "@/lib/brand-seo";
 import { cn } from "@/lib/utils";
 import type { Brand } from "@/types/catalog";
@@ -90,7 +90,7 @@ export default async function BrandPage({ params }: BrandPageProps) {
             </p>
           </Reveal>
           <HoverBorderGrid className={cn("mt-8", sizing.containerClassName)}>
-            <StaggerGroup className="flex flex-wrap justify-center gap-5">
+            <StaggerGroup className={cn("flex flex-wrap justify-center", CARD_GRID_GAP_CLASSNAME)}>
               {categories.map((category) => (
                 <StaggerItem key={category.slug} className={sizing.itemClassName}>
                   <CategoryCard

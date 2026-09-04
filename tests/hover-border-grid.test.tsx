@@ -2,7 +2,7 @@
 
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { HoverBorderGrid } from "@/components/motion/HoverBorderGrid";
+import { HOVER_BORDER_OVERHANG, HoverBorderGrid } from "@/components/motion/HoverBorderGrid";
 
 const motionState = vi.hoisted(() => ({ reduced: false }));
 
@@ -137,10 +137,10 @@ describe("HoverBorderGrid", () => {
     expect(firstHighlight).not.toBeNull();
     expect(jsonAttribute(firstHighlight!, "data-motion-animate")).toEqual({
       opacity: 1,
-      x: 15,
-      y: 35,
-      width: 210,
-      height: 130,
+      x: 20 - HOVER_BORDER_OVERHANG,
+      y: 40 - HOVER_BORDER_OVERHANG,
+      width: 200 + HOVER_BORDER_OVERHANG * 2,
+      height: 120 + HOVER_BORDER_OVERHANG * 2,
     });
     expect(jsonAttribute(firstHighlight!, "data-motion-transition")).toEqual({
       type: "spring",
@@ -155,10 +155,10 @@ describe("HoverBorderGrid", () => {
     expect(view.container.querySelectorAll("[data-hover-border-highlight]")).toHaveLength(1);
     expect(jsonAttribute(secondHighlight!, "data-motion-animate")).toEqual({
       opacity: 1,
-      x: 245,
-      y: 35,
-      width: 190,
-      height: 160,
+      x: 250 - HOVER_BORDER_OVERHANG,
+      y: 40 - HOVER_BORDER_OVERHANG,
+      width: 180 + HOVER_BORDER_OVERHANG * 2,
+      height: 150 + HOVER_BORDER_OVERHANG * 2,
     });
 
     fireEvent.pointerLeave(grid!, { pointerType: "mouse" });
@@ -203,7 +203,7 @@ describe("HoverBorderGrid", () => {
     });
 
     const highlight = view.container.querySelector("[data-hover-border-highlight]")!;
-    expect(jsonAttribute(highlight, "data-motion-animate")).toMatchObject({ x: 65, y: 85 });
+    expect(jsonAttribute(highlight, "data-motion-animate")).toMatchObject({ x: 70 - HOVER_BORDER_OVERHANG, y: 90 - HOVER_BORDER_OVERHANG });
     expect(jsonAttribute(highlight, "data-motion-transition")).toEqual({ duration: 0 });
 
     firstRect.left = 110;
@@ -213,7 +213,7 @@ describe("HoverBorderGrid", () => {
       queuedFrame = null;
       callback?.(0);
     });
-    expect(jsonAttribute(highlight, "data-motion-animate")).toMatchObject({ x: 105, y: 85 });
+    expect(jsonAttribute(highlight, "data-motion-animate")).toMatchObject({ x: 110 - HOVER_BORDER_OVERHANG, y: 90 - HOVER_BORDER_OVERHANG });
   });
 
   it("автоматически принимает карточки, добавленные после первого рендера", () => {
@@ -228,10 +228,10 @@ describe("HoverBorderGrid", () => {
 
     const highlight = view.container.querySelector("[data-hover-border-highlight]")!;
     expect(jsonAttribute(highlight, "data-motion-animate")).toMatchObject({
-      x: 245,
-      y: 165,
-      width: 150,
-      height: 100,
+      x: 250 - HOVER_BORDER_OVERHANG,
+      y: 170 - HOVER_BORDER_OVERHANG,
+      width: 140 + HOVER_BORDER_OVERHANG * 2,
+      height: 90 + HOVER_BORDER_OVERHANG * 2,
     });
   });
 

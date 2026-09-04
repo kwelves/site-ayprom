@@ -9,7 +9,7 @@ import { CatalogPageShell } from "@/components/catalog/CatalogPageShell";
 import { getBrand } from "@/lib/queries/brands";
 import { getCategory } from "@/lib/queries/categories";
 import { getBrandSubcategories } from "@/lib/queries/subcategories";
-import { getCategoryGridSizing } from "@/lib/category-grid";
+import { CARD_GRID_GAP_CLASSNAME, getCardGridSizing } from "@/lib/card-system";
 import { cn } from "@/lib/utils";
 
 export const revalidate = 60;
@@ -74,7 +74,7 @@ export default async function BrandCategoryPage({ params }: BrandCategoryPagePro
     );
   }
 
-  const sizing = getCategoryGridSizing(subcategories.length);
+  const sizing = getCardGridSizing(subcategories.length);
 
   return (
     <CatalogPageShell
@@ -94,7 +94,7 @@ export default async function BrandCategoryPage({ params }: BrandCategoryPagePro
         />
       </Reveal>
       <HoverBorderGrid className={cn("mt-10", sizing.containerClassName)}>
-        <StaggerGroup className="flex flex-wrap justify-center gap-4 sm:gap-6 lg:gap-8">
+        <StaggerGroup className={cn("flex flex-wrap justify-center", CARD_GRID_GAP_CLASSNAME)}>
           {subcategories.map((sub) => (
             <StaggerItem key={sub.slug} className={sizing.itemClassName}>
               <CategoryCard
@@ -102,8 +102,6 @@ export default async function BrandCategoryPage({ params }: BrandCategoryPagePro
                 image={sub.image}
                 name={sub.name}
                 sizes="(max-width: 1023px) 30vw, 380px"
-                imageClassName={sizing.imageClassName}
-                nameClassName={sizing.nameClassName}
               />
             </StaggerItem>
           ))}

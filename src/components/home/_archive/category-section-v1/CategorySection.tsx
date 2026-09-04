@@ -4,7 +4,7 @@ import { Reveal } from "@/components/motion/Reveal";
 import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
 import { CategoryCard } from "@/components/home/CategoryCard";
 import { getCategories } from "@/lib/queries/categories";
-import { getCardGridSizing } from "@/lib/category-grid";
+import { getCardGridSizing } from "@/lib/card-system";
 import { cn } from "@/lib/utils";
 
 export async function CategorySection() {

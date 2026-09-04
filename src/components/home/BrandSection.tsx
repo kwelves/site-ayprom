@@ -4,19 +4,21 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/motion/Reveal";
 import { HoverBorderGrid } from "@/components/motion/HoverBorderGrid";
 import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
+import { CARD_GRID_GAP_CLASSNAME } from "@/lib/card-system";
+import { cn } from "@/lib/utils";
 import { getBrands } from "@/lib/queries/brands";
 import type { Brand } from "@/types/catalog";
 
 function BrandGrid({ brands }: { brands: Brand[] }) {
   return (
     <HoverBorderGrid className="mt-4">
-      <StaggerGroup className="grid grid-cols-3 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
+      <StaggerGroup className={cn("grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5", CARD_GRID_GAP_CLASSNAME)}>
         {brands.map((brand) => (
           <StaggerItem key={brand.slug}>
             <Link
               href={`/catalog/brand/${brand.slug}`}
               data-hover-border-item
-              className="flex h-full flex-col items-center justify-center gap-2 rounded-xl border border-card-edge bg-card p-3 text-center transition-transform duration-fast ease-ui focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-[0.98] sm:gap-3 sm:p-4"
+              className="flex h-full flex-col items-center justify-center gap-2 rounded-xl border border-card-edge bg-card p-4 text-center transition-transform duration-fast ease-ui focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-[0.98] sm:gap-3"
             >
               <span className="flex h-10 w-full items-center justify-center sm:h-12">
                 {/* eslint-disable-next-line @next/next/no-img-element -- static local SVGs are already optimal; next/image blocks local SVGs without dangerouslyAllowSVG */}

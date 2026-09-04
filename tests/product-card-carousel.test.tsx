@@ -2,6 +2,7 @@
 
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { CARD_TITLE_CLASSNAME } from "@/lib/card-system";
 import { ProductCard } from "@/components/catalog/ProductCard";
 import type { ProductListItem } from "@/types/catalog";
 
@@ -90,7 +91,8 @@ describe("ProductCard carousel", () => {
     // Обе разновидности карточки делят одну геометрию фото-зоны.
     expect(document.querySelector(".aspect-4\\/3")?.parentElement?.className).toContain("p-4");
     expect(image?.className).not.toContain("p-4");
-    expect(title.className).toContain("text-base font-medium");
-    expect(title.className).not.toContain("text-sm");
+    expect(title.className).toContain(CARD_TITLE_CLASSNAME);
+    // Обложечный заголовок системы, а не полужирный заголовок обычной карточки.
+    expect(title.className).not.toContain("font-semibold");
   });
 });

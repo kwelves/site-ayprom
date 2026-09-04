@@ -3,6 +3,7 @@ import { Reveal } from "@/components/motion/Reveal";
 import { HoverBorderGrid } from "@/components/motion/HoverBorderGrid";
 import { ProductCard } from "@/components/catalog/ProductCard";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { CARD_GRID_GAP_CLASSNAME } from "@/lib/card-system";
 import { cn } from "@/lib/utils";
 import type { ProductListItem } from "@/types/catalog";
 
@@ -18,7 +19,7 @@ interface ProductGridWithSearchProps {
   emptyLabel: string;
 }
 
-const gridClassName = "grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4";
+const gridClassName = cn("grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4", CARD_GRID_GAP_CLASSNAME);
 
 function pageHref(action: string, page: number, query?: string): string {
   const params = new URLSearchParams();
