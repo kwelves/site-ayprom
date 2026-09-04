@@ -69,13 +69,15 @@ Tailwind v4 генерирует из них обычные утилиты (`bg-
 | `border-border` | slate-200 | обычная рамка, разделитель |
 | `border-input` | slate-300 | рамка поля ввода и контрола |
 | `border-border-accent` | blue-100 | рамки и разделители внутри акцентных блоков |
+| `border-card-edge` | primary 25% | постоянная рамка кликабельной карточки внутри `HoverBorderGrid` |
 | `hover:border-border-interactive` | blue-200 | локальная hover-рамка контрола или строки вне карточной сетки |
 | `bg-card-hover-highlight` | primary 25% | единая движущаяся подложка вокруг кликабельных карточек в `HoverBorderGrid` |
 | `ring-ring` | blue-500 | кольцо фокуса, `focus-within` |
 
 ### Единый hover-border сеток
 
-Цвет эффекта меняется в одном месте — через `--color-card-hover-highlight`.
+Цвет постоянного края карточки меняется через `--color-card-edge`, а цвет
+движущейся подложки — через `--color-card-hover-highlight`.
 Геометрия и движение централизованы в `HoverBorderGrid`: один экземпляр
 подложки обслуживает всю сетку, а кликабельные карточки отмечаются
 `data-hover-border-item`.

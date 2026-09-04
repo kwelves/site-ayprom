@@ -21,14 +21,28 @@ const gridSurfaces = [
   "src/app/(site)/contacts/page.tsx",
 ] as const;
 
+const interactiveCardSurfaces = [
+  ...sharedCardComponents,
+  "src/components/home/CategoryHoverGrid.tsx",
+  "src/components/home/BrandSection.tsx",
+  "src/app/(site)/contacts/page.tsx",
+] as const;
+
 describe("единый hover-border публичных карточек", () => {
-  it("берёт прежний primary/25 из одного семантического токена", () => {
+  it("хранит цвета края и подложки в отдельных семантических токенах", () => {
     expect(read("src/app/globals.css")).toContain(
       "--color-card-hover-highlight: color-mix(in oklab, var(--color-primary) 25%, transparent);",
+    );
+    expect(read("src/app/globals.css")).toContain(
+      "--color-card-edge: color-mix(in oklab, var(--color-primary) 25%, transparent);",
     );
     const component = read("src/components/motion/HoverBorderGrid.tsx");
     expect(component).toContain("bg-card-hover-highlight");
     expect(component).not.toContain("bg-primary/25");
+  });
+
+  it.each(interactiveCardSurfaces)("%s использует единый цвет края карточки", (file) => {
+    expect(read(file)).toContain("border-card-edge");
   });
 
   it.each(sharedCardComponents)("%s подключает карточку к общему контейнеру", (file) => {

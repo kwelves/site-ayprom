@@ -19,7 +19,7 @@ export function CategoryHoverGrid({ categories }: { categories: Category[] }) {
               data-hover-border-item
               className="relative block h-full w-full p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-[0.98]"
             >
-              <div className="relative z-10 flex h-full flex-col overflow-hidden rounded-xl border border-primary/25 bg-card">
+              <div className="relative z-10 flex h-full flex-col overflow-hidden rounded-xl border border-card-edge bg-card">
                 <div className="relative aspect-4/3 w-full shrink-0 bg-muted/40">
                   <Image
                     src={category.image}

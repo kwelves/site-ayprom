@@ -197,6 +197,8 @@
   --color-input: var(--color-slate-300);
   /* Soft blue dividers inside accent blocks. */
   --color-border-accent: var(--color-blue-100);
+  /* Default edge of clickable cards inside HoverBorderGrid. */
+  --color-card-edge: color-mix(in oklab, var(--color-primary) 25%, transparent);
   /* Hover outline for standalone controls and interactive list rows. */
   --color-border-interactive: var(--color-blue-200);
   /* Moving backdrop shared by clickable card grids. Kept separate from

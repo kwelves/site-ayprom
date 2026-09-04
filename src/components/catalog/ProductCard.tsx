@@ -81,7 +81,7 @@ export function ProductCard({
   return (
     <div
       data-hover-border-item
-      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-[border-color,box-shadow,scale] duration-fast ease-ui active:scale-[0.98] active:border-border-interactive active:shadow-sm"
+      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-card-edge bg-card transition-[box-shadow,scale] duration-fast ease-ui active:scale-[0.98] active:shadow-sm"
     >
       <Link
         href={href}

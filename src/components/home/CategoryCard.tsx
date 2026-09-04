@@ -23,7 +23,7 @@ export function CategoryCard({
     <Link
       href={href}
       data-hover-border-item
-      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-transform duration-fast ease-ui focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-[0.98]"
+      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-card-edge bg-card transition-transform duration-fast ease-ui focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-[0.98]"
     >
       {/* Extra internal padding keeps the product smaller within the frame so the
           card reads airier now that it's just a photo + caption. */}

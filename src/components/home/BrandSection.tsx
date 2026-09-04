@@ -16,7 +16,7 @@ function BrandGrid({ brands }: { brands: Brand[] }) {
             <Link
               href={`/catalog/brand/${brand.slug}`}
               data-hover-border-item
-              className="flex h-full flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-3 text-center transition-transform duration-fast ease-ui focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-[0.98] sm:gap-3 sm:p-4"
+              className="flex h-full flex-col items-center justify-center gap-2 rounded-xl border border-card-edge bg-card p-3 text-center transition-transform duration-fast ease-ui focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-[0.98] sm:gap-3 sm:p-4"
             >
               <span className="flex h-10 w-full items-center justify-center sm:h-12">
                 {/* eslint-disable-next-line @next/next/no-img-element -- static local SVGs are already optimal; next/image blocks local SVGs without dangerouslyAllowSVG */}

@@ -28,7 +28,7 @@ export function BrandCard({ href, brand, nameClassName, imageClassName, logoScal
     <Link
       href={href}
       data-hover-border-item
-      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-transform duration-fast ease-ui focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-[0.98]"
+      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-card-edge bg-card transition-transform duration-fast ease-ui focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-[0.98]"
     >
       <div className="relative aspect-2/1 w-full shrink-0 bg-muted/40">
         {/* Absolute + inset-0 (mirroring next/image's `fill`) instead of a flex

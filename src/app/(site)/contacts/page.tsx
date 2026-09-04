@@ -114,7 +114,7 @@ export default function ContactsPage() {
                 <a
                   href={card.href}
                   data-hover-border-item
-                  className="block h-full rounded-xl border border-border bg-card p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                  className="block h-full rounded-xl border border-card-edge bg-card p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                 >
                   <ContactCardBody icon={card.icon} label={card.label}>
                     {card.value}
