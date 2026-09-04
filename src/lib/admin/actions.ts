@@ -816,7 +816,7 @@ async function insertProductImage(
   const validated = await validateRasterImage(file);
 
   // Идентификатор строки выпускается здесь, до вставки: он входит в путь
-  // варианта (<slug>/<image-id>/variants/v1/...), а строку БД план требует
+  // варианта (<slug>/<image-id>/variants/<profile>/...), а строку БД план требует
   // создавать только после успешной загрузки master и обоих вариантов.
   // Ждать сгенерированный базой id было бы циклической зависимостью.
   const imageId = crypto.randomUUID();

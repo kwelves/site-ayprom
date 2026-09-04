@@ -18,10 +18,26 @@
 import { createHash } from "node:crypto";
 import sharp from "sharp";
 
-/** Карточки каталога и admin-превью. */
-export const THUMBNAIL_VARIANT = { name: "thumbnail", maxSide: 640, quality: 72 };
+/**
+ * Карточки каталога и admin-превью.
+ *
+ * v2 отличается от прежнего thumbnail-профиля: это всегда холст 4:3, а не
+ * просто картинка с длинной стороной 640px. Если у исходника есть однородные
+ * внешние поля, деталь сначала аккуратно отделяется от них и центрируется на
+ * холсте. Единый видимый отступ задаёт сама ProductCard, поэтому генератор не
+ * добавляет второй слой воздуха и не обрезает товар через object-cover.
+ */
+export const THUMBNAIL_VARIANT = {
+  name: "thumbnail",
+  profileVersion: "v2",
+  width: 640,
+  height: 480,
+  trimThreshold: 12,
+  trimMarginRatio: 0.01,
+  quality: 72,
+};
 /** Галерея товара, zoom, OpenGraph, sitemap. */
-export const GALLERY_VARIANT = { name: "gallery", maxSide: 1600, quality: 82 };
+export const GALLERY_VARIANT = { name: "gallery", profileVersion: "v1", maxSide: 1600, quality: 82 };
 
 export const PRODUCT_IMAGE_VARIANTS = [THUMBNAIL_VARIANT, GALLERY_VARIANT];
 
@@ -53,13 +69,16 @@ function contentHash(buffer) {
 }
 
 /**
- * Неизменяемый путь варианта. `v1` — версия профиля обработки: если
- * когда-нибудь поменяются размеры или качество, новые файлы лягут в `v2`, а
- * уже отданные браузерам URL останутся валидными (они закешированы на год,
- * cacheControl=31536000, и перезаписывать их под тем же именем нельзя).
+ * Неизменяемый путь варианта. Версия принадлежит конкретному профилю: у
+ * thumbnail уже v2, потому что его геометрия изменилась, а gallery остаётся
+ * на v1 с прежними байтами. Уже отданные браузерам URL остаются валидными
+ * (они закешированы на год, cacheControl=31536000), и мы не перезаписываем
+ * содержимое под старым путём.
  */
 export function buildVariantPath(productSlug, imageId, variantName, hash) {
-  return `${productSlug}/${imageId}/variants/v1/${variantName}-${hash}.webp`;
+  const variant = PRODUCT_IMAGE_VARIANTS.find((candidate) => candidate.name === variantName);
+  if (!variant) throw new ProductImageVariantError(`Неизвестный вариант изображения: ${variantName}.`);
+  return `${productSlug}/${imageId}/variants/${variant.profileVersion}/${variantName}-${hash}.webp`;
 }
 
 async function readSourceMetadata(masterBuffer) {
@@ -91,10 +110,10 @@ async function readSourceMetadata(masterBuffer) {
     );
   }
 
-  return { width, height };
+  return { width, height, hasAlpha: metadata.hasAlpha === true };
 }
 
-async function encodeVariant(masterBuffer, variant) {
+async function encodeGalleryVariant(masterBuffer, variant) {
   try {
     return await sharp(masterBuffer, { animated: false })
       .timeout({ seconds: VARIANT_PROCESSING_TIMEOUT_SECONDS })
@@ -117,6 +136,67 @@ async function encodeVariant(masterBuffer, variant) {
 }
 
 /**
+ * Возвращает ориентированный растр и, когда это безопасно, убирает только
+ * однородную внешнюю рамку. Защитная проверка площади не позволяет trim
+ * превратить почти однотонное изображение в случайный крошечный фрагмент.
+ */
+async function prepareThumbnailContent(masterBuffer, variant) {
+  const oriented = await sharp(masterBuffer, { animated: false })
+    .timeout({ seconds: VARIANT_PROCESSING_TIMEOUT_SECONDS })
+    .rotate()
+    .toBuffer({ resolveWithObject: true });
+
+  const margin = Math.max(1, Math.round(Math.min(oriented.info.width, oriented.info.height) * variant.trimMarginRatio));
+  const trimmed = await sharp(oriented.data)
+    .timeout({ seconds: VARIANT_PROCESSING_TIMEOUT_SECONDS })
+    .trim({ threshold: variant.trimThreshold, margin })
+    .toBuffer({ resolveWithObject: true });
+
+  const removedWidthRatio = 1 - trimmed.info.width / oriented.info.width;
+  const removedHeightRatio = 1 - trimmed.info.height / oriented.info.height;
+  const retainedAreaRatio =
+    (trimmed.info.width * trimmed.info.height) / (oriented.info.width * oriented.info.height);
+  const trimIsMeaningful = removedWidthRatio >= 0.02 || removedHeightRatio >= 0.02;
+  const trimLooksSafe = trimmed.info.width >= 8 && trimmed.info.height >= 8 && retainedAreaRatio >= 0.01;
+
+  return trimIsMeaningful && trimLooksSafe ? { body: trimmed.data, trimmed: true } : { body: oriented.data, trimmed: false };
+}
+
+async function encodeThumbnailVariant(masterBuffer, variant, source) {
+  try {
+    const content = await prepareThumbnailContent(masterBuffer, variant);
+    const resized = await sharp(content.body)
+      .timeout({ seconds: VARIANT_PROCESSING_TIMEOUT_SECONDS })
+      .resize({
+        width: variant.width,
+        height: variant.height,
+        fit: "inside",
+        // У thumbnail фиксированный экранный размер. Небольшой исходник всё
+        // равно увеличивался бы браузером, поэтому делаем это один раз здесь,
+        // контролируемо, и сохраняем одинаковый холст для всех карточек.
+        withoutEnlargement: false,
+      })
+      .toBuffer({ resolveWithObject: true });
+
+    const background = source.hasAlpha
+      ? { r: 0, g: 0, b: 0, alpha: 0 }
+      : { r: 255, g: 255, b: 255 };
+    const channels = source.hasAlpha ? 4 : 3;
+    const left = Math.round((variant.width - resized.info.width) / 2);
+    const top = Math.round((variant.height - resized.info.height) / 2);
+
+    return await sharp({
+      create: { width: variant.width, height: variant.height, channels, background },
+    })
+      .composite([{ input: resized.data, left, top }])
+      .webp({ quality: variant.quality, effort: 4, smartSubsample: true })
+      .toBuffer();
+  } catch (error) {
+    throw new ProductImageVariantError(`Не удалось создать вариант «${variant.name}».`, { cause: error });
+  }
+}
+
+/**
  * Считает оба варианта из master и возвращает их вместе с готовыми путями.
  * Загрузку в Storage и запись в БД выполняет вызывающая сторона — так один
  * и тот же генератор обслуживает и Server Action (service-role клиент), и
@@ -131,10 +211,13 @@ export async function generateProductImageVariants(masterBuffer, { productSlug, 
 
   const source = await readSourceMetadata(masterBuffer);
 
-  // Ровно два одновременных sharp-прохода — столько и есть вариантов.
-  // Больше параллелизма здесь взять неоткуда, а меньше (последовательно)
-  // удвоило бы время на каждое фото.
-  const encoded = await Promise.all(PRODUCT_IMAGE_VARIANTS.map((variant) => encodeVariant(masterBuffer, variant)));
+  // Оба варианта по-прежнему считаются независимо и одновременно из master.
+  // Thumbnail получает собственный нормализующий профиль, gallery сохраняет
+  // прежнюю геометрию и не наследует пересжатие карточки.
+  const encoded = await Promise.all([
+    encodeThumbnailVariant(masterBuffer, THUMBNAIL_VARIANT, source),
+    encodeGalleryVariant(masterBuffer, GALLERY_VARIANT),
+  ]);
 
   const variants = {};
   for (const [index, variant] of PRODUCT_IMAGE_VARIANTS.entries()) {

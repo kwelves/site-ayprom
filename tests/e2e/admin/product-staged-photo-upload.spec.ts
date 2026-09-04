@@ -108,7 +108,7 @@ test("[QA-004] фотография грузится отдельно и при�
 
     const [image] = await readOwnedProductImages(slug);
     expect(image.url).toContain(`/${slug}/`);
-    expect(image.thumbnail_url).toMatch(/\/variants\/v1\/thumbnail-[0-9a-f]{16}\.webp$/);
+    expect(image.thumbnail_url).toMatch(/\/variants\/v2\/thumbnail-[0-9a-f]{16}\.webp$/);
     expect(image.gallery_url).toMatch(/\/variants\/v1\/gallery-[0-9a-f]{16}\.webp$/);
 
     const sharp = (await import("sharp")).default;
@@ -149,7 +149,7 @@ test("генерирует варианты при загрузке реалис
     const [image] = await readOwnedProductImages(slug);
     await expect(page.getByText(image.url, { exact: true })).toBeVisible();
     expect(image.url).toMatch(/\/master\.jpe?g$/);
-    expect(image.thumbnail_url).toMatch(/\/variants\/v1\/thumbnail-[0-9a-f]{16}\.webp$/);
+    expect(image.thumbnail_url).toMatch(/\/variants\/v2\/thumbnail-[0-9a-f]{16}\.webp$/);
     expect(image.gallery_url).toMatch(/\/variants\/v1\/gallery-[0-9a-f]{16}\.webp$/);
 
     const [master, thumbnail, gallery] = await Promise.all([
@@ -216,7 +216,7 @@ test("адаптивно загружает детализированный PNG
 
     const [image] = await readOwnedProductImages(slug);
     expect(image.url).toMatch(/\/master\.webp$/);
-    expect(image.thumbnail_url).toMatch(/\/variants\/v1\/thumbnail-[0-9a-f]{16}\.webp$/);
+    expect(image.thumbnail_url).toMatch(/\/variants\/v2\/thumbnail-[0-9a-f]{16}\.webp$/);
     expect(image.gallery_url).toMatch(/\/variants\/v1\/gallery-[0-9a-f]{16}\.webp$/);
 
     const [master, thumbnail, gallery] = await Promise.all([

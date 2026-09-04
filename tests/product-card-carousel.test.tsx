@@ -32,16 +32,23 @@ const product: ProductListItem = {
 };
 
 describe("ProductCard carousel", () => {
-  it("уплотняет только обычную карточку на мобильном и возвращает прежние размеры с sm", () => {
+  it("даёт изображению область 4:3 с инсетом 16px на самой фото-зоне", () => {
     render(<ProductCard product={product} href="/product/test-product" />);
 
     const title = screen.getByText("Тестовый товар");
     const description = screen.getByText("Описание");
     const image = document.querySelector("img");
+    const imageArea = document.querySelector(".aspect-4\\/3");
     const textBlock = title.parentElement;
 
-    expect(image?.className).toContain("p-2 sm:p-4");
-    expect(textBlock?.className).toContain("px-3 pt-2.5 pb-3 sm:px-4 sm:pt-4 sm:pb-5");
+    expect(imageArea).toBeTruthy();
+    expect(document.querySelector(".aspect-square")).toBeNull();
+    // Инсет на фото-зоне, а не на <img>: только так область изображения
+    // остаётся ровно 4:3 и её край совпадает с px-4 текстового блока.
+    expect(imageArea?.parentElement?.className).toContain("p-4");
+    expect(image?.className).not.toContain("p-4");
+    expect(image?.className).toContain("object-contain");
+    expect(textBlock?.className).toContain("px-4 pt-2.5 pb-3 sm:pt-4 sm:pb-5");
     expect(title.className).toContain("text-sm font-semibold sm:text-base");
     expect(description.className).toContain("text-xs leading-4");
     expect(description.className).toContain("sm:text-sm sm:leading-relaxed");
@@ -80,8 +87,9 @@ describe("ProductCard carousel", () => {
     expect(screen.queryByText("Описание")).toBeNull();
     expect(document.querySelector(".aspect-4\\/3")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Показать фото 1" })).toBeNull();
-    expect(image?.className).toContain("p-5");
-    expect(image?.className).not.toContain("p-2");
+    // Обе разновидности карточки делят одну геометрию фото-зоны.
+    expect(document.querySelector(".aspect-4\\/3")?.parentElement?.className).toContain("p-4");
+    expect(image?.className).not.toContain("p-4");
     expect(title.className).toContain("text-base font-medium");
     expect(title.className).not.toContain("text-sm");
   });

@@ -90,10 +90,7 @@ export function ProductCard({
       />
 
       <motion.div
-        className={cn(
-          "relative z-10 w-full shrink-0 touch-pan-y overflow-hidden bg-muted/40",
-          isCategoryGrid ? "aspect-4/3" : "aspect-square",
-        )}
+        className="relative z-10 w-full shrink-0 touch-pan-y overflow-hidden bg-muted/40 p-4"
         drag={hasMultiple && isTouchDevice ? "x" : false}
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={0}
@@ -105,15 +102,23 @@ export function ProductCard({
           router.push(href);
         }}
       >
-        <PreparedImageLayers
-          images={product.images}
-          alt={product.name}
-          sizes={CARD_IMAGE_SIZES}
-          unoptimized
-          layerClassName="absolute inset-0"
-          imageClassName={isCategoryGrid ? "p-5" : "p-2 sm:p-4"}
-          carousel={carousel}
-        />
+        {/* Инсет живёт на самой фото-зоне, а не на <img>. Padding на картинке
+            оставлял бы контейнер 4:3, но её контентную коробку — шире 4:3
+            ((W-32)/(0.75W-32)), и object-contain вписывал бы кадр по высоте,
+            добавляя лишние ~6px слева и справа: зазор переставал быть
+            одинаковым по четырём сторонам, а текст ниже не попадал на одну
+            вертикаль с фотографией. Здесь 4:3 получает именно область
+            изображения, а видимый зазор равен px-4 текстового блока. */}
+        <div className="relative aspect-4/3 w-full">
+          <PreparedImageLayers
+            images={product.images}
+            alt={product.name}
+            sizes={CARD_IMAGE_SIZES}
+            unoptimized
+            layerClassName="absolute inset-0"
+            carousel={carousel}
+          />
+        </div>
 
         {isCategoryGrid && (
           <span className="absolute left-3 top-3 z-10 rounded-full border border-border bg-card/90 px-2 py-1 text-xs font-medium text-muted-foreground backdrop-blur-sm">
@@ -157,7 +162,7 @@ export function ProductCard({
           "flex flex-1 flex-col",
           isCategoryGrid
             ? "px-4 py-3.5 text-center"
-            : "px-3 pt-2.5 pb-3 sm:px-4 sm:pt-4 sm:pb-5",
+            : "px-4 pt-2.5 pb-3 sm:pt-4 sm:pb-5",
         )}
       >
         <span

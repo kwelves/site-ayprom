@@ -1,6 +1,6 @@
 /**
  * Общая логика выбора URL товарного изображения между master и его
- * WebP-вариантами (thumbnail 640px/q72, gallery 1600px/q82 — см.
+ * WebP-вариантами (thumbnail 640×480/q72, gallery до 1600px/q82 — см.
  * supabase/migrations/20260901093151_product_image_variants.sql).
  *
  * Правила приоритета — карточка/admin-превью против галереи/zoom/OG/sitemap
