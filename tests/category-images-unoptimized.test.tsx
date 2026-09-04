@@ -16,6 +16,7 @@ vi.mock("next/image", () => ({
 vi.mock("framer-motion", () => ({
   AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
   motion: { span: (props: React.ComponentProps<"span">) => <span {...props} /> },
+  useReducedMotion: () => false,
 }));
 
 vi.mock("@/components/motion/Stagger", () => ({

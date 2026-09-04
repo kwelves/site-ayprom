@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { expectNoSeriousOrCriticalA11yViolations } from "../support/a11y";
 import { allowExpectedDocumentStatus, expect, test } from "../support/browser-observer";
 import {
@@ -29,6 +29,18 @@ let fixture: OwnedCatalogFixture;
  */
 function mainContent(page: Page) {
   return page.locator("#main-content");
+}
+
+async function hoverBorderAlignmentError(card: Locator, highlight: Locator): Promise<number> {
+  const [cardBox, highlightBox] = await Promise.all([card.boundingBox(), highlight.boundingBox()]);
+  if (!cardBox || !highlightBox) return Number.POSITIVE_INFINITY;
+
+  return Math.max(
+    Math.abs(cardBox.x - highlightBox.x - 5),
+    Math.abs(cardBox.y - highlightBox.y - 5),
+    Math.abs(highlightBox.width - cardBox.width - 10),
+    Math.abs(highlightBox.height - cardBox.height - 10),
+  );
 }
 
 test.beforeAll(async () => {
@@ -71,6 +83,26 @@ test.describe("@smoke public catalog", () => {
     const response = await page.goto(`/product/${product.slug}`);
     expect(response?.status()).toBe(200);
     await expect(page.getByRole("heading", { level: 1, name: product.name })).toBeVisible();
+  });
+
+  test("единый hover-border точно переезжает между карточками каталога", async ({ page, browserObserver }) => {
+    const params = new URLSearchParams({ q: fixture.batchQuery });
+    const response = await page.goto(`/catalog?${params}`);
+    expect(response?.status()).toBe(200);
+
+    const grid = mainContent(page).locator("[data-hover-border-grid]").first();
+    const cards = grid.locator("[data-hover-border-item]");
+    const highlight = grid.locator("[data-hover-border-highlight]");
+    await expect(cards).toHaveCount(24);
+
+    await cards.nth(0).hover();
+    await expect(highlight).toHaveCount(1);
+    await expect.poll(() => hoverBorderAlignmentError(cards.nth(0), highlight)).toBeLessThan(1);
+
+    await cards.nth(1).hover();
+    await expect(highlight).toHaveCount(1);
+    await expect.poll(() => hoverBorderAlignmentError(cards.nth(1), highlight)).toBeLessThan(1);
+    browserObserver.assertClean();
   });
 
   test("неизвестный public URL возвращает 404", async ({ page, browserObserver }) => {

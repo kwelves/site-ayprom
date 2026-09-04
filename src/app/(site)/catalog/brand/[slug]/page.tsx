@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { Reveal } from "@/components/motion/Reveal";
+import { HoverBorderGrid } from "@/components/motion/HoverBorderGrid";
 import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
 import { CategoryCard } from "@/components/home/CategoryCard";
 import { CatalogPageShell } from "@/components/catalog/CatalogPageShell";
@@ -88,21 +89,23 @@ export default async function BrandPage({ params }: BrandPageProps) {
               Выберите категорию, чтобы найти запчасти для «{brand.name}».
             </p>
           </Reveal>
-          <StaggerGroup className={cn("mt-8 flex flex-wrap justify-center gap-5", sizing.containerClassName)}>
-            {categories.map((category) => (
-              <StaggerItem key={category.slug} className={sizing.itemClassName}>
-                <CategoryCard
-                  href={
-                    category.type === "brand"
-                      ? `/catalog/category/${category.slug}/brand/${slug}`
-                      : `/catalog/brand/${slug}/category/${category.slug}`
-                  }
-                  image={category.image}
-                  name={category.name}
-                />
-              </StaggerItem>
-            ))}
-          </StaggerGroup>
+          <HoverBorderGrid className={cn("mt-8", sizing.containerClassName)}>
+            <StaggerGroup className="flex flex-wrap justify-center gap-5">
+              {categories.map((category) => (
+                <StaggerItem key={category.slug} className={sizing.itemClassName}>
+                  <CategoryCard
+                    href={
+                      category.type === "brand"
+                        ? `/catalog/category/${category.slug}/brand/${slug}`
+                        : `/catalog/brand/${slug}/category/${category.slug}`
+                    }
+                    image={category.image}
+                    name={category.name}
+                  />
+                </StaggerItem>
+              ))}
+            </StaggerGroup>
+          </HoverBorderGrid>
         </>
       )}
 

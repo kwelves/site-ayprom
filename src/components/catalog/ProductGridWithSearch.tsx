@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Reveal } from "@/components/motion/Reveal";
+import { HoverBorderGrid } from "@/components/motion/HoverBorderGrid";
 import { ProductCard } from "@/components/catalog/ProductCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { cn } from "@/lib/utils";
@@ -17,7 +18,7 @@ interface ProductGridWithSearchProps {
   emptyLabel: string;
 }
 
-const gridClassName = "mt-6 grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4";
+const gridClassName = "grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4";
 
 function pageHref(action: string, page: number, query?: string): string {
   const params = new URLSearchParams();
@@ -128,11 +129,13 @@ export function ProductGridWithSearch({
         )}
       </div>
 
-      <Reveal className={gridClassName}>
-        {products.map((product) => (
-          <ProductCard key={product.slug} product={product} href={href(product)} />
-        ))}
-      </Reveal>
+      <HoverBorderGrid className="mt-6">
+        <Reveal className={gridClassName}>
+          {products.map((product) => (
+            <ProductCard key={product.slug} product={product} href={href(product)} />
+          ))}
+        </Reveal>
+      </HoverBorderGrid>
 
       <CatalogPagination action={action} page={page} totalPages={totalPages} query={query} />
     </>

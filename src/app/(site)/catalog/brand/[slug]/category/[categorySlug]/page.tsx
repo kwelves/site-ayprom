@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/motion/Reveal";
+import { HoverBorderGrid } from "@/components/motion/HoverBorderGrid";
 import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
 import { CategoryCard } from "@/components/home/CategoryCard";
 import { CatalogPageShell } from "@/components/catalog/CatalogPageShell";
@@ -92,22 +93,22 @@ export default async function BrandCategoryPage({ params }: BrandCategoryPagePro
           description="Выберите подкатегорию, чтобы быстро найти нужные детали."
         />
       </Reveal>
-      <StaggerGroup
-        className={cn("mt-10 flex flex-wrap justify-center gap-4 sm:gap-6 lg:gap-8", sizing.containerClassName)}
-      >
-        {subcategories.map((sub) => (
-          <StaggerItem key={sub.slug} className={sizing.itemClassName}>
-            <CategoryCard
-              href={`/catalog/brand/${slug}/category/${categorySlug}/subcategory/${sub.slug}`}
-              image={sub.image}
-              name={sub.name}
-              sizes="(max-width: 1023px) 30vw, 380px"
-              imageClassName={sizing.imageClassName}
-              nameClassName={sizing.nameClassName}
-            />
-          </StaggerItem>
-        ))}
-      </StaggerGroup>
+      <HoverBorderGrid className={cn("mt-10", sizing.containerClassName)}>
+        <StaggerGroup className="flex flex-wrap justify-center gap-4 sm:gap-6 lg:gap-8">
+          {subcategories.map((sub) => (
+            <StaggerItem key={sub.slug} className={sizing.itemClassName}>
+              <CategoryCard
+                href={`/catalog/brand/${slug}/category/${categorySlug}/subcategory/${sub.slug}`}
+                image={sub.image}
+                name={sub.name}
+                sizes="(max-width: 1023px) 30vw, 380px"
+                imageClassName={sizing.imageClassName}
+                nameClassName={sizing.nameClassName}
+              />
+            </StaggerItem>
+          ))}
+        </StaggerGroup>
+      </HoverBorderGrid>
     </CatalogPageShell>
   );
 }

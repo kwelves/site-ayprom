@@ -56,7 +56,7 @@ describe("findViolations", () => {
   });
 
   it("не трогает семантические токены", () => {
-    const source = `<div className="bg-card text-muted-foreground border-input hover:bg-primary-hover ring-ring" />`;
+    const source = `<div className="bg-card bg-card-hover-highlight text-muted-foreground border-input hover:bg-primary-hover ring-ring" />`;
 
     expect(found(source)).toEqual([]);
   });

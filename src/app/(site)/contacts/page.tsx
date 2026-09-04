@@ -3,6 +3,7 @@ import { MapPin, Phone, MessageCircle, AtSign, Truck, type LucideIcon } from "lu
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/motion/Reveal";
+import { HoverBorderGrid } from "@/components/motion/HoverBorderGrid";
 import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
 
 export const metadata: Metadata = {
@@ -105,28 +106,31 @@ export default function ContactsPage() {
         />
       </Reveal>
 
-      <StaggerGroup className="mx-auto mt-12 grid max-w-4xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {contactCards.map((card) => (
-          <StaggerItem key={card.label}>
-            {card.href ? (
-              <a
-                href={card.href}
-                className="block h-full rounded-xl border border-border bg-card p-5 transition-colors hover:border-border-interactive"
-              >
-                <ContactCardBody icon={card.icon} label={card.label}>
-                  {card.value}
-                </ContactCardBody>
-              </a>
-            ) : (
-              <div className="h-full rounded-xl border border-border bg-card p-5">
-                <ContactCardBody icon={card.icon} label={card.label}>
-                  {card.content}
-                </ContactCardBody>
-              </div>
-            )}
-          </StaggerItem>
-        ))}
-      </StaggerGroup>
+      <HoverBorderGrid className="mx-auto mt-12 max-w-4xl">
+        <StaggerGroup className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {contactCards.map((card) => (
+            <StaggerItem key={card.label}>
+              {card.href ? (
+                <a
+                  href={card.href}
+                  data-hover-border-item
+                  className="block h-full rounded-xl border border-border bg-card p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                >
+                  <ContactCardBody icon={card.icon} label={card.label}>
+                    {card.value}
+                  </ContactCardBody>
+                </a>
+              ) : (
+                <div className="h-full rounded-xl border border-border bg-card p-5">
+                  <ContactCardBody icon={card.icon} label={card.label}>
+                    {card.content}
+                  </ContactCardBody>
+                </div>
+              )}
+            </StaggerItem>
+          ))}
+        </StaggerGroup>
+      </HoverBorderGrid>
     </Container>
   );
 }

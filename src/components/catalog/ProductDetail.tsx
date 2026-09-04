@@ -1,4 +1,5 @@
 import { Reveal } from "@/components/motion/Reveal";
+import { HoverBorderGrid } from "@/components/motion/HoverBorderGrid";
 import { ProductGallery } from "@/components/catalog/ProductGallery";
 import { ProductCard } from "@/components/catalog/ProductCard";
 import { PtoNameplateGuide } from "@/components/catalog/PtoNameplateGuide";
@@ -75,15 +76,17 @@ export async function ProductDetail({ product }: { product: Product }) {
           <h2 id="related-products-title" className="text-xl font-semibold text-foreground">
             Похожие товары
           </h2>
-          <div className="mt-6 grid grid-cols-2 gap-5 md:grid-cols-3 lg:grid-cols-4">
-            {relatedProducts.map((relatedProduct) => (
-              <ProductCard
-                key={relatedProduct.slug}
-                product={relatedProduct}
-                href={getProductHref(relatedProduct, categoryBrandSlugs, directProductCategorySlugs)}
-              />
-            ))}
-          </div>
+          <HoverBorderGrid className="mt-6">
+            <div className="grid grid-cols-2 gap-5 md:grid-cols-3 lg:grid-cols-4">
+              {relatedProducts.map((relatedProduct) => (
+                <ProductCard
+                  key={relatedProduct.slug}
+                  product={relatedProduct}
+                  href={getProductHref(relatedProduct, categoryBrandSlugs, directProductCategorySlugs)}
+                />
+              ))}
+            </div>
+          </HoverBorderGrid>
         </section>
       )}
     </>

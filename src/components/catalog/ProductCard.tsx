@@ -17,10 +17,6 @@ import type { ProductListItem } from "@/types/catalog";
 const SWIPE_THRESHOLD = 40;
 const CARD_IMAGE_SIZES = "(max-width: 639px) 45vw, (max-width: 1023px) 30vw, 320px";
 
-// Unlike CategoryCard/BrandCard (which lift + scale on hover), product cards
-// use a static hover — only border/shadow change, no transform. In a long
-// product grid a moving card under every pointer pass would be visual noise
-// while scanning, so the card stays put and just signals "interactive".
 // `href` is passed in because the same card links to different nested paths
 // depending on whether it's shown under a subcategory grid or a brand grid.
 //
@@ -84,10 +80,8 @@ export function ProductCard({
 
   return (
     <div
-      className={cn(
-        "group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-[border-color,box-shadow,scale] duration-fast ease-ui hover:border-border-interactive active:scale-[0.98] active:border-border-interactive",
-        isCategoryGrid ? "hover:shadow-sm" : "hover:shadow-sm active:shadow-sm",
-      )}
+      data-hover-border-item
+      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-[border-color,box-shadow,scale] duration-fast ease-ui active:scale-[0.98] active:border-border-interactive active:shadow-sm"
     >
       <Link
         href={href}

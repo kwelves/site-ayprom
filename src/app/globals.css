@@ -197,8 +197,11 @@
   --color-input: var(--color-slate-300);
   /* Soft blue dividers inside accent blocks. */
   --color-border-accent: var(--color-blue-100);
-  /* Hover outline shared by every clickable card and list row. */
+  /* Hover outline for standalone controls and interactive list rows. */
   --color-border-interactive: var(--color-blue-200);
+  /* Moving backdrop shared by clickable card grids. Kept separate from
+     border-interactive so tuning the effect cannot restyle controls/rows. */
+  --color-card-hover-highlight: color-mix(in oklab, var(--color-primary) 25%, transparent);
   --color-ring: var(--color-blue-500);
 
   /* --- Dark ("inverse") surfaces: footer, hero overlay, inverse headings */

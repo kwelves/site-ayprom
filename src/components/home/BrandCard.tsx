@@ -14,7 +14,7 @@ interface BrandCardProps {
   logoScale?: number;
 }
 
-// Mirrors CategoryCard's frame/hover/typography, but renders the logo with a
+// Mirrors CategoryCard's frame/typography, but renders the logo with a
 // plain <img> instead of next/image — next/image blocks local SVGs without
 // images.dangerouslyAllowSVG, and brand logos are SVGs. Uses a wider aspect
 // ratio than CategoryCard's product photos (2:1 vs 4:3) and more internal
@@ -25,10 +25,10 @@ export function BrandCard({ href, brand, nameClassName, imageClassName, logoScal
   const scale = logoScale ?? brand.logoScale;
 
   return (
-    // Тот же CSS-подъём, что и у CategoryCard — см. комментарий там.
     <Link
       href={href}
-      className="group relative z-0 flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-[border-color,translate,scale] duration-fast ease-ui hover:z-10 hover:-translate-y-1 hover:scale-[1.03] hover:border-border-interactive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-[0.98]"
+      data-hover-border-item
+      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-transform duration-fast ease-ui focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-[0.98]"
     >
       <div className="relative aspect-2/1 w-full shrink-0 bg-muted/40">
         {/* Absolute + inset-0 (mirroring next/image's `fill`) instead of a flex

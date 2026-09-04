@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/motion/Reveal";
+import { HoverBorderGrid } from "@/components/motion/HoverBorderGrid";
 import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
 import { CategoryCard } from "@/components/home/CategoryCard";
 import { BrandCard } from "@/components/home/BrandCard";
@@ -40,13 +41,15 @@ function BrandCardGrid({
 }) {
   const sizing = getCardGridSizing(brands.length);
   return (
-    <StaggerGroup className={cn("flex flex-wrap justify-center gap-5", className, sizing.containerClassName)}>
-      {brands.map((brand) => (
-        <StaggerItem key={brand.slug} className={sizing.itemClassName}>
-          <BrandCard href={`/catalog/category/${categorySlug}/brand/${brand.slug}`} brand={brand} />
-        </StaggerItem>
-      ))}
-    </StaggerGroup>
+    <HoverBorderGrid className={cn(className, sizing.containerClassName)}>
+      <StaggerGroup className="flex flex-wrap justify-center gap-5">
+        {brands.map((brand) => (
+          <StaggerItem key={brand.slug} className={sizing.itemClassName}>
+            <BrandCard href={`/catalog/category/${categorySlug}/brand/${brand.slug}`} brand={brand} />
+          </StaggerItem>
+        ))}
+      </StaggerGroup>
+    </HoverBorderGrid>
   );
 }
 
@@ -179,29 +182,31 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
           }
         />
       </Reveal>
-      <StaggerGroup
+      <HoverBorderGrid
         className={cn(
-          "mt-10 flex flex-wrap justify-center gap-4 sm:gap-6 lg:gap-8",
+          "mt-10",
           sizing.containerClassName
         )}
       >
-        {mixedItems.map(({ kind, item }) => (
-          <StaggerItem key={`${kind}:${item.slug}`} className={sizing.itemClassName}>
-            {kind === "subcategory" ? (
-              <CategoryCard
-                href={`/catalog/category/${category.slug}/subcategory/${item.slug}`}
-                image={item.image}
-                name={item.name}
-                sizes="(max-width: 1023px) 30vw, 380px"
-                imageClassName={sizing.imageClassName}
-                nameClassName={sizing.nameClassName}
-              />
-            ) : (
-              <ProductCard product={item} href={`${categoryPath}/${item.slug}`} variant="category-grid" />
-            )}
-          </StaggerItem>
-        ))}
-      </StaggerGroup>
+        <StaggerGroup className="flex flex-wrap justify-center gap-4 sm:gap-6 lg:gap-8">
+          {mixedItems.map(({ kind, item }) => (
+            <StaggerItem key={`${kind}:${item.slug}`} className={sizing.itemClassName}>
+              {kind === "subcategory" ? (
+                <CategoryCard
+                  href={`/catalog/category/${category.slug}/subcategory/${item.slug}`}
+                  image={item.image}
+                  name={item.name}
+                  sizes="(max-width: 1023px) 30vw, 380px"
+                  imageClassName={sizing.imageClassName}
+                  nameClassName={sizing.nameClassName}
+                />
+              ) : (
+                <ProductCard product={item} href={`${categoryPath}/${item.slug}`} variant="category-grid" />
+              )}
+            </StaggerItem>
+          ))}
+        </StaggerGroup>
+      </HoverBorderGrid>
 
       <CatalogPagination
         action={categoryPath}
