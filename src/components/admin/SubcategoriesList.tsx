@@ -62,7 +62,7 @@ export function SubcategoriesList({
       renderItem={(sub) => (
         <div className="flex items-start gap-3">
           <div className="flex h-12 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/40">
-            <Image src={sub.image} alt="" width={64} height={48} className="h-full w-full object-cover" />
+            <Image src={sub.image} alt="" width={64} height={48} unoptimized className="h-full w-full object-cover" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-card-foreground">{sub.name}</p>

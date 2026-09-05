@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { MotionConfig, motion, type PanInfo } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsTouchDevice } from "@/lib/use-is-touch-device";
 import {
   GalleryNeighborWarmup,
+  getPreparedImageKey,
   PreparedImageLayers,
   usePreparedImageCarousel,
 } from "@/components/ui/PreparedImageCarousel";
@@ -20,17 +21,63 @@ const GALLERY_IMAGE_SIZES = "(max-width: 1023px) 100vw, 50vw";
 
 const SWIPE_THRESHOLD = 50;
 
+interface GalleryNetworkInformation {
+  effectiveType?: string;
+  saveData?: boolean;
+  addEventListener?: (type: "change", listener: () => void) => void;
+  removeEventListener?: (type: "change", listener: () => void) => void;
+}
+
+function getNetworkInformation(): GalleryNetworkInformation | undefined {
+  if (typeof navigator === "undefined") return undefined;
+  return (navigator as Navigator & { connection?: GalleryNetworkInformation }).connection;
+}
+
+function subscribeToNetworkChanges(onStoreChange: () => void) {
+  const connection = getNetworkInformation();
+  if (
+    !connection ||
+    typeof connection.addEventListener !== "function" ||
+    typeof connection.removeEventListener !== "function"
+  ) {
+    return () => undefined;
+  }
+
+  connection.addEventListener("change", onStoreChange);
+  return () => connection.removeEventListener?.("change", onStoreChange);
+}
+
+function hasConfirmedFastConnection() {
+  const connection = getNetworkInformation();
+  return (
+    connection?.effectiveType === "4g" &&
+    connection.saveData === false &&
+    typeof connection.addEventListener === "function" &&
+    typeof connection.removeEventListener === "function"
+  );
+}
+
+function useConfirmedFastConnection() {
+  return useSyncExternalStore(subscribeToNetworkChanges, hasConfirmedFastConnection, () => false);
+}
+
 // A single photo needs none of this — no arrows, no dots, just the plain
 // static image. The carousel only earns its keep once there's something to
 // switch between.
 export function ProductGallery({ images, alt }: ProductGalleryProps) {
   const carousel = usePreparedImageCarousel(images);
+  const [readyFirstImageKey, setReadyFirstImageKey] = useState<string | null>(null);
+  const firstImageKey = getPreparedImageKey(images[0], 0);
+  const hasFastConnection = useConfirmedFastConnection();
   const index = carousel.selectedIndex;
   const hasMultiple = images.length > 1;
   const isTouchDevice = useIsTouchDevice();
   const indicatorScrollRef = useRef<HTMLDivElement>(null);
   const activeIndicatorRef = useRef<HTMLButtonElement>(null);
   const didMountIndicatorsRef = useRef(false);
+  const handleImageReady = useCallback((imageIndex: number, imageKey: string) => {
+    if (imageIndex === 0) setReadyFirstImageKey(imageKey);
+  }, []);
 
   useEffect(() => {
     if (!didMountIndicatorsRef.current) {
@@ -90,17 +137,21 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
           unoptimized
           layerClassName="absolute inset-0"
           imageClassName="p-6"
+          loading="lazy"
+          initialImageLoading="eager"
+          initialImageFetchPriority="high"
+          onImageReady={handleImageReady}
           carousel={carousel}
         />
 
-        {hasMultiple && carousel.neighborIndices.map((neighborIndex) => (
+        {hasMultiple && readyFirstImageKey === firstImageKey && hasFastConnection && images[1]?.url && (
           <GalleryNeighborWarmup
-            key={`${images[neighborIndex].url}-${neighborIndex}`}
-            url={images[neighborIndex].url}
+            key={`${images[1].url}-1`}
+            url={images[1].url}
             sizes={GALLERY_IMAGE_SIZES}
             unoptimized
           />
-        ))}
+        )}
 
         {hasMultiple && (
           <>

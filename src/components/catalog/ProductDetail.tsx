@@ -85,6 +85,7 @@ export async function ProductDetail({ product }: { product: Product }) {
                   key={relatedProduct.slug}
                   product={relatedProduct}
                   href={getProductHref(relatedProduct, categoryBrandSlugs, directProductCategorySlugs)}
+                  deferImageLoading
                 />
               ))}
             </div>

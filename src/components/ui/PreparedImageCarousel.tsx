@@ -105,6 +105,10 @@ interface PreparedImageLayersProps {
   quality?: number;
   /** Serves every layer's `src` as-is, bypassing Vercel Image Optimization (and its quota). */
   unoptimized?: boolean;
+  loading?: "eager" | "lazy";
+  initialImageLoading?: "eager" | "lazy";
+  initialImageFetchPriority?: "high" | "low" | "auto";
+  onImageReady?: (index: number, key: string) => void;
   carousel: ReturnType<typeof usePreparedImageCarousel>;
 }
 
@@ -116,6 +120,10 @@ export function PreparedImageLayers({
   imageClassName,
   quality,
   unoptimized,
+  loading = "eager",
+  initialImageLoading,
+  initialImageFetchPriority,
+  onImageReady,
   carousel,
 }: PreparedImageLayersProps) {
   const layerIndices = carousel.hasPendingImage
@@ -142,10 +150,14 @@ export function PreparedImageLayers({
           sizes={sizes}
           className={imageClassName}
           style={image?.scale && image.scale !== 1 ? { transform: `scale(${image.scale})` } : undefined}
-          loading="eager"
+          loading={index === 0 ? (initialImageLoading ?? loading) : loading}
+          fetchPriority={index === 0 ? initialImageFetchPriority : undefined}
           quality={quality}
           unoptimized={unoptimized}
-          onLoad={isPending ? () => carousel.markReady(key) : undefined}
+          onLoad={() => {
+            if (isPending) carousel.markReady(key);
+            onImageReady?.(index, key);
+          }}
           onError={isPending ? () => carousel.markReady(key) : undefined}
         />
       </div>

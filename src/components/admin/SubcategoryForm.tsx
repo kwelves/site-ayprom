@@ -118,7 +118,7 @@ export function SubcategoryForm({ mode, categorySlug, categoryName, subcategory 
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Изображение</h2>
           {mode === "edit" && image && (
             <div className="mt-3 flex h-24 w-40 items-center justify-center overflow-hidden rounded-md border border-border bg-muted/40">
-              <Image src={image} alt="" width={160} height={96} className="h-full w-full object-cover" />
+              <Image src={image} alt="" width={160} height={96} unoptimized className="h-full w-full object-cover" />
             </div>
           )}
           {mode === "create" ? (

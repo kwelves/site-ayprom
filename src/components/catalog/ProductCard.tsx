@@ -37,10 +37,13 @@ export function ProductCard({
   product,
   href,
   variant = "default",
+  deferImageLoading = false,
 }: {
   product: ProductListItem;
   href: string;
   variant?: "default" | "category-grid";
+  /** Used for cards below the current product so they cannot compete with its LCP image. */
+  deferImageLoading?: boolean;
 }) {
   const router = useRouter();
   const carousel = usePreparedImageCarousel(product.images);
@@ -127,6 +130,7 @@ export function ProductCard({
             alt={product.name}
             sizes={CARD_IMAGE_SIZES}
             unoptimized
+            loading={deferImageLoading ? "lazy" : undefined}
             layerClassName="absolute inset-0"
             carousel={carousel}
           />
@@ -138,7 +142,7 @@ export function ProductCard({
           </span>
         )}
 
-        {hasMultiple && carousel.neighborIndices.map((neighborIndex) => (
+        {!deferImageLoading && hasMultiple && carousel.neighborIndices.map((neighborIndex) => (
           <GalleryNeighborWarmup
             key={`${product.images[neighborIndex].url}-${neighborIndex}`}
             url={product.images[neighborIndex].url}

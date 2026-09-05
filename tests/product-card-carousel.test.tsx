@@ -33,6 +33,23 @@ const product: ProductListItem = {
 };
 
 describe("ProductCard carousel", () => {
+  it("keeps related-product images lazy and does not issue hidden neighbor warmups", () => {
+    render(<ProductCard product={product} href="/product/test-product" deferImageLoading />);
+
+    expect(document.querySelectorAll('img[aria-hidden="true"]')).toHaveLength(0);
+    for (const image of document.querySelectorAll("img")) {
+      expect(image.getAttribute("loading")).toBe("lazy");
+      expect(image.getAttribute("fetchpriority")).toBeNull();
+    }
+  });
+
+  it("preserves eager loading and neighbor warmup for ordinary catalog cards", () => {
+    render(<ProductCard product={product} href="/product/test-product" />);
+
+    expect(document.querySelector('[data-carousel-layer="committed"] img')?.getAttribute("loading")).toBe("eager");
+    expect(document.querySelectorAll('img[aria-hidden="true"]')).toHaveLength(1);
+  });
+
   it("даёт изображению область 4:3 с инсетом 16px на самой фото-зоне", () => {
     render(<ProductCard product={product} href="/product/test-product" />);
 

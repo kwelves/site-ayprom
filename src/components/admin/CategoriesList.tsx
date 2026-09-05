@@ -59,7 +59,7 @@ export function CategoriesList({ categories: initialCategories, flashSlug, flash
       renderItem={(category) => (
         <div className="grid grid-cols-[4rem_minmax(0,1fr)] items-start gap-x-3 gap-y-3 md:flex md:gap-3">
           <div className="flex h-12 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/40">
-            <Image src={category.image} alt="" width={64} height={48} className="h-full w-full object-cover" />
+            <Image src={category.image} alt="" width={64} height={48} unoptimized className="h-full w-full object-cover" />
           </div>
           <div className="contents md:block md:min-w-0 md:flex-1">
             <div className="min-w-0">
