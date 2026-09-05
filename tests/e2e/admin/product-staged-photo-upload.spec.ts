@@ -32,6 +32,14 @@ import {
  * пустой результат, который затем не открывается оптимизатором картинок.
  * Непрозрачный прямоугольник — минимальный осмысленный вход для этого пути.
  */
+// Настоящее JPEG-фото 1200x900: синтетический PNG соседних проб проверяет
+// ветку PNG -> WebP, а здесь нужен именно JPEG, чтобы мастер сохранился как
+// master.jpg. Файл лежит в фикстурах и хранится в Git рядом с тестом — по той
+// же причине, что и hero-startup.mp4: проверка одинакова в рабочей копии,
+// чистом клоне и CI. Раньше он брался из public/, и удаление уже ненужной
+// картинки каталога молча ломало этот сценарий.
+const PRODUCT_PHOTO_FIXTURE_PATH = path.resolve("tests/e2e/fixtures/product-photo.jpg");
+
 async function buildTestPhoto(): Promise<Buffer> {
   const sharp = (await import("sharp")).default;
   return sharp({
@@ -142,7 +150,7 @@ test("генерирует варианты при загрузке реалис
     // операции, поэтому разрешаем только этот точный POST текущего маршрута.
     browserObserver.allow(allowExpectedNextActionPostAbort(`/admin/products/${slug}/edit`));
     const upload = page.locator("label", { hasText: "Загрузить фото" }).locator('input[type="file"]');
-    await upload.setInputFiles(path.join(process.cwd(), "public", "category-hydraulic-pumps", "1-gear-pumps.jpg"));
+    await upload.setInputFiles(PRODUCT_PHOTO_FIXTURE_PATH);
 
     await expect.poll(async () => (await readOwnedProductImages(slug)).length, { timeout: 30_000 }).toBe(1);
 
