@@ -9,6 +9,12 @@ const SAME_AS = [
   "https://yandex.com/maps/org/ayprom/169874849937/",
 ];
 
+// Как компанию набирают в поиске: кириллицей, латиницей и вперемешку.
+// Латинское «Ayprom Gidravlika» встречается на сайте только внутри домена,
+// поэтому без этой строки связка «ayprom gidravlika» ниоткуда не считывается.
+// Один список на оба узла графа, чтобы они не разъехались.
+const ALTERNATE_NAMES = ["Айпром", "Ayprom Gidravlika", "AYPROM Гидравлика", "Айпром Гидравлика"];
+
 // Воскресенье не указано намеренно: в schema.org закрытый день — это просто
 // отсутствие интервала, а не запись с нулевой длительностью.
 const OPENING_HOURS = [
@@ -32,7 +38,8 @@ export function buildHomeStructuredData(): Record<string, unknown> {
         "@id": `${siteUrl}/#website`,
         url: siteUrl,
         name: "AYPROM",
-        alternateName: ["Айпром", "AYPROM Гидравлика", "Айпром Гидравлика", "ayprom-gidravlika.kg"],
+        // Домен — имя сайта, а не название компании, поэтому он только здесь.
+        alternateName: [...ALTERNATE_NAMES, "ayprom-gidravlika.kg"],
         description: HOME_SEO_DESCRIPTION,
         publisher: { "@id": organizationId },
         inLanguage: "ru-KG",
@@ -42,7 +49,7 @@ export function buildHomeStructuredData(): Record<string, unknown> {
         "@id": organizationId,
         url: siteUrl,
         name: "AYPROM",
-        alternateName: ["Айпром", "AYPROM Гидравлика", "Айпром Гидравлика"],
+        alternateName: ALTERNATE_NAMES,
         description: HOME_SEO_DESCRIPTION,
         logo: {
           "@type": "ImageObject",

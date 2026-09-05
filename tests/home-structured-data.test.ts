@@ -29,7 +29,7 @@ describe("home structured data", () => {
       "@id": "https://www.ayprom-gidravlika.kg/#website",
       url: "https://www.ayprom-gidravlika.kg",
       name: "AYPROM",
-      alternateName: ["Айпром", "AYPROM Гидравлика", "Айпром Гидравлика", "ayprom-gidravlika.kg"],
+      alternateName: ["Айпром", "Ayprom Gidravlika", "AYPROM Гидравлика", "Айпром Гидравлика", "ayprom-gidravlika.kg"],
       description: HOME_SEO_DESCRIPTION,
       publisher: { "@id": "https://www.ayprom-gidravlika.kg/#organization" },
     });
@@ -37,7 +37,7 @@ describe("home structured data", () => {
       "@id": "https://www.ayprom-gidravlika.kg/#organization",
       url: "https://www.ayprom-gidravlika.kg",
       name: "AYPROM",
-      alternateName: ["Айпром", "AYPROM Гидравлика", "Айпром Гидравлика"],
+      alternateName: ["Айпром", "Ayprom Gidravlika", "AYPROM Гидравлика", "Айпром Гидравлика"],
       description: HOME_SEO_DESCRIPTION,
       telephone: "+996500461155",
       contactPoint: {
