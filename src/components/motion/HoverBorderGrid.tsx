@@ -1,10 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { HOVER_BORDER_OVERHANG } from "@/lib/card-system";
-import { DURATION } from "@/lib/motion";
-import { usePrefersReducedMotion } from "@/lib/use-prefers-reduced-motion";
 import { cn } from "@/lib/utils";
 
 // Карточка подключается к сетке своим видимым краем: обёртка с собственным
@@ -13,22 +11,27 @@ import { cn } from "@/lib/utils";
 // Величина выступа — токен дизайн-системы, см. HOVER_BORDER_OVERHANG.
 const ITEM_SELECTOR = "[data-hover-border-item]";
 const POSITION_EPSILON = 0.25;
-
-// Прежняя пружина (`type: "spring", bounce: 0.2, duration: 0.5`) в виде
-// CSS-перехода: та же длительность и такой же лёгкий перелёт в конце, но без
-// рантайма framer-motion на первом экране. Переезд рамки и её появление
-// разведены: перелёт уместен в движении между карточками и неуместен в
-// прозрачности.
-const HIGHLIGHT_MOVE_MS = 500;
-const HIGHLIGHT_MOVE_EASING = "cubic-bezier(0.34, 1.28, 0.62, 1)";
-const HIGHLIGHT_FADE_MS = DURATION.fast * 1000;
-
-interface HighlightRect {
+export interface HighlightRect {
   x: number;
   y: number;
   width: number;
   height: number;
   instant: boolean;
+}
+
+type HighlightRenderer = React.ComponentType<{ highlight: HighlightRect | null }>;
+let highlightRendererPromise: Promise<HighlightRenderer> | null = null;
+
+function loadHighlightRenderer(): Promise<HighlightRenderer> {
+  if (!highlightRendererPromise) {
+    highlightRendererPromise = import("@/components/motion/HoverBorderHighlight")
+      .then((module) => module.HoverBorderHighlight)
+      .catch((error) => {
+        highlightRendererPromise = null;
+        throw error;
+      });
+  }
+  return highlightRendererPromise;
 }
 
 interface HoverBorderGridProps {
@@ -64,23 +67,40 @@ export function HoverBorderGrid({ children, className }: HoverBorderGridProps) {
   const activeItemRef = useRef<HTMLElement | null>(null);
   const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
   const frameRef = useRef<number | null>(null);
-  // Видима ли рамка прямо сейчас. Нужен именно ref: решение «переезжать или
-  // появиться на месте» принимается внутри обработчика указателя, до того как
-  // React применит новое состояние.
-  const visibleRef = useRef(false);
   const [activeItem, setActiveItem] = useState<HTMLElement | null>(null);
   const [highlight, setHighlight] = useState<HighlightRect | null>(null);
-  // Рамка не размонтируется вместе с уходом курсора: она гасится прозрачностью,
-  // чтобы уход оставался плавным, как раньше с AnimatePresence.
-  const [visible, setVisible] = useState(false);
-  const shouldReduceMotion = usePrefersReducedMotion();
+  const [HighlightRenderer, setHighlightRenderer] = useState<HighlightRenderer | null>(null);
+
+  const requestHighlightRenderer = useCallback(() => {
+    void loadHighlightRenderer()
+      .then((Renderer) => setHighlightRenderer(() => Renderer))
+      .catch(() => {
+        // Карточки остаются полностью рабочими без декоративной подсветки;
+        // следующая встреча указателя повторит загрузку чанка.
+      });
+  }, []);
+
+  useEffect(() => {
+    if (HighlightRenderer) return;
+    // Лабораторные измерения не получают пользовательского ввода, поэтому
+    // Framer не возвращается в первоначальную загрузку страницы. У реального
+    // пользователя первое движение мыши прогревает чанк задолго до того, как
+    // курсор доберётся до карточек; touch/pen декоративная рамка не нужна.
+    const warmOnMouseMove = (event: PointerEvent) => {
+      if (event.pointerType === "mouse") {
+        requestHighlightRenderer();
+        window.removeEventListener("pointermove", warmOnMouseMove);
+      }
+    };
+    window.addEventListener("pointermove", warmOnMouseMove, { passive: true });
+    return () => window.removeEventListener("pointermove", warmOnMouseMove);
+  }, [HighlightRenderer, requestHighlightRenderer]);
 
   const clearHighlight = useCallback(() => {
     activeItemRef.current = null;
     lastPointerRef.current = null;
-    visibleRef.current = false;
     setActiveItem(null);
-    setVisible(false);
+    setHighlight(null);
   }, []);
 
   const measureItem = useCallback((item: HTMLElement, instant: boolean) => {
@@ -104,17 +124,11 @@ export function HoverBorderGrid({ children, className }: HoverBorderGridProps) {
   }, [clearHighlight]);
 
   const activateItem = useCallback((item: HTMLElement, instant: boolean) => {
-    // Повторное появление после полного ухода — не переезд: рамка обязана
-    // возникнуть сразу на новой карточке и проявиться там, иначе погашенный
-    // прямоугольник поехал бы через всю сетку и «проявился на лету».
-    const appearing = !visibleRef.current;
     if (activeItemRef.current !== item) {
       activeItemRef.current = item;
       setActiveItem(item);
     }
-    visibleRef.current = true;
-    setVisible(true);
-    measureItem(item, instant || appearing);
+    measureItem(item, instant);
   }, [measureItem]);
 
   const syncToPointer = useCallback(() => {
@@ -173,6 +187,7 @@ export function HoverBorderGrid({ children, className }: HoverBorderGridProps) {
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.pointerType !== "mouse") return;
+    if (!HighlightRenderer) requestHighlightRenderer();
     const container = containerRef.current;
     if (!container) return;
 
@@ -182,26 +197,12 @@ export function HoverBorderGrid({ children, className }: HoverBorderGridProps) {
       clearHighlight();
       return;
     }
-    if (activeItemRef.current !== item || !visibleRef.current) activateItem(item, false);
+    if (activeItemRef.current !== item) activateItem(item, false);
   };
 
   const handlePointerLeave = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.pointerType === "mouse") clearHighlight();
   };
-
-  const moveMs = shouldReduceMotion || highlight?.instant ? 0 : HIGHLIGHT_MOVE_MS;
-  const fadeMs = shouldReduceMotion ? 0 : HIGHLIGHT_FADE_MS;
-  const highlightStyle: CSSProperties | null = highlight
-    ? {
-        transform: `translate3d(${highlight.x}px, ${highlight.y}px, 0)`,
-        width: highlight.width,
-        height: highlight.height,
-        opacity: visible ? 1 : 0,
-        transitionProperty: "transform, width, height, opacity",
-        transitionDuration: `${moveMs}ms, ${moveMs}ms, ${moveMs}ms, ${fadeMs}ms`,
-        transitionTimingFunction: `${HIGHLIGHT_MOVE_EASING}, ${HIGHLIGHT_MOVE_EASING}, ${HIGHLIGHT_MOVE_EASING}, ease-out`,
-      }
-    : null;
 
   return (
     <div
@@ -212,15 +213,7 @@ export function HoverBorderGrid({ children, className }: HoverBorderGridProps) {
       onPointerMove={handlePointerMove}
       onPointerLeave={handlePointerLeave}
     >
-      {highlightStyle && (
-        <span
-          data-hover-border-highlight
-          data-hover-border-visible={String(visible)}
-          aria-hidden="true"
-          className="pointer-events-none absolute top-0 left-0 z-0 block rounded-2xl bg-card-hover-highlight"
-          style={highlightStyle}
-        />
-      )}
+      {HighlightRenderer && <HighlightRenderer highlight={highlight} />}
 
       <div className="relative z-10">{children}</div>
     </div>

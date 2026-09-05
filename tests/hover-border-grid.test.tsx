@@ -5,6 +5,32 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HoverBorderGrid } from "@/components/motion/HoverBorderGrid";
 import { HOVER_BORDER_OVERHANG } from "@/lib/card-system";
 
+const motionState = vi.hoisted(() => ({ reduced: false }));
+
+interface MotionSpanProps extends React.ComponentProps<"span"> {
+  initial?: unknown;
+  animate?: unknown;
+  exit?: unknown;
+  transition?: unknown;
+}
+
+vi.mock("framer-motion", () => ({
+  AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
+  useReducedMotion: () => motionState.reduced,
+  motion: {
+    span: ({ initial, animate, exit, transition, ...props }: MotionSpanProps) => (
+      <span
+        {...props}
+        data-testid="hover-border-highlight"
+        data-motion-initial={JSON.stringify(initial)}
+        data-motion-animate={JSON.stringify(animate)}
+        data-motion-exit={JSON.stringify(exit)}
+        data-motion-transition={JSON.stringify(transition)}
+      />
+    ),
+  },
+}));
+
 type RectInput = Pick<DOMRect, "left" | "top" | "width" | "height">;
 
 function domRect({ left, top, width, height }: RectInput): DOMRect {
@@ -25,37 +51,8 @@ function setRect(element: Element, read: () => RectInput) {
   vi.spyOn(element, "getBoundingClientRect").mockImplementation(() => domRect(read()));
 }
 
-/** Длительности перехода в порядке transform, width, height, opacity. */
-function durations(element: Element): number[] {
-  const value = (element as HTMLElement).style.transitionDuration;
-  return value.split(",").map((part) => Number.parseFloat(part.trim()));
-}
-
-function geometry(element: Element) {
-  const style = (element as HTMLElement).style;
-  return {
-    transform: style.transform,
-    width: style.width,
-    height: style.height,
-    opacity: style.opacity,
-  };
-}
-
-function setReducedMotion(reduced: boolean) {
-  Object.defineProperty(window, "matchMedia", {
-    configurable: true,
-    writable: true,
-    value: (query: string) => ({
-      matches: reduced && query.includes("prefers-reduced-motion"),
-      media: query,
-      addEventListener: () => undefined,
-      removeEventListener: () => undefined,
-      addListener: () => undefined,
-      removeListener: () => undefined,
-      onchange: null,
-      dispatchEvent: () => false,
-    }),
-  });
+function jsonAttribute<T>(element: Element, name: string): T {
+  return JSON.parse(element.getAttribute(name) ?? "null") as T;
 }
 
 function TestGrid({ withThird = false }: { withThird?: boolean }) {
@@ -82,7 +79,7 @@ let queuedFrame: FrameRequestCallback | null;
 let resizeCallback: ResizeObserverCallback | null;
 
 beforeEach(() => {
-  setReducedMotion(false);
+  motionState.reduced = false;
   queuedFrame = null;
   resizeCallback = null;
   class PointerEventMock extends MouseEvent {
@@ -121,14 +118,13 @@ afterEach(() => {
 });
 
 describe("HoverBorderGrid", () => {
-  it("рисует одну подложку и переносит её между карточками CSS-переходом", () => {
+  it("рисует одну подложку с геометрией и пружиной текущей сетки Каталога", async () => {
     const view = render(<TestGrid />);
     const grid = view.container.querySelector("[data-hover-border-grid]");
     const first = view.getByTestId("one");
     const second = view.getByTestId("two");
 
     expect(grid).not.toBeNull();
-    expect(view.container.querySelector("[data-hover-border-highlight]")).toBeNull();
     setRect(grid!, () => ({ left: 100, top: 50, width: 700, height: 500 }));
     setRect(first, () => ({ left: 120, top: 90, width: 200, height: 120 }));
     setRect(second, () => ({ left: 350, top: 90, width: 180, height: 150 }));
@@ -139,36 +135,36 @@ describe("HoverBorderGrid", () => {
       clientY: 100,
     });
 
-    const highlight = view.container.querySelector("[data-hover-border-highlight]");
-    expect(highlight).not.toBeNull();
-    expect(highlight?.getAttribute("aria-hidden")).toBe("true");
-    // Первое появление — на месте: подложка не приезжает через всю сетку.
-    expect(durations(highlight!)[0]).toBe(0);
-    expect(geometry(highlight!)).toEqual({
-      transform: `translate3d(${20 - HOVER_BORDER_OVERHANG}px, ${40 - HOVER_BORDER_OVERHANG}px, 0)`,
-      width: `${200 + HOVER_BORDER_OVERHANG * 2}px`,
-      height: `${120 + HOVER_BORDER_OVERHANG * 2}px`,
-      opacity: "1",
+    const firstHighlight = await view.findByTestId("hover-border-highlight");
+    expect(firstHighlight).not.toBeNull();
+    expect(jsonAttribute(firstHighlight!, "data-motion-animate")).toEqual({
+      opacity: 1,
+      x: 20 - HOVER_BORDER_OVERHANG,
+      y: 40 - HOVER_BORDER_OVERHANG,
+      width: 200 + HOVER_BORDER_OVERHANG * 2,
+      height: 120 + HOVER_BORDER_OVERHANG * 2,
+    });
+    expect(jsonAttribute(firstHighlight!, "data-motion-transition")).toEqual({
+      type: "spring",
+      bounce: 0.2,
+      duration: 0.5,
     });
 
     fireEvent.pointerMove(second, { pointerType: "mouse", clientX: 370, clientY: 100 });
 
-    const moved = view.container.querySelector("[data-hover-border-highlight]");
-    expect(moved).toBe(highlight);
+    const secondHighlight = view.container.querySelector("[data-hover-border-highlight]");
+    expect(secondHighlight).toBe(firstHighlight);
     expect(view.container.querySelectorAll("[data-hover-border-highlight]")).toHaveLength(1);
-    expect(geometry(moved!)).toEqual({
-      transform: `translate3d(${250 - HOVER_BORDER_OVERHANG}px, ${40 - HOVER_BORDER_OVERHANG}px, 0)`,
-      width: `${180 + HOVER_BORDER_OVERHANG * 2}px`,
-      height: `${150 + HOVER_BORDER_OVERHANG * 2}px`,
-      opacity: "1",
+    expect(jsonAttribute(secondHighlight!, "data-motion-animate")).toEqual({
+      opacity: 1,
+      x: 250 - HOVER_BORDER_OVERHANG,
+      y: 40 - HOVER_BORDER_OVERHANG,
+      width: 180 + HOVER_BORDER_OVERHANG * 2,
+      height: 150 + HOVER_BORDER_OVERHANG * 2,
     });
-    // Переезд между карточками — уже с движением.
-    expect(durations(moved!).slice(0, 3)).toEqual([500, 500, 500]);
 
     fireEvent.pointerLeave(grid!, { pointerType: "mouse" });
-    const leaving = view.container.querySelector("[data-hover-border-highlight]");
-    expect(leaving).toBe(highlight);
-    expect((leaving as HTMLElement).style.opacity).toBe("0");
+    expect(view.container.querySelector("[data-hover-border-highlight]")).toBeNull();
   });
 
   it("не включает hover для touch и pen", () => {
@@ -184,25 +180,20 @@ describe("HoverBorderGrid", () => {
     expect(view.container.querySelector("[data-hover-border-highlight]")).toBeNull();
   });
 
-  it("синхронизирует подложку без запаздывания после resize, layout shift и scroll", () => {
+  it("синхронизирует подложку без пружинного запаздывания после resize, layout shift и scroll", async () => {
     const view = render(<TestGrid />);
     const grid = view.container.querySelector("[data-hover-border-grid]")!;
     const first = view.getByTestId("one");
-    const second = view.getByTestId("two");
     const firstRect = { left: 20, top: 30, width: 100, height: 80 };
     setRect(grid, () => ({ left: 0, top: 0, width: 500, height: 300 }));
     setRect(first, () => firstRect);
-    setRect(second, () => ({ left: 300, top: 30, width: 100, height: 80 }));
     Object.defineProperty(document, "elementFromPoint", {
       configurable: true,
       value: vi.fn(() => first),
     });
 
-    // Сначала переезд между карточками, чтобы подложка была «в движении».
-    fireEvent.pointerMove(second, { pointerType: "mouse", clientX: 320, clientY: 50 });
     fireEvent.pointerMove(first, { pointerType: "mouse", clientX: 40, clientY: 50 });
-    expect(durations(view.container.querySelector("[data-hover-border-highlight]")!)[0]).toBe(500);
-
+    await view.findByTestId("hover-border-highlight");
     firstRect.left = 70;
     firstRect.top = 90;
     act(() => resizeCallback?.([], {} as ResizeObserver));
@@ -215,10 +206,8 @@ describe("HoverBorderGrid", () => {
     });
 
     const highlight = view.container.querySelector("[data-hover-border-highlight]")!;
-    expect((highlight as HTMLElement).style.transform).toBe(
-      `translate3d(${70 - HOVER_BORDER_OVERHANG}px, ${90 - HOVER_BORDER_OVERHANG}px, 0)`,
-    );
-    expect(durations(highlight)).toEqual([0, 0, 0, 150]);
+    expect(jsonAttribute(highlight, "data-motion-animate")).toMatchObject({ x: 70 - HOVER_BORDER_OVERHANG, y: 90 - HOVER_BORDER_OVERHANG });
+    expect(jsonAttribute(highlight, "data-motion-transition")).toEqual({ duration: 0 });
 
     firstRect.left = 110;
     fireEvent.scroll(window);
@@ -227,12 +216,10 @@ describe("HoverBorderGrid", () => {
       queuedFrame = null;
       callback?.(0);
     });
-    expect((highlight as HTMLElement).style.transform).toBe(
-      `translate3d(${110 - HOVER_BORDER_OVERHANG}px, ${90 - HOVER_BORDER_OVERHANG}px, 0)`,
-    );
+    expect(jsonAttribute(highlight, "data-motion-animate")).toMatchObject({ x: 110 - HOVER_BORDER_OVERHANG, y: 90 - HOVER_BORDER_OVERHANG });
   });
 
-  it("автоматически принимает карточки, добавленные после первого рендера", () => {
+  it("автоматически принимает карточки, добавленные после первого рендера", async () => {
     const view = render(<TestGrid />);
     view.rerender(<TestGrid withThird />);
     const grid = view.container.querySelector("[data-hover-border-grid]")!;
@@ -242,32 +229,19 @@ describe("HoverBorderGrid", () => {
 
     fireEvent.pointerMove(third, { pointerType: "mouse", clientX: 270, clientY: 190 });
 
+    await view.findByTestId("hover-border-highlight");
+
     const highlight = view.container.querySelector("[data-hover-border-highlight]")!;
-    expect(geometry(highlight)).toMatchObject({
-      transform: `translate3d(${250 - HOVER_BORDER_OVERHANG}px, ${170 - HOVER_BORDER_OVERHANG}px, 0)`,
-      width: `${140 + HOVER_BORDER_OVERHANG * 2}px`,
-      height: `${90 + HOVER_BORDER_OVERHANG * 2}px`,
+    expect(jsonAttribute(highlight, "data-motion-animate")).toMatchObject({
+      x: 250 - HOVER_BORDER_OVERHANG,
+      y: 170 - HOVER_BORDER_OVERHANG,
+      width: 140 + HOVER_BORDER_OVERHANG * 2,
+      height: 90 + HOVER_BORDER_OVERHANG * 2,
     });
   });
 
-  it("убирает движение при prefers-reduced-motion", () => {
-    setReducedMotion(true);
-    const view = render(<TestGrid />);
-    const grid = view.container.querySelector("[data-hover-border-grid]")!;
-    const first = view.getByTestId("one");
-    const second = view.getByTestId("two");
-    setRect(grid, () => ({ left: 0, top: 0, width: 500, height: 300 }));
-    setRect(first, () => ({ left: 10, top: 10, width: 100, height: 100 }));
-    setRect(second, () => ({ left: 200, top: 10, width: 100, height: 100 }));
-
-    fireEvent.pointerMove(first, { pointerType: "mouse", clientX: 20, clientY: 20 });
-    fireEvent.pointerMove(second, { pointerType: "mouse", clientX: 220, clientY: 20 });
-
-    const highlight = view.container.querySelector("[data-hover-border-highlight]")!;
-    expect(durations(highlight)).toEqual([0, 0, 0, 0]);
-  });
-
-  it("подложка не перехватывает события указателя", () => {
+  it("убирает пространственную анимацию при prefers-reduced-motion", async () => {
+    motionState.reduced = true;
     const view = render(<TestGrid />);
     const grid = view.container.querySelector("[data-hover-border-grid]")!;
     const first = view.getByTestId("one");
@@ -276,7 +250,13 @@ describe("HoverBorderGrid", () => {
 
     fireEvent.pointerMove(first, { pointerType: "mouse", clientX: 20, clientY: 20 });
 
+    await view.findByTestId("hover-border-highlight");
+
     const highlight = view.container.querySelector("[data-hover-border-highlight]")!;
-    expect(highlight.className).toContain("pointer-events-none");
+    expect(jsonAttribute(highlight, "data-motion-transition")).toEqual({ duration: 0 });
+    expect(jsonAttribute(highlight, "data-motion-exit")).toEqual({
+      opacity: 0,
+      transition: { duration: 0 },
+    });
   });
 });

@@ -37,7 +37,10 @@ describe("единый hover-border публичных карточек", () => 
     expect(read("src/app/globals.css")).toContain(
       "--color-card-edge: color-mix(in oklab, var(--color-primary) 25%, transparent);",
     );
-    const component = read("src/components/motion/HoverBorderGrid.tsx");
+    const component = [
+      read("src/components/motion/HoverBorderGrid.tsx"),
+      read("src/components/motion/HoverBorderHighlight.tsx"),
+    ].join("\n");
     expect(component).toContain("bg-card-hover-highlight");
     expect(component).not.toContain("bg-primary/25");
   });
