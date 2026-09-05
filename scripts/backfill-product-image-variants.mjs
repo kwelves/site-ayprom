@@ -1,21 +1,30 @@
 /**
- * Досчитывает WebP-варианты (thumbnail 640×480/q72, gallery до 1600/q82) для уже
- * загруженных товарных фотографий.
+ * Приводит WebP-варианты (thumbnail 640×480/q72, gallery до 1600/q82) уже
+ * загруженных товарных фотографий в актуальное состояние. Два режима:
  *
- * Строки, у которых варианты уже заполнены, пропускаются, поэтому скрипт
- * безопасно перезапускать. Оригиналы (product_images.url) не удаляются и не
- * изменяются — это цель отката и гарантия того, что повторный прогон всегда
- * возможен.
+ *   без флага      дозаполняет строки, у которых вариантов ещё нет;
+ *   --regenerate   пересчитывает thumbnail тех строк, чей вариант остался на
+ *                  прежней версии профиля обработки.
+ *
+ * Разделение существенное: первый режим ищет `thumbnail_url IS NULL`, поэтому
+ * уже обработанные строки он не видит и сам по себе обновить существующие
+ * превью не может. При смене геометрии карточки нужен именно --regenerate.
+ *
+ * Оба режима безопасно перезапускать, и ни один не трогает оригиналы
+ * (product_images.url) — это цель отката и гарантия повторного прогона.
+ * --regenerate не удаляет и прежний вариант: вернуть ссылку можно одним
+ * UPDATE, а отданные браузерам URL закешированы на год.
  *
  * Обработка идёт той же функцией, что и загрузка новых фото через админку
- * (src/lib/admin/product-image-variants.core.mjs), поэтому backfill и
- * рантайм не могут разойтись в параметрах.
+ * (src/lib/admin/product-image-variants.core.mjs), поэтому скрипт и рантайм
+ * не могут разойтись в параметрах.
  *
  * По умолчанию — только dry-run. Для записи нужны ОБА флага:
  *   node scripts/backfill-product-image-variants.mjs \
  *     --apply --confirm-project-ref=<ref>
  *
  * Полезные флаги:
+ *   --regenerate    переснять thumbnail под текущую версию профиля
  *   --limit=N       обработать не более N строк (canary-прогон)
  *   --batch=N       размер страницы выборки (по умолчанию 25)
  *   --concurrency=N сколько фотографий обрабатывать параллельно (по умолчанию 2)
@@ -28,6 +37,8 @@ import { promises as fs } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import {
   generateProductImageVariants,
+  generateProductThumbnailVariant,
+  THUMBNAIL_VARIANT,
   VARIANT_UPLOAD_OPTIONS,
 } from "../src/lib/admin/product-image-variants.core.mjs";
 import {
@@ -37,6 +48,7 @@ import {
   projectRefFromUrl,
   STORAGE_BUCKET as BUCKET,
   storagePathFromPublicUrl,
+  variantProfileMarker,
 } from "../src/lib/admin/product-image-backfill.core.mjs";
 
 const RETRY_BASE_DELAY_MS = 400;
@@ -65,7 +77,88 @@ async function uploadVariant(supabase, variant) {
   throw error;
 }
 
+/**
+ * Пересъёмка thumbnail уже обработанной строки под текущий профиль.
+ *
+ * Gallery не трогается: её параметры не менялись. Обновление условное — по
+ * прежнему значению thumbnail_url, поэтому если параллельно прошла админка и
+ * перезалила фото, строка остаётся её, а не наша.
+ *
+ * Старый объект в Storage не удаляется: он остаётся целью отката (вернуть
+ * ссылку можно одним UPDATE), а отданные браузерам URL закешированы на год.
+ */
+async function regenerateRow(row, context) {
+  const { supabase, supabaseUrl, dryRun } = context;
+
+  const masterPath = storagePathFromPublicUrl(row.url, supabaseUrl);
+  if (!masterPath) {
+    return { id: row.id, status: "skipped", reason: "url вне ожидаемого Supabase/bucket", bytesIn: 0, bytesOut: 0 };
+  }
+
+  const download = await withRetry(async () => {
+    const result = await supabase.storage.from(BUCKET).download(masterPath);
+    if (result.error) throw result.error;
+    return result.data;
+  }, `скачивание ${masterPath}`);
+
+  const master = Buffer.from(await download.arrayBuffer());
+
+  let thumbnail;
+  try {
+    ({ thumbnail } = await generateProductThumbnailVariant(master, {
+      productSlug: row.product_slug,
+      imageId: row.id,
+    }));
+  } catch (error) {
+    return { id: row.id, status: "error", reason: error.message, bytesIn: master.byteLength, bytesOut: 0 };
+  }
+
+  if (dryRun) {
+    return {
+      id: row.id,
+      status: "would-write",
+      bytesIn: master.byteLength,
+      bytesOut: thumbnail.bytes,
+      thumbnailPath: thumbnail.path,
+      previousThumbnailUrl: row.thumbnail_url,
+    };
+  }
+
+  await withRetry(() => uploadVariant(supabase, thumbnail), `загрузка ${thumbnail.path}`);
+
+  const publicUrl = supabase.storage.from(BUCKET).getPublicUrl(thumbnail.path).data.publicUrl;
+  const { data: updated, error: updateError } = await supabase
+    .from("product_images")
+    .update({ thumbnail_url: publicUrl })
+    .eq("id", row.id)
+    .eq("url", row.url)
+    .eq("thumbnail_url", row.thumbnail_url)
+    .select("id");
+  if (updateError) throw updateError;
+
+  if (!updated || updated.length === 0) {
+    return {
+      id: row.id,
+      status: "conflict",
+      reason: "строка изменилась во время обработки",
+      bytesIn: master.byteLength,
+      bytesOut: thumbnail.bytes,
+    };
+  }
+
+  return {
+    id: row.id,
+    status: "done",
+    bytesIn: master.byteLength,
+    bytesOut: thumbnail.bytes,
+    thumbnailPath: thumbnail.path,
+    previousThumbnailUrl: row.thumbnail_url,
+  };
+}
+
 async function processRow(row, context) {
+  if (context.regenerate) return regenerateRow(row, context);
+
   const { supabase, supabaseUrl, dryRun } = context;
 
   const masterPath = storagePathFromPublicUrl(row.url, supabaseUrl);
@@ -184,13 +277,16 @@ async function main() {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
+  const mode = options.regenerate
+    ? `перегенерация thumbnail под профиль ${THUMBNAIL_VARIANT.profileVersion}`
+    : "дозаполнение недостающих вариантов";
   console.log(
     dryRun
-      ? `DRY RUN (записи не будет). Проект: ${projectRef}`
-      : `ЗАПИСЬ включена. Проект: ${projectRef}`,
+      ? `DRY RUN (записи не будет). Режим: ${mode}. Проект: ${projectRef}`
+      : `ЗАПИСЬ включена. Режим: ${mode}. Проект: ${projectRef}`,
   );
 
-  const context = { supabase, supabaseUrl, dryRun, concurrency: options.concurrency };
+  const context = { supabase, supabaseUrl, dryRun, regenerate: options.regenerate, concurrency: options.concurrency };
   const totals = { total: 0, done: 0, wouldWrite: 0, skipped: 0, errors: 0, conflicts: 0, bytesIn: 0, bytesOut: 0 };
   const jsonlLines = [];
   // Keyset pagination вместо offset: в apply-режиме успешно обработанные
@@ -208,18 +304,33 @@ async function main() {
 
     let query = supabase
       .from("product_images")
-      .select("id, url, products(slug)")
-      .is("thumbnail_url", null)
-      .is("gallery_url", null)
+      .select("id, url, thumbnail_url, products(slug)")
       .order("id")
       .limit(pageSize);
+
+    if (options.regenerate) {
+      // Всё, что уже имеет thumbnail, но не на актуальной версии профиля.
+      // NULL сюда не попадает (NULL NOT LIKE ... даёт NULL) — такие строки
+      // остаются задачей обычного backfill-режима.
+      query = query
+        .not("thumbnail_url", "is", null)
+        .not("thumbnail_url", "like", `%${variantProfileMarker(THUMBNAIL_VARIANT)}%`);
+    } else {
+      query = query.is("thumbnail_url", null).is("gallery_url", null);
+    }
+
     if (lastSeenId) query = query.gt("id", lastSeenId);
 
     const { data, error } = await query;
     if (error) throw error;
     if (!data || data.length === 0) break;
 
-    const rows = data.map((row) => ({ id: row.id, url: row.url, product_slug: row.products?.slug }));
+    const rows = data.map((row) => ({
+      id: row.id,
+      url: row.url,
+      thumbnail_url: row.thumbnail_url,
+      product_slug: row.products?.slug,
+    }));
     const missingSlug = rows.filter((row) => !row.product_slug);
     for (const row of missingSlug) {
       jsonlLines.push(JSON.stringify({ id: row.id, status: "skipped", reason: "не найден slug товара" }));

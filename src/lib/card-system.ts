@@ -27,6 +27,17 @@ export const CARD_GRID_GAP_CLASSNAME = "gap-4 sm:gap-5 lg:gap-6";
  */
 export const CARD_MEDIA_INSET_CLASSNAME = "p-4";
 
+/**
+ * На сколько подсветка hover-border выступает за видимый край карточки.
+ *
+ * Живёт здесь, а не в самом HoverBorderGrid: это такой же токен системы, как
+ * зазор и инсет, и связан с ними числом — при минимальном зазоре между
+ * подсветками соседних карточек остаётся `CARD_GRID_GAP.base − 6·2 = 4px`,
+ * то есть они не смыкаются. Модуль без React, поэтому константу одинаково
+ * видят и компонент, и unit-тесты, и Playwright.
+ */
+export const HOVER_BORDER_OVERHANG = 6;
+
 /** Рамка карточки: одна на товары, категории, бренды и контакты. */
 export const CARD_FRAME_CLASSNAME = "rounded-xl border border-card-edge bg-card";
 

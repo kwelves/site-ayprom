@@ -6,6 +6,7 @@ import {
   createOwnedCatalogFixture,
   type OwnedCatalogFixture,
 } from "../support/local-products";
+import { HOVER_BORDER_OVERHANG } from "@/lib/card-system";
 import { stubLocalHeroVideo } from "../support/media";
 
 test.describe.configure({ mode: "serial" });
@@ -35,11 +36,13 @@ async function hoverBorderAlignmentError(card: Locator, highlight: Locator): Pro
   const [cardBox, highlightBox] = await Promise.all([card.boundingBox(), highlight.boundingBox()]);
   if (!cardBox || !highlightBox) return Number.POSITIVE_INFINITY;
 
+  // Выступ берётся из токена дизайн-системы, а не зашивается числом: иначе
+  // изменение halo валит этот тест уже в CI, а не на unit-прогоне.
   return Math.max(
-    Math.abs(cardBox.x - highlightBox.x - 5),
-    Math.abs(cardBox.y - highlightBox.y - 5),
-    Math.abs(highlightBox.width - cardBox.width - 10),
-    Math.abs(highlightBox.height - cardBox.height - 10),
+    Math.abs(cardBox.x - highlightBox.x - HOVER_BORDER_OVERHANG),
+    Math.abs(cardBox.y - highlightBox.y - HOVER_BORDER_OVERHANG),
+    Math.abs(highlightBox.width - cardBox.width - HOVER_BORDER_OVERHANG * 2),
+    Math.abs(highlightBox.height - cardBox.height - HOVER_BORDER_OVERHANG * 2),
   );
 }
 

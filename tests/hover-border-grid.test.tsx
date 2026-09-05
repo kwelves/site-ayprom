@@ -2,7 +2,8 @@
 
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { HOVER_BORDER_OVERHANG, HoverBorderGrid } from "@/components/motion/HoverBorderGrid";
+import { HoverBorderGrid } from "@/components/motion/HoverBorderGrid";
+import { HOVER_BORDER_OVERHANG } from "@/lib/card-system";
 
 const motionState = vi.hoisted(() => ({ reduced: false }));
 

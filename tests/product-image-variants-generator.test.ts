@@ -3,6 +3,7 @@ import sharp from "sharp";
 import {
   buildVariantPath,
   generateProductImageVariants,
+  generateProductThumbnailVariant,
   GALLERY_VARIANT,
   PRODUCT_IMAGE_VARIANTS,
   ProductImageVariantError,
@@ -254,5 +255,40 @@ describe("generateProductImageVariants", () => {
       quality: 72,
     });
     expect(GALLERY_VARIANT).toMatchObject({ profileVersion: "v1", maxSide: 1600, quality: 82 });
+  });
+});
+
+describe("generateProductThumbnailVariant", () => {
+  it("даёт тот же thumbnail, что и полный проход, но без gallery", async () => {
+    // Перегенерация существующих фото считает только thumbnail. Если бы
+    // короткий путь расходился с полным, у переснятых карточек оказалась бы
+    // не та геометрия, что у загруженных через админку.
+    const master = await jpeg(1600, 1200);
+
+    const full = await generateProductImageVariants(master, target);
+    const only = await generateProductThumbnailVariant(master, target);
+
+    expect(only.thumbnail.hash).toBe(full.thumbnail.hash);
+    expect(only.thumbnail.path).toBe(full.thumbnail.path);
+    expect(only.thumbnail.bytes).toBe(full.thumbnail.bytes);
+    expect(only).not.toHaveProperty("gallery");
+    expect(await sharp(only.thumbnail.body).metadata()).toMatchObject({
+      format: "webp",
+      width: THUMBNAIL_VARIANT.width,
+      height: THUMBNAIL_VARIANT.height,
+    });
+  });
+
+  it("требует slug и id так же строго, как полный генератор", async () => {
+    const master = await jpeg(640, 480);
+
+    // Пустые значения, а не отсутствующие ключи: путь варианта строится из
+    // обоих, и пустая строка так же ломает его, как и undefined.
+    await expect(
+      generateProductThumbnailVariant(master, { productSlug: "", imageId: "id" }),
+    ).rejects.toBeInstanceOf(ProductImageVariantError);
+    await expect(
+      generateProductThumbnailVariant(master, { productSlug: "pump", imageId: "" }),
+    ).rejects.toBeInstanceOf(ProductImageVariantError);
   });
 });

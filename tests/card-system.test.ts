@@ -3,6 +3,7 @@ import {
   CARD_GRID_GAP,
   CARD_GRID_GAP_CLASSNAME,
   getCardGridSizing,
+  HOVER_BORDER_OVERHANG,
 } from "@/lib/card-system";
 
 /** `gap-4` = 16px, `gap-5` = 20px, `gap-6` = 24px — шкала Tailwind: N * 4px. */
@@ -45,5 +46,16 @@ describe("дизайн-система карточных сеток", () => {
   it("одна карточка не растягивается на весь ряд", () => {
     expect(getCardGridSizing(1).itemClassName).toBe(getCardGridSizing(2).itemClassName);
     expect(getCardGridSizing(1).containerClassName).toContain("max-w-3xl");
+  });
+});
+
+describe("halo hover-border", () => {
+  it("не смыкается с подсветкой соседней карточки на самом плотном зазоре", () => {
+    // Подсветки соседей выступают навстречу друг другу, поэтому съедают
+    // удвоенный halo. Если этот запас уйдёт в ноль, на телефоне подсветки
+    // сольются в одно пятно.
+    const narrowest = Math.min(CARD_GRID_GAP.base, CARD_GRID_GAP.sm, CARD_GRID_GAP.lg);
+
+    expect(HOVER_BORDER_OVERHANG * 2).toBeLessThan(narrowest);
   });
 });

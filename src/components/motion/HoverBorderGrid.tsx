@@ -3,18 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { HOVER_BORDER_OVERHANG } from "@/lib/card-system";
 import { DURATION } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
+// Карточка подключается к сетке своим видимым краем: обёртка с собственным
+// padding между `data-hover-border-item` и рамкой раздула бы halo, потому что
+// подсветка меряется по прямоугольнику самого элемента с этим атрибутом.
+// Величина выступа — токен дизайн-системы, см. HOVER_BORDER_OVERHANG.
 const ITEM_SELECTOR = "[data-hover-border-item]";
-/**
- * На сколько подсветка выступает за край карточки. Значение системное: при
- * минимальном зазоре сетки (CARD_GRID_GAP.base = 16px) между подсветками
- * соседних карточек остаётся 16 − 6·2 = 4px, то есть они не смыкаются.
- * Карточка подключается к сетке своим видимым краем — обёртка с padding
- * между `data-hover-border-item` и рамкой раздула бы halo именно здесь.
- */
-export const HOVER_BORDER_OVERHANG = 6;
 const POSITION_EPSILON = 0.25;
 const HOVER_TRANSITION = { type: "spring", bounce: 0.2, duration: 0.5 } as const;
 

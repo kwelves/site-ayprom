@@ -196,6 +196,39 @@ async function encodeThumbnailVariant(masterBuffer, variant, source) {
   }
 }
 
+/** Готовое описание варианта: имя файла — хеш содержимого, поэтому путь
+ * однозначно определяется байтами и никогда не перезаписывается. */
+function describeVariant(variant, body, productSlug, imageId) {
+  const hash = contentHash(body);
+  return {
+    name: variant.name,
+    body,
+    hash,
+    path: buildVariantPath(productSlug, imageId, variant.name, hash),
+    bytes: body.byteLength,
+  };
+}
+
+function assertVariantTarget({ productSlug, imageId }) {
+  if (!productSlug) throw new ProductImageVariantError("Не передан slug товара для пути варианта.");
+  if (!imageId) throw new ProductImageVariantError("Не передан id изображения для пути варианта.");
+}
+
+/**
+ * Считает только thumbnail — для перегенерации уже загруженных фотографий
+ * под новый профиль карточки. Gallery при этом не трогается: её параметры не
+ * менялись, пересчёт дал бы те же байты и тот же путь, а лишний проход по
+ * стороне 1600px стоит заметно дороже самого thumbnail.
+ */
+export async function generateProductThumbnailVariant(masterBuffer, { productSlug, imageId }) {
+  assertVariantTarget({ productSlug, imageId });
+
+  const source = await readSourceMetadata(masterBuffer);
+  const body = await encodeThumbnailVariant(masterBuffer, THUMBNAIL_VARIANT, source);
+
+  return { source, thumbnail: describeVariant(THUMBNAIL_VARIANT, body, productSlug, imageId) };
+}
+
 /**
  * Считает оба варианта из master и возвращает их вместе с готовыми путями.
  * Загрузку в Storage и запись в БД выполняет вызывающая сторона — так один
@@ -206,8 +239,7 @@ async function encodeThumbnailVariant(masterBuffer, variant, source) {
  * целью отката.
  */
 export async function generateProductImageVariants(masterBuffer, { productSlug, imageId }) {
-  if (!productSlug) throw new ProductImageVariantError("Не передан slug товара для пути варианта.");
-  if (!imageId) throw new ProductImageVariantError("Не передан id изображения для пути варианта.");
+  assertVariantTarget({ productSlug, imageId });
 
   const source = await readSourceMetadata(masterBuffer);
 
@@ -221,15 +253,7 @@ export async function generateProductImageVariants(masterBuffer, { productSlug, 
 
   const variants = {};
   for (const [index, variant] of PRODUCT_IMAGE_VARIANTS.entries()) {
-    const body = encoded[index];
-    const hash = contentHash(body);
-    variants[variant.name] = {
-      name: variant.name,
-      body,
-      hash,
-      path: buildVariantPath(productSlug, imageId, variant.name, hash),
-      bytes: body.byteLength,
-    };
+    variants[variant.name] = describeVariant(variant, encoded[index], productSlug, imageId);
   }
 
   return { source, thumbnail: variants.thumbnail, gallery: variants.gallery };

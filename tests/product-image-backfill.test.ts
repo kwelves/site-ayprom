@@ -6,7 +6,10 @@ import {
   parseBackfillArgs,
   projectRefFromUrl,
   storagePathFromPublicUrl,
+  isCurrentProfileUrl,
+  variantProfileMarker,
 } from "@/lib/admin/product-image-backfill.core.mjs";
+import { THUMBNAIL_VARIANT } from "@/lib/admin/product-image-variants.core.mjs";
 
 const SUPABASE_URL = "https://acyoyvetcyqmwppfenau.supabase.co";
 const publicUrl = (path: string) => `${SUPABASE_URL}/storage/v1/object/public/product-images/${path}`;
@@ -21,6 +24,14 @@ describe("parseBackfillArgs", () => {
     expect(options.limit).toBeNull();
     expect(options.batchSize).toBe(DEFAULT_BATCH_SIZE);
     expect(options.concurrency).toBe(DEFAULT_CONCURRENCY);
+    expect(options.regenerate).toBe(false);
+  });
+
+  it("включает перегенерацию только по явному --regenerate", () => {
+    expect(parseBackfillArgs(argv("--regenerate")).regenerate).toBe(true);
+    expect(parseBackfillArgs(argv("--regenerate=yes")).regenerate).toBe(false);
+    // Режимы независимы: перегенерация сама по себе записи не включает.
+    expect(parseBackfillArgs(argv("--regenerate")).apply).toBe(false);
   });
 
   it("включает запись только по явному --apply", () => {
@@ -114,5 +125,23 @@ describe("isAlreadyExistsError", () => {
     expect(isAlreadyExistsError({ statusCode: "403", message: "Forbidden" })).toBe(false);
     expect(isAlreadyExistsError({ message: "Payload too large" })).toBe(false);
     expect(isAlreadyExistsError(null)).toBe(false);
+  });
+});
+
+describe("версия профиля обработки", () => {
+  const marker = variantProfileMarker(THUMBNAIL_VARIANT);
+  const url = (version: string) =>
+    `${SUPABASE_URL}/storage/v1/object/public/product-images/pump/id/variants/${version}/thumbnail-0123456789abcdef.webp`;
+
+  it("узнаёт вариант текущей версии профиля", () => {
+    expect(marker).toBe(`/variants/${THUMBNAIL_VARIANT.profileVersion}/thumbnail-`);
+    expect(isCurrentProfileUrl(url(THUMBNAIL_VARIANT.profileVersion), THUMBNAIL_VARIANT)).toBe(true);
+  });
+
+  it("считает устаревшими прежние версии и пустое значение", () => {
+    // Именно эти строки и выбирает --regenerate.
+    expect(isCurrentProfileUrl(url("v1"), THUMBNAIL_VARIANT)).toBe(false);
+    expect(isCurrentProfileUrl(null, THUMBNAIL_VARIANT)).toBe(false);
+    expect(isCurrentProfileUrl(undefined, THUMBNAIL_VARIANT)).toBe(false);
   });
 });
