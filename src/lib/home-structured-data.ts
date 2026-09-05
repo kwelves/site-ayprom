@@ -38,8 +38,7 @@ export function buildHomeStructuredData(): Record<string, unknown> {
         "@id": `${siteUrl}/#website`,
         url: siteUrl,
         name: "AYPROM",
-        // Домен — имя сайта, а не название компании, поэтому он только здесь.
-        alternateName: [...ALTERNATE_NAMES, "ayprom-gidravlika.kg"],
+        alternateName: ALTERNATE_NAMES,
         description: HOME_SEO_DESCRIPTION,
         publisher: { "@id": organizationId },
         inLanguage: "ru-KG",
