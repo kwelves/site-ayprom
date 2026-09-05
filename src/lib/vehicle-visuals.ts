@@ -1,4 +1,4 @@
-import type { VehicleVisual } from "@/components/home/vehicle-showcase/VehicleShowcaseInteractive";
+import type { VehicleVisual } from "@/components/home/vehicle-showcase/vehicle-visual";
 
 // Native pixel dimensions of each showcase photo. The stage itself is a
 // single fixed aspect ratio shared by all vehicles (so switching vehicles

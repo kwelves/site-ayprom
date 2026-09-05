@@ -11,10 +11,9 @@ vi.mock("next/navigation", () => ({
   usePathname: () => navigationMock.pathname,
 }));
 
-vi.mock("framer-motion", () => ({
-  useReducedMotion: () => false,
-}));
-
+// framer-motion здесь намеренно не мокается: ранний shell главной от него
+// больше не зависит — предпочтение движения читается через
+// usePrefersReducedMotion, у которого серверный снимок всегда false.
 vi.mock("next/image", () => ({
   default: ({ alt, src }: { alt: string; src: string }) => <span role="img" aria-label={alt} data-src={src} />,
 }));

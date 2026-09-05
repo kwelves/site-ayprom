@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import { useReducedMotion } from "framer-motion";
+import { usePrefersReducedMotion } from "@/lib/use-prefers-reduced-motion";
 import { cn } from "@/lib/utils";
 
 type DottedSurfaceProps = Omit<React.ComponentProps<"div">, "ref"> & {
@@ -22,7 +22,7 @@ const DOT_COLOR: [number, number, number] = [200, 210, 230];
 // box via ResizeObserver instead of window.innerWidth/innerHeight.
 export function DottedSurface({ className, size = 8, opacity = 0.8, sizeAttenuation = true, ...props }: DottedSurfaceProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const prefersReducedMotion = useReducedMotion();
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
     const container = containerRef.current;

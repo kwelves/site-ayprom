@@ -1,19 +1,26 @@
 "use client";
 
 import Image from "next/image";
-import { useReducedMotion } from "framer-motion";
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { DURATION } from "@/lib/motion";
+import { usePrefersReducedMotion } from "@/lib/use-prefers-reduced-motion";
 import { cn } from "@/lib/utils";
 
 type HomeEntryPhase = "awaiting-video" | "header" | "content";
 type BootOverlayPhase = "visible" | "exiting" | "hidden";
 
-// This does not pace the normal entrance. It is only an escape hatch for a
-// broken or indefinitely stalled media request, so navigation never remains
-// hidden behind the loader.
-const HERO_BOOT_SAFETY_TIMEOUT_MS = 5_000;
+/**
+ * Настоящий предельный срок заставки, а не срок «одной из фаз».
+ *
+ * Отсчёт идёт от старта boot-последовательности (монтирование провайдера на
+ * главной). По его истечении заставка снимается сразу, `inert`/`aria-hidden`
+ * с содержимого снимаются сразу, и initial boot считается завершённым — после
+ * дедлайна не добавляется ни одной внутренней фазы. Штатный успешный сценарий
+ * (подтверждённое движение hero-видео) укладывается заметно раньше и идёт
+ * прежним плавным путём: видео → шапка → содержимое.
+ */
+const HOME_BOOT_DEADLINE_MS = 1_500;
 
 interface HomeEntrySequenceValue {
   /** True only after the hero video has produced its first frame. */
@@ -42,7 +49,7 @@ const HomeEntrySequenceContext = createContext<HomeEntrySequenceValue>({
 export function HomeEntrySequence({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isHome = pathname === "/";
-  const prefersReducedMotion = useReducedMotion();
+  const prefersReducedMotion = usePrefersReducedMotion();
   // Server Components passed into this Client Component are rendered as
   // slots, so on the server their context consumers see the defaults above.
   // Keep the provider's first client render on those same values, then arm
@@ -108,14 +115,30 @@ export function HomeEntrySequence({ children }: { children: React.ReactNode }) {
   }, [bootOverlayPhase]);
 
   useEffect(() => {
-    if (!isInitialHomeBoot || phase !== "awaiting-video") return;
-
     // A non-animated preference should never be made to wait through an
-    // invented stage. The normal path still waits for a decoded frame; this
-    // only makes the failure escape hatch immediate for reduced motion.
-    const timer = window.setTimeout(revealHeader, prefersReducedMotion ? 0 : HERO_BOOT_SAFETY_TIMEOUT_MS);
+    // invented stage. The normal path still waits for confirmed playback.
+    if (!isInitialHomeBoot || phase !== "awaiting-video" || !prefersReducedMotion) return;
+
+    const timer = window.setTimeout(revealHeader, 0);
     return () => window.clearTimeout(timer);
   }, [isInitialHomeBoot, phase, prefersReducedMotion, revealHeader]);
+
+  // Дедлайн заставки. Зависимость ровно одна и меняется единожды за загрузку
+  // главной (true → false при завершении boot), поэтому таймер ставится один
+  // раз при монтировании и не перезапускается ни фазами, ни видео.
+  useEffect(() => {
+    if (!isInitialHomeBoot) return;
+
+    const timer = window.setTimeout(() => {
+      // Все три перехода в одном обновлении: overlay уходит, `bootContentLocked`
+      // становится false (снимая inert/aria-hidden), а `initialBootComplete`
+      // закрывает boot насовсем.
+      setBootOverlayPhase("hidden");
+      setPhase("content");
+      setInitialBootComplete(true);
+    }, HOME_BOOT_DEADLINE_MS);
+    return () => window.clearTimeout(timer);
+  }, [isInitialHomeBoot]);
 
   useEffect(() => {
     if (!isInitialHomeBoot || phase !== "header") return;

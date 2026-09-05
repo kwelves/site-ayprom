@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { Loader2 } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "framer-motion";
 import { HotspotMarker, type TooltipAlign } from "./HotspotMarker";
 import { VehicleCarousel } from "./VehicleCarousel";
 import { ProductPanel } from "./ProductPanel";
@@ -16,31 +16,24 @@ import {
   createFallbackHotspotMetrics,
   resolveHotspotPositions,
 } from "./showcase-layout";
+import {
+  SHOWCASE_CARD_CLASS,
+  SHOWCASE_CAROUSEL_ROW_CLASS,
+  SHOWCASE_GRID_CLASS,
+  SHOWCASE_HINT_CLASS,
+  SHOWCASE_LABEL_CLASS,
+  SHOWCASE_ROOT_CLASS,
+  SHOWCASE_STAGE_CLASS,
+} from "./showcase-geometry";
+import { isVehicleWarmupAllowed } from "./warmup-gate";
+import type { VehicleVisual } from "./vehicle-visual";
 import type { VehicleShowcaseEntry } from "@/lib/queries/vehicle-hotspots";
 import { DURATION, EASE_UI } from "@/lib/motion";
 import { useHomeEntrySequence } from "@/components/home/HomeEntrySequence";
 
-export interface VehicleVisual {
-  image: string;
-  /** Smaller pre-built variant for viewports below the `lg` breakpoint (see
-   * scripts/generate-vehicle-webp.mjs's `-mobile.webp` output). The stage
-   * shows the photo noticeably smaller there, so the full-resolution file is
-   * wasted bytes — falls back to `image` when absent. `naturalWidth`/
-   * `naturalHeight` below describe the source crop's aspect ratio only, not
-   * which file is fetched, so they stay the same regardless of this pick. */
-  imageMobile?: string;
-  naturalWidth: number;
-  naturalHeight: number;
-  /** How far beyond strict contain-fit to inflate the photo (1 = fits
-   * exactly). Hotspots track this same scaled rect, so they stay pinned to
-   * their equipment regardless of the value. */
-  scale?: number;
-  /** Overrides `scale` at the lg breakpoint, where the stage's height comes
-   * from available flex space (see STAGE_ASPECT_CLASS) instead of a fixed
-   * aspect-ratio box — the same inflate factor that fits a tall aspect-video
-   * box can overflow a much shorter one. Defaults to `scale`. */
-  desktopScale?: number;
-}
+// Тип вынесен в отдельный модуль, но продолжает реэкспортироваться отсюда:
+// на него ссылаются и таблица VEHICLE_VISUALS, и тесты витрины.
+export type { VehicleVisual };
 
 interface TooltipPlacement {
   below: boolean;
@@ -155,15 +148,6 @@ type VehicleTransitionPhase =
   | "vehicle-entering"
   | "hotspots-entering";
 
-// One fixed shape for every vehicle so switching vehicles never resizes the
-// section — only the vehicle drawing (via object-contain) scales to fit
-// inside it, and the whole thing is always fully visible, never cropped.
-// Taller/near-square on narrow screens (there's no second column stealing
-// width there, and the native photos are themselves portrait-ish) so the
-// vehicle doesn't shrink to a speck; wide on desktop where the stage shares
-// the row with the card.
-const STAGE_ASPECT_CLASS = "aspect-[4/3] sm:aspect-[3/2] lg:aspect-auto lg:h-full";
-
 function toRect(domRect: DOMRect, containerRect: DOMRect): Rect {
   return {
     left: domRect.left - containerRect.left,
@@ -206,6 +190,10 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
   const [activeHotspotId, setActiveHotspotId] = useState<string | null>(null);
   const [isCardRevealed, setIsCardRevealed] = useState(false);
   const [entered, setEntered] = useState(false);
+  // Отдельно от `entered`: тот выставляется один раз и навсегда, а фоновая
+  // очередь картинок имеет право работать только пока секция ДЕЙСТВИТЕЛЬНО
+  // на экране.
+  const [sectionVisible, setSectionVisible] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const [firstViewSettled, setFirstViewSettled] = useState(false);
   const [initialVehicleReady, setInitialVehicleReady] = useState(false);
@@ -271,10 +259,8 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
     if (!node) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) {
-          setEntered(true);
-          observer.disconnect();
-        }
+        setSectionVisible(entry.isIntersecting);
+        if (entry.isIntersecting) setEntered(true);
       },
       { threshold: 0.3 },
     );
@@ -297,7 +283,10 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
     // hero's own reveal has settled. If the showcase enters view, pause it
     // through the vehicle/hotspot choreography and resume once that scene
     // has completed too.
-    if (!contentVisible || transitionPhase !== "idle" || (entered && !revealed)) {
+    // Прежнее условие `(entered && !revealed)` пропускало прогрев ДО входа
+    // секции: пока `entered` был false, оно было истинным, и очередь стартовала
+    // на первом экране. Теперь сцена обязана и войти, и раскрыться.
+    if (!contentVisible || transitionPhase !== "idle" || !entered || !revealed) {
       // Keep this out of the synchronous effect body: the derived `enabled`
       // expression below already blocks a same-frame warmup, while the
       // microtask resets the next settled scene's idle delay.
@@ -532,7 +521,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
   const switchingHotspots = transitionPhase === "hotspots-exiting" || transitionPhase === "hotspots-entering";
 
   const stage = (
-    <div ref={stageRef} className={`relative w-full lg:overflow-hidden ${STAGE_ASPECT_CLASS}`}>
+    <div ref={stageRef} className={SHOWCASE_STAGE_CLASS}>
       {contentVisible && containRect.width > 0 && (
         // Not `fill` — `scale` on VehicleVisual can push the photo past
         // strict contain-fit on purpose, and `fill` always clamps to the
@@ -618,7 +607,14 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
       <VehicleImageWarmup
         candidates={imageWarmupCandidates}
         defaultSlug={entries[defaultIndex]?.vehicleType.slug ?? defaultSlug}
-        enabled={firstViewSettled && initialVehicleReady && transitionPhase === "idle" && (!entered || revealed)}
+        enabled={isVehicleWarmupAllowed({
+          entered,
+          revealed,
+          initialVehicleReady,
+          firstViewSettled,
+          transitionPhase,
+          sectionVisible,
+        })}
       />
 
       {revealed &&
@@ -662,8 +658,12 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
   );
 
   return (
-    <div ref={sectionRef} className="relative lg:flex lg:flex-1 lg:flex-col">
-      <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">{activeEntry.vehicleType.name}</p>
+    // Локальная замена снятой глобальной MotionPreferences: reduced-motion
+    // объявляется там, где framer-motion действительно работает. MotionConfig
+    // не рендерит DOM, поэтому геометрия витрины от него не меняется.
+    <MotionConfig reducedMotion="user">
+    <div ref={sectionRef} className={SHOWCASE_ROOT_CLASS}>
+      <p className={SHOWCASE_LABEL_CLASS}>{activeEntry.vehicleType.name}</p>
 
       {/* The final grid exists from the first render. The previous entrance
           changed from one column to two and mounted the card 700ms after the
@@ -675,7 +675,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
       <div
         ref={containerRef}
         data-testid="vehicle-showcase-grid"
-        className="relative mx-auto mt-3 grid grid-cols-1 gap-6 lg:mx-0 lg:flex-1 lg:grid-cols-[1.3fr_1fr] lg:gap-10 lg:p-1"
+        className={SHOWCASE_GRID_CLASS}
       >
         {stage}
 
@@ -684,7 +684,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
           data-testid="vehicle-card"
           aria-hidden={!revealed}
           inert={!revealed}
-          className={`min-h-[220px] transition-opacity duration-reveal ease-ui lg:mt-4 lg:min-h-[29rem] ${
+          className={`${SHOWCASE_CARD_CLASS} transition-opacity duration-reveal ease-ui ${
             revealed ? "opacity-100" : "pointer-events-none opacity-0"
           }`}
         >
@@ -716,7 +716,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.25, ease: "easeOut" }}
-                className="flex min-h-[220px] flex-col justify-center gap-2 px-2 lg:min-h-0"
+                className={SHOWCASE_HINT_CLASS}
               >
                 <p className="text-4xl font-bold text-white/10 tabular-nums">
                   01—{String(hotspotCount).padStart(2, "0")}
@@ -750,7 +750,7 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
       <div
         aria-hidden={!revealed}
         inert={!revealed}
-        className={`mt-8 shrink-0 origin-top transition-[opacity,scale] duration-reveal ease-ui lg:mt-4 ${
+        className={`${SHOWCASE_CAROUSEL_ROW_CLASS} transition-[opacity,scale] duration-reveal ease-ui ${
           revealed ? "scale-y-100 opacity-100" : "pointer-events-none scale-y-[0.4] opacity-0"
         }`}
       >
@@ -760,5 +760,6 @@ export function VehicleShowcaseInteractive({ entries, visuals, defaultSlug }: Ve
         <VehicleCarousel items={vehicleItems} activeIndex={selectedVehicleIndex} onSelect={selectVehicle} />
       </div>
     </div>
+    </MotionConfig>
   );
 }

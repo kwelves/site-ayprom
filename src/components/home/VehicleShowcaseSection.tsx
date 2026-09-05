@@ -2,7 +2,10 @@ import { Container } from "@/components/ui/Container";
 import { getVehicleShowcaseData } from "@/lib/queries/vehicle-hotspots";
 import { VEHICLE_VISUALS } from "@/lib/vehicle-visuals";
 import { VehicleShowcaseHeading } from "./vehicle-showcase/VehicleShowcaseHeading";
-import { VehicleShowcaseInteractive } from "./vehicle-showcase/VehicleShowcaseInteractive";
+import { VehicleShowcaseLazy } from "./vehicle-showcase/VehicleShowcaseLazy";
+import { VehicleShowcaseShell } from "./vehicle-showcase/VehicleShowcaseShell";
+
+const DEFAULT_VEHICLE_SLUG = "kran-manipulyator";
 
 export async function VehicleShowcaseSection() {
   const entries = await getVehicleShowcaseData();
@@ -32,7 +35,13 @@ export async function VehicleShowcaseSection() {
         <VehicleShowcaseHeading title="Гидравлика на вашей технике" />
 
         <div className="mt-8 lg:mt-4 lg:flex lg:flex-1 lg:flex-col">
-          <VehicleShowcaseInteractive entries={entries} visuals={VEHICLE_VISUALS} defaultSlug="kran-manipulyator" />
+          {/* Интерактив (framer-motion, карусель, хотспоты) приезжает
+              отдельным чанком только когда секция подошла к экрану. До этого —
+              и навсегда, если чанк не загрузится — работает статическая
+              витрина, отрисованная на сервере. */}
+          <VehicleShowcaseLazy entries={entries} visuals={VEHICLE_VISUALS} defaultSlug={DEFAULT_VEHICLE_SLUG}>
+            <VehicleShowcaseShell entries={entries} visuals={VEHICLE_VISUALS} defaultSlug={DEFAULT_VEHICLE_SLUG} />
+          </VehicleShowcaseLazy>
         </div>
       </Container>
     </section>

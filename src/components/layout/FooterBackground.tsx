@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useReducedMotion } from "framer-motion";
+import { usePrefersReducedMotion } from "@/lib/use-prefers-reduced-motion";
 import { useInViewOnce } from "@/lib/use-in-view-once";
 
 // three.js is a heavy dependency needed only for this decorative dot-wave.
@@ -23,7 +23,7 @@ interface FooterBackgroundProps {
  */
 export function FooterBackground({ opacity }: FooterBackgroundProps) {
   const { ref, isInView } = useInViewOnce<HTMLDivElement>({ margin: "0px 0px 600px 0px" });
-  const prefersReducedMotion = useReducedMotion();
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   // Reduced-motion visitors never see the animation (DottedSurface itself
   // also bails out), so skip the network request entirely for them.

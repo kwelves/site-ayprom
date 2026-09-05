@@ -8,7 +8,6 @@ import { ScrollToHash } from "@/components/layout/ScrollToHash";
 import { ResetScrollOnNavigate } from "@/components/layout/ResetScrollOnNavigate";
 import { getCategories } from "@/lib/queries/categories";
 import { getBrands } from "@/lib/queries/brands";
-import { MotionPreferences } from "@/components/motion/MotionPreferences";
 import { HomeEntrySequence } from "@/components/home/HomeEntrySequence";
 import { getSiteUrl } from "@/lib/site-url";
 import { OG_IMAGE } from "@/lib/og-image";
@@ -108,7 +107,6 @@ export default async function RootLayout({
       <link rel="preconnect" href={supabaseOrigin} crossOrigin="anonymous" />
       <link rel="dns-prefetch" href={supabaseOrigin} />
       <body data-site-root className="flex min-h-full flex-col bg-background text-foreground">
-        <MotionPreferences>
         <HomeEntrySequence>
         <ScrollToHash />
         <ResetScrollOnNavigate />
@@ -117,7 +115,6 @@ export default async function RootLayout({
         <Footer categories={categories} brands={brands} />
         <WhatsAppBadge />
         </HomeEntrySequence>
-        </MotionPreferences>
         <SpeedInsights />
       </body>
     </html>

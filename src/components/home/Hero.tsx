@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Search, ChevronDown } from "lucide-react";
-import { useReducedMotion } from "framer-motion";
+import { usePrefersReducedMotion } from "@/lib/use-prefers-reduced-motion";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { useHashNavClick } from "@/lib/use-hash-nav-click";
@@ -65,7 +65,7 @@ export function Hero({ vehicleTypes }: { vehicleTypes: VehicleType[] }) {
   const stallWatchRef = useRef<StallWatch | null>(null);
   const [motionConfirmed, setMotionConfirmed] = useState(false);
   const [qualityVisible, setQualityVisible] = useState(false);
-  const prefersReducedMotion = useReducedMotion();
+  const prefersReducedMotion = usePrefersReducedMotion();
   const { revealVideo, revealHeader, contentVisible } = useHomeEntrySequence();
 
   const advanceUpgrade = useCallback((event: HeroUpgradeEvent) => {

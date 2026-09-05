@@ -1,11 +1,9 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useCallback, useId, useRef, useState } from "react";
 import Link from "next/link";
-import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { useHashNavClick } from "@/lib/use-hash-nav-click";
-import { DURATION, EASE_UI } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import type { NavDropdownItem } from "@/lib/navigation";
 
@@ -26,6 +24,11 @@ interface NavDropdownProps {
 
 export function NavDropdown({ label, href, items, light, fixedSingleColumn, scrollable }: NavDropdownProps) {
   const [open, setOpen] = useState(false);
+  // Панель живёт в DOM только после первого открытия. Постоянно смонтированная
+  // панель заставила бы каждую страницу грузить логотипы марок ещё до того, как
+  // её кто-нибудь откроет; условный монтаж содержимого этого не делает, а
+  // переход всё равно остаётся CSS-переходом самой панели.
+  const [everOpened, setEverOpened] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLAnchorElement>(null);
   const suppressNextFocusOpenRef = useRef(false);
@@ -33,14 +36,19 @@ export function NavDropdown({ label, href, items, light, fixedSingleColumn, scro
   const twoColumn = !fixedSingleColumn && items.length > 4;
   const handleHashClick = useHashNavClick();
 
+  const openPanel = useCallback(() => {
+    setEverOpened(true);
+    setOpen(true);
+  }, []);
+
   return (
     <div
       ref={containerRef}
       className="relative"
-      onMouseEnter={() => setOpen(true)}
+      onMouseEnter={openPanel}
       onMouseLeave={() => setOpen(false)}
       onFocus={() => {
-        if (!suppressNextFocusOpenRef.current) setOpen(true);
+        if (!suppressNextFocusOpenRef.current) openPanel();
       }}
       onBlur={(event) => {
         if (!containerRef.current?.contains(event.relatedTarget as Node)) {
@@ -77,19 +85,24 @@ export function NavDropdown({ label, href, items, light, fixedSingleColumn, scro
         <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-base ease-ui", open && "rotate-180")} />
       </Link>
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            id={panelId}
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0, transition: { duration: DURATION.base, ease: EASE_UI } }}
-            exit={{ opacity: 0, y: 4, transition: { duration: DURATION.fast, ease: EASE_UI } }}
-            className={cn(
-              "absolute left-1/2 top-full z-50 -translate-x-1/2 pt-2",
-              twoColumn ? "w-[34rem]" : "w-80"
-            )}
-          >
-            <div className="rounded-xl border border-border bg-card p-2 shadow-lg shadow-foreground/5">
+      {/* Тот же переход, что раньше давал framer (opacity + 4px по вертикали),
+          но CSS-свойствами: панель абсолютная, поэтому её появление и уход не
+          двигают шапку, а `pointer-events-none` в закрытом состоянии не даёт
+          невидимой панели перехватывать курсор. */}
+      <div
+        id={panelId}
+        aria-hidden={!open}
+        inert={!open}
+        className={cn(
+          "absolute left-1/2 top-full z-50 -translate-x-1/2 pt-2 transition-[opacity,translate] ease-ui",
+          twoColumn ? "w-[34rem]" : "w-80",
+          open
+            ? "translate-y-0 opacity-100 duration-base"
+            : "pointer-events-none translate-y-1 opacity-0 duration-fast"
+        )}
+      >
+        {everOpened && (
+          <div className="rounded-xl border border-border bg-card p-2 shadow-lg shadow-foreground/5">
               <div
                 // Isolation: hovering/scrolling this list must never leak into
                 // page-level state (Header's window-scroll listener, any
@@ -128,10 +141,9 @@ export function NavDropdown({ label, href, items, light, fixedSingleColumn, scro
                   </Link>
                 ))}
               </div>
-            </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
+      </div>
     </div>
   );
 }

@@ -32,10 +32,14 @@ describe("vehicle showcase product-card layout", () => {
 
   it("reserves the final showcase layout before the entrance choreography", () => {
     const interactive = readFileSync("src/components/home/vehicle-showcase/VehicleShowcaseInteractive.tsx", "utf8");
+    const geometry = readFileSync("src/components/home/vehicle-showcase/showcase-geometry.ts", "utf8");
 
-    expect(interactive).toContain(
-      'className="relative mx-auto mt-3 grid grid-cols-1 gap-6 lg:mx-0 lg:flex-1 lg:grid-cols-[1.3fr_1fr] lg:gap-10 lg:p-1"',
+    // Геометрия сетки теперь общая со статической заглушкой, поэтому строка
+    // классов живёт в showcase-geometry, а интерактив её только подключает.
+    expect(geometry).toContain(
+      '"relative mx-auto mt-3 grid grid-cols-1 gap-6 lg:mx-0 lg:flex-1 lg:grid-cols-[1.3fr_1fr] lg:gap-10 lg:p-1"',
     );
+    expect(interactive).toContain("className={SHOWCASE_GRID_CLASS}");
     expect(interactive).toContain('data-testid="vehicle-card"');
     expect(interactive).toContain('aria-hidden={!revealed}');
     expect(interactive).not.toContain('revealed ? "mx-auto lg:mx-0 lg:grid-cols-[1.3fr_1fr]');

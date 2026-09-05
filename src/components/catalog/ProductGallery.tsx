@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { motion, type PanInfo } from "framer-motion";
+import { MotionConfig, motion, type PanInfo } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsTouchDevice } from "@/lib/use-is-touch-device";
@@ -72,6 +72,10 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
 
   return (
     <div>
+      {/* Локальная замена снятой глобальной MotionPreferences: reduced-motion
+          поддерживается там, где framer-motion действительно используется, без
+          обёртки на весь публичный layout. MotionConfig не добавляет DOM. */}
+      <MotionConfig reducedMotion="user">
       <motion.div
         className="relative aspect-4/3 w-full touch-pan-y overflow-hidden rounded-xl border border-border bg-muted/40"
         drag={hasMultiple && isTouchDevice ? "x" : false}
@@ -119,6 +123,7 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
           </>
         )}
       </motion.div>
+      </MotionConfig>
 
       {hasMultiple && (
         <div

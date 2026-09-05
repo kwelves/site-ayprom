@@ -4,6 +4,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { motion, type PanInfo } from "framer-motion";
 import { CarouselLamp } from "./CarouselLamp";
+import { SHOWCASE_CAROUSEL_FRAME_CLASS, SHOWCASE_CAROUSEL_MASK_CLASS } from "./showcase-geometry";
 
 const SWIPE_THRESHOLD = 40;
 // How many slots are visible on each side of the active one. With 5 real
@@ -136,13 +137,13 @@ export function VehicleCarousel({ items, activeIndex, disabled = false, onSelect
   };
 
   return (
-    <div className="relative mx-auto w-full max-w-4xl">
+    <div className={SHOWCASE_CAROUSEL_FRAME_CLASS}>
       {/* Edge-fade mask: items dissolve into the container edge instead of
           being hard-clipped or (the thing we're avoiding) visibly flying in
           from the opposite side. */}
       <div
         ref={maskRef}
-        className="relative z-10 h-20 overflow-hidden sm:h-24 lg:h-28"
+        className={SHOWCASE_CAROUSEL_MASK_CLASS}
         style={{
           maskImage: "linear-gradient(to right, transparent, black 14%, black 86%, transparent)",
           WebkitMaskImage: "linear-gradient(to right, transparent, black 14%, black 86%, transparent)",

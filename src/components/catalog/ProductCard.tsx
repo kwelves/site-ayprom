@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { motion, type PanInfo } from "framer-motion";
+import { MotionConfig, motion, type PanInfo } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   CARD_CAPTION_CLASSNAME,
@@ -98,6 +98,10 @@ export function ProductCard({
         className="absolute inset-0 z-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
       />
 
+      {/* Локальная замена снятой глобальной MotionPreferences: reduced-motion
+          поддерживается там, где framer-motion действительно используется, без
+          обёртки на весь публичный layout. MotionConfig не добавляет DOM. */}
+      <MotionConfig reducedMotion="user">
       <motion.div
         className={cn(
           "relative z-10 w-full shrink-0 touch-pan-y overflow-hidden bg-muted/40",
@@ -164,6 +168,7 @@ export function ProductCard({
           </>
         )}
       </motion.div>
+      </MotionConfig>
 
       <div
         className={cn(
