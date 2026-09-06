@@ -46,6 +46,7 @@ function assignedProduct(index: number): AdminProductListItem {
     order: index,
     updatedAt: "2026-08-22T00:00:00.000Z",
     coverImage: null,
+    coverImageFallback: null,
   };
 }
 
@@ -108,6 +109,23 @@ describe("ProductsList publication and hotspot state", () => {
     expect(title?.className).toContain("break-words");
     expect(title?.className).toContain("[overflow-wrap:anywhere]");
     expect(screen.getByRole("button", { name: `Открыть действия с товаром «${name}»` })).toBeTruthy();
+  });
+
+  it("в быстром просмотре переключается с WebP-варианта на оригинал", () => {
+    const product = {
+      ...unassignedProduct(1),
+      coverImage: "/variants/thumbnail.webp",
+      coverImageFallback: "/masters/product.jpg",
+    };
+    render(<ProductsList products={[product]} hotspotOptions={[]} reorderDisabled />);
+
+    fireEvent.click(screen.getByRole("button", { name: `Быстрый просмотр товара «${product.name}»` }));
+    const quickView = screen.getByRole("dialog", { name: product.name });
+    const variant = within(quickView).getByAltText(product.name);
+    expect(variant.getAttribute("src")).toMatch(/\/variants\/thumbnail\.webp$/);
+
+    fireEvent.error(variant);
+    expect(within(quickView).getByAltText(product.name).getAttribute("src")).toMatch(/\/masters\/product\.jpg$/);
   });
 
   it("назначает свободную точку одним CAS-изменением и обновляет локальное закрепление", async () => {

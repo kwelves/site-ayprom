@@ -6,7 +6,7 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ADMIN_PAGE_SIZE } from "@/lib/admin/pagination";
-import { resolveCardImageUrl } from "@/lib/product-image-variants";
+import { resolveCardImageUrl, resolveImageFallbackUrl } from "@/lib/product-image-variants";
 import type { CategoryIcon } from "@/types/catalog";
 import type { ProductAvailability } from "@/lib/admin/product-availability";
 import type { AdminProductListSort } from "@/lib/admin/product-list-config";
@@ -32,6 +32,8 @@ export interface AdminProductListItem {
   order: number;
   updatedAt: string;
   coverImage: string | null;
+  /** Durable master retried if the generated thumbnail cannot be loaded. */
+  coverImageFallback: string | null;
 }
 
 interface AdminProductListRow {
@@ -215,23 +217,25 @@ export async function getAdminProducts(filters: AdminProductFilters = {}): Promi
 
   const total = count ?? 0;
   return {
-    items: (data as unknown as AdminProductListRow[]).map((row) => ({
-      id: row.id,
-      slug: row.slug,
-      name: row.name,
-      article: row.article ?? undefined,
-      shortDescription: row.short_description,
-      categoryName: row.categories?.name ?? "—",
-      published: row.published,
-      availability: row.availability,
-      hotspotCount: row.vehicle_hotspots?.length ?? 0,
-      order: row.order,
-      updatedAt: row.updated_at,
-      coverImage: (() => {
-        const cover = [...row.product_images].sort((a, b) => a.order - b.order)[0];
-        return cover ? resolveCardImageUrl(cover) : null;
-      })(),
-    })),
+    items: (data as unknown as AdminProductListRow[]).map((row) => {
+      const cover = [...row.product_images].sort((a, b) => a.order - b.order)[0];
+      const coverImage = cover ? resolveCardImageUrl(cover) : null;
+      return {
+        id: row.id,
+        slug: row.slug,
+        name: row.name,
+        article: row.article ?? undefined,
+        shortDescription: row.short_description,
+        categoryName: row.categories?.name ?? "—",
+        published: row.published,
+        availability: row.availability,
+        hotspotCount: row.vehicle_hotspots?.length ?? 0,
+        order: row.order,
+        updatedAt: row.updated_at,
+        coverImage,
+        coverImageFallback: cover && coverImage ? resolveImageFallbackUrl(cover, coverImage) ?? null : null,
+      };
+    }),
     total,
     page,
     pageSize,

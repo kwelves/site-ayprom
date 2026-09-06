@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ChangeEvent, type RefObject } from "react";
-import Image from "next/image";
+import { ImageFallback } from "@/components/ui/ImageFallback";
 import { Input } from "@/components/admin/ui/Input";
 import { SortableList } from "@/components/admin/SortableList";
 import { ProgressBar } from "@/components/admin/ui/ProgressBar";
@@ -103,14 +103,16 @@ export function ProductFormPhotosSection({
             enableStepButtons
             renderItem={(img) => (
               <div className="flex items-center gap-3">
-                <Image
-                  src={img.previewUrl}
-                  alt=""
-                  width={48}
-                  height={48}
-                  unoptimized
-                  className="h-12 w-12 rounded-md bg-muted/40 object-contain"
-                />
+                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md bg-muted/40">
+                  <ImageFallback
+                    src={img.previewUrl}
+                    fallbackSrc={img.previewUrl !== img.url ? img.url : undefined}
+                    alt=""
+                    sizes="48px"
+                    unoptimized
+                    className="object-contain"
+                  />
+                </div>
                 <span className="flex-1 truncate text-xs text-muted-foreground">{img.url}</span>
                 <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
                   Масштаб

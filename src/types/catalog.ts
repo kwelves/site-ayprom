@@ -74,9 +74,9 @@ export interface ProductListItem {
    * and renders ImageFallback until an image is added. `scale` mirrors
    * Brand.logoScale — a per-photo visual correction for images with
    * more/less baked-in padding than the rest. `fallbackUrl` is set only in
-   * gallery contexts (see resolveGalleryImageUrl) where `url` may be a
-   * generated variant; card contexts resolve to a single best URL with no
-   * fallback chain — see src/lib/product-image-variants.ts. */
+   * every context where `url` may be a generated variant. Card contexts use
+   * thumbnail_url and gallery/zoom use gallery_url, while the durable master
+   * is retained as fallbackUrl in both cases. */
   images: { url: string; fallbackUrl?: string; scale?: number }[];
   /** Required so the product card never renders without any text. */
   shortDescription: string;

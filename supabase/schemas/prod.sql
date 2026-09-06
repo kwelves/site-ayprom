@@ -388,7 +388,7 @@ $$;
 ALTER FUNCTION "public"."register_admin_login_attempt"("attempt_key_hash" "text", "password_is_valid" boolean, "attempt_scope" "text") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."search_catalog_products"("search_query" "text" DEFAULT NULL::"text", "category_filter" "text" DEFAULT NULL::"text", "subcategory_filter" "text" DEFAULT NULL::"text", "brand_filter" "text" DEFAULT NULL::"text", "vehicle_type_filter" "text" DEFAULT NULL::"text") RETURNS TABLE("slug" "text", "name" "text", "category_slug" "text", "subcategory_slug" "text", "short_description" "text", "article" "text", "cover_url" "text", "cover_scale" numeric, "compatible_brands" "text"[])
+CREATE OR REPLACE FUNCTION "public"."search_catalog_products"("search_query" "text" DEFAULT NULL::"text", "category_filter" "text" DEFAULT NULL::"text", "subcategory_filter" "text" DEFAULT NULL::"text", "brand_filter" "text" DEFAULT NULL::"text", "vehicle_type_filter" "text" DEFAULT NULL::"text") RETURNS TABLE("slug" "text", "name" "text", "category_slug" "text", "subcategory_slug" "text", "short_description" "text", "article" "text", "cover_url" "text", "cover_fallback_url" "text", "cover_scale" numeric, "compatible_brands" "text"[])
     LANGUAGE "sql" STABLE
     SET "search_path" TO ''
     AS $$
@@ -403,6 +403,10 @@ CREATE OR REPLACE FUNCTION "public"."search_catalog_products"("search_query" "te
     product.short_description,
     product.article,
     coalesce(cover.thumbnail_url, cover.gallery_url, cover.url) as cover_url,
+    case
+      when cover.thumbnail_url is not null or cover.gallery_url is not null then cover.url
+      else null
+    end as cover_fallback_url,
     cover.scale as cover_scale,
     coalesce(brands.slugs, '{}') as compatible_brands
   from public.products as product

@@ -13,7 +13,7 @@
 
 begin;
 
-select plan(8);
+select plan(10);
 
 insert into public.products (
   slug, name, category_slug, short_description, article, published, "order"
@@ -79,6 +79,12 @@ select is(
   'search_catalog_products.cover_url = thumbnail_url, когда оба варианта заполнены'
 );
 
+select is(
+  (select cover_fallback_url from public.search_catalog_products('image variants test both', null, null, null, null)),
+  'https://storage.example/master-both.jpg',
+  'search_catalog_products возвращает оригинал как резерв для WebP-обложки'
+);
+
 -- Здесь же неявно проверяется regression-контракт: до этой миграции
 -- cover_url был просто "url"; после — coalesce(thumbnail_url, gallery_url,
 -- url). Для товара без вариантов результат обязан остаться прежним.
@@ -86,6 +92,12 @@ select is(
   (select cover_url from public.search_catalog_products('image variants test none', null, null, null, null)),
   'https://storage.example/master-none.jpg',
   'search_catalog_products.cover_url = url, когда варианты ещё не посчитаны (fallback на оригинал)'
+);
+
+select is(
+  (select cover_fallback_url from public.search_catalog_products('image variants test none', null, null, null, null)),
+  null,
+  'резерв не дублирует основной адрес, когда обложкой уже служит оригинал'
 );
 
 -- thumbnail_url/gallery_url — обычные колонки той же таблицы, права на

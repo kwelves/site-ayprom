@@ -103,6 +103,7 @@ interface ProductCardRpcRow {
   short_description: string;
   article: string | null;
   cover_url: string | null;
+  cover_fallback_url: string | null;
   cover_scale: number | null;
   compatible_brands: string[] | null;
 }
@@ -136,7 +137,13 @@ function mapProductCard(row: ProductCardRpcRow): ProductListItem {
     category: row.category_slug,
     subcategory: row.subcategory_slug ?? undefined,
     compatibleBrands: row.compatible_brands ?? [],
-    images: row.cover_url ? [{ url: row.cover_url, scale: row.cover_scale ?? undefined }] : [],
+    images: row.cover_url
+      ? [{
+          url: row.cover_url,
+          fallbackUrl: row.cover_fallback_url ?? undefined,
+          scale: row.cover_scale ?? undefined,
+        }]
+      : [],
     shortDescription: row.short_description,
     article: row.article ?? undefined,
   };
@@ -192,6 +199,9 @@ async function getLegacyProductPage(filters: ProductFilters, page: number, pageS
       // применяет тот же порядок в SQL; здесь его дублирует fallback-путь
       // (RPC отсутствует / getProductsWithoutSubcategory).
       cover_url: row.product_images[0] ? resolveCardImageUrl(row.product_images[0]) : null,
+      cover_fallback_url: row.product_images[0]
+        ? resolveImageFallbackUrl(row.product_images[0], resolveCardImageUrl(row.product_images[0])) ?? null
+        : null,
       cover_scale: row.product_images[0]?.scale ?? null,
       compatible_brands: row.product_brands.map((brand) => brand.brand_slug),
     }),
@@ -295,6 +305,9 @@ export async function getProductsWithoutSubcategory(
       // применяет тот же порядок в SQL; здесь его дублирует fallback-путь
       // (RPC отсутствует / getProductsWithoutSubcategory).
       cover_url: row.product_images[0] ? resolveCardImageUrl(row.product_images[0]) : null,
+      cover_fallback_url: row.product_images[0]
+        ? resolveImageFallbackUrl(row.product_images[0], resolveCardImageUrl(row.product_images[0])) ?? null
+        : null,
       cover_scale: row.product_images[0]?.scale ?? null,
       compatible_brands: row.product_brands.map((brand) => brand.brand_slug),
     }),
@@ -343,10 +356,10 @@ export async function getSitemapProducts(): Promise<SitemapProduct[]> {
           subcategory_slug: row.subcategories?.slug ?? null,
           short_description: row.short_description,
           article: row.article,
-          // Sitemap-изображения — SEO-сигнал для поисковика, не карточка:
-          // приоритет gallery_url (крупный вариант), thumbnail здесь не
-          // подходит по размеру — см. resolveGalleryImageUrl().
-          cover_url: row.product_images[0] ? resolveGalleryImageUrl(row.product_images[0]) : null,
+          // В sitemap нет браузерной fallback-цепочки, поэтому поисковику
+          // отдаётся постоянный master, а не удаляемый WebP-вариант.
+          cover_url: row.product_images[0]?.url ?? null,
+          cover_fallback_url: null,
           cover_scale: row.product_images[0]?.scale ?? null,
           compatible_brands: row.product_brands.map((brand) => brand.brand_slug),
         }),

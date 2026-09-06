@@ -28,7 +28,11 @@ interface ImageFallbackProps {
 
 type Attempt = "primary" | "fallback" | "failed";
 
-export function ImageFallback({
+export function ImageFallback(props: ImageFallbackProps) {
+  return <ImageFallbackAttempt key={`${props.src ?? ""}\u0000${props.fallbackSrc ?? ""}`} {...props} />;
+}
+
+function ImageFallbackAttempt({
   src,
   fallbackSrc,
   alt,
@@ -45,7 +49,6 @@ export function ImageFallback({
 }: ImageFallbackProps) {
   const [attempt, setAttempt] = useState<Attempt>("primary");
   const onErrorRef = useRef(onError);
-  const previousSrcRef = useRef<string | undefined | symbol>(Symbol("initial-src"));
   const canRetryWithFallback = Boolean(fallbackSrc && fallbackSrc !== src);
 
   useEffect(() => {
@@ -53,9 +56,6 @@ export function ImageFallback({
   }, [onError]);
 
   useEffect(() => {
-    if (previousSrcRef.current === src) return;
-    previousSrcRef.current = src;
-    setAttempt("primary");
     if (!src) onErrorRef.current?.();
   }, [src]);
 
@@ -89,6 +89,7 @@ export function ImageFallback({
 
   return (
     <Image
+      key={activeSrc}
       src={activeSrc}
       alt={alt}
       fill

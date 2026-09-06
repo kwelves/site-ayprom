@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProductPanel } from "@/components/home/vehicle-showcase/ProductPanel";
 import type { HotspotProduct } from "@/lib/queries/vehicle-hotspots";
@@ -129,5 +129,22 @@ describe("ProductPanel", () => {
     expect([...details.classList]).toEqual(expect.arrayContaining(["bg-primary", "text-primary-foreground"]));
     expect([...catalog.classList]).toEqual(expect.arrayContaining(["border-primary", "bg-card", "text-primary"]));
     expect(catalog.classList).not.toContain("bg-primary");
+  });
+
+  it("uses the master directly when the zoom WebP cannot be opened", () => {
+    const imageProduct: HotspotProduct = {
+      ...product,
+      images: [{ url: "/variants/gallery.webp", fallbackUrl: "/masters/product.jpg" }],
+    };
+    render(<ProductPanel label="Гидронасос" product={imageProduct} vehicleTypeSlug="samosval" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Увеличить фото" }));
+    const dialog = screen.getByRole("dialog", { name: imageProduct.name });
+    const variant = within(dialog).getByAltText(imageProduct.name);
+    expect(variant.getAttribute("src")).toMatch(/\/variants\/gallery\.webp$/);
+
+    fireEvent.error(variant);
+    expect(within(dialog).getByAltText(imageProduct.name).getAttribute("src")).toMatch(/\/masters\/product\.jpg$/);
+    expect(within(dialog).queryByText("Фотография пока не добавлена")).toBeNull();
   });
 });

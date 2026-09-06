@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useCallback, useState, useTransition } from "react";
 import { SortableList } from "@/components/admin/SortableList";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
@@ -10,6 +9,7 @@ import { Checkbox } from "@/components/admin/ui/Checkbox";
 import { SegmentedControl } from "@/components/admin/ui/SegmentedControl";
 import { BulkActionBar } from "@/components/admin/ui/BulkActionBar";
 import { QuickViewPanel } from "@/components/admin/ui/QuickViewPanel";
+import { ImageFallback } from "@/components/ui/ImageFallback";
 import { AdminUndoToast } from "@/components/admin/ui/AdminUndoToast";
 import { ProductActionsButton, ProductActionsPanel } from "@/components/admin/ProductActionsPanel";
 import { applyOptimisticProductPatch } from "@/components/admin/product-publication-state";
@@ -423,14 +423,14 @@ export function ProductsList({
             type="button"
             onClick={() => setQuickViewProduct(product)}
             aria-label={`Быстрый просмотр товара «${product.name}»`}
-            className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/40"
+            className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/40"
           >
             {product.coverImage && (
-              <Image
+              <ImageFallback
                 src={product.coverImage}
+                fallbackSrc={product.coverImageFallback ?? undefined}
                 alt=""
-                width={48}
-                height={48}
+                sizes="48px"
                 unoptimized
                 className="h-full w-full object-contain"
               />
@@ -569,13 +569,14 @@ export function ProductsList({
       >
         {quickViewProduct && (
           <div className="space-y-4">
-            <div className="flex h-40 w-full items-center justify-center overflow-hidden rounded-md bg-muted/40">
+            <div className="relative flex h-40 w-full items-center justify-center overflow-hidden rounded-md bg-muted/40">
               {quickViewProduct.coverImage && (
-                <Image
+                <ImageFallback
                   src={quickViewProduct.coverImage}
-                  alt=""
-                  width={200}
-                  height={160}
+                  fallbackSrc={quickViewProduct.coverImageFallback ?? undefined}
+                  alt={quickViewProduct.name}
+                  sizes="200px"
+                  unoptimized
                   className="h-full w-full object-contain"
                 />
               )}

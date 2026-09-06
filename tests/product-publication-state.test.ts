@@ -17,6 +17,7 @@ function product(id: string, slug: string, hotspotId: string | null): AdminProdu
     order: 0,
     updatedAt: "2026-08-22T00:00:00.000Z",
     coverImage: null,
+    coverImageFallback: null,
   };
 }
 

@@ -255,9 +255,11 @@ export const ProductPanel = forwardRef<HTMLDivElement, ProductPanelProps>(functi
                       <div className="relative aspect-square w-full">
                         <ImageFallback
                           src={currentImage?.url}
+                          fallbackSrc={currentImage?.fallbackUrl}
                           alt={product.name}
                           sizes="(max-width: 639px) 90vw, 448px"
                           className="p-4"
+                          unoptimized
                           style={currentImage?.scale ? { transform: `scale(${currentImage.scale})` } : undefined}
                         />
                       </div>
