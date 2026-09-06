@@ -50,14 +50,27 @@ function bootLocked(container: HTMLElement) {
 
 beforeEach(() => {
   vi.useFakeTimers();
+  document.documentElement.style.removeProperty("overflow");
 });
 
 afterEach(() => {
   cleanup();
+  document.documentElement.style.removeProperty("overflow");
   vi.useRealTimers();
 });
 
 describe("предел показа заставки главной", () => {
+  it("блокирует прокрутку страницы под заставкой и восстанавливает прежнее значение", async () => {
+    document.documentElement.style.overflow = "clip";
+    const view = renderSequence();
+    await act(async () => {});
+
+    expect(document.documentElement.style.overflow).toBe("hidden");
+
+    view.unmount();
+    expect(document.documentElement.style.overflow).toBe("clip");
+  });
+
   it("снимает заставку и inert не позже 1500 мс, даже если видео так и не пошло", async () => {
     const view = renderSequence();
     // `sequenceArmed` выставляется микрозадачей после монтирования.

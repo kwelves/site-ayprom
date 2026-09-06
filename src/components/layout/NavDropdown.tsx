@@ -85,14 +85,14 @@ export function NavDropdown({ label, href, items, light, fixedSingleColumn, scro
         <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-base ease-ui", open && "rotate-180")} />
       </Link>
 
-      {/* Тот же переход, что раньше давал framer (opacity + 4px по вертикали),
-          но CSS-свойствами: панель абсолютная, поэтому её появление и уход не
-          двигают шапку, а `pointer-events-none` в закрытом состоянии не даёт
-          невидимой панели перехватывать курсор. */}
+      {/* Панель абсолютная, поэтому не двигает шапку. В закрытом состоянии
+          `hidden` полностью убирает её из отрисовки и scroll-area; inert и
+          aria-hidden сохраняют тот же контракт для фокуса и скринридера. */}
       <div
         id={panelId}
         aria-hidden={!open}
         inert={!open}
+        hidden={!open}
         className={cn(
           "absolute left-1/2 top-full z-50 -translate-x-1/2 pt-2 transition-[opacity,translate] ease-ui",
           twoColumn ? "w-[34rem]" : "w-80",

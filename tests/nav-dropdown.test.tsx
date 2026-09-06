@@ -38,6 +38,7 @@ describe("NavDropdown", () => {
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
     expect(panel().getAttribute("aria-hidden")).toBe("true");
     expect(panel().hasAttribute("inert")).toBe(true);
+    expect(panel().hidden).toBe(true);
     expect(panel().className).toContain("pointer-events-none");
     expect(panel().className).toContain("opacity-0");
     // Ссылки (и логотипы марок вместе с ними) не попадают в первую загрузку.
@@ -51,6 +52,7 @@ describe("NavDropdown", () => {
     fireEvent.mouseEnter(container);
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
     expect(panel().hasAttribute("inert")).toBe(false);
+    expect(panel().hidden).toBe(false);
     expect(panel().getAttribute("aria-hidden")).toBe("false");
     expect(panel().className).toContain("opacity-100");
     expect(screen.getByRole("link", { name: /Насосы/ })).not.toBeNull();
@@ -58,6 +60,7 @@ describe("NavDropdown", () => {
     fireEvent.mouseLeave(container);
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
     expect(panel().hasAttribute("inert")).toBe(true);
+    expect(panel().hidden).toBe(true);
     expect(panel().className).toContain("pointer-events-none");
   });
 
@@ -68,6 +71,7 @@ describe("NavDropdown", () => {
 
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
     expect(panel().hasAttribute("inert")).toBe(false);
+    expect(panel().hidden).toBe(false);
     // Панель уже не inert, поэтому следующий Tab уводит фокус внутрь списка.
     expect(panel().querySelectorAll("a")).toHaveLength(items.length);
   });
@@ -83,6 +87,7 @@ describe("NavDropdown", () => {
 
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
     expect(panel().hasAttribute("inert")).toBe(true);
+    expect(panel().hidden).toBe(true);
     expect(document.activeElement).toBe(trigger);
   });
 

@@ -12,9 +12,9 @@
  * серверные транзакции остаются включёнными в `src/instrumentation.ts`, и
  * именно они показывают, где действительно тратится время. Поэтому здесь
  * нет клиентского `tracesSampleRate`, а BrowserTracing убирается из набора
- * интеграций по умолчанию поддержанным колбэком `integrations`. По той же
- * причине из instrumentation-client снят экспорт `onRouterTransitionStart`:
- * он нужен исключительно для навигационных span-ов, которых больше нет.
+ * интеграций по умолчанию поддержанным колбэком `integrations`. Обязательный
+ * для текущего Sentry SDK экспорт `onRouterTransitionStart` остаётся, но без
+ * обработчика BrowserTracing является безопасным no-op.
  */
 export const BROWSER_TRACING_INTEGRATION_NAME = "BrowserTracing";
 

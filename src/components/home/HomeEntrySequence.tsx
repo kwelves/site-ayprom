@@ -69,6 +69,18 @@ export function HomeEntrySequence({ children }: { children: React.ReactNode }) {
   const bootContentLocked = sequenceArmed && isInitialHomeBoot && phase !== "content";
 
   useLayoutEffect(() => {
+    if (!bootContentLocked) return;
+
+    const root = document.documentElement;
+    const previousOverflow = root.style.overflow;
+    root.style.overflow = "hidden";
+
+    return () => {
+      root.style.overflow = previousOverflow;
+    };
+  }, [bootContentLocked]);
+
+  useLayoutEffect(() => {
     let cancelled = false;
     queueMicrotask(() => {
       if (!cancelled) setSequenceArmed(true);

@@ -69,7 +69,7 @@ describe("браузерный Sentry в режиме «только ошибк�
     expect(browserSentryOptions.integrations([tracing, other])).toEqual([other]);
   });
 
-  it("не задаёт клиентский tracesSampleRate и не экспортирует навигационный хук", () => {
+  it("не задаёт клиентский tracesSampleRate, но сохраняет обязательный навигационный хук", () => {
     const stripComments = (source: string) =>
       source
         .split(/\r?\n/)
@@ -80,7 +80,9 @@ describe("браузерный Sentry в режиме «только ошибк�
 
     expect(options).not.toContain("tracesSampleRate");
     expect(client).not.toContain("tracesSampleRate");
-    expect(client).not.toContain("onRouterTransitionStart");
+    expect(client).toContain(
+      "export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;",
+    );
     expect(options).toContain("sendDefaultPii: false");
     expect("tracesSampleRate" in browserSentryOptions).toBe(false);
   });

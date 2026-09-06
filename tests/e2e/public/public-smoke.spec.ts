@@ -32,18 +32,27 @@ function mainContent(page: Page) {
   return page.locator("#main-content");
 }
 
-async function hoverBorderAlignmentError(card: Locator, highlight: Locator): Promise<number> {
-  const [cardBox, highlightBox] = await Promise.all([card.boundingBox(), highlight.boundingBox()]);
-  if (!cardBox || !highlightBox) return Number.POSITIVE_INFINITY;
+async function hoverBorderAlignmentError(card: Locator): Promise<number> {
+  // Оба DOMRect читаются в одном browser evaluation. Два отдельных
+  // boundingBox() могут попасть в соседние кадры пружинной анимации и создать
+  // ложное расхождение на долю CSS-пикселя.
+  return card.evaluate((cardElement, overhang) => {
+    const grid = cardElement.closest("[data-hover-border-grid]");
+    const highlight = grid?.querySelector("[data-hover-border-highlight]");
+    if (!(highlight instanceof HTMLElement)) return Number.POSITIVE_INFINITY;
 
-  // Выступ берётся из токена дизайн-системы, а не зашивается числом: иначе
-  // изменение halo валит этот тест уже в CI, а не на unit-прогоне.
-  return Math.max(
-    Math.abs(cardBox.x - highlightBox.x - HOVER_BORDER_OVERHANG),
-    Math.abs(cardBox.y - highlightBox.y - HOVER_BORDER_OVERHANG),
-    Math.abs(highlightBox.width - cardBox.width - HOVER_BORDER_OVERHANG * 2),
-    Math.abs(highlightBox.height - cardBox.height - HOVER_BORDER_OVERHANG * 2),
-  );
+    const cardBox = cardElement.getBoundingClientRect();
+    const highlightBox = highlight.getBoundingClientRect();
+
+    // Выступ берётся из токена дизайн-системы, а не зашивается числом: иначе
+    // изменение halo валит этот тест уже в CI, а не на unit-прогоне.
+    return Math.max(
+      Math.abs(cardBox.x - highlightBox.x - overhang),
+      Math.abs(cardBox.y - highlightBox.y - overhang),
+      Math.abs(highlightBox.width - cardBox.width - overhang * 2),
+      Math.abs(highlightBox.height - cardBox.height - overhang * 2),
+    );
+  }, HOVER_BORDER_OVERHANG);
 }
 
 test.beforeAll(async () => {
@@ -100,11 +109,11 @@ test.describe("@smoke public catalog", () => {
 
     await cards.nth(0).hover();
     await expect(highlight).toHaveCount(1);
-    await expect.poll(() => hoverBorderAlignmentError(cards.nth(0), highlight)).toBeLessThan(1);
+    await expect.poll(() => hoverBorderAlignmentError(cards.nth(0))).toBeLessThan(1);
 
     await cards.nth(1).hover();
     await expect(highlight).toHaveCount(1);
-    await expect.poll(() => hoverBorderAlignmentError(cards.nth(1), highlight)).toBeLessThan(1);
+    await expect.poll(() => hoverBorderAlignmentError(cards.nth(1))).toBeLessThan(1);
     browserObserver.assertClean();
   });
 
