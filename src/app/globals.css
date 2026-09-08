@@ -309,8 +309,8 @@ a {
 }
 
 [data-site-root] [data-card-title] {
-  font-family: var(--font-victor-mono), var(--font-rubik), monospace;
-  font-weight: 600;
+  font-family: var(--font-rubik), var(--font-geist-sans), sans-serif;
+  font-weight: 450;
   letter-spacing: 0.02em;
 }
 

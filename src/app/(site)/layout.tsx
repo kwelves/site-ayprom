@@ -42,16 +42,6 @@ const rubik = localFont({
   fallback: ["Arial", "sans-serif"],
 });
 
-const victorMono = localFont({
-  src: "../fonts/victor-mono/victor-mono-semibold.otf",
-  variable: "--font-victor-mono",
-  weight: "600",
-  style: "normal",
-  display: "swap",
-  preload: false,
-  fallback: ["Arial", "sans-serif"],
-});
-
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
   icons: {
@@ -96,7 +86,7 @@ export default async function RootLayout({
   return (
     <html
       lang="ru"
-      className={`${razerF5.variable} ${rubik.variable} ${victorMono.variable} h-full antialiased`}
+      className={`${razerF5.variable} ${rubik.variable} h-full antialiased`}
     >
       {/* Hero-видео на главной запрашивается с Supabase Storage сразу при
           заходе на сайт. Next не хоистит resource hints автоматически для
