@@ -10,13 +10,12 @@ import {
 } from "@/lib/home-seo";
 
 describe("главная страница в поиске", () => {
-  it("задаёт короткий локальный title и единое маркетинговое описание", () => {
-    expect(HOME_SEO_TITLE).toBe("Гидравлика и запчасти для спецтехники в Бишкеке");
-    expect(HOME_SEO_FULL_TITLE).toBe("Гидравлика и запчасти для спецтехники в Бишкеке — AYPROM");
-    // География остаётся в title и описании, но не в видимом заголовке hero.
+  it("согласует title с предложением в Hero и сохраняет бренд AYPROM", () => {
+    expect(HOME_SEO_TITLE).toBe("Гидравлические запчасти для спецтехники");
+    expect(HOME_SEO_FULL_TITLE).toBe("Гидравлические запчасти для спецтехники — AYPROM");
     expect(HOME_HERO_TITLE).toBe("AYPROM - гидравлические запчасти для спецтехники");
     expect(HOME_HERO_TITLE).not.toContain("Бишкек");
-    expect(HOME_SEO_FULL_TITLE).toContain("Бишкек");
+    expect(HOME_SEO_FULL_TITLE).not.toContain("Бишкек");
     expect(HOME_SEO_FULL_TITLE.length).toBeLessThanOrEqual(60);
     expect(HOME_SEO_DESCRIPTION.length).toBeLessThanOrEqual(160);
 
@@ -25,6 +24,7 @@ describe("главная страница в поиске", () => {
       description: HOME_SEO_DESCRIPTION,
       alternates: { canonical: "/" },
       openGraph: {
+        siteName: "AYPROM",
         title: HOME_SEO_FULL_TITLE,
         description: HOME_SEO_DESCRIPTION,
         url: "/",
