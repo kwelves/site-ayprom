@@ -21,7 +21,7 @@ describe("buildProductMetadata", () => {
   it("отдаёт приоритет SEO-полям из админки", () => {
     const meta = buildProductMetadata(
       product({
-        metaTitle: "Насос НШ 63 купить в Бишкеке",
+        metaTitle: "Насос НШ 63 для самосвала",
         metaDescription: "Шестерённый насос НШ 63 в наличии.",
         description: "Обычное описание",
         shortDescription: "Краткое описание",
@@ -29,7 +29,7 @@ describe("buildProductMetadata", () => {
       CANONICAL,
     );
 
-    expect(meta.title).toBe("Насос НШ 63 купить в Бишкеке");
+    expect(meta.title).toBe("Насос НШ 63 для самосвала");
     expect(meta.description).toBe("Шестерённый насос НШ 63 в наличии.");
   });
 
@@ -47,8 +47,10 @@ describe("buildProductMetadata", () => {
 
     expect(meta.title).toBe("Шестеренчатый насос BOHERTA НШ 63");
     expect(meta.description).toContain("Шестеренчатый насос BOHERTA НШ 63");
-    expect(meta.description).toContain("Бишкеке");
+    expect(meta.description).not.toContain("Бишкек");
     expect(meta.description).toContain("НШ-63-3");
+    expect(meta.description).toContain("Кыргызстану");
+    expect(meta.description).toContain("СНГ");
   });
 
   it("не превышает лимит длины сниппета", () => {

@@ -57,14 +57,13 @@ export const metadata: Metadata = {
     template: "%s — AYPROM",
   },
   description:
-    "AYPROM: каталог гидрооборудования и запчастей для спецтехники и грузовой техники. Подбор по категории, марке техники, названию или артикулу.",
+    "AYPROM: каталог гидрооборудования и запчастей для тягачей, самосвалов и спецтехники. Подбор по категории, марке, модели и артикулу.",
   openGraph: {
     type: "website",
     locale: "ru_KG",
     siteName: "AYPROM",
     title: "AYPROM — гидрооборудование и запчасти для спецтехники",
-    description:
-      "Каталог гидрооборудования и запчастей для грузовой и специальной техники в Бишкеке.",
+    description: "Гидрооборудование и запчасти для тягачей, самосвалов и спецтехники.",
     images: [{ url: OG_IMAGE.url, width: OG_IMAGE.width, height: OG_IMAGE.height, alt: OG_IMAGE.alt }],
   },
   twitter: {

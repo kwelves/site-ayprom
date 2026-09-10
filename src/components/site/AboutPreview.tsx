@@ -15,17 +15,17 @@ const values: ValueCard[] = [
   {
     icon: Package,
     title: "Деталь или полный комплект",
-    description: "КОМ, гидронасосы, гидромоторы, гидроцилиндры — по отдельности или сразу готовым комплектом.",
+    description: "КОМ, насосы, гидромоторы и гидроцилиндры по отдельности или в составе готового комплекта.",
   },
   {
     icon: SlidersHorizontal,
     title: "Точная совместимость",
-    description: "Подбираем комплектующие под конкретную модель техники — не придётся гадать, подойдёт ли деталь.",
+    description: "Подбираем детали по модели техники, коробке передач и артикулу.",
   },
   {
     icon: Truck,
     title: "Без долгого ожидания",
-    description: "Из наличия — отправляем сразу. Под заказ — привозим и доставляем по Кыргызстану и странам СНГ.",
+    description: "Товары из наличия отправляем сразу. Остальные привозим под заказ и доставляем по Кыргызстану и в страны СНГ.",
   },
 ];
 
@@ -133,7 +133,7 @@ export function AboutPreview() {
               />
               <div>
                 <p className="text-sm font-semibold text-card-foreground">AYPROM</p>
-                <p className="text-xs text-muted-foreground">Бишкек, Кыргызстан</p>
+                <p className="text-xs text-muted-foreground">Гидрооборудование и запчасти</p>
               </div>
             </div>
 
@@ -179,7 +179,7 @@ export function AboutPreview() {
             />
             <div>
               <p className="text-sm font-semibold text-card-foreground">AYPROM</p>
-              <p className="text-xs text-muted-foreground">Бишкек, Кыргызстан</p>
+              <p className="text-xs text-muted-foreground">Гидрооборудование и запчасти</p>
             </div>
           </div>
 

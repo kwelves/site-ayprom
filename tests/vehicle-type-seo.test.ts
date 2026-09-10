@@ -14,16 +14,18 @@ describe("тексты страниц по типу техники", () => {
     );
   });
 
-  it.each(entries)("%s: заголовок и описание помещаются в выдачу и называют город", (_slug, seo) => {
+  it.each(entries)("%s: заголовок и описание помещаются в выдачу без города", (_slug, seo) => {
     expect((seo.title + TITLE_SUFFIX).length).toBeLessThanOrEqual(60);
     expect(seo.description.length).toBeLessThanOrEqual(160);
-    expect(seo.title).toContain("Бишкеке");
-    expect(seo.description).toContain("Бишкеке");
+    expect(seo.title).not.toContain("Бишкек");
+    expect(seo.description).not.toContain("Бишкек");
   });
 
   it.each(entries)("%s: видимый абзац содержательный и обещает то же, что «О компании»", (_slug, seo) => {
     expect(seo.intro.length).toBeGreaterThan(200);
-    expect(seo.intro).toContain("гарантия 12 месяцев");
+    expect(seo.intro).toMatch(/гаранти[яю].*12 месяцев/i);
+    expect(seo.intro).toContain("по Кыргызстану и в страны СНГ");
+    expect(seo.intro).not.toContain("Бишкек");
   });
 
   it("у «Тонара» тексты про тонар, хотя адрес страницы исторически tyagach", () => {

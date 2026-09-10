@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Контакты",
-  description: "Адрес, телефоны и соцсети AYPROM в Бишкеке — гидравлика для тягачей, самосвалов и спецтехники.",
+  description: "Телефоны, WhatsApp, соцсети, адрес и часы работы AYPROM. Свяжитесь с нами для подбора гидрооборудования и запчастей.",
   alternates: { canonical: "/contacts" },
 };
 
@@ -104,7 +104,7 @@ export default function ContactsPage() {
           className="mx-auto text-center"
           eyebrow="Контакты"
           title="Свяжитесь с AYPROM"
-          description="Мы на связи по телефону и в Instagram, а если удобнее — заезжайте в Бишкеке по адресу ниже."
+          description="Позвоните, напишите в WhatsApp или Instagram либо приезжайте по адресу ниже."
         />
       </Reveal>
 

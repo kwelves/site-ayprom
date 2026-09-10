@@ -32,16 +32,18 @@ describe("тексты страниц брендов", () => {
     );
   });
 
-  it.each(entries)("%s: заголовок и описание помещаются в выдачу и называют город", (_slug, seo) => {
+  it.each(entries)("%s: заголовок и описание помещаются в выдачу без города", (_slug, seo) => {
     expect((seo.title + TITLE_SUFFIX).length).toBeLessThanOrEqual(60);
     expect(seo.description.length).toBeLessThanOrEqual(160);
-    expect(seo.title).toContain("Бишкеке");
-    expect(seo.description).toContain("Бишкеке");
+    expect(seo.title).not.toContain("Бишкек");
+    expect(seo.description).not.toContain("Бишкек");
   });
 
   it.each(entries)("%s: абзац содержательный и обещает то же, что «О компании»", (_slug, seo) => {
-    expect(seo.intro.length).toBeGreaterThan(250);
-    expect(`${seo.description} ${seo.intro}`).toContain("гарантия 12 месяцев");
+    expect(seo.intro.length).toBeGreaterThan(200);
+    expect(`${seo.description} ${seo.intro}`).toMatch(/гаранти[яю].*12 месяцев/i);
+    expect(seo.intro).toContain("по Кыргызстану и в страны СНГ");
+    expect(seo.intro).not.toContain("Бишкек");
   });
 
   // Семнадцать страниц с одним шаблоном и подставленным названием — это
@@ -61,8 +63,9 @@ describe("тексты страниц брендов", () => {
     expect(getBrandSeo("hyundai")!.intro).toContain("HIDRAKA");
   });
 
-  it("объясняет, что ZF — это коробка передач, а не марка грузовика", () => {
-    expect(getBrandSeo("zf")!.intro).toContain("не грузовика");
+  it("объясняет, что ZF подбирают по модели КПП", () => {
+    expect(getBrandSeo("zf")!.intro).toContain("модель КПП");
+    expect(getBrandSeo("zf")!.intro).toContain("марка тягача");
   });
 
   it("возвращает null для неизвестного бренда, чтобы страница осталась прежней", () => {
