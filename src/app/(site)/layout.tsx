@@ -8,6 +8,7 @@ import { ScrollToHash } from "@/components/layout/ScrollToHash";
 import { ResetScrollOnNavigate } from "@/components/layout/ResetScrollOnNavigate";
 import { getCategories } from "@/lib/queries/categories";
 import { getBrands } from "@/lib/queries/brands";
+import { HERO_VIDEO_ORIGIN } from "@/lib/hero-video";
 import { HomeEntrySequence } from "@/components/home/HomeEntrySequence";
 import { getSiteUrl } from "@/lib/site-url";
 import { OG_IMAGE } from "@/lib/og-image";
@@ -80,7 +81,6 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const [categories, brands] = await Promise.all([getCategories(), getBrands()]);
-  const supabaseOrigin = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin;
 
   return (
     <html
@@ -93,8 +93,8 @@ export default async function RootLayout({
           только в момент, когда браузер доходит до <video><source>, — этот
           preconnect убирает эту задержку с критического пути. Next хоистит
           любой <link>, отрисованный в дереве, в <head> сам. */}
-      <link rel="preconnect" href={supabaseOrigin} crossOrigin="anonymous" />
-      <link rel="dns-prefetch" href={supabaseOrigin} />
+      <link rel="preconnect" href={HERO_VIDEO_ORIGIN} crossOrigin="anonymous" />
+      <link rel="dns-prefetch" href={HERO_VIDEO_ORIGIN} />
       <body data-site-root className="flex min-h-full flex-col bg-background text-foreground">
         <HomeEntrySequence>
         <ScrollToHash />

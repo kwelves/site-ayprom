@@ -34,10 +34,12 @@
     "photos:enhance": "node scripts/enhance-product-photos.mjs",
     "images:vehicle-webp": "node scripts/generate-vehicle-webp.mjs",
     "images:backfill-variants": "node --env-file-if-exists=.env.local scripts/backfill-product-image-variants.mjs",
+    "media:r2": "node scripts/migrate-media-to-r2.mjs",
     "video:hero": "node scripts/generate-hero-video.mjs",
     "video:hero:upload": "node scripts/upload-hero-video.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1129.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",

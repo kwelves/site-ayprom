@@ -4,9 +4,13 @@ import { withSentryConfig } from "@sentry/nextjs";
 import { buildContentSecurityPolicy } from "@/lib/security/csp";
 
 const supabaseUrl = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!);
+const mediaUrl = process.env.NEXT_PUBLIC_MEDIA_BASE_URL
+  ? new URL(process.env.NEXT_PUBLIC_MEDIA_BASE_URL)
+  : null;
 const contentSecurityPolicy = buildContentSecurityPolicy({
   isDevelopment: process.env.NODE_ENV === "development",
   supabaseOrigin: supabaseUrl.origin,
+  mediaOrigin: mediaUrl?.origin,
 });
 
 const nextConfig: NextConfig = {
@@ -76,6 +80,16 @@ const nextConfig: NextConfig = {
         port: supabaseUrl.port || undefined,
         pathname: "/storage/v1/object/public/**",
       },
+      ...(mediaUrl
+        ? [
+            {
+              protocol: mediaUrl.protocol.replace(":", "") as "http" | "https",
+              hostname: mediaUrl.hostname,
+              port: mediaUrl.port || undefined,
+              pathname: "/**",
+            },
+          ]
+        : []),
     ],
   },
   async headers() {

@@ -42,8 +42,21 @@ cp .env.example .env.local
 | `SUPABASE_SECRET_KEY` | административные Server Actions и проверка схемы | да |
 | `ADMIN_PASSWORD` | текущий общий пароль входа в админку | да |
 | `ADMIN_SESSION_SECRET` | HMAC-подпись административной cookie; используйте минимум 32 случайных байта | да |
+| `MEDIA_STORAGE_WRITE_TARGET` | `supabase` до переключения, затем `r2` для новых публичных файлов | нет |
+| `MEDIA_STORAGE_DUAL_WRITE_SUPABASE` | временная резервная запись новых R2-файлов в Supabase | нет |
+| `MEDIA_STORAGE_RETAIN_OBJECTS` | по умолчанию `true`: сохранять физические файлы при удалении/замене записей на период переноса | нет |
+| `NEXT_PUBLIC_HERO_MEDIA_SOURCE` | источник hero-видео: `supabase` или `r2` | нет |
+| `NEXT_PUBLIC_MEDIA_BASE_URL` | публичный origin R2, например `https://media.ayprom-gidravlika.kg` | нет |
+| `R2_ACCOUNT_ID` | идентификатор аккаунта Cloudflare для S3 API | да |
+| `R2_ACCESS_KEY_ID` | серверный R2 access key | да |
+| `R2_SECRET_ACCESS_KEY` | серверный R2 secret key | да |
+| `R2_BUCKET_NAME` | production-бакет публичных медиа | да |
 
 `SUPABASE_SECRET_KEY`, `ADMIN_PASSWORD` и `ADMIN_SESSION_SECRET` разрешено читать только серверному коду. Не добавляйте к ним префикс `NEXT_PUBLIC_`.
+
+R2-ключи также являются серверными секретами. Браузер получает только публичный
+адрес готового файла. Закрытое промежуточное хранилище новых товарных фото
+остаётся в Supabase, где файл проверяется до публикации.
 
 ## Команды
 
@@ -59,6 +72,7 @@ npm run e2e:preflight # local Supabase/Docker/Chromium без вывода се�
 npm run e2e:smoke     # production build + критические browser smoke
 npm run e2e           # полный Playwright baseline/regression suite
 npm run schema:check # read-only сверка миграций с удалённым Supabase
+npm run media:r2 -- --help # безопасный dry-run/перенос/откат публичных файлов
 ```
 
 `schema:check` не меняет БД. Команда сравнивает таблицы и колонки `public`, описанные в `supabase/migrations`, с OpenAPI-схемой PostgREST и проверяет наличие/публичность Storage buckets. Для неё нужен заполненный `.env.local` и сетевой доступ.

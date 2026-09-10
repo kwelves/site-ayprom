@@ -17,9 +17,10 @@ describe("category storage cleanup order", () => {
   ])("%s commits the database deletion before removing files", (name, nextName, deleteCall, cleanupContext) => {
     const body = actionBody(name, nextName);
     const databaseDelete = body.indexOf(deleteCall);
-    const storageCleanup = body.indexOf(`removeFilesAfterDatabaseDelete(supabase, storagePaths, ${cleanupContext})`);
+    const storageCleanup = body.indexOf("await removeFilesAfterDatabaseDelete(");
 
     expect(databaseDelete).toBeGreaterThan(-1);
     expect(storageCleanup).toBeGreaterThan(databaseDelete);
+    expect(body.slice(storageCleanup)).toContain(cleanupContext);
   });
 });

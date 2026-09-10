@@ -12,11 +12,12 @@ import {
 } from "@/lib/admin/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveCardImageUrl } from "@/lib/product-image-variants";
+import { removePublicMediaUrls, uploadPublicMediaObject } from "@/lib/media-storage";
+import { buildR2PublicUrl } from "@/lib/media-storage-core";
 import {
   generateProductImageVariants,
   VARIANT_UPLOAD_OPTIONS,
 } from "@/lib/admin/product-image-variants.core.mjs";
-import { isAlreadyExistsError } from "@/lib/admin/product-image-backfill.core.mjs";
 import { slugify } from "@/lib/admin/slugify";
 import {
   AdminLoginProtectionUnavailableError,
@@ -142,20 +143,21 @@ async function getProductMutationRedirect(options: {
 
 async function removeFilesAfterDatabaseDelete(
   supabase: ReturnType<typeof createAdminClient>,
-  paths: string[],
+  urls: string[],
   entityType: "category" | "subcategory",
 ): Promise<void> {
-  if (paths.length === 0) return;
+  if (urls.length === 0) return;
 
-  const { error } = await supabase.storage.from("category-images").remove(paths);
-  if (error) {
+  try {
+    await removePublicMediaUrls(supabase, "category-images", urls);
+  } catch (error) {
     // The database deletion is already committed. An orphaned file is safer
     // than deleting files first and then discovering that a foreign key kept
     // the category alive. Report cleanup for retry without turning a completed
     // deletion into a misleading UI failure.
     Sentry.captureException(error, {
       tags: { subsystem: "admin-storage-cleanup", entityType },
-      extra: { bucket: "category-images", fileCount: paths.length },
+      extra: { bucket: "category-images", fileCount: urls.length },
     });
   }
 }
@@ -669,14 +671,15 @@ export async function deleteProduct(slug: string, redirectAfterDelete = true): P
   if (deleteError) throw deleteError;
 
   // Master и оба варианта каждого фото; дедупликация — внутри
-  // collectImageStoragePaths, плюс между фотографиями через Set.
-  const storagePaths = [...new Set(product.product_images.flatMap(collectImageStoragePaths))];
-  if (storagePaths.length > 0) {
-    const { error: removeError } = await supabase.storage.from("product-images").remove(storagePaths);
-    if (removeError) {
+  // collectImageStorageUrls, плюс между фотографиями через Set.
+  const storageUrls = [...new Set(product.product_images.flatMap(collectImageStorageUrls))];
+  if (storageUrls.length > 0) {
+    try {
+      await removePublicMediaUrls(supabase, "product-images", storageUrls);
+    } catch (removeError) {
       console.error("Не удалось очистить файлы удалённого товара", {
         productSlug: slug,
-        message: removeError.message,
+        message: getErrorMessage(removeError, "неизвестная ошибка"),
       });
     }
   }
@@ -827,22 +830,27 @@ async function insertProductImage(
   const uploadedPaths: string[] = [];
   const cleanupUploaded = async (reason: string) => {
     if (uploadedPaths.length === 0) return;
-    const { error: cleanupError } = await supabase.storage.from("product-images").remove(uploadedPaths);
-    if (cleanupError) {
+    const urls = uploadedPaths.map((path) => mediaUrlForCurrentWriteTarget(supabase, "product-images", path));
+    try {
+      await removePublicMediaUrls(supabase, "product-images", urls);
+    } catch (cleanupError) {
       console.error("Не удалось удалить orphan-файлы фотографии", {
         productSlug,
         imageId,
         reason,
         paths: uploadedPaths,
-        message: cleanupError.message,
+        message: getErrorMessage(cleanupError, "неизвестная ошибка"),
       });
     }
   };
 
-  const { error: masterUploadError } = await supabase.storage
-    .from("product-images")
-    .upload(masterPath, validated.bytes, { contentType: validated.contentType });
-  if (masterUploadError) throw masterUploadError;
+  const masterUrl = await uploadPublicMediaObject(supabase, {
+    bucket: "product-images",
+    path: masterPath,
+    body: validated.bytes,
+    contentType: validated.contentType,
+    cacheControl: "31536000",
+  });
   uploadedPaths.push(masterPath);
 
   try {
@@ -854,14 +862,14 @@ async function insertProductImage(
       uploadedPaths.push(variant.path);
     }
 
-    const publicUrl = (path: string) => supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl;
+    const publicUrl = (path: string) => mediaUrlForCurrentWriteTarget(supabase, "product-images", path);
 
     const { data: inserted, error: insertError } = await supabase
       .from("product_images")
       .insert({
         id: imageId,
         product_id: productId,
-        url: publicUrl(masterPath),
+        url: masterUrl,
         thumbnail_url: publicUrl(thumbnail.path),
         gallery_url: publicUrl(gallery.path),
         order,
@@ -928,10 +936,17 @@ export async function uploadProductImage(
   return inserted;
 }
 
-function extractStoragePath(publicUrl: string, bucket: string): string | null {
-  const marker = `/${bucket}/`;
-  const index = publicUrl.indexOf(marker);
-  return index === -1 ? null : publicUrl.slice(index + marker.length);
+function mediaUrlForCurrentWriteTarget(
+  supabase: ReturnType<typeof createAdminClient>,
+  bucket: "product-images" | "category-images" | "brand-logos" | "site-media",
+  path: string,
+): string {
+  if (process.env.MEDIA_STORAGE_WRITE_TARGET === "r2") {
+    const baseUrl = process.env.NEXT_PUBLIC_MEDIA_BASE_URL;
+    if (!baseUrl) throw new Error("Переменная окружения NEXT_PUBLIC_MEDIA_BASE_URL не задана для Cloudflare R2.");
+    return buildR2PublicUrl(baseUrl, bucket, path);
+  }
+  return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
 }
 
 /**
@@ -947,12 +962,14 @@ async function uploadImageVariant(
   supabase: ReturnType<typeof createAdminClient>,
   variant: { path: string; body: Buffer },
 ): Promise<void> {
-  const { error } = await supabase.storage
-    .from("product-images")
-    .upload(variant.path, variant.body, VARIANT_UPLOAD_OPTIONS);
-  if (!error) return;
-  if (isAlreadyExistsError(error)) return;
-  throw error;
+  await uploadPublicMediaObject(supabase, {
+    bucket: "product-images",
+    path: variant.path,
+    body: variant.body,
+    contentType: VARIANT_UPLOAD_OPTIONS.contentType,
+    cacheControl: VARIANT_UPLOAD_OPTIONS.cacheControl,
+    allowExisting: true,
+  });
 }
 
 /**
@@ -963,14 +980,10 @@ async function uploadImageVariant(
  * обработанных строк колонки могут указывать на тот же объект — Storage API
  * на повторяющемся пути в одном запросе ведёт себя неопределённо.
  */
-function collectImageStoragePaths(
+function collectImageStorageUrls(
   image: { url: string; thumbnail_url?: string | null; gallery_url?: string | null },
 ): string[] {
-  const paths = [image.url, image.thumbnail_url, image.gallery_url]
-    .filter((url): url is string => Boolean(url))
-    .map((url) => extractStoragePath(url, "product-images"))
-    .filter((path): path is string => Boolean(path));
-  return [...new Set(paths)];
+  return [...new Set([image.url, image.thumbnail_url, image.gallery_url].filter((url): url is string => Boolean(url)))];
 }
 
 export async function deleteProductImage(imageId: string): Promise<void> {
@@ -995,14 +1008,15 @@ export async function deleteProductImage(imageId: string): Promise<void> {
 
   // Master и оба варианта: строка ушла, поэтому оставшиеся объекты уже
   // никем не адресуются.
-  const storagePaths = collectImageStoragePaths(image);
-  if (storagePaths.length > 0) {
-    const { error: removeError } = await supabase.storage.from("product-images").remove(storagePaths);
-    if (removeError) {
+  const storageUrls = collectImageStorageUrls(image);
+  if (storageUrls.length > 0) {
+    try {
+      await removePublicMediaUrls(supabase, "product-images", storageUrls);
+    } catch (removeError) {
       console.error("Не удалось очистить файлы удалённой фотографии", {
         imageId,
-        paths: storagePaths,
-        message: removeError.message,
+        urls: storageUrls,
+        message: getErrorMessage(removeError, "неизвестная ошибка"),
       });
     }
   }
@@ -1181,10 +1195,14 @@ async function attachStagedProductImages(options: {
       // поэтому и master, и варианты ложатся по одним и тем же путям —
       // повторный проход не плодит дубликаты объектов.
       const publicPath = `${productSlug}/${row.id}/master.${validated.extension}`;
-      const uploaded = await supabase.storage
-        .from("product-images")
-        .upload(publicPath, validated.bytes, { contentType: validated.contentType, upsert: true });
-      if (uploaded.error) throw uploaded.error;
+      const masterUrl = await uploadPublicMediaObject(supabase, {
+        bucket: "product-images",
+        path: publicPath,
+        body: validated.bytes,
+        contentType: validated.contentType,
+        cacheControl: "31536000",
+        allowExisting: true,
+      });
 
       const { thumbnail, gallery } = await generateProductImageVariants(Buffer.from(validated.bytes), {
         productSlug,
@@ -1194,8 +1212,7 @@ async function attachStagedProductImages(options: {
         await uploadImageVariant(supabase, variant);
       }
 
-      const publicUrl = (path: string) => supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl;
-      const masterUrl = publicUrl(publicPath);
+      const publicUrl = (path: string) => mediaUrlForCurrentWriteTarget(supabase, "product-images", path);
 
       const { data: already } = await supabase
         .from("product_images")
@@ -1285,12 +1302,13 @@ async function uploadBrandLogo(
   // хранилище без единой проверки.
   const validated = await validateBrandLogoUpload(file);
   const path = `${brandSlug}/${crypto.randomUUID()}.${validated.extension}`;
-  const { error } = await supabase.storage
-    .from("brand-logos")
-    .upload(path, validated.bytes, { contentType: validated.contentType });
-  if (error) throw error;
-  const { data } = supabase.storage.from("brand-logos").getPublicUrl(path);
-  return data.publicUrl;
+  return uploadPublicMediaObject(supabase, {
+    bucket: "brand-logos",
+    path,
+    body: validated.bytes,
+    contentType: validated.contentType,
+    cacheControl: "31536000",
+  });
 }
 
 // The logo is required on create (Brand.logo is non-optional — every card
@@ -1325,8 +1343,7 @@ export async function createBrand(
     order: nextOrder,
   });
   if (error) {
-    const path = extractStoragePath(logoUrl, "brand-logos");
-    if (path) await supabase.storage.from("brand-logos").remove([path]);
+    await removePublicMediaUrls(supabase, "brand-logos", [logoUrl]).catch(() => undefined);
     throw error;
   }
 
@@ -1371,17 +1388,24 @@ export async function replaceBrandLogo(slug: string, formData: FormData): Promis
   if (!(file instanceof File) || file.size === 0) return null;
 
   const supabase = createAdminClient();
-  const [{ data: existing }, newLogoUrl] = await Promise.all([
-    supabase.from("brands").select("logo").eq("slug", slug).maybeSingle(),
-    uploadBrandLogo(supabase, slug, file),
-  ]);
+  const { data: existing, error: lookupError } = await supabase.from("brands").select("logo").eq("slug", slug).maybeSingle();
+  if (lookupError) throw lookupError;
+  if (!existing) return null;
+  const newLogoUrl = await uploadBrandLogo(supabase, slug, file);
 
-  const { error } = await supabase.from("brands").update({ logo: newLogoUrl }).eq("slug", slug);
-  if (error) throw error;
+  const { error } = await supabase.from("brands").update({ logo: newLogoUrl }).eq("slug", slug).eq("logo", existing.logo).select("slug").single();
+  if (error) {
+    await removePublicMediaUrls(supabase, "brand-logos", [newLogoUrl]).catch((cleanupError) => Sentry.captureException(cleanupError));
+    throw error;
+  }
 
   if (existing?.logo) {
-    const oldPath = extractStoragePath(existing.logo, "brand-logos");
-    if (oldPath) await supabase.storage.from("brand-logos").remove([oldPath]);
+    await removePublicMediaUrls(supabase, "brand-logos", [existing.logo]).catch((cleanupError) => {
+      Sentry.captureException(cleanupError, {
+        tags: { subsystem: "admin-storage-cleanup", entityType: "brand" },
+        extra: { brandSlug: slug },
+      });
+    });
   }
 
   revalidatePath("/admin/brands");
@@ -1395,18 +1419,18 @@ export async function deleteBrand(slug: string, redirectAfterDelete = true): Pro
 
   const { data: brand, error: brandLookupError } = await supabase.from("brands").select("logo").eq("slug", slug).maybeSingle();
   if (brandLookupError) throw brandLookupError;
-  if (brand?.logo) {
-    const path = extractStoragePath(brand.logo, "brand-logos");
-    if (path) {
-      const { error: removeError } = await supabase.storage.from("brand-logos").remove([path]);
-      if (removeError) throw removeError;
-    }
-  }
-
   // Cascades clean up product_brands/category_brands associations — the
   // BrandsList UI warns with usage counts before calling this.
   const { error } = await supabase.from("brands").delete().eq("slug", slug);
   if (error) throw error;
+  if (brand?.logo) {
+    await removePublicMediaUrls(supabase, "brand-logos", [brand.logo]).catch((cleanupError) => {
+      Sentry.captureException(cleanupError, {
+        tags: { subsystem: "admin-storage-cleanup", entityType: "brand" },
+        extra: { brandSlug: slug },
+      });
+    });
+  }
 
   revalidatePath("/admin/brands");
   revalidatePublicSite();
@@ -1471,12 +1495,13 @@ async function uploadCategoryImage(
   // определялись клиентом.
   const validated = await validateCategoryImageUpload(file);
   const path = `${pathPrefix}/${crypto.randomUUID()}.${validated.extension}`;
-  const { error } = await supabase.storage
-    .from("category-images")
-    .upload(path, validated.bytes, { contentType: validated.contentType });
-  if (error) throw error;
-  const { data } = supabase.storage.from("category-images").getPublicUrl(path);
-  return data.publicUrl;
+  return uploadPublicMediaObject(supabase, {
+    bucket: "category-images",
+    path,
+    body: validated.bytes,
+    contentType: validated.contentType,
+    cacheControl: "31536000",
+  });
 }
 
 // `type` is required on create only — like brand.logo, the site can't
@@ -1517,8 +1542,7 @@ export async function createCategory(
     order: nextOrder,
   });
   if (error) {
-    const path = extractStoragePath(imageUrl, "category-images");
-    if (path) await supabase.storage.from("category-images").remove([path]);
+    await removePublicMediaUrls(supabase, "category-images", [imageUrl]).catch(() => undefined);
     throw error;
   }
 
@@ -1562,17 +1586,24 @@ export async function replaceCategoryImage(slug: string, formData: FormData): Pr
   if (!(file instanceof File) || file.size === 0) return null;
 
   const supabase = createAdminClient();
-  const [{ data: existing }, newImageUrl] = await Promise.all([
-    supabase.from("categories").select("image").eq("slug", slug).maybeSingle(),
-    uploadCategoryImage(supabase, slug, file),
-  ]);
+  const { data: existing, error: lookupError } = await supabase.from("categories").select("image").eq("slug", slug).maybeSingle();
+  if (lookupError) throw lookupError;
+  if (!existing) return null;
+  const newImageUrl = await uploadCategoryImage(supabase, slug, file);
 
-  const { error } = await supabase.from("categories").update({ image: newImageUrl }).eq("slug", slug);
-  if (error) throw error;
+  const { error } = await supabase.from("categories").update({ image: newImageUrl }).eq("slug", slug).eq("image", existing.image).select("slug").single();
+  if (error) {
+    await removePublicMediaUrls(supabase, "category-images", [newImageUrl]).catch((cleanupError) => Sentry.captureException(cleanupError));
+    throw error;
+  }
 
   if (existing?.image) {
-    const oldPath = extractStoragePath(existing.image, "category-images");
-    if (oldPath) await supabase.storage.from("category-images").remove([oldPath]);
+    await removePublicMediaUrls(supabase, "category-images", [existing.image]).catch((cleanupError) => {
+      Sentry.captureException(cleanupError, {
+        tags: { subsystem: "admin-storage-cleanup", entityType: "category" },
+        extra: { categorySlug: slug },
+      });
+    });
   }
 
   revalidatePath("/admin/categories");
@@ -1584,31 +1615,18 @@ export async function deleteCategory(slug: string, redirectAfterDelete = true): 
   await requireAdminSession();
   const supabase = createAdminClient();
 
-  const { data: files, error: listError } = await supabase.storage.from("category-images").list(slug);
-  if (listError) throw listError;
-  const storagePaths = (files ?? []).map((file) => `${slug}/${file.name}`);
-
-  // Subcategory images live in their own sub-{id} folders, not nested under
-  // this category's — the DB cascade below clears subcategory rows but
-  // wouldn't reach their Storage files, so collect those paths before the
-  // rows disappear and clean them only after the database delete succeeds.
-  // Parallel, not sequential: a category can have many subcategories, and
-  // each folder listing is independent with nothing to serialize.
-  const { data: subcategories, error: subcategoriesError } = await supabase
-    .from("subcategories")
-    .select("id")
-    .eq("category_slug", slug);
+  // URLs come from the rows that own them, so this works for both old
+  // Supabase objects and migrated R2 objects without listing either bucket.
+  const [{ data: category, error: categoryError }, { data: subcategories, error: subcategoriesError }] =
+    await Promise.all([
+      supabase.from("categories").select("image").eq("slug", slug).maybeSingle(),
+      supabase.from("subcategories").select("image").eq("category_slug", slug),
+    ]);
+  if (categoryError) throw categoryError;
   if (subcategoriesError) throw subcategoriesError;
-  const subcategoryStoragePaths = await Promise.all(
-    (subcategories ?? []).map(async (sub) => {
-      const { data: subFiles, error: subListError } = await supabase.storage
-        .from("category-images")
-        .list(`sub-${sub.id}`);
-      if (subListError) throw subListError;
-      return (subFiles ?? []).map((file) => `sub-${sub.id}/${file.name}`);
-    }),
+  const mediaUrls = [category?.image, ...(subcategories ?? []).map((subcategory) => subcategory.image)].filter(
+    (url): url is string => Boolean(url),
   );
-  storagePaths.push(...subcategoryStoragePaths.flat());
 
   // Cascades clean up subcategories/category_brands; products.category_slug
   // has no cascade, so this throws (FK violation) if any product still
@@ -1616,7 +1634,7 @@ export async function deleteCategory(slug: string, redirectAfterDelete = true): 
   // calling this to avoid surfacing that raw error.
   const { error } = await supabase.from("categories").delete().eq("slug", slug);
   if (error) throw error;
-  await removeFilesAfterDatabaseDelete(supabase, storagePaths, "category");
+  await removeFilesAfterDatabaseDelete(supabase, mediaUrls, "category");
 
   revalidatePath("/admin/categories");
   revalidatePublicSite();
@@ -1710,8 +1728,7 @@ export async function createSubcategory(
     order: nextOrder,
   });
   if (error) {
-    const path = extractStoragePath(imageUrl, "category-images");
-    if (path) await supabase.storage.from("category-images").remove([path]);
+    await removePublicMediaUrls(supabase, "category-images", [imageUrl]).catch(() => undefined);
     throw error;
   }
 
@@ -1762,12 +1779,20 @@ export async function replaceSubcategoryImage(subcategoryId: string, formData: F
 
   const newImageUrl = await uploadCategoryImage(supabase, `sub-${subcategoryId}`, file);
 
-  const { error } = await supabase.from("subcategories").update({ image: newImageUrl }).eq("id", subcategoryId);
-  if (error) throw error;
+  const query = supabase.from("subcategories").update({ image: newImageUrl }).eq("id", subcategoryId);
+  const { error } = await (existing.image == null ? query.is("image", null) : query.eq("image", existing.image)).select("id").single();
+  if (error) {
+    await removePublicMediaUrls(supabase, "category-images", [newImageUrl]).catch((cleanupError) => Sentry.captureException(cleanupError));
+    throw error;
+  }
 
   if (existing.image) {
-    const oldPath = extractStoragePath(existing.image, "category-images");
-    if (oldPath) await supabase.storage.from("category-images").remove([oldPath]);
+    await removePublicMediaUrls(supabase, "category-images", [existing.image]).catch((cleanupError) => {
+      Sentry.captureException(cleanupError, {
+        tags: { subsystem: "admin-storage-cleanup", entityType: "subcategory" },
+        extra: { subcategoryId },
+      });
+    });
   }
 
   revalidatePath(`/admin/categories/${existing.category_slug}/subcategories`);
@@ -1781,24 +1806,18 @@ export async function deleteSubcategory(subcategoryId: string, redirectAfterDele
 
   const { data: existing, error: lookupError } = await supabase
     .from("subcategories")
-    .select("category_slug")
+    .select("category_slug, image")
     .eq("id", subcategoryId)
     .maybeSingle();
   if (lookupError) throw lookupError;
   if (!existing) return;
-
-  const { data: files, error: listError } = await supabase.storage
-    .from("category-images")
-    .list(`sub-${subcategoryId}`);
-  if (listError) throw listError;
-  const storagePaths = (files ?? []).map((file) => `sub-${subcategoryId}/${file.name}`);
 
   // products.subcategory_id has no cascade, so this throws (FK violation) if
   // any product still references it — SubcategoriesList checks productCount
   // before calling this to avoid surfacing that raw error.
   const { error } = await supabase.from("subcategories").delete().eq("id", subcategoryId);
   if (error) throw error;
-  await removeFilesAfterDatabaseDelete(supabase, storagePaths, "subcategory");
+  await removeFilesAfterDatabaseDelete(supabase, existing.image ? [existing.image] : [], "subcategory");
 
   revalidatePath(`/admin/categories/${existing.category_slug}/subcategories`);
   revalidatePublicSite();

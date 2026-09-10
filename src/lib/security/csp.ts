@@ -1,6 +1,7 @@
 type ContentSecurityPolicyOptions = {
   isDevelopment: boolean;
   supabaseOrigin: string;
+  mediaOrigin?: string;
 };
 
 /**
@@ -14,7 +15,9 @@ type ContentSecurityPolicyOptions = {
 export function buildContentSecurityPolicy({
   isDevelopment,
   supabaseOrigin,
+  mediaOrigin,
 }: ContentSecurityPolicyOptions): string {
+  const publicMediaOrigin = mediaOrigin && mediaOrigin !== supabaseOrigin ? ` ${mediaOrigin}` : "";
   return [
     "default-src 'self'",
     `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""}`,
@@ -22,8 +25,8 @@ export function buildContentSecurityPolicy({
     // `style-src-attr` is not sufficient for those `<style>` elements, so
     // preserve this compatibility exception while keeping scripts strict.
     "style-src 'self' 'unsafe-inline'",
-    `img-src 'self' data: blob: ${supabaseOrigin}`,
-    `media-src 'self' ${supabaseOrigin}`,
+    `img-src 'self' data: blob: ${supabaseOrigin}${publicMediaOrigin}`,
+    `media-src 'self' ${supabaseOrigin}${publicMediaOrigin}`,
     // https://*.sentry.io covers regional ingest without baking an
     // organization-specific Sentry DSN into the policy.
     `connect-src 'self' ${supabaseOrigin} https://*.sentry.io`,

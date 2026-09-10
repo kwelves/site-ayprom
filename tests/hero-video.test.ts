@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildHeroVideoStoragePrefix,
   canSustainPlayback,
   createDownloadRateWatch,
   createStallWatch,
@@ -306,6 +307,21 @@ describe("переходы догрузки качественной ступе�
 });
 
 describe("адреса ступеней", () => {
+  it("переключает только origin и сохраняет стабильный путь видео", () => {
+    expect(
+      buildHeroVideoStoragePrefix({
+        source: "r2",
+        supabaseUrl: "https://project.supabase.co",
+        mediaBaseUrl: "https://media.example.com/",
+      }),
+    ).toBe("https://media.example.com/site-media/hero");
+    expect(
+      buildHeroVideoStoragePrefix({
+        source: "supabase",
+        supabaseUrl: "https://project.supabase.co/",
+      }),
+    ).toBe("https://project.supabase.co/storage/v1/object/public/site-media/hero");
+  });
   it("выбирает рамку по признаку мобильного экрана", () => {
     expect(heroVideoSource("startup", true)).toBe(HERO_VIDEO_SOURCES.startup.mobile);
     expect(heroVideoSource("startup", false)).toBe(HERO_VIDEO_SOURCES.startup.desktop);

@@ -15,7 +15,29 @@
  * лечение станет болезнью.
  */
 
-const STORAGE_PREFIX = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/site-media/hero`;
+export function buildHeroVideoStoragePrefix(options: {
+  source?: string;
+  supabaseUrl: string;
+  mediaBaseUrl?: string;
+}): string {
+  if (options.source === "r2") {
+    if (!options.mediaBaseUrl) {
+      throw new Error("NEXT_PUBLIC_MEDIA_BASE_URL обязателен, когда NEXT_PUBLIC_HERO_MEDIA_SOURCE=r2.");
+    }
+    return `${options.mediaBaseUrl.replace(/\/$/, "")}/site-media/hero`;
+  }
+  return `${options.supabaseUrl.replace(/\/$/, "")}/storage/v1/object/public/site-media/hero`;
+}
+
+const STORAGE_PREFIX = buildHeroVideoStoragePrefix({
+  source: process.env.NEXT_PUBLIC_HERO_MEDIA_SOURCE,
+  // Unit tests intentionally run without .env.local. next.config.ts already
+  // rejects a missing production URL before an actual app build starts.
+  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "http://127.0.0.1:54321",
+  mediaBaseUrl: process.env.NEXT_PUBLIC_MEDIA_BASE_URL,
+});
+
+export const HERO_VIDEO_ORIGIN = new URL(STORAGE_PREFIX).origin;
 
 /**
  * Одна строка на оба места, где выбирается рамка: `media` у `<source>`

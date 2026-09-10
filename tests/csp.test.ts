@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildContentSecurityPolicy } from "@/lib/security/csp";
 
 const supabaseOrigin = "https://example.supabase.co";
+const mediaOrigin = "https://media.example.com";
 
 function directive(policy: string, name: string): string {
   const value = policy.split("; ").find((part) => part.startsWith(`${name} `));
@@ -14,7 +15,7 @@ function directive(policy: string, name: string): string {
 
 describe("buildContentSecurityPolicy", () => {
   it("keeps the necessary static App Router exception while preserving required service origins", () => {
-    const policy = buildContentSecurityPolicy({ isDevelopment: false, supabaseOrigin });
+    const policy = buildContentSecurityPolicy({ isDevelopment: false, supabaseOrigin, mediaOrigin });
 
     // Next 16 still streams executable inline Flight payloads. Removing this
     // would block hydration unless every route became dynamically rendered to
@@ -24,7 +25,9 @@ describe("buildContentSecurityPolicy", () => {
     expect(directive(policy, "connect-src")).toContain(supabaseOrigin);
     expect(directive(policy, "connect-src")).toContain("https://*.sentry.io");
     expect(directive(policy, "img-src")).toContain(supabaseOrigin);
+    expect(directive(policy, "img-src")).toContain(mediaOrigin);
     expect(directive(policy, "media-src")).toContain(supabaseOrigin);
+    expect(directive(policy, "media-src")).toContain(mediaOrigin);
     expect(directive(policy, "style-src")).toBe("style-src 'self' 'unsafe-inline'");
   });
 
