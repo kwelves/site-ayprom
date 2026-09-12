@@ -7,6 +7,7 @@
  *   npm run media:r2 -- --scope=video --apply --confirm-project-ref=<ref> --confirm-r2-bucket=ayprom-media-production
  *   npm run media:r2 -- --scope=canary --apply --confirm-project-ref=<ref> --confirm-r2-bucket=ayprom-media-production
  *   npm run media:r2 -- --scope=all --apply --confirm-project-ref=<ref> --confirm-r2-bucket=ayprom-media-production
+ *   npm run media:r2 -- --scope=all --limit=15 --apply --confirm-project-ref=<ref> --confirm-r2-bucket=ayprom-media-production
  *   npm run media:r2 -- --rollback --journal=<absolute-jsonl-path> --confirm-project-ref=<ref>
  */
 
@@ -38,6 +39,12 @@ AYPROM Supabase -> Cloudflare R2 media migration
 
 No flags                         inventory only; no remote writes
 --scope=video|canary|all         select migration scope (default: all)
+--limit=<n>                      with --scope=all, take only the first n
+                                  not-yet-migrated entities (stable order by
+                                  table:id), for staged batches. Already-R2
+                                  rows are excluded automatically regardless
+                                  of --limit, so re-running with the same or
+                                  a higher --limit is safe and resumable.
 --apply                          copy objects and CAS-update database URLs
 --copy-only                      copy objects without database URL updates
 --editing-paused                 confirm catalog edits are paused for URL updates
@@ -61,6 +68,7 @@ const COPY_ONLY = args.has("--copy-only");
 const ROLLBACK = args.has("--rollback");
 const ROLLBACK_NEW = args.has("--rollback-new");
 const SCOPE = valueArg("scope") ?? "all";
+const LIMIT = valueArg("limit") !== undefined ? Number(valueArg("limit")) : undefined;
 const CONFIRM_PROJECT_REF = valueArg("confirm-project-ref");
 const JOURNAL_PATH = valueArg("journal") ?? path.join(
   tmpdir(),
@@ -69,6 +77,8 @@ const JOURNAL_PATH = valueArg("journal") ?? path.join(
 );
 
 if (!["video", "canary", "all"].includes(SCOPE)) fail("--scope должен быть video, canary или all.");
+if (LIMIT !== undefined && (!Number.isInteger(LIMIT) || LIMIT < 1)) fail("--limit должен быть целым числом не меньше 1.");
+if (LIMIT !== undefined && SCOPE !== "all") fail("--limit применим только вместе с --scope=all.");
 if ((APPLY || ROLLBACK || ROLLBACK_NEW) && CONFIRM_PROJECT_REF !== PROJECT_REF) {
   fail("Подтверждение проекта не совпадает с NEXT_PUBLIC_SUPABASE_URL.");
 }
@@ -248,9 +258,35 @@ async function loadCandidates() {
   return [...objects.values()];
 }
 
+function limitByEntity(objects, limit) {
+  if (limit === undefined) return objects;
+  // Группировка по сущности (товар/категория/подкатегория/бренд), а не по
+  // отдельным файлам: у товара до трёх файлов (master/thumbnail/gallery), и
+  // партия должна резаться по товарам, а не рвать файлы одного товара между
+  // партиями. Уже переключённые на R2 строки сюда не попадают вовсе — их
+  // storageLocation() отфильтровал addReference ещё на этапе loadCandidates
+  // (origin URL уже не supabase), поэтому лимит всегда берёт первые N ещё
+  // не перенесённых сущностей и партии не пересекаются между запусками.
+  const order = [];
+  const groups = new Map();
+  for (const object of objects) {
+    const ref = object.references[0];
+    const entityKey = ref ? `${ref.table}:${ref.idValue}` : object.key;
+    if (!groups.has(entityKey)) { groups.set(entityKey, []); order.push(entityKey); }
+    groups.get(entityKey).push(object);
+  }
+  order.sort();
+  const selected = new Set(order.slice(0, limit));
+  return objects.filter((object) => {
+    const ref = object.references[0];
+    const entityKey = ref ? `${ref.table}:${ref.idValue}` : object.key;
+    return selected.has(entityKey);
+  });
+}
+
 function selectScope(objects) {
   if (SCOPE === "video") return objects.filter((object) => object.bucket === "site-media");
-  if (SCOPE === "all") return objects;
+  if (SCOPE === "all") return limitByEntity(objects, LIMIT);
 
   const selected = [];
   const products = objects.filter((object) => object.bucket === "product-images");
@@ -317,7 +353,11 @@ async function copyObject(client, settings, object) {
     if (!(await existingObjectMatches(client, settings, object, bytes, digest))) throw new Error(`Копия R2 отсутствует: ${object.key}`);
   }
 
-  const publicHead = await fetch(targetUrl(settings, object.key), { method: "HEAD", signal: AbortSignal.timeout(30000) });
+  const publicHead = await fetch(targetUrl(settings, object.key), {
+    method: "HEAD",
+    headers: { "Accept-Encoding": "identity" },
+    signal: AbortSignal.timeout(30000),
+  });
   if (!publicHead.ok || Number(publicHead.headers.get("content-length")) !== bytes.byteLength) {
     throw new Error(`Публичная копия не подтверждена: ${object.key}, HTTP ${publicHead.status}`);
   }
