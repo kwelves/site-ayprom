@@ -24,8 +24,12 @@ describe("buildContentSecurityPolicy", () => {
     expect(directive(policy, "script-src")).not.toContain("'unsafe-eval'");
     expect(directive(policy, "connect-src")).toContain(supabaseOrigin);
     expect(directive(policy, "connect-src")).toContain("https://*.sentry.io");
-    expect(directive(policy, "img-src")).toContain(supabaseOrigin);
+    // Catalog images are fully migrated to R2 (2026-09-12); Supabase Storage
+    // is no longer a valid image source and must stay out of img-src.
+    expect(directive(policy, "img-src")).not.toContain(supabaseOrigin);
     expect(directive(policy, "img-src")).toContain(mediaOrigin);
+    // Hero videos still serve from Supabase until NEXT_PUBLIC_HERO_MEDIA_SOURCE
+    // switches to r2, so media-src must keep both origins.
     expect(directive(policy, "media-src")).toContain(supabaseOrigin);
     expect(directive(policy, "media-src")).toContain(mediaOrigin);
     expect(directive(policy, "style-src")).toBe("style-src 'self' 'unsafe-inline'");
