@@ -25,14 +25,11 @@ export function buildContentSecurityPolicy({
     // `style-src-attr` is not sufficient for those `<style>` elements, so
     // preserve this compatibility exception while keeping scripts strict.
     "style-src 'self' 'unsafe-inline'",
-    // Catalog images (products/categories/subcategories/brands) are fully
-    // migrated to R2 as of 2026-09-12; Supabase Storage is no longer a
-    // valid image source and is intentionally excluded here.
+    // Catalog images (products/categories/subcategories/brands) and hero
+    // videos are fully migrated to R2 as of 2026-09-12; Supabase Storage is
+    // no longer a valid media source and is intentionally excluded here.
     `img-src 'self' data: blob:${publicMediaOrigin}`,
-    // Hero videos still serve from Supabase (NEXT_PUBLIC_HERO_MEDIA_SOURCE
-    // is not yet switched to r2), so media-src keeps Supabase until that
-    // cutover happens.
-    `media-src 'self' ${supabaseOrigin}${publicMediaOrigin}`,
+    `media-src 'self'${publicMediaOrigin}`,
     // https://*.sentry.io covers regional ingest without baking an
     // organization-specific Sentry DSN into the policy.
     `connect-src 'self' ${supabaseOrigin} https://*.sentry.io`,
