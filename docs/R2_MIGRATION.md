@@ -23,6 +23,10 @@
   отсутствовал `Content-Length` и проверка ложно считала копию
   неподтверждённой — см. `copyObject()` в `scripts/migrate-media-to-r2.mjs`.
 
+С 2026-09-15 все пути записи медиа ведут в R2: админка (с 2026-09-14) и скрипт
+`npm run video:hero:upload` (см. «Hero-видео» ниже). CI после переноса снова
+зелёный — см. «CI и локальный E2E».
+
 Для Cloudflare выбран аккаунт `5542d171bab5b5af3202e36e217f6ef9`
 (`Kirsan.akmatbek@gmail.com's Account`), зона `81b63fd46108bbdab8a5c375cf9d09d6`.
 Бакеты Standard: `ayprom-media-production` и `ayprom-media-test`.
@@ -35,28 +39,84 @@
 выполнить `--rollback` через скрипт, если понадобится откатить ссылки обратно
 на Supabase.
 
-**Не завершено:** физическая очистка Supabase Storage. Скрипт переноса
-никогда не удаляет исходники — старые файлы (включая ~724 мёртвых файла
-профиля `thumbnail` v1, см. `ROADMAP.md` → PERF-03) остаются в Supabase Storage
-до отдельного решения об удалении.
+**Не завершено:**
+
+- Физическая очистка Supabase Storage. Скрипт переноса никогда не удаляет
+  исходники — старые файлы (включая ~724 мёртвых файла профиля `thumbnail` v1,
+  см. `ROADMAP.md` → PERF-03) остаются в Supabase Storage до отдельного решения
+  об удалении.
+- Объекты-сироты от проверочной загрузки 2026-09-14 (см. «Объекты-сироты» ниже).
+- Отключение `MEDIA_STORAGE_DUAL_WRITE_SUPABASE` (рутина 2026-09-29, выполнится
+  только если к этому дню через R2 пройдут реальные загрузки).
 
 ## Переменные и ключи (текущее состояние)
 
-`NEXT_PUBLIC_HERO_MEDIA_SOURCE=r2` и `NEXT_PUBLIC_MEDIA_BASE_URL=https://media.ayprom-gidravlika.kg`
-— в Vercel Production и в `.env.local`.
+**Vercel Production:**
 
-**С 2026-09-14 `MEDIA_STORAGE_WRITE_TARGET=r2`** — админка при загрузке новых
-фото пишет напрямую в R2 (новый Cloudflare-токен `ayprom-vercel-production`,
-права ограничены бакетом `ayprom-media-production`). `MEDIA_STORAGE_DUAL_WRITE_SUPABASE=true`
-включён на период наблюдения — каждая новая загрузка дублируется и в
-Supabase, отключить примерно через 14 дней после отдельного решения.
-`MEDIA_STORAGE_JOURNAL_BUCKET=media-migration-journal`,
-`MEDIA_STORAGE_RETAIN_OBJECTS=true` (без изменений).
+- `NEXT_PUBLIC_MEDIA_BASE_URL=https://media.ayprom-gidravlika.kg`,
+  `NEXT_PUBLIC_HERO_MEDIA_SOURCE=r2`.
+- **С 2026-09-14 `MEDIA_STORAGE_WRITE_TARGET=r2`** — админка при загрузке новых
+  фото пишет напрямую в R2 (Cloudflare-токен `ayprom-vercel-production`, права
+  ограничены бакетом `ayprom-media-production`).
+- `MEDIA_STORAGE_DUAL_WRITE_SUPABASE=true` — на период наблюдения каждая новая
+  загрузка дублируется в Supabase. Отключение запланировано cloud-рутиной
+  `trig_01U9AWSiF2mnHopA8C1ogQ3Q` на 2026-09-29 06:00 UTC (12:00 по Бишкеку),
+  к рутине подключены коннекторы Vercel и Supabase. **Отключение условное:**
+  рутина сначала ищет квитанции в `media-migration-journal` новее
+  2026-09-14 19:30 UTC (то есть без проверочной загрузки). Хотя бы на одну из
+  них должна ссылаться строка в БД, а её объекты в R2 должны отдавать HTTP 200.
+  Если реальных загрузок не было, рутина ничего не меняет и только присылает
+  отчёт.
+- `MEDIA_STORAGE_JOURNAL_BUCKET=media-migration-journal`,
+  `MEDIA_STORAGE_RETAIN_OBJECTS=true` (без изменений).
 
-Переключение проверено живой загрузкой через `/admin`: новый файл (мастер +
-2 варианта) подтверждён на R2 напрямую (HTTP 200 на все три URL), квитанции
-записались в `media-migration-journal`, резервная копия создалась в
+**Локальный `.env.local`** намеренно отличается от production по записи:
+`NEXT_PUBLIC_MEDIA_BASE_URL` и `NEXT_PUBLIC_HERO_MEDIA_SOURCE=r2` — как на проде,
+но `MEDIA_STORAGE_WRITE_TARGET=supabase` и `MEDIA_STORAGE_DUAL_WRITE_SUPABASE=false`.
+R2-ключи в нём есть, они нужны скриптам `media:r2` и `video:hero:upload`.
+
+Переключение записи проверено живой загрузкой через `/admin`: новый файл
+(мастер + 2 варианта) подтверждён на R2 напрямую (HTTP 200 на все три URL),
+квитанции записались в `media-migration-journal`, резервная копия создалась в
 Supabase — весь путь `uploadPublicMediaObject()` отработал штатно.
+
+### Зависимость новых загрузок от Supabase Storage
+
+Перевод записи на R2 **не** снимает зависимость новых загрузок от Supabase
+Storage. `uploadPublicMediaObject()` (`src/lib/media-storage.ts`) при
+`MEDIA_STORAGE_WRITE_TARGET=r2` делает по порядку:
+
+1. проверяет, что `media-migration-journal` существует и закрыт;
+2. пишет объект в R2;
+3. при dual-write — пишет резервную копию в Supabase;
+4. пишет закрытую квитанцию в `media-migration-journal`.
+
+Ошибка на шаге 3 или 4 возвращается пользователю как ошибка всей загрузки,
+хотя объект в R2 уже записан. Значит, переполнение или недоступность Supabase
+Storage останавливает новые загрузки даже при свободном R2. После отключения
+dual-write зависимость сохранится через квитанции (шаг 4).
+
+Бакет `media-migration-journal` создан вручную в production и **не описан** в
+`supabase/migrations` — в локальной базе и в CI его нет.
+
+### Объекты-сироты
+
+Проверочная загрузка 2026-09-14 (товар
+`val-otbora-moschnosti-na-kpp-mercedes-g330-12-g281-12-powershift-3-l-267`,
+папка `b1790435-10bb-481a-a96b-9709d8f740e5`) была удалена в админке, но из-за
+`MEDIA_STORAGE_RETAIN_OBJECTS=true` физически осталась. Проверено 2026-09-15:
+
+- 3 объекта в R2 (`master.webp`, `variants/v2/thumbnail-…`, `variants/v1/gallery-…`)
+  отдаются с HTTP 200;
+- 3 резервные копии лежат в Supabase-бакете `product-images`;
+- 3 квитанции в `media-migration-journal`, ни на один из ключей не ссылается
+  строка в БД.
+
+Это единственные квитанции на момент проверки, то есть **реальных загрузок
+через R2 после переключения ещё не было**. Автоматической уборки сирот в R2
+нет; квитанции позволяют их найти SQL-запросом по `storage.objects`
+(`bucket_id = 'media-migration-journal'`) со сверкой ключей против ссылок в
+`product_images`, `categories`, `subcategories`, `brands`.
 
 Ниже — исходное описание процесса переноса, актуально как справочник для
 будущих переносов на другие бакеты/проекты.
@@ -83,6 +143,74 @@ Production S3-ключ должен иметь права только на prod
 удалении записей. Это режим по умолчанию, включая отсутствие переменной.
 Логическое удаление в каталоге работает как прежде. Физическую очистку нельзя
 включать до окончания наблюдения и отдельного решения об удалении резервов.
+
+## Hero-видео
+
+С 2026-09-15 (коммит `419350a`) `npm run video:hero:upload` пишет **напрямую в
+R2**. Раньше скрипт писал в Supabase-бакет `site-media`, и новое видео попало бы
+на адрес, который CSP уже не пускает (`media-src` без Supabase).
+
+- Ключ: `site-media/<prefix>/<файл>` — так же, как у перенесённых видео, и
+  совпадает с `HERO_VIDEO_SOURCES` в `src/lib/hero-video.ts`. Сверено с живым
+  R2: локальный `hero-desktop-2k.mp4` и объект
+  `site-media/hero/2026-08-18-2k/hero-background-desktop.mp4` совпадают по размеру
+  (25 544 496 байт).
+- Нужны `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
+  `R2_BUCKET_NAME`, `NEXT_PUBLIC_MEDIA_BASE_URL`. Supabase-ключи скрипту больше
+  не нужны.
+- Занятый путь → скрипт падает (`IfNoneMatch: "*"`), а не перезаписывает.
+  Текущие пути в `TIERS` уже заняты, поэтому для новой версии видео нужно
+  завести новый датированный `prefix` в скрипте и тот же путь в `hero-video.ts`.
+- Публичная копия подтверждается HEAD с `Accept-Encoding: identity`.
+- В отличие от загрузок из админки, скрипт **не** делает резервную копию в
+  Supabase, не пишет квитанцию и не требует `--confirm-r2-bucket` — пишет в тот
+  бакет, что указан в `R2_BUCKET_NAME` (локально это production-бакет).
+
+## CI и локальный E2E
+
+**2026-09-12…15 CI на `main` падал** (16 из 81 E2E-теста) по двум причинам,
+исправлено коммитом `20c2460`:
+
+1. **CSP блокировала тестовые медиа.** В CI нет R2: фикстуры лежат в локальном
+   Supabase Storage, а `NEXT_PUBLIC_MEDIA_BASE_URL` не был задан, поэтому
+   `img-src`/`media-src` оставались без media-origin (171 нарушение CSP в логе).
+   Теперь `ci.yml` задаёт `NEXT_PUBLIC_MEDIA_BASE_URL` равным адресу локального
+   Supabase. Для этого из `csp.ts` убрана проверка
+   `mediaOrigin !== supabaseOrigin`: она убирала дубль токена, пока директивы
+   склеивали два origin подряд, а после сужения CSP молча гасила media-origin
+   при совпадении адресов. На production-заголовок это не влияет — сверено с
+   живым сайтом после деплоя.
+2. **Тесты ждали физического удаления фото.** Два теста в
+   `tests/e2e/admin/product-staged-photo-upload.spec.ts` проверяли, что после
+   «Удалить» объект исчезает из хранилища, что противоречит
+   `MEDIA_STORAGE_RETAIN_OBJECTS=true`. Тесты приведены к контракту
+   «строка отвязывается, файл остаётся». **При переключении
+   `MEDIA_STORAGE_RETAIN_OBJECTS=false` эти проверки нужно вернуть обратно.**
+
+Первый зелёный прогон после исправления — 2026-09-15, коммит `419350a`
+(81 passed). Там же коммитом `0f6e344` Playwright evidence стало загружаться
+только при падении: зелёные прогоны переполнили квоту artifact storage GitHub
+(91 артефакт, 1,25 ГБ).
+
+**Непокрытое:** CI проверяет только `MEDIA_STORAGE_WRITE_TARGET=supabase`.
+Путь, которым production пишет новые фото (`r2`, квитанции, dual-write), в CI не
+тестируется.
+
+**Локальный E2E.** `scripts/e2e/local-runtime.mjs` переопределяет только
+Supabase-ключи, admin-секреты, site URL и Sentry; `MEDIA_STORAGE_*`,
+`R2_*`, `NEXT_PUBLIC_MEDIA_BASE_URL` и `NEXT_PUBLIC_HERO_MEDIA_SOURCE` берутся из
+`.env.local`. С текущим `.env.local` сборка получит production media-origin, и,
+судя по коду, фото фикстур из локального Supabase будут заблокированы CSP так же,
+как в CI (штатным `npm run e2e` это не проверялось). Прогон, повторяющий CI и
+давший 81 passed 2026-09-15 (Git Bash, Docker и `supabase start` уже запущены):
+
+```bash
+MEDIA_STORAGE_WRITE_TARGET=supabase NEXT_PUBLIC_MEDIA_BASE_URL=http://127.0.0.1:54321 NEXT_PUBLIC_HERO_MEDIA_SOURCE=supabase R2_ACCOUNT_ID=local-e2e-disabled R2_ACCESS_KEY_ID=local-e2e-disabled R2_SECRET_ACCESS_KEY=local-e2e-disabled R2_BUCKET_NAME=local-e2e-disabled MEDIA_STORAGE_DUAL_WRITE_SUPABASE=false node scripts/e2e/run-playwright.mjs --build
+```
+
+Заглушки вместо R2-ключей исключают запись фикстур в production-бакет при любой
+конфигурации `.env.local`. Явно заданные переменные имеют приоритет над
+`.env.local` — проверено через `@next/env`.
 
 ## Команды переноса
 
@@ -136,6 +264,9 @@ npm run media:r2 -- --rollback --journal=C:/Erkin/ayprom-backups/r2/canary.jsonl
 **Откат видео** — отдельным build-time переключателем
 (`NEXT_PUBLIC_HERO_MEDIA_SOURCE=supabase` + редеплой), без скрипта: старые
 Supabase-файлы никогда не удалялись, поэтому старые URL остаются рабочими.
+Это работает только для четырёх перенесённых видео: новое видео, залитое
+`video:hero:upload` после 2026-09-15, есть только в R2, и после такого отката
+его путь в Supabase вернёт 404.
 
 ## Наблюдение после переключения
 
@@ -155,3 +286,10 @@ Supabase-файлы никогда не удалялись, поэтому ст�
 загрузкой через `/admin` (см. выше). Систематическое наблюдение за реальным
 потоком новых загрузок (сутки/три дня/две недели) — **не проводилось**, это
 следующий шаг, прежде чем отключать `MEDIA_STORAGE_DUAL_WRITE_SUPABASE`.
+
+**2026-09-15 — CI, hero-скрипт, сверка.** CI снова зелёный (`20c2460`,
+`0f6e344`), `video:hero:upload` переведён на R2 (`419350a`). Деплой `419350a` на
+production: CSP-заголовок не изменился, `/api/health` отвечает `ok`. В журнале
+квитанций только 3 записи от проверочной загрузки 2026-09-14 — реального потока
+новых загрузок через R2 ещё не было, поэтому наблюдать за dual-write пока не на
+чем.
