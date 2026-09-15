@@ -34,6 +34,23 @@ describe("buildContentSecurityPolicy", () => {
     expect(directive(policy, "style-src")).toBe("style-src 'self' 'unsafe-inline'");
   });
 
+  it("still allows the media origin in img-src/media-src when it equals supabaseOrigin", () => {
+    // CI has no separate R2 origin, so it points NEXT_PUBLIC_MEDIA_BASE_URL at
+    // the same local Supabase instance as NEXT_PUBLIC_SUPABASE_URL. That must
+    // still open img-src/media-src for it — otherwise every E2E fixture photo
+    // is blocked by CSP (regression: previously deduped away as "equal to
+    // supabaseOrigin" from back when img-src also carried supabaseOrigin on
+    // its own).
+    const policy = buildContentSecurityPolicy({
+      isDevelopment: false,
+      supabaseOrigin,
+      mediaOrigin: supabaseOrigin,
+    });
+
+    expect(directive(policy, "img-src")).toContain(supabaseOrigin);
+    expect(directive(policy, "media-src")).toContain(supabaseOrigin);
+  });
+
   it("permits the eval-based Next development overlay without weakening scripts in production", () => {
     const policy = buildContentSecurityPolicy({ isDevelopment: true, supabaseOrigin });
 

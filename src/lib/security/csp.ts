@@ -17,7 +17,15 @@ export function buildContentSecurityPolicy({
   supabaseOrigin,
   mediaOrigin,
 }: ContentSecurityPolicyOptions): string {
-  const publicMediaOrigin = mediaOrigin && mediaOrigin !== supabaseOrigin ? ` ${mediaOrigin}` : "";
+  // Historically this also excluded mediaOrigin === supabaseOrigin, to avoid a
+  // literal duplicate token back when img-src/media-src concatenated
+  // supabaseOrigin and publicMediaOrigin together. Neither directive does that
+  // anymore (Supabase Storage is no longer a media source below), so that
+  // check now only served to silently drop the media origin whenever the two
+  // happen to coincide — exactly CI's case, where there's no separate R2
+  // origin and NEXT_PUBLIC_MEDIA_BASE_URL points at the same local Supabase
+  // instance as NEXT_PUBLIC_SUPABASE_URL.
+  const publicMediaOrigin = mediaOrigin ? ` ${mediaOrigin}` : "";
   return [
     "default-src 'self'",
     `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""}`,

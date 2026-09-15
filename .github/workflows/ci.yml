@@ -74,12 +74,20 @@ jobs:
       # Strip the wrapping quotes before appending.
       - name: Export local Supabase environment
         run: |
-          supabase status -o env \
+          STATUS=$(supabase status -o env \
             --override-name api.url=NEXT_PUBLIC_SUPABASE_URL \
             --override-name auth.anon_key=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY \
             --override-name auth.service_role_key=SUPABASE_SECRET_KEY \
-            | sed -E 's/="(.*)"$/=\1/' \
-            >> "$GITHUB_ENV"
+            | sed -E 's/="(.*)"$/=\1/')
+          echo "$STATUS" >> "$GITHUB_ENV"
+          # CI has no R2 credentials, so MEDIA_STORAGE_WRITE_TARGET stays at its
+          # "supabase" default and E2E product-photo fixtures land in local
+          # Supabase Storage — the same origin as NEXT_PUBLIC_SUPABASE_URL above.
+          # CSP's img-src/media-src only allow 'self' plus this media origin, so
+          # without it the browser blocks every fixture photo (product upload
+          # and hero-video specs both fail on a CSP violation, not a real bug).
+          SUPABASE_URL=$(echo "$STATUS" | grep '^NEXT_PUBLIC_SUPABASE_URL=' | cut -d= -f2-)
+          echo "NEXT_PUBLIC_MEDIA_BASE_URL=$SUPABASE_URL" >> "$GITHUB_ENV"
 
       - name: Database integration and RLS tests
         run: supabase test db

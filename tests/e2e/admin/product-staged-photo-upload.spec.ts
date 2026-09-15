@@ -184,9 +184,18 @@ test("генерирует варианты при загрузке реалис
     await expect(page.getByText("Фотография удалена")).toBeVisible({ timeout: 30_000 });
     await expect.poll(async () => (await readOwnedProductImages(slug)).length).toBe(0);
 
-    await expect.poll(() => downloadOwnedProductImageObject(slug, image.url)).toBeNull();
-    await expect.poll(() => downloadOwnedProductImageObject(slug, image.thumbnail_url!)).toBeNull();
-    await expect.poll(() => downloadOwnedProductImageObject(slug, image.gallery_url!)).toBeNull();
+    // MEDIA_STORAGE_RETAIN_OBJECTS defaults to true (see media-storage.ts):
+    // "delete" only unlinks the DB row, it never removes the storage object.
+    // That's an intentional safety decision (R2_MIGRATION.md), so the objects
+    // must still be downloadable here, not gone.
+    const [masterAfterDelete, thumbnailAfterDelete, galleryAfterDelete] = await Promise.all([
+      downloadOwnedProductImageObject(slug, image.url),
+      downloadOwnedProductImageObject(slug, image.thumbnail_url!),
+      downloadOwnedProductImageObject(slug, image.gallery_url!),
+    ]);
+    expect(masterAfterDelete).not.toBeNull();
+    expect(thumbnailAfterDelete).not.toBeNull();
+    expect(galleryAfterDelete).not.toBeNull();
   } finally {
     try {
       await cleanupOwnedProduct(slug);
@@ -252,9 +261,17 @@ test("адаптивно загружает детализированный PNG
     await imageRow.getByRole("button", { name: "Удалить" }).click();
     await expect(page.getByText("Фотография удалена")).toBeVisible({ timeout: 30_000 });
     await expect.poll(async () => (await readOwnedProductImages(slug)).length).toBe(0);
-    await expect.poll(() => downloadOwnedProductImageObject(slug, image.url)).toBeNull();
-    await expect.poll(() => downloadOwnedProductImageObject(slug, image.thumbnail_url!)).toBeNull();
-    await expect.poll(() => downloadOwnedProductImageObject(slug, image.gallery_url!)).toBeNull();
+
+    // Same retain-by-default contract as the previous test: "delete" unlinks
+    // the row but the storage objects stay reachable.
+    const [masterAfterDelete, thumbnailAfterDelete, galleryAfterDelete] = await Promise.all([
+      downloadOwnedProductImageObject(slug, image.url),
+      downloadOwnedProductImageObject(slug, image.thumbnail_url!),
+      downloadOwnedProductImageObject(slug, image.gallery_url!),
+    ]);
+    expect(masterAfterDelete).not.toBeNull();
+    expect(thumbnailAfterDelete).not.toBeNull();
+    expect(galleryAfterDelete).not.toBeNull();
   } finally {
     try {
       await cleanupOwnedProduct(slug);
