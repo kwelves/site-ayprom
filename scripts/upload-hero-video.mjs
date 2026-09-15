@@ -1,49 +1,74 @@
 /**
  * Загружает перекодированные hero-видео (см. scripts/generate-hero-video.mjs)
- * в бакет site-media Supabase Storage.
+ * напрямую в Cloudflare R2 — туда же, откуда их сейчас раздаёт сайт
+ * (NEXT_PUBLIC_HERO_MEDIA_SOURCE=r2, см. docs/R2_MIGRATION.md).
  *
- * Зачем отдельный скрипт: в проекте до сих пор не было ни одного способа
- * залить файл в site-media программно — предыдущие версии (hero/2026-08-16-*)
- * заливались вручную через дашборд/CLI, из-за чего у них не был явно задан
- * `cacheControl` (Supabase Storage тогда подставляет свой умолчательный
- * max-age=3600 вместо годового кэша).
+ * До 2026-09-15 этот скрипт писал в Supabase Storage bucket `site-media`.
+ * После переноса каталога на R2 это стало несовместимо с CSP (media-src
+ * больше не пускает Supabase) — новое видео, залитое старой версией
+ * скрипта, оказывалось на URL, который браузер тут же блокирует.
  *
- * Путь на выходе версионирован датой и коротким описанием разрешения —
- * тот же принцип, что и в уже существующих hero/2026-08-16-hq и -balanced.
- * Версионирование по папке, а не перезапись файла на месте, даёт мгновенный
- * откат: старые пути остаются в бакете нетронутыми, откатить Hero.tsx можно
- * без повторной загрузки.
+ * Ключ объекта в R2 строится так же, как для уже перенесённых hero-видео
+ * (см. `heroPaths` в scripts/migrate-media-to-r2.mjs): `site-media/<prefix>/<remote>`,
+ * то есть тот же путь, что раньше был внутри Supabase-бакета `site-media`.
  *
- * Требует переменные окружения (как и scripts/check-supabase-schema.mjs):
- *   NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SECRET_KEY
+ * Путь версионирован датой и коротким описанием разрешения — тот же принцип,
+ * что и до переноса. Версионирование по папке, а не перезапись файла на
+ * месте, даёт мгновенный откат: старые пути остаются в R2 нетронутыми,
+ * откатить Hero.tsx можно без повторной загрузки. Повторный запуск с тем же
+ * путём намеренно падает (`IfNoneMatch: "*"`), а не перезаписывает молча.
+ *
+ * Требует переменные окружения Cloudflare R2 (как и media-storage.ts):
+ *   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME,
+ *   NEXT_PUBLIC_MEDIA_BASE_URL
  *
  * Использование: node scripts/upload-hero-video.mjs [--tier=quality|startup]
  */
 
 import nextEnv from "@next/env";
-import { createClient } from "@supabase/supabase-js";
+import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 const { loadEnvConfig } = nextEnv;
 loadEnvConfig(process.cwd());
 
-const requiredEnvironment = ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SECRET_KEY"];
-const missingEnvironment = requiredEnvironment.filter((name) => !process.env[name]);
-if (missingEnvironment.length > 0) {
-  console.error(`Не заданы переменные окружения: ${missingEnvironment.join(", ")}`);
-  process.exit(1);
+function required(name) {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    console.error(`Не задана переменная окружения: ${name}`);
+    process.exit(1);
+  }
+  return value;
 }
+
+const r2Settings = {
+  accountId: required("R2_ACCOUNT_ID"),
+  accessKeyId: required("R2_ACCESS_KEY_ID"),
+  secretAccessKey: required("R2_SECRET_ACCESS_KEY"),
+  bucket: required("R2_BUCKET_NAME"),
+  publicBaseUrl: required("NEXT_PUBLIC_MEDIA_BASE_URL").replace(/\/$/, ""),
+};
+
+const r2Client = new S3Client({
+  region: "auto",
+  endpoint: `https://${r2Settings.accountId}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId: r2Settings.accessKeyId,
+    secretAccessKey: r2Settings.secretAccessKey,
+  },
+});
 
 const SOURCE_DIR = path.resolve("public/videos/hero-web");
 const BUCKET = "site-media";
 // Год в секундах — файлы версионированы по пути (см. комментарий выше),
 // поэтому долгий кэш безопасен: смена контента = новый путь, не перезапись.
-const CACHE_CONTROL = "31536000";
+const CACHE_CONTROL = "public, max-age=31536000, immutable";
 
 // Ступени заливаются раздельно и в разные версионированные папки. Стартовая
 // ступень (QA-006) добавляется рядом с качественной, а не вместо неё: пока
-// Hero не выкачен, новые файлы просто лежат в бакете и ни на что не влияют,
+// Hero не выкачен, новые файлы просто лежат в R2 и ни на что не влияют,
 // а откат сводится к откату кода без повторной загрузки.
 const TIERS = {
   quality: {
@@ -71,37 +96,73 @@ function parseTier(argv) {
   return tier;
 }
 
+function targetUrl(key) {
+  return `${r2Settings.publicBaseUrl}/${key.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+async function objectExists(key) {
+  try {
+    await r2Client.send(new HeadObjectCommand({ Bucket: r2Settings.bucket, Key: key }));
+    return true;
+  } catch (error) {
+    if (error?.name === "NotFound" || error?.name === "NoSuchKey" || error?.$metadata?.httpStatusCode === 404) {
+      return false;
+    }
+    throw error;
+  }
+}
+
 async function main() {
   const tier = parseTier(process.argv.slice(2));
   const { prefix, files } = TIERS[tier];
-  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SECRET_KEY);
 
-  console.log(`ступень=${tier} → ${BUCKET}/${prefix}`);
+  console.log(`ступень=${tier} → R2 ${r2Settings.bucket}/${BUCKET}/${prefix}`);
 
   for (const entry of files) {
-    const remote = `${prefix}/${entry.remote}`;
+    const key = `${BUCKET}/${prefix}/${entry.remote}`;
     const localPath = path.join(SOURCE_DIR, entry.local);
     const body = await fs.readFile(localPath);
     const sizeMb = (body.length / 1024 / 1024).toFixed(2);
+    const digest = createHash("sha256").update(body).digest("hex");
 
-    console.log(`→ ${remote} (${sizeMb} МБ)`);
-    const { error } = await supabase.storage.from(BUCKET).upload(remote, body, {
-      contentType: "video/mp4",
-      cacheControl: CACHE_CONTROL,
-      upsert: false,
-    });
+    console.log(`→ ${key} (${sizeMb} МБ)`);
 
-    if (error) {
-      // upsert: false намеренно — повторный запуск с тем же путём должен
-      // явно упасть, а не молча перезаписать уже закэшированный годом файл.
-      throw new Error(`Загрузка ${remote} не удалась: ${error.message}`);
+    // upsert выключен намеренно — повторный запуск с тем же путём должен
+    // явно упасть, а не молча перезаписать уже закэшированный годом файл.
+    if (await objectExists(key)) {
+      throw new Error(`Загрузка ${key} не удалась: объект уже существует в R2.`);
     }
 
-    const { data: publicUrl } = supabase.storage.from(BUCKET).getPublicUrl(remote);
-    console.log(`  готово: ${publicUrl.publicUrl}`);
+    await r2Client.send(
+      new PutObjectCommand({
+        Bucket: r2Settings.bucket,
+        Key: key,
+        Body: body,
+        ContentLength: body.byteLength,
+        ContentType: "video/mp4",
+        CacheControl: CACHE_CONTROL,
+        Metadata: { sha256: digest },
+        IfNoneMatch: "*",
+      }),
+    );
+
+    // HEAD публичного адреса подтверждает, что объект реально раздаётся, а не
+    // только записан в бакет. Accept-Encoding: identity обязателен — иначе
+    // Cloudflare может сжать ответ и убрать Content-Length, и проверка ложно
+    // решит, что копия не подтверждена (см. copyObject() в migrate-media-to-r2.mjs).
+    const publicHead = await fetch(targetUrl(key), {
+      method: "HEAD",
+      headers: { "Accept-Encoding": "identity" },
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!publicHead.ok || Number(publicHead.headers.get("content-length")) !== body.byteLength) {
+      throw new Error(`Публичная копия не подтверждена: ${key}, HTTP ${publicHead.status}`);
+    }
+
+    console.log(`  готово: ${targetUrl(key)}`);
   }
 
-  console.log(`\nГотово. Ступень ${tier} лежит в ${BUCKET}/${prefix}; сверьте путь в src/components/home/Hero.tsx.`);
+  console.log(`\nГотово. Ступень ${tier} лежит в R2 ${BUCKET}/${prefix}; сверьте путь в src/components/home/Hero.tsx.`);
 }
 
 main().catch((error) => {
