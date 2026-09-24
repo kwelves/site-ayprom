@@ -72,23 +72,15 @@ export function ProductFormBasicSection({
         <Input id="name" name="name" required value={name} onChange={(e) => onNameChange(e.target.value)} />
       </FormField>
 
-      {mode === "create" ? (
         <FormField
           label="Адрес (slug)"
           htmlFor="slug"
-          description="Заполняется автоматически из названия, можно изменить."
+          description={mode === "create"
+            ? "Заполняется автоматически из названия, можно изменить."
+            : "Изменение slug меняет ссылку на товар. Старые ссылки перестанут работать. Латинские буквы, цифры и дефисы."}
         >
-          <Input id="slug" name="slug" value={slug} onChange={(e) => onSlugChange(e.target.value)} />
+          <Input id="slug" name="slug" required={mode === "edit"} value={slug} onChange={(e) => onSlugChange(e.target.value)} />
         </FormField>
-      ) : (
-        <FormField
-          label="Адрес (slug)"
-          htmlFor="slug-display"
-          description="Нельзя изменить — используется в ссылках на товар."
-        >
-          <Input id="slug-display" value={product?.slug ?? ""} disabled />
-        </FormField>
-      )}
 
       <FormField label="Категория" htmlFor="categorySlug">
         <Select

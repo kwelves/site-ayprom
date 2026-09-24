@@ -17,6 +17,7 @@ test.describe.configure({ mode: "serial" });
 test("@smoke создаёт, редактирует и удаляет только свой товар без фотографии", async ({ page, browserObserver }) => {
   const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const slug = `${E2E_PRODUCT_PREFIX}${unique}`;
+  const updatedSlug = `${slug}-renamed`;
   const initialName = `QA E2E ${unique}`;
   const updatedName = `${initialName} updated`;
   const category = await createOwnedCategoryFixture();
@@ -34,14 +35,18 @@ test("@smoke создаёт, редактирует и удаляет тольк
     await page.goto(`/admin/products/${slug}/edit`);
     await expect(page.getByRole("heading", { level: 1 })).toContainText(initialName);
     await page.getByLabel("Название").fill(updatedName);
+    await expect(page.getByLabel("Адрес (slug)")).toHaveValue(slug);
+    await page.getByLabel("Адрес (slug)").fill(updatedSlug);
     browserObserver.allow(allowExpectedNextActionPostAbort(`/admin/products/${slug}/edit`));
     browserObserver.allow(allowExpectedNextRscNavigationAbort("/admin/products"));
     await page.getByRole("button", { name: "Сохранить" }).click();
     await expect(page).toHaveURL(/\/admin\/products(?:\?.*)?$/);
 
-    await page.goto(`/admin/products/${slug}/edit`);
+    await page.goto(`/admin/products/${updatedSlug}/edit`);
     await expect(page.getByLabel("Название")).toHaveValue(updatedName);
-    browserObserver.allow(allowExpectedNextActionPostAbort(`/admin/products/${slug}/edit`));
+    await expect(page.getByLabel("Адрес (slug)")).toHaveValue(updatedSlug);
+    await expect.poll(() => expectOwnedProductAbsent(slug)).toBe(true);
+    browserObserver.allow(allowExpectedNextActionPostAbort(`/admin/products/${updatedSlug}/edit`));
     await page.getByRole("button", { name: "Удалить товар" }).click();
     const dialog = page.getByRole("alertdialog");
     await expect(dialog).toBeVisible();
@@ -49,9 +54,11 @@ test("@smoke создаёт, редактирует и удаляет тольк
     await dialog.getByRole("button", { name: "Удалить" }).click();
     await expect(page).toHaveURL(/\/admin\/products(?:\?.*)?$/);
     await expect.poll(() => expectOwnedProductAbsent(slug)).toBe(true);
+    await expect.poll(() => expectOwnedProductAbsent(updatedSlug)).toBe(true);
   } finally {
     try {
       await cleanupOwnedProduct(slug);
+      await cleanupOwnedProduct(updatedSlug);
     } finally {
       await cleanupOwnedCategory(category);
     }

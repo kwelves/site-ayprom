@@ -19,6 +19,7 @@ import {
   VARIANT_UPLOAD_OPTIONS,
 } from "@/lib/admin/product-image-variants.core.mjs";
 import { slugify } from "@/lib/admin/slugify";
+import { resolveProductEditSlug } from "@/lib/admin/product-edit-slug";
 import {
   AdminLoginProtectionUnavailableError,
   beginAuthAttempt,
@@ -359,9 +360,8 @@ interface ProductFormFields {
 // each array is one row.
 function parseProductFormData(formData: FormData): ProductFormFields {
   const name = String(formData.get("name") ?? "").trim();
-  // On create, an editable slug field lets the admin override the
-  // auto-generated one before first save; ignored on edit (no such field in
-  // the form there — slug is read-only to avoid breaking existing links).
+  // Creation can derive an empty slug from the title; editing validates
+  // the explicitly submitted address separately to preserve existing URLs.
   const slugSeed = String(formData.get("slug") ?? "").trim() || name;
   const categorySlug = String(formData.get("categorySlug") ?? "").trim();
   const subcategorySlug = String(formData.get("subcategorySlug") ?? "").trim() || null;
@@ -599,6 +599,7 @@ export async function updateProduct(
   // ровно в том виде, в каком пришла из базы: разбор в Date обрезал бы
   // микросекунды до миллисекунд, и любое сохранение выглядело бы конфликтом.
   const expectedUpdatedAt = String(formData.get("expectedUpdatedAt") ?? "").trim() || null;
+  const newSlug = resolveProductEditSlug(formData.get("slug"), slug);
 
   // Строка товара, все три дочерние таблицы и публикация меняются одной
   // транзакцией. Прежде это были отдельные запросы без компенсации: сбой на
@@ -606,8 +607,9 @@ export async function updateProduct(
   // совместимыми брендами. Публикация писалась отдельным запросом после связей
   // именно из-за этого — внутри транзакции такая предосторожность не нужна.
   const { error: updateError } = await supabase
-    .rpc("update_product_with_relations", {
+    .rpc("update_product_with_slug", {
       p_slug: slug,
+      p_new_slug: newSlug,
       p_expected_updated_at: expectedUpdatedAt,
       p_name: fields.name,
       p_category_slug: fields.categorySlug,
@@ -627,10 +629,11 @@ export async function updateProduct(
   if (updateError) throw productRpcError(updateError, "Ошибка обновления товара");
 
   revalidatePath(`/admin/products/${slug}/edit`);
+  if (newSlug !== slug) revalidatePath(`/admin/products/${newSlug}/edit`);
   revalidatePath("/admin/products");
   revalidatePublicSite();
   const destination = await getProductMutationRedirect({
-    slug,
+    slug: newSlug,
     flashAction: "updated",
     product: {
       categorySlug: fields.categorySlug,
