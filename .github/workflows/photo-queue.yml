@@ -1,0 +1,41 @@
+# Background worker of the product photo queue. Started by the admin (workflow_dispatch API call) right after
+# photos are queued; it makes the WebP copies and attaches the photos to their products, then stops.
+# It never runs for pull requests or forks, so repository secrets are not exposed to outside code.
+name: photo-queue
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: photo-queue
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: deploy/photo-queue
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install Sharp
+        working-directory: deploy/photo-queue
+        run: npm install --omit=dev --no-audit --no-fund
+      - name: Process queued photos
+        working-directory: deploy/photo-queue
+        run: node runner.mjs
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          MEDIA_STORAGE_WRITE_TARGET: ${{ vars.MEDIA_STORAGE_WRITE_TARGET }}
+          NEXT_PUBLIC_MEDIA_BASE_URL: ${{ vars.NEXT_PUBLIC_MEDIA_BASE_URL }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET_NAME: ${{ vars.R2_BUCKET_NAME }}
