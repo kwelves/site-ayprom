@@ -21,7 +21,11 @@ interface ProductGridWithSearchProps {
 
 const gridClassName = cn("grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4", CARD_GRID_GAP_CLASSNAME);
 
-function pageHref(action: string, page: number, query?: string): string {
+// Exported for reuse by the static-build client search adapter
+// (src/lib/catalog-client-search.ts), which needs to build the exact same
+// URL shape for pushState so normal Next navigation and client-side
+// navigation produce identical, interchangeable URLs.
+export function pageHref(action: string, page: number, query?: string): string {
   const params = new URLSearchParams();
   if (query?.trim()) params.set("q", query.trim());
   if (page > 1) params.set("page", String(page));

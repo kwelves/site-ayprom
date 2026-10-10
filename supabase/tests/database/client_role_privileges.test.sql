@@ -5,13 +5,14 @@
 -- пока у `anon` был TRUNCATE, включённый RLS не мешал очистить каталог.
 --
 -- Поэтому проверяется не «RLS не пускает», а сам набор GRANT: клиентские роли
--- должны иметь ровно SELECT на одиннадцати таблицах каталога и EXECUTE на двух
--- функциях поиска, и ничего больше. Отдельно проверяются default privileges —
+-- не должны иметь SELECT на одиннадцати редактируемых таблицах каталога;
+-- публичное чтение проходит через функции опубликованного выпуска.
+-- Отдельно проверяются default privileges —
 -- без них следующая же миграция вернула бы лишние права на новых объектах.
 
 begin;
 
-select plan(33);
+select plan(34);
 
 create temporary table qa013_catalog(relname text primary key);
 insert into qa013_catalog values
@@ -21,7 +22,8 @@ insert into qa013_catalog values
 
 -- Публичные функции каталога: всё остальное в схеме внутреннее.
 create temporary table qa013_public_functions(proname text primary key);
-insert into qa013_public_functions values ('search_catalog_products'), ('normalize_catalog_search');
+insert into qa013_public_functions values ('search_catalog_products'), ('normalize_catalog_search'),
+ ('get_content_revision'), ('read_catalog_publication_document'), ('list_catalog_publication_documents');
 
 -- Проверки-списки называют нарушителя, а не просто падают: при регрессии сразу
 -- видно, какая таблица или функция открылась.
@@ -29,17 +31,17 @@ insert into qa013_public_functions values ('search_catalog_products'), ('normali
 select is(
   (select coalesce(string_agg(t.relname, ', ' order by t.relname), '')
    from qa013_catalog t
-   where not has_table_privilege('anon', ('public.' || t.relname)::regclass, 'SELECT')),
+   where has_table_privilege('anon', ('public.' || t.relname)::regclass, 'SELECT')),
   '',
-  'anon читает все одиннадцать таблиц каталога'
+  'anon не читает редактируемые таблицы каталога'
 );
 
 select is(
   (select coalesce(string_agg(t.relname, ', ' order by t.relname), '')
    from qa013_catalog t
-   where not has_table_privilege('authenticated', ('public.' || t.relname)::regclass, 'SELECT')),
+   where has_table_privilege('authenticated', ('public.' || t.relname)::regclass, 'SELECT')),
   '',
-  'authenticated читает все одиннадцать таблиц каталога'
+  'authenticated не читает редактируемые таблицы каталога'
 );
 
 -- Перебираются ВСЕ таблицы схемы, а не только каталожные: новая таблица с
@@ -124,6 +126,8 @@ select is(
    cross join (values ('anon'), ('authenticated')) as r(rolname)
    where c.relkind = 'r'
      and c.relname not in (select relname from qa013_catalog)
+     -- The non-secret revision is explicitly public (publication_revision.test).
+     and c.relname <> 'content_revision'
      and has_table_privilege(r.rolname, c.oid, 'SELECT')),
   '',
   'клиентские роли не читают служебные таблицы'
@@ -187,10 +191,12 @@ select is(
      and not (has_table_privilege('service_role', c.oid, 'SELECT')
           and has_table_privilege('service_role', c.oid, 'INSERT')
           and has_table_privilege('service_role', c.oid, 'UPDATE')
-          and has_table_privilege('service_role', c.oid, 'DELETE'))),
+          and (c.relname = 'publication_jobs' or has_table_privilege('service_role', c.oid, 'DELETE')))),
   '',
-  'service_role полностью управляет всеми таблицами public'
+  'service_role сохраняет требуемые права, очередь публикации не требует DELETE'
 );
+select ok(not has_table_privilege('service_role','public.publication_jobs','DELETE'),
+ 'service role cannot erase the publication cursor');
 
 select is(
   (select coalesce(string_agg(p.proname, ', ' order by p.proname), '')
@@ -274,12 +280,17 @@ select ok(
 -- Живые проверки под самой ролью: отказ должен приходить от GRANT (42501), а
 -- не от RLS — иначе «ноль изменённых строк» снова выдавали бы за защиту.
 
+do $$ begin
+  perform public.capture_catalog_publication(public.get_content_revision(),'40000000-0000-4000-8000-000000000001',repeat('1',64));
+  update catalog_private.catalog_releases set state='ready' where id='40000000-0000-4000-8000-000000000001';
+  insert into catalog_private.catalog_publication_active(release_id) values ('40000000-0000-4000-8000-000000000001');
+end $$;
 set local role anon;
 
-select isnt(
-  (select count(*) from public.products where published = true),
-  0::bigint,
-  'anon видит опубликованный каталог'
+select throws_ok(
+  $$select count(*) from public.products where published = true$$,
+  '42501', 'permission denied for table products',
+  'anon не обходит опубликованный выпуск прямым чтением source'
 );
 
 select isnt(

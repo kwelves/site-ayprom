@@ -28,6 +28,18 @@ interface ImageFallbackProps {
 
 type Attempt = "primary" | "fallback" | "failed";
 
+// A photo that fails twice in a row (variant, then master) is tried again after a short pause, three times, with a
+// cache-busting parameter: a dropped connection or a half-written response must not leave a broken picture.
+const RETRY_DELAYS_MS = [500, 1500, 3500] as const;
+
+function withRetryParameter(url: string | undefined, retry: number): string | undefined {
+  if (!url || retry === 0) return url;
+  const hashAt = url.indexOf("#");
+  const base = hashAt === -1 ? url : url.slice(0, hashAt);
+  const hash = hashAt === -1 ? "" : url.slice(hashAt);
+  return `${base}${base.includes("?") ? "&" : "?"}_r=${retry}${hash}`;
+}
+
 export function ImageFallback(props: ImageFallbackProps) {
   return <ImageFallbackAttempt key={`${props.src ?? ""}\u0000${props.fallbackSrc ?? ""}`} {...props} />;
 }
@@ -48,6 +60,9 @@ function ImageFallbackAttempt({
   onError,
 }: ImageFallbackProps) {
   const [attempt, setAttempt] = useState<Attempt>("primary");
+  const [retry, setRetry] = useState(0);
+  const [waiting, setWaiting] = useState(false);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onErrorRef = useRef(onError);
   const canRetryWithFallback = Boolean(fallbackSrc && fallbackSrc !== src);
 
@@ -59,6 +74,8 @@ function ImageFallbackAttempt({
     if (!src) onErrorRef.current?.();
   }, [src]);
 
+  useEffect(() => () => { if (retryTimer.current) clearTimeout(retryTimer.current); }, []);
+
   const handleUnrecoverable = () => {
     setAttempt("failed");
     onError?.();
@@ -69,10 +86,22 @@ function ImageFallbackAttempt({
       setAttempt("fallback");
       return;
     }
+    if (retry < RETRY_DELAYS_MS.length) {
+      setWaiting(true);
+      retryTimer.current = setTimeout(() => {
+        retryTimer.current = null;
+        setRetry((current) => current + 1);
+        setAttempt("primary");
+        setWaiting(false);
+      }, RETRY_DELAYS_MS[retry]);
+      return;
+    }
     handleUnrecoverable();
   };
 
-  const activeSrc = attempt === "fallback" ? fallbackSrc : src;
+  const activeSrc = withRetryParameter(attempt === "fallback" ? fallbackSrc : src, retry);
+
+  if (waiting) return null;
 
   if (attempt === "failed" || !activeSrc) {
     return (
@@ -89,7 +118,7 @@ function ImageFallbackAttempt({
 
   return (
     <Image
-      key={activeSrc}
+      key={`${activeSrc}#${retry}`}
       src={activeSrc}
       alt={alt}
       fill

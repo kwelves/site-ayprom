@@ -1,0 +1,25 @@
+{
+  // Local-only routing proof. This directory is a fixture, not the production
+  // site build output; the production cutover remains a separate gated step.
+  "name": "ayprom-static-assets-prototype",
+  "main": "src/cloudflare/worker.ts",
+  "compatibility_date": "2026-09-19",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "assets": {
+    "directory": "fixtures/cloudflare-static-assets",
+    "html_handling": "drop-trailing-slash",
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/api/*"]
+  },
+  "vars": {
+    "SUPABASE_URL": "https://example.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "local-prototype-publishable-key"
+  },
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "head_sampling_rate": 1
+    }
+  }
+}

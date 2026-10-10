@@ -1,12 +1,12 @@
 begin;
 
-select plan(23);
+select plan(24);
 
 select has_table('public', 'products', 'products table exists');
 select has_function(
   'public',
   'search_catalog_products',
-  array['text', 'text', 'text', 'text', 'text'],
+  array['text', 'text', 'text', 'text', 'text', 'boolean', 'uuid', 'text'],
   'catalog search RPC exists'
 );
 select has_table('public', 'admin_audit_log', 'admin audit log exists');
@@ -82,12 +82,17 @@ values (
   99999
 );
 
+do $$ begin
+  perform public.capture_catalog_publication(public.get_content_revision(),'40000000-0000-4000-8000-000000000001',repeat('1',64));
+  update catalog_private.catalog_releases set state='ready' where id='40000000-0000-4000-8000-000000000001';
+  insert into catalog_private.catalog_publication_active(release_id) values ('40000000-0000-4000-8000-000000000001');
+end $$;
 set local role anon;
 
-select is(
-  (select count(*) from public.products where slug = 'integration-hidden-product'),
-  0::bigint,
-  'anon cannot read an unpublished product'
+select throws_ok(
+  $$select count(*) from public.products where slug = 'integration-hidden-product'$$,
+  '42501', 'permission denied for table products',
+  'anon cannot read editable products, published or unpublished'
 );
 select is(
   (
@@ -142,6 +147,16 @@ select is(
 );
 
 reset role;
+set local role anon;
+
+select is((select count(*) from public.search_catalog_products('integration hidden')),
+  0::bigint, 'source publication flag alone cannot change public search');
+reset role;
+do $$ begin
+  perform public.capture_catalog_publication(public.get_content_revision(),'40000000-0000-4000-8000-000000000002',repeat('2',64));
+  update catalog_private.catalog_releases set state='ready' where id='40000000-0000-4000-8000-000000000002';
+  update catalog_private.catalog_publication_active set release_id='40000000-0000-4000-8000-000000000002';
+end $$;
 set local role anon;
 
 select is(

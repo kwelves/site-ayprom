@@ -1,0 +1,28 @@
+{
+  // Admin Worker: the real src/lib/admin actions and queries with Next-only modules swapped for shims,
+  // plus the admin single-page app (built by `npm run build:admin-spa`) as static assets.
+  // No bindings or secrets live in this file.
+  "name": "ayprom-admin-rpc",
+  "main": "src/cloudflare/admin-worker/index.ts",
+  "compatibility_date": "2026-09-19",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "assets": {
+    "directory": "dist/admin-spa",
+    "binding": "ASSETS",
+    "html_handling": "drop-trailing-slash",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/admin", "/admin/*"]
+  },
+  "alias": {
+    "next/headers": "./src/cloudflare/admin-worker/shims/next-headers.ts",
+    "next/navigation": "./src/cloudflare/admin-worker/shims/next-navigation.ts",
+    "next/cache": "./src/cloudflare/admin-worker/shims/next-cache.ts",
+    "@sentry/nextjs": "./src/cloudflare/admin-worker/shims/sentry.ts",
+    "server-only": "./src/cloudflare/admin-worker/shims/server-only.ts",
+    "sharp": "./src/cloudflare/admin-worker/shims/sharp.ts",
+    "isomorphic-dompurify": "./src/cloudflare/admin-worker/shims/dompurify.ts",
+    "@/lib/supabase/server": "./src/cloudflare/admin-worker/shims/supabase-server.ts"
+  },
+  "observability": { "enabled": true }
+}

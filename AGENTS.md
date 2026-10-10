@@ -17,3 +17,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Before the first request in every new session, run `graphify update .` when `graphify-out/graph.json` exists. Run `/graphify .` when no graph exists.
 - If Graphify fails, report it once and continue using the source files.
 - After a medium or large change, update the graph before creating the checkpoint.
+
+# ECC for AYPROM
+
+- ECC (Everything Claude Code) is installed as a native Codex plugin. For this project, follow `docs/ECC_WORKFLOW.md` when using its skills.
+- Use ECC `tdd-workflow`, `security-review`, and `verification-loop` with the existing project tools, not their generic example commands. Do not duplicate Superpowers planning/approval loops or change the approved migration architecture.

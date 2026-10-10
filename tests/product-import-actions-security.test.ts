@@ -20,7 +20,9 @@ vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     from: (table: string) => ({
-      select: async () => ({ data: referenceRows[table] ?? [], error: null }),
+      select: () => ({ order: () => ({
+        range: async (from: number, to: number) => ({ data: (referenceRows[table] ?? []).slice(from, to + 1), error: null }),
+      }) }),
     }),
     rpc: rpcMock,
   }),

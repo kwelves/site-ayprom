@@ -1,0 +1,17 @@
+{
+  "name": "ayprom-thin-api-prototype",
+  "main": "src/cloudflare/worker.ts",
+  "compatibility_date": "2026-09-19",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "vars": {
+    "SUPABASE_URL": "https://example.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "local-prototype-publishable-key"
+  },
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "head_sampling_rate": 1
+    }
+  }
+}

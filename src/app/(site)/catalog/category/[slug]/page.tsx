@@ -9,6 +9,8 @@ import { BrandCard } from "@/components/home/BrandCard";
 import { CatalogPageShell } from "@/components/catalog/CatalogPageShell";
 import { ProductSearchForm } from "@/components/catalog/ProductSearchForm";
 import { CatalogPagination, ProductGridWithSearch } from "@/components/catalog/ProductGridWithSearch";
+import { ClientCatalogSearch } from "@/components/catalog/ClientCatalogSearch";
+import { ClientMixedCategoryPagination } from "@/components/catalog/ClientMixedCategoryPagination";
 import { ProductCard } from "@/components/catalog/ProductCard";
 import { getCategory, getCategories } from "@/lib/queries/categories";
 import { getSubcategories } from "@/lib/queries/subcategories";
@@ -20,6 +22,22 @@ import { cn } from "@/lib/utils";
 import type { Brand } from "@/types/catalog";
 
 export const revalidate = 60;
+
+// Static-build (Cloudflare crawl-and-freeze) delivery has no server to
+// re-render on a new q/page after the HTML is frozen — see the plain
+// subcategory page (catalog/category/[slug]/subcategory/[subSlug]/page.tsx)
+// for the full rationale.
+//
+// Two branches below use this flag:
+//  - category.type === null (a flat product grid) freezes page 1 and hands
+//    q/page to ClientCatalogSearch, same as the subcategory page.
+//  - the mixed subcategory+direct-product branch (implicit "subcategory"
+//    type) freezes page 1 of its direct-product listing and hands page
+//    (only page — this branch has no search box, and none is added here)
+//    to ClientMixedCategoryPagination.
+// The "brand" branch is untouched regardless of this flag: it never reads
+// searchParams at all, so there is nothing request-dependent to freeze.
+const STATIC_BUILD = process.env.AYPROM_STATIC_BUILD === "1";
 
 // A dynamic segment without generateStaticParams renders fully dynamic on
 // every request regardless of `revalidate` — categories are few and known,
@@ -53,6 +71,54 @@ function BrandCardGrid({
   );
 }
 
+// Normal Next/Vercel rendering of the mixed subcategory+direct-product
+// branch — unchanged from before this task's static-build wiring. Extracted
+// verbatim into its own component alongside BrandCardGrid above so the
+// STATIC_BUILD branch in CategoryPage reads as a plain fork between this and
+// ClientMixedCategoryPagination, rather than a large inline block.
+function MixedCategoryGrid({
+  categorySlug,
+  categoryPath,
+  subcategories,
+  directProductPage,
+}: {
+  categorySlug: string;
+  categoryPath: string;
+  subcategories: Awaited<ReturnType<typeof getSubcategories>>;
+  directProductPage: Awaited<ReturnType<typeof getProductsWithoutSubcategory>>;
+}) {
+  const mixedItems = buildMixedCategoryGridItems(subcategories, directProductPage.items);
+  const sizing = getCardGridSizing(mixedItems.length);
+  return (
+    <>
+      <HoverBorderGrid className={cn("mt-10", sizing.containerClassName)}>
+        <StaggerGroup className={cn("flex flex-wrap justify-center", CARD_GRID_GAP_CLASSNAME)}>
+          {mixedItems.map(({ kind, item }) => (
+            <StaggerItem key={`${kind}:${item.slug}`} className={sizing.itemClassName}>
+              {kind === "subcategory" ? (
+                <CategoryCard
+                  href={`/catalog/category/${categorySlug}/subcategory/${item.slug}`}
+                  image={item.image}
+                  name={item.name}
+                  sizes="(max-width: 1023px) 30vw, 380px"
+                />
+              ) : (
+                <ProductCard product={item} href={`${categoryPath}/${item.slug}`} variant="category-grid" />
+              )}
+            </StaggerItem>
+          ))}
+        </StaggerGroup>
+      </HoverBorderGrid>
+
+      <CatalogPagination
+        action={categoryPath}
+        page={directProductPage.page}
+        totalPages={directProductPage.totalPages}
+      />
+    </>
+  );
+}
+
 interface CategoryPageProps {
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ q?: string; page?: string }>;
@@ -82,8 +148,16 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   if (category.type === null) {
     const { q, page: pageParam } = await searchParams;
     const page = parseCatalogPage(pageParam);
-    const productPage = await getProducts({ categorySlug: slug, query: q, page });
+    // Static-build HTML must freeze a useful page-one without depending on
+    // whatever q/page the crawler's request happened to carry — the client
+    // adapter is what handles every other combination, after hydration.
+    // Normal rendering keeps using the real request's q/page, unchanged.
+    const productPage = await getProducts(
+      STATIC_BUILD ? { categorySlug: slug } : { categorySlug: slug, query: q, page },
+    );
     const action = `/catalog/category/${slug}`;
+    const scopeLabel = `в разделе «${category.name}»`;
+    const emptyLabel = "В этой категории пока нет товаров. Скоро они здесь появятся.";
 
     return (
       <CatalogPageShell canonicalPath={categoryPath} items={[{ label: category.name }]}>
@@ -91,21 +165,34 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
           <SectionHeading as="h1" className="mx-auto max-w-2xl text-center" title={category.name} />
         </Reveal>
 
-        <div className="mt-6">
-          <ProductSearchForm action={action} defaultValue={q} placeholder={`Поиск по разделу «${category.name}»`} />
-        </div>
+        {STATIC_BUILD ? (
+          <ClientCatalogSearch
+            categorySlug={slug}
+            basePath={action}
+            initial={productPage}
+            scopeLabel={scopeLabel}
+            emptyLabel={emptyLabel}
+            searchPlaceholder={`Поиск по разделу «${category.name}»`}
+          />
+        ) : (
+          <>
+            <div className="mt-6">
+              <ProductSearchForm action={action} defaultValue={q} placeholder={`Поиск по разделу «${category.name}»`} />
+            </div>
 
-        <ProductGridWithSearch
-          products={productPage.items}
-          total={productPage.total}
-          page={productPage.page}
-          totalPages={productPage.totalPages}
-          query={q}
-          scopeLabel={`в разделе «${category.name}»`}
-          action={action}
-          href={(product) => `/catalog/category/${slug}/${product.slug}`}
-          emptyLabel="В этой категории пока нет товаров. Скоро они здесь появятся."
-        />
+            <ProductGridWithSearch
+              products={productPage.items}
+              total={productPage.total}
+              page={productPage.page}
+              totalPages={productPage.totalPages}
+              query={q}
+              scopeLabel={scopeLabel}
+              action={action}
+              href={(product) => `${action}/${product.slug}`}
+              emptyLabel={emptyLabel}
+            />
+          </>
+        )}
 
         {category.intro && (
           <Reveal>
@@ -143,9 +230,15 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
   const { page: pageParam } = await searchParams;
   const page = parseCatalogPage(pageParam);
+  // Static-build HTML must freeze a useful page-one of the direct-product
+  // listing without depending on whatever page the crawler's request
+  // happened to carry — ClientMixedCategoryPagination below is what handles
+  // every other page, after hydration, via the public noSubcategory=1
+  // search API. Normal rendering keeps using the real request's page,
+  // unchanged. No search box exists on this branch and none is added here.
   const [subcategories, directProductPage] = await Promise.all([
     getSubcategories(category.slug),
-    getProductsWithoutSubcategory(category.slug, page),
+    getProductsWithoutSubcategory(category.slug, STATIC_BUILD ? 1 : page),
   ]);
 
   if (subcategories.length === 0 && directProductPage.total === 0) {
@@ -164,8 +257,6 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     );
   }
 
-  const mixedItems = buildMixedCategoryGridItems(subcategories, directProductPage.items);
-  const sizing = getCardGridSizing(mixedItems.length);
   return (
     <CatalogPageShell canonicalPath={categoryPath} items={[{ label: category.name }]}>
       <Reveal>
@@ -182,35 +273,22 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
           }
         />
       </Reveal>
-      <HoverBorderGrid
-        className={cn(
-          "mt-10",
-          sizing.containerClassName
-        )}
-      >
-        <StaggerGroup className={cn("flex flex-wrap justify-center", CARD_GRID_GAP_CLASSNAME)}>
-          {mixedItems.map(({ kind, item }) => (
-            <StaggerItem key={`${kind}:${item.slug}`} className={sizing.itemClassName}>
-              {kind === "subcategory" ? (
-                <CategoryCard
-                  href={`/catalog/category/${category.slug}/subcategory/${item.slug}`}
-                  image={item.image}
-                  name={item.name}
-                  sizes="(max-width: 1023px) 30vw, 380px"
-                />
-              ) : (
-                <ProductCard product={item} href={`${categoryPath}/${item.slug}`} variant="category-grid" />
-              )}
-            </StaggerItem>
-          ))}
-        </StaggerGroup>
-      </HoverBorderGrid>
 
-      <CatalogPagination
-        action={categoryPath}
-        page={directProductPage.page}
-        totalPages={directProductPage.totalPages}
-      />
+      {STATIC_BUILD ? (
+        <ClientMixedCategoryPagination
+          categorySlug={category.slug}
+          basePath={categoryPath}
+          subcategories={subcategories}
+          initial={directProductPage}
+        />
+      ) : (
+        <MixedCategoryGrid
+          categorySlug={category.slug}
+          categoryPath={categoryPath}
+          subcategories={subcategories}
+          directProductPage={directProductPage}
+        />
+      )}
     </CatalogPageShell>
   );
 }

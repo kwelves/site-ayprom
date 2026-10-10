@@ -56,6 +56,9 @@ const nextConfig: NextConfig = {
     root: path.resolve(__dirname),
   },
   images: {
+    // Crawl-and-freeze artifacts have no Next image optimizer endpoint.
+    // Keep Vercel and ordinary local builds on their existing optimizer path.
+    unoptimized: process.env.AYPROM_STATIC_BUILD === "1",
     // Product-card thumbnails deliberately use 60 while full galleries use
     // the default 75. Next 16 requires every optimizer quality explicitly.
     qualities: [60, 75],

@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { activeCatalogReaderIfEnabled } from "@/lib/catalog-publication-reader";
 import { categorySupportsDirectProducts } from "@/lib/category-routing";
 import type { Category } from "@/types/catalog";
 
@@ -30,6 +31,9 @@ function mapCategory(row: CategoryRow): Category {
 // and the same request's catalog category page fetches them again — two calls
 // collapse to one.
 export const getCategories = cache(async (): Promise<Category[]> => {
+  const reader = await activeCatalogReaderIfEnabled();
+  if (reader) return (await reader.list<CategoryRow & { order: number }>("category"))
+    .sort((a, b) => a.order - b.order).map(mapCategory);
   const supabase = await createClient();
   const { data, error } = await supabase.from("categories").select("*").order("order");
   if (error) throw error;
@@ -40,6 +44,11 @@ export const getCategories = cache(async (): Promise<Category[]> => {
 // call this with the same slug — share one Supabase request per render
 // instead of two.
 export const getCategory = cache(async (slug: string): Promise<Category | null> => {
+  const reader = await activeCatalogReaderIfEnabled();
+  if (reader) {
+    const row = await reader.get<CategoryRow>("category", slug);
+    return row ? mapCategory(row) : null;
+  }
   const supabase = await createClient();
   const { data, error } = await supabase.from("categories").select("*").eq("slug", slug).maybeSingle();
   if (error) throw error;
@@ -53,6 +62,19 @@ export const getCategory = cache(async (slug: string): Promise<Category | null> 
 // a match in, so a card never links to a 404. Subcategory-type categories
 // have no such gating table, so real products are the only signal.
 export async function getBrandCategories(brandSlug: string): Promise<Category[]> {
+  const reader = await activeCatalogReaderIfEnabled();
+  if (reader) {
+    const [categories, links, products] = await Promise.all([
+      reader.list<CategoryRow & { order: number }>("category"),
+      reader.list<{ category_slug: string; brand_slug: string }>("category_brand"),
+      reader.list<{ category_slug: string; product_brands: { brands: { slug: string } }[] }>("product"),
+    ]);
+    return categories.filter((row) => row.type === "brand"
+      ? links.some((link) => link.category_slug === row.slug && link.brand_slug === brandSlug)
+      : row.type === "subcategory" && products.some((product) => product.category_slug === row.slug
+        && product.product_brands.some((brand) => brand.brands.slug === brandSlug)))
+      .sort((a, b) => a.order - b.order).map(mapCategory);
+  }
   const supabase = await createClient();
 
   const { data: allCategories, error: categoriesError } = await supabase.from("categories").select("*").order("order");
@@ -99,6 +121,9 @@ export async function getBrandCategories(brandSlug: string): Promise<Category[]>
 // This includes flat categories and mixed "subcategory" categories; brand
 // categories still require a matching brand route.
 export async function getDirectProductCategorySlugs(): Promise<Set<string>> {
+  const reader = await activeCatalogReaderIfEnabled();
+  if (reader) return new Set((await reader.list<{ slug: string; type: Category["type"] }>("category"))
+    .filter((row) => categorySupportsDirectProducts(row.type)).map((row) => row.slug));
   const supabase = await createClient();
   const { data, error } = await supabase.from("categories").select("slug, type");
   if (error) throw error;

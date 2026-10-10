@@ -6,6 +6,8 @@ import {
   updateProduct,
   deleteProduct,
   uploadProductImage,
+  fetchProductPhotoQueue,
+  resumePhotoProcessing,
   deleteProductImage,
   reorderProductImages,
   updateProductImageScale,
@@ -98,6 +100,8 @@ export function ProductForm({
   const [images, setImages] = useState(product?.images ?? []);
   const [published, setPublished] = useState(product?.published ?? true);
   const [isUploading, setIsUploading] = useState(false);
+  // Cloudflare admin: photos finished in the background; the form follows their progress.
+  const [photoQueue, setPhotoQueue] = useState({ pending: 0, failed: 0 });
   const [pendingPhotoCount, setPendingPhotoCount] = useState(0);
   const [photoMode, setPhotoMode] = useState<ProductPhotoMode>(initialPhotoMode ?? DEFAULT_PRODUCT_PHOTO_MODE);
   const [photoAlphaWarning, setPhotoAlphaWarning] = useState(false);
@@ -115,6 +119,52 @@ export function ProductForm({
   const unpublishConfirmedRef = useRef(false);
   const [, startTransition] = useTransition();
   const { success } = useAdminToast();
+  const successRef = useRef(success);
+  useEffect(() => {
+    successRef.current = success;
+  }, [success]);
+
+  // Cloudflare admin: photos are finished by a background worker. Read the queue once when the form opens
+  // (photos may already be waiting), then every few seconds while something is still pending; finished
+  // photos join the list on their own. If they wait too long, the worker is started again.
+  const productId = mode === "edit" ? product?.id : undefined;
+  const hasPendingPhotos = photoQueue.pending > 0;
+  useEffect(() => {
+    if (!productId) return;
+    let cancelled = false;
+    const applyQueue = (state: Awaited<ReturnType<typeof fetchProductPhotoQueue>>) => {
+      if (cancelled) return;
+      setImages((prev) => {
+        const known = new Set(prev.map((image) => image.id));
+        const fresh = state.images.filter((image) => !known.has(image.id));
+        if (fresh.length > 0) successRef.current(fresh.length === 1 ? "Фотография обработана" : `Обработано фотографий: ${fresh.length}`);
+        return fresh.length > 0 ? [...prev, ...fresh] : prev;
+      });
+      setPhotoQueue({ pending: state.pending, failed: state.failed });
+    };
+    fetchProductPhotoQueue(productId).then(applyQueue, () => undefined);
+    if (!hasPendingPhotos) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const startedAt = Date.now();
+    let restarted = false;
+    const timer = setInterval(() => {
+      fetchProductPhotoQueue(productId).then((state) => {
+        applyQueue(state);
+        if (!restarted && state.pending > 0 && Date.now() - startedAt > 60_000) {
+          restarted = true;
+          void resumePhotoProcessing().catch(() => undefined);
+        }
+      }, () => undefined);
+    }, 3000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [productId, hasPendingPhotos]);
 
   const selectedCategory = categories.find((c) => c.slug === categorySlug);
   const categorySubcategories = subcategories.filter((s) => s.categorySlug === categorySlug);
@@ -207,9 +257,15 @@ export function ProductForm({
         }),
       );
       const uploaded = uploads.filter((image): image is NonNullable<typeof image> => image !== null);
-      if (uploaded.length > 0) {
-        setImages((prev) => [...prev, ...uploaded]);
-        success(uploaded.length === 1 ? "Фотография добавлена" : `Добавлено фотографий: ${uploaded.length}`);
+      const finished = uploaded.filter((image): image is Exclude<typeof image, { pending: true }> => !("pending" in image));
+      const queuedNow = uploaded.length - finished.length;
+      if (finished.length > 0) {
+        setImages((prev) => [...prev, ...finished]);
+        success(finished.length === 1 ? "Фотография добавлена" : `Добавлено фотографий: ${finished.length}`);
+      }
+      if (queuedNow > 0) {
+        setPhotoQueue((prev) => ({ ...prev, pending: prev.pending + queuedNow }));
+        success(queuedNow === 1 ? "Фотография загружена и обрабатывается" : `Фотографий в обработке: ${queuedNow}`);
       }
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Не удалось загрузить фотографии.");
@@ -447,6 +503,7 @@ export function ProductForm({
             stagedPhotos={stagedPhotos.photos}
             onStagedRetry={stagedPhotos.retry}
             onStagedCancel={stagedPhotos.cancel}
+            photoQueue={photoQueue}
             isSubmitting={isSubmitting}
           />
         </Collapsible>

@@ -47,18 +47,18 @@ function subscribeToNetworkChanges(onStoreChange: () => void) {
   return () => connection.removeEventListener?.("change", onStoreChange);
 }
 
-function hasConfirmedFastConnection() {
+// Product photos are small pre-built WebP variants, so every photo is fetched in the background right
+// after the first one is shown: switching must never wait for the network. Only an explicit request to
+// save data, or a 2G link, turns that off. Browsers without the Network Information API (Safari,
+// Firefox) are allowed too. The server snapshot stays false so hydration never sees a warmup.
+function allowsBackgroundImageWarmup() {
   const connection = getNetworkInformation();
-  return (
-    connection?.effectiveType === "4g" &&
-    connection.saveData === false &&
-    typeof connection.addEventListener === "function" &&
-    typeof connection.removeEventListener === "function"
-  );
+  if (connection?.saveData === true) return false;
+  return connection?.effectiveType !== "slow-2g" && connection?.effectiveType !== "2g";
 }
 
-function useConfirmedFastConnection() {
-  return useSyncExternalStore(subscribeToNetworkChanges, hasConfirmedFastConnection, () => false);
+function useBackgroundImageWarmupAllowed() {
+  return useSyncExternalStore(subscribeToNetworkChanges, allowsBackgroundImageWarmup, () => false);
 }
 
 // A single photo needs none of this — no arrows, no dots, just the plain
@@ -68,7 +68,7 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
   const carousel = usePreparedImageCarousel(images);
   const [readyFirstImageKey, setReadyFirstImageKey] = useState<string | null>(null);
   const firstImageKey = getPreparedImageKey(images[0], 0);
-  const hasFastConnection = useConfirmedFastConnection();
+  const warmupAllowed = useBackgroundImageWarmupAllowed();
   const index = carousel.selectedIndex;
   const hasMultiple = images.length > 1;
   const isTouchDevice = useIsTouchDevice();
@@ -144,14 +144,15 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
           carousel={carousel}
         />
 
-        {hasMultiple && readyFirstImageKey === firstImageKey && hasFastConnection && images[1]?.url && (
-          <GalleryNeighborWarmup
-            key={`${images[1].url}-1`}
-            url={images[1].url}
-            sizes={GALLERY_IMAGE_SIZES}
-            unoptimized
-          />
-        )}
+        {hasMultiple && readyFirstImageKey === firstImageKey && warmupAllowed
+          && images.slice(1).map((image, offset) => image.url && (
+            <GalleryNeighborWarmup
+              key={`${image.url}-${offset + 1}`}
+              url={image.url}
+              sizes={GALLERY_IMAGE_SIZES}
+              unoptimized
+            />
+          ))}
 
         {hasMultiple && (
           <>

@@ -1,6 +1,6 @@
 -- Собственная система WebP-вариантов (фаза 2): новые колонки
--- product_images.thumbnail_url/gallery_url, их целостность, доступность
--- клиентским ролям без отдельного GRANT и fallback внутри
+-- product_images.thumbnail_url/gallery_url, их целостность, закрытый прямой
+-- доступ для клиентских ролей и fallback внутри
 -- search_catalog_products. Генератор и backfill — отдельные фазы, здесь
 -- проверяется только модель данных и совместимость публичного RPC.
 --
@@ -71,6 +71,11 @@ select lives_ok(
   'заполнение обоих вариантов одним UPDATE проходит (путь backfill/генератора)'
 );
 
+do $$ begin
+  perform public.capture_catalog_publication(public.get_content_revision(),'40000000-0000-4000-8000-000000000001',repeat('1',64));
+  update catalog_private.catalog_releases set state='ready' where id='40000000-0000-4000-8000-000000000001';
+  insert into catalog_private.catalog_publication_active(release_id) values ('40000000-0000-4000-8000-000000000001');
+end $$;
 set local role anon;
 
 select is(
@@ -100,20 +105,12 @@ select is(
   'резерв не дублирует основной адрес, когда обложкой уже служит оригинал'
 );
 
--- thumbnail_url/gallery_url — обычные колонки той же таблицы, права на
--- которую выданы на уровне TABLE (GRANT SELECT ON TABLE product_images),
--- а не на уровне колонок. Убеждаемся, что anon реально видит их напрямую
--- через тот же RLS-контур ("Public can read images of published
--- products"), без отдельного GRANT для новых колонок.
-select is(
-  (
-    select thumbnail_url
-    from public.product_images
-    join public.products on products.id = product_images.product_id
-    where products.slug = 'image-variants-test-both'
-  ),
-  'https://storage.example/variants/v1/thumbnail-both.webp',
-  'anon видит thumbnail_url напрямую без дополнительного GRANT на колонку'
+-- Обложка остаётся доступной через опубликованный search RPC выше, но
+-- редактируемая таблица изображений больше не является публичным API.
+select throws_ok(
+  $$select thumbnail_url from public.product_images limit 1$$,
+  '42501', 'permission denied for table product_images',
+  'anon не читает редактируемые изображения напрямую'
 );
 
 reset role;

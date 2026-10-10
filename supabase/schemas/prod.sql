@@ -49,6 +49,19 @@ COMMENT ON SCHEMA "public" IS 'standard public schema';
 CREATE EXTENSION IF NOT EXISTS "pg_trgm" WITH SCHEMA "extensions";
 
 
+-- Тип создан миграцией 20260818224932_product_availability, но в
+-- декларативный файл не попал: без него схема не накатывается на чистую
+-- shadow-базу и `supabase db diff -f` не может сгенерировать миграцию.
+CREATE TYPE "public"."product_availability" AS ENUM (
+    'in_stock',
+    'out_of_stock',
+    'unclear'
+);
+
+
+ALTER TYPE "public"."product_availability" OWNER TO "postgres";
+
+
 
 
 CREATE OR REPLACE FUNCTION "public"."normalize_catalog_search"("value" "text") RETURNS "text"
@@ -89,6 +102,9 @@ begin
     where field.key <> all(ignored_keys)
       and to_jsonb(old) -> field.key is distinct from field.value;
 
+    -- An UPDATE that only touched ignored_keys (the common case: a drag-n-drop
+    -- reorder writing only `order`) has nothing worth journaling — skip the
+    -- insert entirely instead of recording an empty, unexplained entry.
     if array_length(field_names, 1) is null then
       return new;
     end if;
@@ -296,16 +312,18 @@ $$;
 ALTER FUNCTION "public"."refresh_product_search_text"("target_product_id" "uuid") OWNER TO "postgres";
 
 
+-- Локальная переменная attempt_at намеренно не названа `current_time`: это
+-- зарезервированное слово SQL, и внутри выражений парсер разрешает его в
+-- CURRENT_TIME (timetz), а не в переменную. Все сравнения тогда падают с
+-- SQLSTATE 42883, который вызывающий код принимает за «RPC ещё не развёрнут».
+-- Комментарий вынесен из тела, чтобы текст функции совпадал с миграцией
+-- 20260822161206_harden_admin_security и `db diff` не выписывал её заново.
 CREATE OR REPLACE FUNCTION "public"."register_admin_login_attempt"("attempt_key_hash" "text", "password_is_valid" boolean, "attempt_scope" "text" DEFAULT 'login'::"text") RETURNS integer
     LANGUAGE "plpgsql" SECURITY INVOKER
     SET "search_path" TO ''
     AS $$
 declare
   current_row public.admin_login_rate_limits%rowtype;
-  -- Deliberately not named `current_time`: that is a reserved SQL keyword, and
-  -- inside SQL expressions the parser resolves it to CURRENT_TIME (timetz)
-  -- rather than to the local variable, making every comparison below fail with
-  -- SQLSTATE 42883 — which the caller mistakes for "RPC not deployed yet".
   attempt_at timestamptz := clock_timestamp();
   next_failed_count integer;
   next_window_started_at timestamptz;
@@ -388,97 +406,24 @@ $$;
 ALTER FUNCTION "public"."register_admin_login_attempt"("attempt_key_hash" "text", "password_is_valid" boolean, "attempt_scope" "text") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."search_catalog_products"("search_query" "text" DEFAULT NULL::"text", "category_filter" "text" DEFAULT NULL::"text", "subcategory_filter" "text" DEFAULT NULL::"text", "brand_filter" "text" DEFAULT NULL::"text", "vehicle_type_filter" "text" DEFAULT NULL::"text") RETURNS TABLE("slug" "text", "name" "text", "category_slug" "text", "subcategory_slug" "text", "short_description" "text", "article" "text", "cover_url" "text", "cover_fallback_url" "text", "cover_scale" numeric, "compatible_brands" "text"[])
+-- require_no_subcategory — последний аргумент с DEFAULT false: прежние вызовы
+-- с пятью аргументами (и по имени, и позиционно) разрешаются в эту же
+-- функцию. Старой пятиаргументной перегрузки быть не должно: при двух
+-- перегрузках PostgREST не выбрал бы функцию для пятиключевого вызова.
+--
+-- Сочетание subcategory_filter и require_no_subcategory = true даёт пустую
+-- выборку, а не расширенную; приложение отвергает такой запрос ещё раньше.
+CREATE OR REPLACE FUNCTION "public"."search_catalog_products"("search_query" "text" DEFAULT NULL::"text", "category_filter" "text" DEFAULT NULL::"text", "subcategory_filter" "text" DEFAULT NULL::"text", "brand_filter" "text" DEFAULT NULL::"text", "vehicle_type_filter" "text" DEFAULT NULL::"text", "require_no_subcategory" boolean DEFAULT false, "publication_id" uuid DEFAULT NULL, "publication_capability" text DEFAULT NULL) RETURNS TABLE("slug" "text", "name" "text", "category_slug" "text", "subcategory_slug" "text", "short_description" "text", "article" "text", "cover_url" "text", "cover_fallback_url" "text", "cover_scale" numeric, "compatible_brands" "text"[])
     LANGUAGE "sql" STABLE
     SET "search_path" TO ''
     AS $$
-  with normalized_query as (
-    select public.normalize_catalog_search(search_query) as value
-  )
-  select
-    product.slug,
-    product.name,
-    product.category_slug,
-    subcategory.slug as subcategory_slug,
-    product.short_description,
-    product.article,
-    coalesce(cover.thumbnail_url, cover.gallery_url, cover.url) as cover_url,
-    case
-      when cover.thumbnail_url is not null or cover.gallery_url is not null then cover.url
-      else null
-    end as cover_fallback_url,
-    cover.scale as cover_scale,
-    coalesce(brands.slugs, '{}') as compatible_brands
-  from public.products as product
-  cross join normalized_query
-  left join public.subcategories as subcategory on subcategory.id = product.subcategory_id
-  left join lateral (
-    select image.url, image.thumbnail_url, image.gallery_url, image.scale
-    from public.product_images as image
-    where image.product_id = product.id
-    order by image."order", image.id
-    limit 1
-  ) as cover on true
-  left join lateral (
-    select array_agg(product_brand.brand_slug order by product_brand.brand_slug) as slugs
-    from public.product_brands as product_brand
-    where product_brand.product_id = product.id
-  ) as brands on true
-  where product.published = true
-    and (category_filter is null or product.category_slug = category_filter)
-    and (
-      subcategory_filter is null
-      or (
-        subcategory.slug = subcategory_filter
-        and (category_filter is null or subcategory.category_slug = category_filter)
-      )
-    )
-    and (
-      brand_filter is null
-      or exists (
-        select 1
-        from public.product_brands as product_brand_filter
-        where product_brand_filter.product_id = product.id
-          and product_brand_filter.brand_slug = brand_filter
-      )
-    )
-    and (
-      vehicle_type_filter is null
-      or exists (
-        select 1
-        from public.product_vehicle_types as product_vehicle_type_filter
-        where product_vehicle_type_filter.product_id = product.id
-          and product_vehicle_type_filter.vehicle_type_slug = vehicle_type_filter
-      )
-    )
-    and (
-      normalized_query.value = ''
-      or (
-        -- Два условия делают разную работу, и оба нужны.
-        --
-        -- Первое — одиночный LIKE по первому слову — единственная форма,
-        -- которую планировщик умеет свести к GIN-индексу по trgm. Проверено
-        -- через EXPLAIN: ни `not exists (... not like ...)`, ни `like all`
-        -- (ни с подзапросом, ни с массивом) индексом не покрываются и дают
-        -- Seq Scan даже при enable_seqscan = off. Именно поэтому advisor
-        -- считал products_search_text_trgm_idx неиспользуемым.
-        --
-        -- Второе — точная проверка «присутствуют все слова». Первое условие
-        -- лишь сужает выборку до надмножества (первое слово входит в набор
-        -- обязательных), поэтому семантика не меняется. Эквивалентность
-        -- прежней формуле проверена на всех словах и парах слов каталога.
-        product.search_text like ('%' || split_part(normalized_query.value, ' ', 1) || '%')
-        and product.search_text like all (
-          select '%' || word || '%'
-          from unnest(string_to_array(normalized_query.value, ' ')) as word
-        )
-      )
-    )
-  order by product."order", product.name;
+  select * from catalog_private.search_products(search_query, category_filter,
+    subcategory_filter, brand_filter, vehicle_type_filter, require_no_subcategory,
+    publication_id, publication_capability);
 $$;
 
 
-ALTER FUNCTION "public"."search_catalog_products"("search_query" "text", "category_filter" "text", "subcategory_filter" "text", "brand_filter" "text", "vehicle_type_filter" "text") OWNER TO "postgres";
+ALTER FUNCTION "public"."search_catalog_products"("search_query" "text", "category_filter" "text", "subcategory_filter" "text", "brand_filter" "text", "vehicle_type_filter" "text", "require_no_subcategory" boolean, "publication_id" uuid, "publication_capability" text) OWNER TO "postgres";
 
 
 -- Перестановка порядка одним запросом в транзакции.
@@ -1126,7 +1071,7 @@ CREATE OR REPLACE FUNCTION "public"."record_admin_auth_failure"(
 ) RETURNS integer
     LANGUAGE "plpgsql"
     SET "search_path" TO ''
-    AS $
+    AS $$
 declare
   "v_row" "public"."admin_login_rate_limits"%rowtype;
   "v_failed_count" integer;
@@ -1170,7 +1115,7 @@ begin
   end if;
   return 0;
 end;
-$;
+$$;
 
 
 ALTER FUNCTION "public"."record_admin_auth_failure"("p_key_hash" "text", "p_scope" "text", "p_attempt_at" timestamp with time zone) OWNER TO "postgres";
@@ -1184,7 +1129,7 @@ CREATE OR REPLACE FUNCTION "public"."begin_admin_auth_attempt"(
 ) RETURNS TABLE("out_allowed" boolean, "out_retry_after" integer, "out_reservation_id" "uuid")
     LANGUAGE "plpgsql"
     SET "search_path" TO ''
-    AS $
+    AS $$
 declare
   "v_attempt_at" timestamp with time zone := clock_timestamp();
   "v_row" "public"."admin_login_rate_limits"%rowtype;
@@ -1254,7 +1199,7 @@ begin
 
   return query select true, 0, "v_id";
 end;
-$;
+$$;
 
 
 ALTER FUNCTION "public"."begin_admin_auth_attempt"("p_key_hash" "text", "p_scope" "text", "p_ttl_seconds" integer, "p_max_concurrent" integer) OWNER TO "postgres";
@@ -1266,7 +1211,7 @@ CREATE OR REPLACE FUNCTION "public"."finish_admin_auth_attempt"(
 ) RETURNS integer
     LANGUAGE "plpgsql"
     SET "search_path" TO ''
-    AS $
+    AS $$
 declare
   "v_attempt_at" timestamp with time zone := clock_timestamp();
   "v_reservation" "public"."admin_auth_reservations"%rowtype;
@@ -1306,7 +1251,7 @@ begin
 
   return "public"."record_admin_auth_failure"("v_reservation"."key_hash", "v_reservation"."scope", "v_attempt_at");
 end;
-$;
+$$;
 
 
 ALTER FUNCTION "public"."finish_admin_auth_attempt"("p_reservation_id" "uuid", "p_password_is_valid" boolean) OWNER TO "postgres";
@@ -1322,7 +1267,7 @@ CREATE OR REPLACE FUNCTION "public"."claim_product_image_staging"(
 ) RETURNS TABLE("out_id" "uuid", "out_expires_at" timestamp with time zone)
     LANGUAGE "plpgsql"
     SET "search_path" TO ''
-    AS $
+    AS $$
 declare
   "v_active" integer;
   "v_expires_at" timestamp with time zone;
@@ -1364,7 +1309,7 @@ begin
 
   return query select "v_id", "v_expires_at";
 end;
-$;
+$$;
 
 
 ALTER FUNCTION "public"."claim_product_image_staging"("p_draft_id" "uuid", "p_object_path" "text", "p_content_type" "text", "p_byte_size" bigint, "p_ttl_seconds" integer, "p_max_files" integer) OWNER TO "postgres";
@@ -1374,13 +1319,13 @@ CREATE OR REPLACE FUNCTION "public"."list_abandoned_product_image_staging"("p_li
 RETURNS TABLE("out_id" "uuid", "out_object_path" "text")
     LANGUAGE "sql"
     SET "search_path" TO ''
-    AS $
+    AS $$
   select "id", "object_path"
   from "public"."product_image_staging"
   where "finalized_at" is null and "expires_at" <= now()
   order by "expires_at"
   limit greatest(coalesce("p_limit", 100), 1);
-$;
+$$;
 
 
 ALTER FUNCTION "public"."list_abandoned_product_image_staging"("p_limit" integer) OWNER TO "postgres";
@@ -1390,7 +1335,7 @@ CREATE OR REPLACE FUNCTION "public"."release_product_image_staging"("p_ids" "uui
 RETURNS integer
     LANGUAGE "plpgsql"
     SET "search_path" TO ''
-    AS $
+    AS $$
 declare
   "v_deleted" integer;
 begin
@@ -1402,7 +1347,7 @@ begin
   get diagnostics "v_deleted" = row_count;
   return "v_deleted";
 end;
-$;
+$$;
 
 
 ALTER FUNCTION "public"."release_product_image_staging"("p_ids" "uuid"[]) OWNER TO "postgres";
@@ -1412,7 +1357,7 @@ CREATE OR REPLACE FUNCTION "public"."finalize_product_image_staging"("p_id" "uui
 RETURNS boolean
     LANGUAGE "plpgsql"
     SET "search_path" TO ''
-    AS $
+    AS $$
 declare
   "v_updated" integer;
 begin
@@ -1423,7 +1368,7 @@ begin
   get diagnostics "v_updated" = row_count;
   return "v_updated" > 0;
 end;
-$;
+$$;
 
 
 ALTER FUNCTION "public"."finalize_product_image_staging"("p_id" "uuid") OWNER TO "postgres";
@@ -2632,26 +2577,32 @@ REVOKE ALL ON FUNCTION "public"."detach_vehicle_hotspots_from_unpublished_produc
 GRANT ALL ON FUNCTION "public"."detach_vehicle_hotspots_from_unpublished_product"() TO "service_role";
 
 REVOKE ALL ON FUNCTION "public"."record_admin_mutation"() FROM PUBLIC, "anon", "authenticated";
+GRANT ALL ON FUNCTION "public"."record_admin_mutation"() TO "service_role";
 
 
 
 REVOKE ALL ON FUNCTION "public"."refresh_product_search_from_brand"() FROM PUBLIC, "anon", "authenticated";
+GRANT ALL ON FUNCTION "public"."refresh_product_search_from_brand"() TO "service_role";
 
 
 
 REVOKE ALL ON FUNCTION "public"."refresh_product_search_from_category"() FROM PUBLIC, "anon", "authenticated";
+GRANT ALL ON FUNCTION "public"."refresh_product_search_from_category"() TO "service_role";
 
 
 
 REVOKE ALL ON FUNCTION "public"."refresh_product_search_from_child"() FROM PUBLIC, "anon", "authenticated";
+GRANT ALL ON FUNCTION "public"."refresh_product_search_from_child"() TO "service_role";
 
 
 
 REVOKE ALL ON FUNCTION "public"."refresh_product_search_from_product"() FROM PUBLIC, "anon", "authenticated";
+GRANT ALL ON FUNCTION "public"."refresh_product_search_from_product"() TO "service_role";
 
 
 
 REVOKE ALL ON FUNCTION "public"."refresh_product_search_from_subcategory"() FROM PUBLIC, "anon", "authenticated";
+GRANT ALL ON FUNCTION "public"."refresh_product_search_from_subcategory"() TO "service_role";
 
 
 
@@ -2760,10 +2711,8 @@ GRANT ALL ON FUNCTION "public"."import_products_batch"("rows" "jsonb") TO "servi
 
 
 
-REVOKE ALL ON FUNCTION "public"."search_catalog_products"("search_query" "text", "category_filter" "text", "subcategory_filter" "text", "brand_filter" "text", "vehicle_type_filter" "text") FROM PUBLIC;
-GRANT ALL ON FUNCTION "public"."search_catalog_products"("search_query" "text", "category_filter" "text", "subcategory_filter" "text", "brand_filter" "text", "vehicle_type_filter" "text") TO "anon";
-GRANT ALL ON FUNCTION "public"."search_catalog_products"("search_query" "text", "category_filter" "text", "subcategory_filter" "text", "brand_filter" "text", "vehicle_type_filter" "text") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."search_catalog_products"("search_query" "text", "category_filter" "text", "subcategory_filter" "text", "brand_filter" "text", "vehicle_type_filter" "text") TO "service_role";
+REVOKE ALL ON FUNCTION "public"."search_catalog_products"("search_query" "text", "category_filter" "text", "subcategory_filter" "text", "brand_filter" "text", "vehicle_type_filter" "text", "require_no_subcategory" boolean, "publication_id" uuid, "publication_capability" text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION "public"."search_catalog_products"("search_query" "text", "category_filter" "text", "subcategory_filter" "text", "brand_filter" "text", "vehicle_type_filter" "text", "require_no_subcategory" boolean, "publication_id" uuid, "publication_capability" text) TO "anon", "authenticated", "service_role";
 
 
 
@@ -2796,68 +2745,57 @@ GRANT ALL ON TABLE "public"."admin_login_rate_limits" TO "service_role";
 
 
 
-GRANT SELECT ON TABLE "public"."brands" TO "anon";
-GRANT SELECT ON TABLE "public"."brands" TO "authenticated";
+REVOKE ALL ON TABLE "public"."brands" FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON TABLE "public"."brands" TO "service_role";
 
 
 
-GRANT SELECT ON TABLE "public"."categories" TO "anon";
-GRANT SELECT ON TABLE "public"."categories" TO "authenticated";
+REVOKE ALL ON TABLE "public"."categories" FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON TABLE "public"."categories" TO "service_role";
 
 
 
-GRANT SELECT ON TABLE "public"."category_brands" TO "anon";
-GRANT SELECT ON TABLE "public"."category_brands" TO "authenticated";
+REVOKE ALL ON TABLE "public"."category_brands" FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON TABLE "public"."category_brands" TO "service_role";
 
 
 
-GRANT SELECT ON TABLE "public"."product_brands" TO "anon";
-GRANT SELECT ON TABLE "public"."product_brands" TO "authenticated";
+REVOKE ALL ON TABLE "public"."product_brands" FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON TABLE "public"."product_brands" TO "service_role";
 
 
 
-GRANT SELECT ON TABLE "public"."product_characteristics" TO "anon";
-GRANT SELECT ON TABLE "public"."product_characteristics" TO "authenticated";
+REVOKE ALL ON TABLE "public"."product_characteristics" FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON TABLE "public"."product_characteristics" TO "service_role";
 
 
 
-GRANT SELECT ON TABLE "public"."product_images" TO "anon";
-GRANT SELECT ON TABLE "public"."product_images" TO "authenticated";
+REVOKE ALL ON TABLE "public"."product_images" FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON TABLE "public"."product_images" TO "service_role";
 
 
 
-GRANT SELECT ON TABLE "public"."product_vehicle_types" TO "anon";
-GRANT SELECT ON TABLE "public"."product_vehicle_types" TO "authenticated";
+REVOKE ALL ON TABLE "public"."product_vehicle_types" FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON TABLE "public"."product_vehicle_types" TO "service_role";
 
 
 
-GRANT SELECT ON TABLE "public"."products" TO "anon";
-GRANT SELECT ON TABLE "public"."products" TO "authenticated";
+REVOKE ALL ON TABLE "public"."products" FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON TABLE "public"."products" TO "service_role";
 
 
 
-GRANT SELECT ON TABLE "public"."subcategories" TO "anon";
-GRANT SELECT ON TABLE "public"."subcategories" TO "authenticated";
+REVOKE ALL ON TABLE "public"."subcategories" FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON TABLE "public"."subcategories" TO "service_role";
 
 
 
-GRANT SELECT ON TABLE "public"."vehicle_hotspots" TO "anon";
-GRANT SELECT ON TABLE "public"."vehicle_hotspots" TO "authenticated";
+REVOKE ALL ON TABLE "public"."vehicle_hotspots" FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON TABLE "public"."vehicle_hotspots" TO "service_role";
 
 
 
-GRANT SELECT ON TABLE "public"."vehicle_types" TO "anon";
-GRANT SELECT ON TABLE "public"."vehicle_types" TO "authenticated";
+REVOKE ALL ON TABLE "public"."vehicle_types" FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON TABLE "public"."vehicle_types" TO "service_role";
 
 
@@ -2934,3 +2872,55 @@ $$;
 
 REVOKE ALL ON FUNCTION "public"."update_product_with_slug"(text,text,timestamptz,text,text,text,text,text,text,boolean,public.product_availability,text,text,jsonb,text[],text[]) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION "public"."update_product_with_slug"(text,text,timestamptz,text,text,text,text,text,text,boolean,public.product_availability,text,text,jsonb,text[],text[]) TO service_role;
+
+-- Publication revision is a non-secret fence around the static build. Each
+-- content-changing SQL statement advances it inside the same transaction.
+-- A rollback therefore also rolls back the increment. The singleton row is
+-- created by the first mutation, so no data seed is required in declarative
+-- schemas; zero means a catalog with no committed content mutation yet.
+CREATE TABLE IF NOT EXISTS "public"."content_revision" (
+  "singleton" boolean DEFAULT true NOT NULL,
+  "current_revision" bigint NOT NULL,
+  "updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+  CONSTRAINT "content_revision_singleton_check" CHECK ("singleton"),
+  CONSTRAINT "content_revision_positive_check" CHECK ("current_revision" >= 1),
+  CONSTRAINT "content_revision_pkey" PRIMARY KEY ("singleton")
+);
+ALTER TABLE "public"."content_revision" ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE "public"."content_revision" FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON TABLE "public"."content_revision" TO anon, authenticated;
+GRANT ALL ON TABLE "public"."content_revision" TO service_role;
+CREATE POLICY "Public can read content revision" ON "public"."content_revision" FOR SELECT TO anon, authenticated USING (true);
+
+CREATE OR REPLACE FUNCTION "public"."get_content_revision"() RETURNS bigint
+  LANGUAGE sql STABLE SET search_path = ''
+  AS $$ SELECT coalesce((SELECT current_revision FROM public.content_revision WHERE singleton = true), 0)::bigint $$;
+REVOKE ALL ON FUNCTION "public"."get_content_revision"() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION "public"."get_content_revision"() TO anon, authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION "public"."bump_content_revision"() RETURNS trigger
+  LANGUAGE plpgsql SET search_path = ''
+  AS $$
+BEGIN
+  INSERT INTO public.content_revision (singleton, current_revision, updated_at)
+  VALUES (true, 1, clock_timestamp())
+  ON CONFLICT (singleton) DO UPDATE
+  SET current_revision = public.content_revision.current_revision + 1,
+      updated_at = clock_timestamp();
+  RETURN NULL;
+END;
+$$;
+REVOKE ALL ON FUNCTION "public"."bump_content_revision"() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION "public"."bump_content_revision"() TO service_role;
+
+CREATE OR REPLACE TRIGGER "publication_revision_brands" AFTER INSERT OR UPDATE OR DELETE ON "public"."brands" FOR EACH STATEMENT EXECUTE FUNCTION "public"."bump_content_revision"();
+CREATE OR REPLACE TRIGGER "publication_revision_categories" AFTER INSERT OR UPDATE OR DELETE ON "public"."categories" FOR EACH STATEMENT EXECUTE FUNCTION "public"."bump_content_revision"();
+CREATE OR REPLACE TRIGGER "publication_revision_category_brands" AFTER INSERT OR UPDATE OR DELETE ON "public"."category_brands" FOR EACH STATEMENT EXECUTE FUNCTION "public"."bump_content_revision"();
+CREATE OR REPLACE TRIGGER "publication_revision_product_brands" AFTER INSERT OR UPDATE OR DELETE ON "public"."product_brands" FOR EACH STATEMENT EXECUTE FUNCTION "public"."bump_content_revision"();
+CREATE OR REPLACE TRIGGER "publication_revision_product_characteristics" AFTER INSERT OR UPDATE OR DELETE ON "public"."product_characteristics" FOR EACH STATEMENT EXECUTE FUNCTION "public"."bump_content_revision"();
+CREATE OR REPLACE TRIGGER "publication_revision_product_images" AFTER INSERT OR UPDATE OR DELETE ON "public"."product_images" FOR EACH STATEMENT EXECUTE FUNCTION "public"."bump_content_revision"();
+CREATE OR REPLACE TRIGGER "publication_revision_product_vehicle_types" AFTER INSERT OR UPDATE OR DELETE ON "public"."product_vehicle_types" FOR EACH STATEMENT EXECUTE FUNCTION "public"."bump_content_revision"();
+CREATE OR REPLACE TRIGGER "publication_revision_products" AFTER INSERT OR UPDATE OR DELETE ON "public"."products" FOR EACH STATEMENT EXECUTE FUNCTION "public"."bump_content_revision"();
+CREATE OR REPLACE TRIGGER "publication_revision_subcategories" AFTER INSERT OR UPDATE OR DELETE ON "public"."subcategories" FOR EACH STATEMENT EXECUTE FUNCTION "public"."bump_content_revision"();
+CREATE OR REPLACE TRIGGER "publication_revision_vehicle_hotspots" AFTER INSERT OR UPDATE OR DELETE ON "public"."vehicle_hotspots" FOR EACH STATEMENT EXECUTE FUNCTION "public"."bump_content_revision"();
+CREATE OR REPLACE TRIGGER "publication_revision_vehicle_types" AFTER INSERT OR UPDATE OR DELETE ON "public"."vehicle_types" FOR EACH STATEMENT EXECUTE FUNCTION "public"."bump_content_revision"();

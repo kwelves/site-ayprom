@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { activeCatalogReaderIfEnabled } from "@/lib/catalog-publication-reader";
 import type { Brand } from "@/types/catalog";
 
 interface BrandRow {
@@ -21,6 +22,9 @@ function mapBrand(row: BrandRow): Brand {
 }
 
 export async function getBrands(): Promise<Brand[]> {
+  const reader = await activeCatalogReaderIfEnabled();
+  if (reader) return (await reader.list<BrandRow & { order: number }>("brand"))
+    .sort((a, b) => a.order - b.order).map(mapBrand);
   const supabase = await createClient();
   const { data, error } = await supabase.from("brands").select("*").order("order");
   if (error) throw error;
@@ -31,6 +35,11 @@ export async function getBrands(): Promise<Brand[]> {
 // call this with the same slug — share one Supabase request per render
 // instead of two.
 export const getBrand = cache(async (slug: string): Promise<Brand | null> => {
+  const reader = await activeCatalogReaderIfEnabled();
+  if (reader) {
+    const row = await reader.get<BrandRow>("brand", slug);
+    return row ? mapBrand(row) : null;
+  }
   const supabase = await createClient();
   const { data, error } = await supabase.from("brands").select("*").eq("slug", slug).maybeSingle();
   if (error) throw error;

@@ -11,6 +11,13 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
+    // The local static producer writes generated JS/CSS into dist/staging.
+    // Those artifacts are tested by artifact gates, not source lint rules.
+    "dist/**",
+    // Generated single-file bundles for background workers.
+    "deploy/**",
+    // Wrangler writes bundled Worker output here while `wrangler dev` or a dry run is active.
+    ".wrangler/**",
     "next-env.d.ts",
     ".agents/**",
     ".claude/**",

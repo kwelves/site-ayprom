@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Страница входа</title>
+</head>
+<body>
+  <main>
+    <h1>Вход</h1>
+    <p>ADMIN_LOGIN_PAGE_MARKER</p>
+    <p role="alert"><!-- AUTH_MESSAGE --></p>
+    <form method="post" action="/api/admin/login">
+      <label for="password">Пароль</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+      <button type="submit">Войти</button>
+    </form>
+  </main>
+</body>
+</html>

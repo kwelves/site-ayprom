@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { activeCatalogReaderIfEnabled, catalogCompositeKey } from "@/lib/catalog-publication-reader";
 import type { Subcategory } from "@/types/catalog";
 
 interface SubcategoryRow {
@@ -19,6 +20,9 @@ function mapSubcategory(row: SubcategoryRow): Subcategory {
 }
 
 export async function getSubcategories(categorySlug: string): Promise<Subcategory[]> {
+  const reader = await activeCatalogReaderIfEnabled();
+  if (reader) return (await reader.list<SubcategoryRow & { category_slug: string; order: number }>("subcategory"))
+    .filter((row) => row.category_slug === categorySlug).sort((a, b) => a.order - b.order).map(mapSubcategory);
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("subcategories")
@@ -33,6 +37,11 @@ export async function getSubcategories(categorySlug: string): Promise<Subcategor
 // call this with the same slugs — share one Supabase request per render
 // instead of two.
 export const getSubcategory = cache(async (categorySlug: string, subSlug: string): Promise<Subcategory | null> => {
+  const reader = await activeCatalogReaderIfEnabled();
+  if (reader) {
+    const row = await reader.get<SubcategoryRow>("subcategory", catalogCompositeKey(categorySlug, subSlug));
+    return row ? mapSubcategory(row) : null;
+  }
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("subcategories")
@@ -49,6 +58,18 @@ export const getSubcategory = cache(async (categorySlug: string, subSlug: string
 // exists for this combination, so a brand having a real product in that
 // (category, subcategory) pair is the only signal.
 export async function getBrandSubcategories(brandSlug: string, categorySlug: string): Promise<Subcategory[]> {
+  const reader = await activeCatalogReaderIfEnabled();
+  if (reader) {
+    const [subcategories, products] = await Promise.all([
+      reader.list<SubcategoryRow & { category_slug: string; order: number }>("subcategory"),
+      reader.list<{ category_slug: string; subcategories: { slug: string } | null; product_brands: { brands: { slug: string } }[] }>("product"),
+    ]);
+    const matched = new Set(products.filter((product) => product.category_slug === categorySlug
+      && product.product_brands.some((brand) => brand.brands.slug === brandSlug))
+      .map((product) => product.subcategories?.slug).filter((slug): slug is string => !!slug));
+    return subcategories.filter((row) => row.category_slug === categorySlug && matched.has(row.slug))
+      .sort((a, b) => a.order - b.order).map(mapSubcategory);
+  }
   const supabase = await createClient();
 
   const { data: productBrands, error: pbError } = await supabase
@@ -81,6 +102,9 @@ export async function getBrandSubcategories(brandSlug: string, categorySlug: str
 // category-dependent subcategory select, and the sitemap needs it to emit
 // every subcategory URL.
 export async function getAllSubcategories(): Promise<(Subcategory & { categorySlug: string })[]> {
+  const reader = await activeCatalogReaderIfEnabled();
+  if (reader) return (await reader.list<SubcategoryRow & { category_slug: string; order: number }>("subcategory"))
+    .sort((a, b) => a.order - b.order).map((row) => ({ ...mapSubcategory(row), categorySlug: row.category_slug }));
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("subcategories")

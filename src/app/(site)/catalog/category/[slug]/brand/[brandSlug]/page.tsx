@@ -3,12 +3,21 @@ import type { Metadata } from "next";
 import { Reveal } from "@/components/motion/Reveal";
 import { ProductSearchForm } from "@/components/catalog/ProductSearchForm";
 import { ProductGridWithSearch } from "@/components/catalog/ProductGridWithSearch";
+import { ClientCatalogSearch } from "@/components/catalog/ClientCatalogSearch";
 import { CatalogPageShell } from "@/components/catalog/CatalogPageShell";
 import { getCategory } from "@/lib/queries/categories";
 import { getCategoryBrands } from "@/lib/queries/category-brands";
 import { getProducts, parseCatalogPage } from "@/lib/queries/products";
 
 export const revalidate = 60;
+
+// Static-build (Cloudflare crawl-and-freeze) delivery has no server to
+// re-render on a new q/page after the HTML is frozen — see the subcategory
+// page (../../subcategory/[subSlug]/page.tsx) for the full rationale. Normal
+// Next/Vercel rendering below is untouched: it keeps computing productPage
+// from the real request's q/page and rendering the existing server-driven
+// ProductSearchForm + ProductGridWithSearch exactly as before.
+const STATIC_BUILD = process.env.AYPROM_STATIC_BUILD === "1";
 
 interface BrandInCategoryPageProps {
   params: Promise<{ slug: string; brandSlug: string }>;
@@ -39,8 +48,18 @@ export default async function BrandInCategoryPage({ params, searchParams }: Bran
     notFound();
   }
 
-  const productPage = await getProducts({ categorySlug: slug, brandSlug, query: q, page });
+  // Static-build HTML must freeze a useful page-one without depending on
+  // whatever q/page the crawler's request happened to carry — the client
+  // adapter is what handles every other combination, after hydration. Normal
+  // rendering keeps using the real request's q/page, unchanged.
+  const productPage = await getProducts(
+    STATIC_BUILD
+      ? { categorySlug: slug, brandSlug }
+      : { categorySlug: slug, brandSlug, query: q, page },
+  );
   const action = `/catalog/category/${slug}/brand/${brandSlug}`;
+  const scopeLabel = `для бренда «${brand.name}»`;
+  const emptyLabel = "Для этого бренда пока нет товаров. Скоро они здесь появятся.";
 
   return (
     <CatalogPageShell
@@ -71,25 +90,39 @@ export default async function BrandInCategoryPage({ params, searchParams }: Bran
         </div>
       </Reveal>
 
-      <div className="mt-6">
-        <ProductSearchForm
-          action={action}
-          defaultValue={q}
-          placeholder={`Поиск по «${brand.name}»`}
+      {STATIC_BUILD ? (
+        <ClientCatalogSearch
+          categorySlug={slug}
+          brandSlug={brandSlug}
+          basePath={action}
+          initial={productPage}
+          scopeLabel={scopeLabel}
+          emptyLabel={emptyLabel}
+          searchPlaceholder={`Поиск по «${brand.name}»`}
         />
-      </div>
+      ) : (
+        <>
+          <div className="mt-6">
+            <ProductSearchForm
+              action={action}
+              defaultValue={q}
+              placeholder={`Поиск по «${brand.name}»`}
+            />
+          </div>
 
-      <ProductGridWithSearch
-        products={productPage.items}
-        total={productPage.total}
-        page={productPage.page}
-        totalPages={productPage.totalPages}
-        query={q}
-        scopeLabel={`для бренда «${brand.name}»`}
-        action={action}
-        href={(product) => `/catalog/category/${slug}/brand/${brandSlug}/${product.slug}`}
-        emptyLabel="Для этого бренда пока нет товаров. Скоро они здесь появятся."
-      />
+          <ProductGridWithSearch
+            products={productPage.items}
+            total={productPage.total}
+            page={productPage.page}
+            totalPages={productPage.totalPages}
+            query={q}
+            scopeLabel={scopeLabel}
+            action={action}
+            href={(product) => `${action}/${product.slug}`}
+            emptyLabel={emptyLabel}
+          />
+        </>
+      )}
     </CatalogPageShell>
   );
 }

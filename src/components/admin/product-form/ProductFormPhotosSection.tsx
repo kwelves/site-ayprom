@@ -42,6 +42,8 @@ interface ProductFormPhotosSectionProps {
   stagedPhotos: StagedPhoto[];
   onStagedRetry: (key: string) => void;
   onStagedCancel: (key: string) => void;
+  /** Cloudflare admin: photos waiting for (or given up by) the background worker. */
+  photoQueue: { pending: number; failed: number };
 }
 
 // Sequential server-side processing (applyPhotoModeToAll) has no real
@@ -72,6 +74,7 @@ export function ProductFormPhotosSection({
   stagedPhotos,
   onStagedRetry,
   onStagedCancel,
+  photoQueue,
 }: ProductFormPhotosSectionProps) {
   const [progressPercent, setProgressPercent] = useState(0);
   const showProgress = isSubmitting && usesScriptProcessing(photoMode) && pendingPhotoCount > 0;
@@ -136,6 +139,22 @@ export function ProductFormPhotosSection({
               </div>
             )}
           />
+        )}
+        {photoQueue.pending > 0 && (
+          <div
+            role="status"
+            className="mt-3 flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
+          >
+            <span aria-hidden="true" className="size-4 shrink-0 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <span>
+              Обрабатывается фото: {photoQueue.pending}. Они появятся в списке сами, обычно в течение минуты.
+            </span>
+          </div>
+        )}
+        {photoQueue.failed > 0 && (
+          <p role="alert" className="mt-3 text-sm text-danger">
+            Не удалось обработать фото: {photoQueue.failed}. Загрузите {photoQueue.failed === 1 ? "его" : "их"} ещё раз.
+          </p>
         )}
         <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-input px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary">
           {isUploading ? "Загрузка…" : "Загрузить фото"}

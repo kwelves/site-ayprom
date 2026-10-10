@@ -46,12 +46,13 @@ describe("vehicle showcase product-card layout", () => {
     expect(interactive).not.toContain("{revealed && (\n        <motion.div");
   });
 
-  it("defers only the second catalog image while preserving showcase neighbor keys", () => {
+  it("warms every other catalog image after the first one decodes, while preserving showcase neighbor keys", () => {
     const catalogGallery = readFileSync("src/components/catalog/ProductGallery.tsx", "utf8");
     const hotspotPanel = readFileSync("src/components/home/vehicle-showcase/ProductPanel.tsx", "utf8");
     const keyExpression = 'key={`${images[neighborIndex].url}-${neighborIndex}`}';
 
-    expect(catalogGallery).toContain('key={`${images[1].url}-1`}');
+    expect(catalogGallery).toContain('key={`${image.url}-${offset + 1}`}');
+    expect(catalogGallery).toContain("images.slice(1).map(");
     expect(catalogGallery).not.toContain(keyExpression);
     expect(hotspotPanel).toContain(keyExpression);
     expect(catalogGallery).not.toContain("scrollIntoView");

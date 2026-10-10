@@ -13,10 +13,8 @@ import {
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveCardImageUrl } from "@/lib/product-image-variants";
 import { removePublicMediaUrls, uploadPublicMediaObject } from "@/lib/media-storage";
-import { buildR2PublicUrl } from "@/lib/media-storage-core";
 import {
   generateProductImageVariants,
-  VARIANT_UPLOAD_OPTIONS,
 } from "@/lib/admin/product-image-variants.core.mjs";
 import { slugify } from "@/lib/admin/slugify";
 import { resolveProductEditSlug } from "@/lib/admin/product-edit-slug";
@@ -53,16 +51,30 @@ import {
   CANONICAL_UPLOAD_EXTENSION,
 } from "@/lib/admin/product-image-staging";
 import { toProductRpcError, type ProductRpcErrorLike } from "@/lib/admin/product-rpc-error";
-import { convertBufferToWebp, enhanceProductPhotoBuffer } from "@/lib/admin/enhance-product-photo";
+import { attachStagedImageRow, describeStagedImageFailure, mediaUrlForCurrentWriteTarget, uploadImageVariant } from "@/lib/admin/product-image-attach";
+import {
+  isPhotoQueueMode,
+  isPublicationEnabled,
+  queueStagedImages,
+  requestPhotoWorker,
+  requestPublicationWorker,
+  stageAndQueueFile,
+} from "@/lib/photo-queue/enqueue";
+import { runInBackground } from "@/lib/background-tasks";
 import {
   DEFAULT_PRODUCT_PHOTO_MODE,
   isProductPhotoMode,
-  usesScriptProcessing,
-  usesWebpOutput,
   type ProductPhotoMode,
 } from "@/lib/admin/product-photo-mode";
 import type { CategoryIcon } from "@/types/catalog";
-import { getAdminProductTargetPage, type AdminAvailableProduct } from "@/lib/admin/queries";
+import {
+  getAdminProductTargetPage,
+  getProductPhotoQueue,
+  getPublicationStatus,
+  type AdminAvailableProduct,
+  type AdminProductPhotoQueue,
+  type AdminPublicationStatus,
+} from "@/lib/admin/queries";
 import {
   ADMIN_PRODUCT_LIST_CONFIG_COOKIE,
   DEFAULT_ADMIN_PRODUCT_LIST_CONFIG,
@@ -117,6 +129,7 @@ async function getProductMutationRedirect(options: {
   flashAction: "created" | "updated";
   product: { categorySlug: string; published: boolean; availability: ProductAvailability };
   photoErrorCount?: number;
+  photoQueuedCount?: number;
 }): Promise<string> {
   const cookieStore = await cookies();
   const savedConfig = parseAdminProductListConfigCookie(
@@ -129,6 +142,7 @@ async function getProductMutationRedirect(options: {
     flashAction: options.flashAction,
     slug: options.slug,
     photoErrorCount: options.photoErrorCount,
+    photoQueuedCount: options.photoQueuedCount,
     relaxed: savedConfig ? targetView.relaxed : [],
   }, () => getAdminProductTargetPage(options.slug, productListFiltersFromConfig(targetView.config)));
 
@@ -440,6 +454,8 @@ async function getNextOrder(
 // layout without having to enumerate each affected URL.
 function revalidatePublicSite(): void {
   revalidatePath("/", "layout");
+  // Cloudflare admin: the public site is a published snapshot, so every edit also wakes the publication worker.
+  if (isPublicationEnabled()) runInBackground(requestPublicationWorker());
 }
 
 async function generateUniqueSlug(
@@ -463,37 +479,6 @@ async function generateUniqueSlug(
 function parsePhotoMode(formData: FormData): ProductPhotoMode {
   const raw = formData.get("photoMode");
   return typeof raw === "string" && isProductPhotoMode(raw) ? raw : DEFAULT_PRODUCT_PHOTO_MODE;
-}
-
-// "normal"/"webp" arrive already finished — the client did the resizing and
-// (for "webp") the re-encode before submitting (see compress-image.ts /
-// ProductForm.tsx). Only the two script-processing modes have work left:
-// the enhance-product-photo pipeline (crop to the alpha bounding box, tone
-// correction, watermark), then an optional WebP re-encode of its output.
-async function applyPhotoMode(file: File, photoMode: ProductPhotoMode): Promise<File> {
-  if (!usesScriptProcessing(photoMode)) return file;
-
-  const enhanced = await enhanceProductPhotoBuffer(Buffer.from(await file.arrayBuffer()));
-  const toWebp = usesWebpOutput(photoMode);
-  const finalBuffer = toWebp ? await convertBufferToWebp(enhanced) : enhanced;
-  const extension = toWebp ? "webp" : "png";
-  const newName = file.name.replace(/\.[^./]+$/, "") + "." + extension;
-  // Buffer's ArrayBufferLike is wider than BlobPart's ArrayBuffer-only view —
-  // wrapping in a plain Uint8Array satisfies the type without copying data.
-  return new File([new Uint8Array(finalBuffer)], newName, { type: toWebp ? "image/webp" : "image/png" });
-}
-
-// Sequential on purpose: each script-processing photo runs several
-// CPU-bound sharp passes (tone correction, two raw-pixel scans, resize,
-// composite) — running up to MAX_PRODUCT_IMAGES of those concurrently would
-// contend for the same CPU budget for no speed benefit in a serverless
-// function, and makes the already-real execution-time risk worse.
-async function applyPhotoModeToAll(photos: File[], photoMode: ProductPhotoMode): Promise<File[]> {
-  const processed: File[] = [];
-  for (const file of photos) {
-    processed.push(await applyPhotoMode(file, photoMode));
-  }
-  return processed;
 }
 
 export async function createProduct(
@@ -557,6 +542,7 @@ export async function createProduct(
   // сохранёнными, а о неудачных админ узнаёт из счётчика при переходе и может
   // догрузить их на странице редактирования.
   let photoErrorCount = 0;
+  let photoQueuedCount = 0;
   if (photoStagingIds.length > 0 && isUuid(photoDraftId)) {
     const result = await attachStagedProductImages({
       supabase,
@@ -567,6 +553,7 @@ export async function createProduct(
       photoMode,
     });
     photoErrorCount = result.failed;
+    photoQueuedCount = result.queued;
   }
 
   revalidatePath("/admin/products");
@@ -580,6 +567,7 @@ export async function createProduct(
       availability: fields.availability,
     },
     photoErrorCount,
+    photoQueuedCount,
   });
   redirect(destination);
   });
@@ -910,7 +898,7 @@ export async function uploadProductImage(
   productId: string,
   formData: FormData,
   order: number
-): Promise<UploadedImage | null> {
+): Promise<UploadedImage | { pending: true; id: string } | null> {
   await requireAdminSession();
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) return null;
@@ -932,47 +920,26 @@ export async function uploadProductImage(
     throw new Error(`У товара уже максимальное количество фотографий: ${MAX_PRODUCT_IMAGES}.`);
   }
 
+  // Cloudflare admin: Sharp is not available there, so the photo is queued and finished in the background.
+  if (isPhotoQueueMode()) {
+    const { count: waiting, error: waitingError } = await supabase
+      .from("product_image_staging")
+      .select("id", { count: "exact", head: true })
+      .eq("queued_product_id", productId)
+      .is("finalized_at", null)
+      .is("failed_at", null);
+    if (waitingError) throw waitingError;
+    if ((count ?? 0) + (waiting ?? 0) >= MAX_PRODUCT_IMAGES) {
+      throw new Error(`У товара уже максимальное количество фотографий: ${MAX_PRODUCT_IMAGES}.`);
+    }
+    return stageAndQueueFile(supabase, { productId, file });
+  }
+
   const inserted = await insertProductImage(supabase, productId, product.slug, file, order);
 
   revalidatePath("/admin/products");
   revalidatePublicSite();
   return inserted;
-}
-
-function mediaUrlForCurrentWriteTarget(
-  supabase: ReturnType<typeof createAdminClient>,
-  bucket: "product-images" | "category-images" | "brand-logos" | "site-media",
-  path: string,
-): string {
-  if (process.env.MEDIA_STORAGE_WRITE_TARGET === "r2") {
-    const baseUrl = process.env.NEXT_PUBLIC_MEDIA_BASE_URL;
-    if (!baseUrl) throw new Error("Переменная окружения NEXT_PUBLIC_MEDIA_BASE_URL не задана для Cloudflare R2.");
-    return buildR2PublicUrl(baseUrl, bucket, path);
-  }
-  return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
-}
-
-/**
- * Загрузка варианта, безопасная к повтору.
- *
- * Имя файла варианта — хеш его содержимого, поэтому объект по такому пути
- * либо отсутствует, либо байт-в-байт совпадает с тем, что мы собираемся
- * записать. Значит конфликт имени — это «уже загружено» (повторный
- * finalize, повторный проход backfill), а не расхождение: перезаписывать
- * нечего, и `upsert` остаётся выключенным, как требует план.
- */
-async function uploadImageVariant(
-  supabase: ReturnType<typeof createAdminClient>,
-  variant: { path: string; body: Buffer },
-): Promise<void> {
-  await uploadPublicMediaObject(supabase, {
-    bucket: "product-images",
-    path: variant.path,
-    body: variant.body,
-    contentType: VARIANT_UPLOAD_OPTIONS.contentType,
-    cacheControl: VARIANT_UPLOAD_OPTIONS.cacheControl,
-    allowExisting: true,
-  });
 }
 
 /**
@@ -987,6 +954,36 @@ function collectImageStorageUrls(
   image: { url: string; thumbnail_url?: string | null; gallery_url?: string | null },
 ): string[] {
   return [...new Set([image.url, image.thumbnail_url, image.gallery_url].filter((url): url is string => Boolean(url)))];
+}
+
+// The product form polls this while photos are being processed in the background.
+export async function fetchProductPhotoQueue(productId: string): Promise<AdminProductPhotoQueue> {
+  await requireAdminSession();
+  if (!isUuid(productId)) throw new Error("Некорректный идентификатор товара.");
+  return getProductPhotoQueue(productId);
+}
+
+// Called by the form when photos have been waiting too long: starts the background worker again.
+export async function resumePhotoProcessing(): Promise<boolean> {
+  await requireAdminSession();
+  return requestPhotoWorker();
+}
+
+// The publication badge in the admin shell polls this.
+export async function fetchPublicationStatus(): Promise<AdminPublicationStatus> {
+  await requireAdminSession();
+  return getPublicationStatus();
+}
+
+// The publication badge calls this when edits have waited too long, and the owner's "retry" button calls it
+// after a failed publication: it clears the failure (if any) and starts the publication worker again.
+export async function retryPublication(): Promise<boolean> {
+  await requireAdminSession();
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.rpc("retry_publication_job");
+  if (error) throw error;
+  await requestPublicationWorker();
+  return data === true;
 }
 
 export async function deleteProductImage(imageId: string): Promise<void> {
@@ -1148,10 +1145,17 @@ async function attachStagedProductImages(options: {
   productId: string;
   productSlug: string;
   photoMode: ProductPhotoMode;
-}): Promise<{ attached: number; failed: number }> {
+}): Promise<{ attached: number; failed: number; queued: number }> {
   const { supabase, draftId, stagingIds, productId, productSlug, photoMode } = options;
   const requested = stagingIds.filter(isUuid);
-  if (requested.length === 0) return { attached: 0, failed: 0 };
+  if (requested.length === 0) return { attached: 0, failed: 0, queued: 0 };
+
+  // В Cloudflare-админке Sharp недоступен: фотографии ставятся в очередь, а готовит их фоновый
+  // обработчик (src/lib/photo-queue). Порядок и режим сохраняются в строках учёта.
+  if (isPhotoQueueMode()) {
+    const queued = await queueStagedImages(supabase, { draftId, stagingIds: requested, productId, photoMode });
+    return { attached: 0, failed: 0, queued };
+  }
 
   const { data: found, error: stagedError } = await supabase
     .from("product_image_staging")
@@ -1160,7 +1164,7 @@ async function attachStagedProductImages(options: {
     .in("id", requested)
     .is("finalized_at", null);
   if (stagedError) throw stagedError;
-  if (!found || found.length === 0) return { attached: 0, failed: 0 };
+  if (!found || found.length === 0) return { attached: 0, failed: 0, queued: 0 };
 
   // Порядок прикрепления — тот, в котором админ расставил снимки в форме, а не
   // тот, в котором они успели догрузиться.
@@ -1178,65 +1182,8 @@ async function attachStagedProductImages(options: {
 
   for (const row of staged) {
     try {
-      const downloaded = await supabase.storage.from(PRODUCT_IMAGE_STAGING_BUCKET).download(row.object_path);
-      if (downloaded.error) throw downloaded.error;
-
-      const bytes = new Uint8Array(await downloaded.data.arrayBuffer());
-      const extension = CANONICAL_UPLOAD_EXTENSION[row.content_type];
-      if (!extension) throw new Error(`Недопустимый тип файла: ${row.content_type}.`);
-
-      // Повторная проверка содержимого — та же, что и для прямой загрузки.
-      const staging = new File([bytes], `staged.${extension}`, { type: row.content_type });
-      await validateRasterImage(staging);
-
-      // Обработка по выбранному режиму сохраняется: раньше она выполнялась до
-      // отправки, теперь — здесь, где у сервера есть исходные байты.
-      const [processed] = await applyPhotoModeToAll([staging], photoMode);
-      const validated = await validateRasterImage(processed);
-
-      // Идентификатор staging-строки стабилен между повторами finalize,
-      // поэтому и master, и варианты ложатся по одним и тем же путям —
-      // повторный проход не плодит дубликаты объектов.
-      const publicPath = `${productSlug}/${row.id}/master.${validated.extension}`;
-      const masterUrl = await uploadPublicMediaObject(supabase, {
-        bucket: "product-images",
-        path: publicPath,
-        body: validated.bytes,
-        contentType: validated.contentType,
-        cacheControl: "31536000",
-        allowExisting: true,
-      });
-
-      const { thumbnail, gallery } = await generateProductImageVariants(Buffer.from(validated.bytes), {
-        productSlug,
-        imageId: row.id,
-      });
-      for (const variant of [thumbnail, gallery]) {
-        await uploadImageVariant(supabase, variant);
-      }
-
-      const publicUrl = (path: string) => mediaUrlForCurrentWriteTarget(supabase, "product-images", path);
-
-      const { data: already } = await supabase
-        .from("product_images")
-        .select("id")
-        .eq("url", masterUrl)
-        .maybeSingle();
-
-      if (!already) {
-        const { error: insertError } = await supabase.from("product_images").insert({
-          product_id: productId,
-          url: masterUrl,
-          thumbnail_url: publicUrl(thumbnail.path),
-          gallery_url: publicUrl(gallery.path),
-          order: nextOrder,
-        });
-        if (insertError) throw insertError;
-        nextOrder += 1;
-      }
-
-      await supabase.rpc("finalize_product_image_staging", { p_id: row.id });
-      await supabase.storage.from(PRODUCT_IMAGE_STAGING_BUCKET).remove([row.object_path]);
+      const { inserted } = await attachStagedImageRow({ supabase, row, productId, productSlug, photoMode, order: nextOrder });
+      if (inserted) nextOrder += 1;
       attached += 1;
     } catch (error) {
       // Одна неудачная фотография не отменяет товар и остальные снимки: строка
@@ -1245,12 +1192,12 @@ async function attachStagedProductImages(options: {
       console.error("Не удалось перенести фотографию из промежуточного хранилища", {
         stagingId: row.id,
         productSlug,
-        message: getErrorMessage(error, "неизвестная ошибка"),
+        message: describeStagedImageFailure(error),
       });
     }
   }
 
-  return { attached, failed };
+  return { attached, failed, queued: 0 };
 }
 
 /** Отмена: снимает всё недогруженное этой сессии вместе с файлами. */

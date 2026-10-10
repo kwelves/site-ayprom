@@ -75,6 +75,8 @@ export const metadata: Metadata = {
 
 export const revalidate = 60;
 
+const isVercelRuntime = process.env.VERCEL === "1";
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -104,7 +106,7 @@ export default async function RootLayout({
         <Footer categories={categories} brands={brands} />
         <WhatsAppBadge />
         </HomeEntrySequence>
-        <SpeedInsights />
+        {isVercelRuntime ? <SpeedInsights /> : null}
       </body>
     </html>
   );

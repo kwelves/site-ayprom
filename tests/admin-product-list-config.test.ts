@@ -74,6 +74,19 @@ describe("admin product list config", () => {
     ).toEqual({ config: saved, relaxed: [] });
   });
 
+  it("adds a notice when photos were queued for background processing", () => {
+    const queued = new URL(
+      buildAdminProductMutationRedirect({ config: DEFAULT_ADMIN_PRODUCT_LIST_CONFIG, page: 1, flashAction: "created", slug: "pump", photoQueuedCount: 3 }),
+      "https://example.test",
+    );
+    expect(queued.searchParams.get("notice")).toBe("photos-queued");
+    const none = new URL(
+      buildAdminProductMutationRedirect({ config: DEFAULT_ADMIN_PRODUCT_LIST_CONFIG, page: 1, flashAction: "created", slug: "pump", photoQueuedCount: 0 }),
+      "https://example.test",
+    );
+    expect(none.searchParams.has("notice")).toBe(false);
+  });
+
   it("builds a target redirect that retains the temporary view and warning", () => {
     const url = buildAdminProductMutationRedirect({
       config: { ...DEFAULT_ADMIN_PRODUCT_LIST_CONFIG, sort: "name" },

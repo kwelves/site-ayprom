@@ -2,7 +2,10 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { Page } from "@playwright/test";
 
-export const HERO_VIDEO_PATH_FRAGMENT = "/storage/v1/object/public/site-media/hero/";
+// Путь намеренно не привязан к origin или провайдеру: production может
+// отдавать те же ролики напрямую из R2, а fallback — через Supabase Storage.
+// E2E обязан перехватывать обе формы URL и не ходить во внешнюю сеть.
+export const HERO_VIDEO_PATH_FRAGMENT = "/site-media/hero/";
 
 /** Ступень hero, к которой относится запрос. */
 export type HeroTier = "startup" | "quality";
