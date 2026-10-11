@@ -11,6 +11,7 @@ const spa = (file: string) => path.join(root, "src/cloudflare/admin-spa", file);
 const SERVER_MODULES: Array<{ suffix: string; id: string; call: string; names: RegExp | string[] }> = [
   { suffix: "/src/lib/admin/actions.ts", id: "\0admin-rpc:actions", call: "rpcCall", names: /export\s+async\s+function\s+(\w+)/g },
   { suffix: "/src/lib/admin/queries.ts", id: "\0admin-rpc:queries", call: "rpcRead", names: /export\s+async\s+function\s+(get\w+)/g },
+  { suffix: "/src/lib/admin/product-import-actions.ts", id: "\0admin-rpc:product-import", call: "rpcCall", names: ["previewProductImport", "commitProductImport"] },
   // Public catalog readers the product forms use for their drop-down lists.
   { suffix: "/src/lib/queries/categories.ts", id: "\0admin-rpc:categories", call: "rpcRead", names: ["getCategories"] },
   { suffix: "/src/lib/queries/subcategories.ts", id: "\0admin-rpc:subcategories", call: "rpcRead", names: ["getAllSubcategories"] },
@@ -18,7 +19,7 @@ const SERVER_MODULES: Array<{ suffix: string; id: string; call: string; names: R
   { suffix: "/src/lib/queries/vehicle-types.ts", id: "\0admin-rpc:vehicle-types", call: "rpcRead", names: ["getVehicleTypes"] },
 ];
 
-const SERVER_IMPORT = /lib\/(admin\/(actions|queries)|queries\/(categories|subcategories|brands|vehicle-types))$/;
+const SERVER_IMPORT = /lib\/(admin\/(actions|queries|product-import-actions)|queries\/(categories|subcategories|brands|vehicle-types))$/;
 
 function adminRpcClients(): Plugin {
   return {

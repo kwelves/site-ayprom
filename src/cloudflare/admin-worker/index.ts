@@ -1,5 +1,6 @@
 import * as actions from "@/lib/admin/actions";
 import * as queries from "@/lib/admin/queries";
+import * as importActions from "@/lib/admin/product-import-actions";
 import { disableCredentialRequestSharing, getAdminCredentialVersion } from "@/lib/admin/credentials";
 import { getCategories } from "@/lib/queries/categories";
 import { getAllSubcategories } from "@/lib/queries/subcategories";
@@ -28,17 +29,26 @@ const registry: Record<string, AdminRpcAction> = {
   getCategories, getAllSubcategories, getBrands, getVehicleTypes,
   ...functionsOf(queries, (name) => name.startsWith("get")),
   ...functionsOf(actions, () => true),
+  // CSV import (preview and commit) lives in its own module.
+  previewProductImport: importActions.previewProductImport as AdminRpcAction,
+  commitProductImport: importActions.commitProductImport as AdminRpcAction,
 };
 
 // The Next admin accepted uploads up to 4 MB; base64 inside JSON adds a third on top.
 const UPLOAD_BODY_LIMIT = 6 * 1024 * 1024;
-const bodyLimits = Object.fromEntries(
-  [
-    "createBrand", "replaceBrandLogo", "createCategory", "replaceCategoryImage", "createSubcategory",
-    "replaceSubcategoryImage", "createVehicleType", "updateVehicleType", "createProduct", "updateProduct",
-    "uploadProductImage",
-  ].map((name) => [name, UPLOAD_BODY_LIMIT]),
-);
+// The CSV import accepts files up to 5 MB, which base64 grows to about 6.7 MB.
+const IMPORT_BODY_LIMIT = 8 * 1024 * 1024;
+const bodyLimits: Record<string, number> = {
+  previewProductImport: IMPORT_BODY_LIMIT,
+  commitProductImport: IMPORT_BODY_LIMIT,
+  ...Object.fromEntries(
+    [
+      "createBrand", "replaceBrandLogo", "createCategory", "replaceCategoryImage", "createSubcategory",
+      "replaceSubcategoryImage", "createVehicleType", "updateVehicleType", "createProduct", "updateProduct",
+      "uploadProductImage",
+    ].map((name) => [name, UPLOAD_BODY_LIMIT]),
+  ),
+};
 
 interface AdminWorkerEnv {
   ADMIN_SESSION_SECRET: string;
