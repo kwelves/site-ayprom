@@ -7,7 +7,7 @@
 // Usage: node scripts/cloudflare/publication-runner.mjs
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import { register } from "node:module";
 import path from "node:path";
@@ -201,6 +201,13 @@ async function releaseOnce() {
     });
     const result = await publishCandidate({ candidate, claim, cloudflare, control, queue, probe, journal, inspectPackage: inspectPublicationPackage });
     log("result", { status: result.status });
+    if (result.status !== "published") {
+      // The journal lists each release step and the reason a step failed, so a refusal can be understood from the log.
+      try {
+        const lines = readFileSync(path.join(ROOT, "dist/release-journals", `publication-${claim.revision}.jsonl`), "utf8").trim().split("\n");
+        log("journal", { lines: lines.slice(-12).map((line) => hide(line).slice(0, 300)) });
+      } catch { /* no journal to show */ }
+    }
     return result.status;
   } catch (error) {
     log("failed", { message: hide(error?.message ?? error).slice(0, 300) });
