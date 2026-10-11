@@ -151,6 +151,8 @@ async function releaseOnce() {
   if (!claim) return "nothing";
   secrets.push(claim.token);
   log("claimed", { revision: claim.revision });
+  // A fresh checkout has no dist folder; the build's path safety check requires the package area to exist.
+  mkdirSync(path.join(ROOT, "dist/worker-packages"), { recursive: true });
   const packageDir = path.join(ROOT, "dist/worker-packages", `publication-${claim.revision}-${Date.now().toString(36)}`);
   try {
     const product = await pickProbeProduct();

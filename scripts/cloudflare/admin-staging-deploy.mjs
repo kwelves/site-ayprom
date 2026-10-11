@@ -72,10 +72,11 @@ try {
       PHOTO_PROCESSING: "queue",
       GITHUB_REPOSITORY: "kwelves/site-ayprom",
       PHOTO_WORKFLOW_FILE: "photo-queue.yml",
-      PHOTO_WORKFLOW_REF: "main",
+      // Until the integration is merged, the workers' code is taken from the integration branch.
+      PHOTO_WORKFLOW_REF: "cloudflare-integration-publish",
       // Edits wake the publication worker, which builds the public snapshot; the badge in the admin shows its state.
       PUBLICATION_WORKFLOW_FILE: "publish-site.yml",
-      PUBLICATION_WORKFLOW_REF: "main",
+      PUBLICATION_WORKFLOW_REF: "cloudflare-integration-publish",
     },
   };
   writeFileSync(path.join(dir, "wrangler.json"), JSON.stringify(config), { mode: 0o600 });
