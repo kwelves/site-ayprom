@@ -1,0 +1,46 @@
+# Publication worker: turns the latest admin edits into a new version of the public Cloudflare site.
+# Started by the admin (workflow_dispatch API call) after edits and by the photo worker when photos finish.
+# It waits for a quiet period, builds a snapshot of the catalog, checks it on a private preview address,
+# switches the site to it, checks the live site, and rolls back automatically if that check fails.
+# It never runs for pull requests or forks, so repository secrets are not exposed to outside code.
+name: publish-site
+
+on:
+  workflow_dispatch:
+
+# One publication at a time; a newer request waits for the running one (GitHub keeps one pending run).
+concurrency:
+  group: publish-site
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install project dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install Wrangler (Cloudflare command line)
+        run: npm install --no-save --no-audit --no-fund --prefix .wrangler/tools/wrangler-4.135.0 wrangler@4.135.0
+      - name: Install the browser used for the build check
+        run: npx playwright install --with-deps chromium
+      - name: Publish
+        run: node scripts/cloudflare/publication-runner.mjs
+        env:
+          PUBLICATION_TARGET: ${{ vars.PUBLICATION_TARGET }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          WORKERS_SUBDOMAIN: ${{ vars.WORKERS_SUBDOMAIN }}
+          WORKER_NAME: ${{ vars.WORKER_NAME }}
+          WRANGLER_PATH: ${{ github.workspace }}/.wrangler/tools/wrangler-4.135.0/node_modules/wrangler/bin/wrangler.js
