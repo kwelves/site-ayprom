@@ -30,7 +30,7 @@ describe("private Supabase password crypto boundary", () => {
     const result = await handler(request({ operation: "hash", password: GOLDEN_HASH_PASSWORD }));
     expect(result.status).toBe(200);
     const body = await result.json() as { hash: string };
-    expect(body.hash).toMatch(/^pbkdf2-sha256:600000:/);
+    expect(body.hash).toMatch(/^pbkdf2-sha256-chain:100000x6:/);
     await expect(verifyAdminPasswordHash(GOLDEN_HASH_PASSWORD, body.hash)).resolves.toBe(true);
     await expect(verifyAdminPasswordHash("wrong", body.hash)).resolves.toBe(false);
   });
