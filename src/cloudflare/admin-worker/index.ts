@@ -1,6 +1,6 @@
 import * as actions from "@/lib/admin/actions";
 import * as queries from "@/lib/admin/queries";
-import { getAdminCredentialVersion } from "@/lib/admin/credentials";
+import { disableCredentialRequestSharing, getAdminCredentialVersion } from "@/lib/admin/credentials";
 import { getCategories } from "@/lib/queries/categories";
 import { getAllSubcategories } from "@/lib/queries/subcategories";
 import { getBrands } from "@/lib/queries/brands";
@@ -8,6 +8,12 @@ import { getVehicleTypes } from "@/lib/queries/vehicle-types";
 import { handleAdminRpc, type AdminRpcAction } from "./rpc";
 import { routeAdminRequest, type AssetsBinding } from "./routing";
 import { runWithBackground } from "@/lib/background-tasks";
+import { createGuardedFetch } from "./fetch-guard";
+
+// Every database call made by the shared admin code goes through the guarded fetch (timeout, one retry of reads).
+globalThis.fetch = createGuardedFetch(globalThis.fetch.bind(globalThis));
+// A cancelled request must not leave other requests waiting on its unfinished database call.
+disableCredentialRequestSharing();
 
 // The same server functions the Next admin calls, exposed by name. Queries are limited to the
 // `get*` readers; a name that is not a function (types, constants) is never exposed.
