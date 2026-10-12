@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
-import { MapPin, Phone, MessageCircle, AtSign, Truck, type LucideIcon } from "lucide-react";
+import { MapPin, Phone, MessageCircle, AtSign, Mail, type LucideIcon } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/motion/Reveal";
 import { HoverBorderGrid } from "@/components/motion/HoverBorderGrid";
 import { StaggerGroup, StaggerItem } from "@/components/motion/Stagger";
 import { CARD_GRID_GAP_CLASSNAME } from "@/lib/card-system";
+import { CORPORATE_EMAIL } from "@/lib/contact-info";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Контакты",
-  description: "Телефоны, WhatsApp, соцсети, адрес и часы работы AYPROM. Свяжитесь с нами для подбора гидрооборудования и запчастей.",
+  description: "Телефоны, WhatsApp, эл. почта, соцсети, адрес и часы работы AYPROM. Свяжитесь с нами для подбора гидрооборудования и запчастей.",
   alternates: { canonical: "/contacts" },
 };
 
@@ -32,12 +33,13 @@ const contactCards: ContactCard[] = [
   {
     icon: MapPin,
     label: "Адрес и часы работы",
-    // График живёт в этой же карточке, а не в отдельной седьмой: сетка карточек
-    // рассчитана на 2 и 3 колонки, и лишняя карточка оставляла бы неполный ряд.
+    // График и география поставок живут в этой же карточке, а не в отдельных: сетка
+    // карточек рассчитана на 2 и 3 колонки (6 штук), и лишняя карточка оставляла бы неполный ряд.
     content: (
       <>
         <p className="text-card-foreground">г. Бишкек, пр. Дэн Сяопина, 457/1</p>
         <p className="mt-1 font-normal text-muted-foreground">Пн–Сб, 09:00–18:00 · вс — выходной</p>
+        <p className="mt-1 font-normal text-muted-foreground">Поставки: Кыргызстан и страны СНГ</p>
       </>
     ),
   },
@@ -77,9 +79,10 @@ const contactCards: ContactCard[] = [
     ),
   },
   {
-    icon: Truck,
-    label: "География поставок",
-    content: <p className="text-card-foreground">Кыргызстан и страны СНГ</p>,
+    icon: Mail,
+    label: "Эл. почта",
+    href: `mailto:${CORPORATE_EMAIL}`,
+    value: CORPORATE_EMAIL,
   },
 ];
 

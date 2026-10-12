@@ -16,7 +16,7 @@ async function measure(mode: string): Promise<Response> {
     ok = await verifyAdminPasswordHash(GOLDEN_HASH_PASSWORD, GOLDEN_PBKDF2_HASH);
   } else if (mode === "hash") {
     const encoded = await hashAdminPassword(GOLDEN_HASH_PASSWORD);
-    ok = encoded.startsWith("pbkdf2-sha256:600000:");
+    ok = encoded.startsWith("pbkdf2-sha256-chain:100000x6:");
   } else {
     return Response.json({ error: "bad_request" }, { status: 400 });
   }
