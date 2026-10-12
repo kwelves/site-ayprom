@@ -45,12 +45,14 @@ const MIN_EXPECTED_OBJECTS = 20;
 // Оба файла имеют формат pg_dump, поэтому к ним применяются одни и те же
 // выражения: систематическая погрешность разбора сокращается с обеих сторон.
 const OBJECT_PATTERNS = [
-  { kind: "table", pattern: /CREATE TABLE (?:IF NOT EXISTS )?"public"\."([^"]+)"/g },
-  { kind: "constraint", pattern: /(?:ADD )?CONSTRAINT "([^"]+)"/g },
-  { kind: "function", pattern: /CREATE (?:OR REPLACE )?FUNCTION "public"\."([^"]+)"/g },
-  { kind: "index", pattern: /CREATE (?:UNIQUE )?INDEX "([^"]+)"/g },
+  // Identifiers may be quoted (pg_dump style) or bare (the zz_*.sql files written by hand or by a schema differ).
+  { kind: "table", pattern: /CREATE TABLE (?:IF NOT EXISTS )?"?public"?\."?([A-Za-z0-9_]+)"?/g },
+  { kind: "constraint", pattern: /(?:ADD )?CONSTRAINT "?([A-Za-z0-9_]+)"?/g },
+  { kind: "function", pattern: /CREATE (?:OR REPLACE )?FUNCTION "?public"?\."?([A-Za-z0-9_]+)"?/g },
+  { kind: "index", pattern: /CREATE (?:UNIQUE )?INDEX (?:IF NOT EXISTS )?"?([A-Za-z0-9_]+)"?/g },
   { kind: "policy", pattern: /CREATE POLICY "([^"]+)"/g },
-  { kind: "trigger", pattern: /CREATE (?:OR REPLACE )?TRIGGER "([^"]+)"/g },
+  // Only triggers on public tables: the dump of the public schema does not contain the catalog_private ones.
+  { kind: "trigger", pattern: /CREATE (?:OR REPLACE )?TRIGGER "?([A-Za-z0-9_]+)"?[^;]*?\bON "?public"?\./g },
 ];
 
 function collectObjects(sql) {

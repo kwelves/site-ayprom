@@ -89,8 +89,11 @@ jobs:
           SUPABASE_URL=$(echo "$STATUS" | grep '^NEXT_PUBLIC_SUPABASE_URL=' | cut -d= -f2-)
           echo "NEXT_PUBLIC_MEDIA_BASE_URL=$SUPABASE_URL" >> "$GITHUB_ENV"
 
-      - name: Database integration and RLS tests
-        run: supabase test db
+      # Two states of the expand / contract migration: "expand" is what production runs while the Vercel site is the
+      # rollback target, "contract" is the strict state after Vercel is retired (supabase/contract/). The script resets
+      # the local database and leaves it in the expand state for the checks below.
+      - name: Database integration and RLS tests (expand and contract states)
+        run: node scripts/dev/db-test-states.mjs
 
       - name: Local API and Storage schema match migrations
         run: npm run schema:check

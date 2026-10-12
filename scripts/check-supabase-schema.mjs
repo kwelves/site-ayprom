@@ -59,9 +59,12 @@ const schemaFiles = (await readdir(schemasDirectory)).filter((fileName) => fileN
 const declaredTables = new Map();
 for (const schemaFile of schemaFiles) {
   const sql = await readFile(path.join(schemasDirectory, schemaFile), "utf8");
-  for (const [tableName, columns] of extractCreatedPublicTables(sql.replace(/--.*$/gm, ""))) {
+  const declaration = sql.replace(/--.*$/gm, "");
+  for (const [tableName, columns] of extractCreatedPublicTables(declaration)) {
     declaredTables.set(tableName, columns);
   }
+  // Later files of the declaration (zz_*.sql) may add columns to a table declared earlier.
+  applyAlterTableColumnChanges(declaration, declaredTables);
 }
 
 const declarationDifferences = [];
