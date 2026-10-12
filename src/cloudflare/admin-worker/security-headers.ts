@@ -7,11 +7,17 @@ interface HeaderEnv {
   NEXT_PUBLIC_MEDIA_BASE_URL?: string;
 }
 
+const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
+
+// An address the browser may be told to trust: https anywhere, plain http only for the computer's own loopback
+// (local tests run against a local database), where nothing travels over a network.
 function httpsOrigin(value: string | undefined): string | undefined {
   if (!value) return undefined;
   try {
     const url = new URL(value);
-    return url.protocol === "https:" && !url.username && !url.password ? url.origin : undefined;
+    if (url.username || url.password) return undefined;
+    if (url.protocol === "https:") return url.origin;
+    return url.protocol === "http:" && LOOPBACK_HOSTS.has(url.hostname) ? url.origin : undefined;
   } catch {
     return undefined;
   }

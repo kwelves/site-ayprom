@@ -36,6 +36,15 @@ describe("admin Worker security headers", () => {
     }
   });
 
+  it("lets a local test database over plain http be used, but never a plain-http address elsewhere", () => {
+    const local = adminSecurityHeaders({ NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321", NEXT_PUBLIC_MEDIA_BASE_URL: "http://127.0.0.1:54321" })["Content-Security-Policy"];
+    expect(local).toContain("connect-src 'self' http://127.0.0.1:54321");
+    expect(local).toContain("img-src 'self' data: blob: http://127.0.0.1:54321");
+    const remote = adminSecurityHeaders({ NEXT_PUBLIC_SUPABASE_URL: "http://example.supabase.co", NEXT_PUBLIC_MEDIA_BASE_URL: "http://media.example.test" })["Content-Security-Policy"];
+    expect(remote).not.toContain("http://example.supabase.co");
+    expect(remote).not.toContain("http://media.example.test");
+  });
+
   it("adds the headers to a response without touching its body, status or cookies", async () => {
     const original = new Response("hello", { status: 201, headers: { "Set-Cookie": "admin_session=abc; HttpOnly", "Content-Type": "text/plain", "X-Frame-Options": "SAMEORIGIN" } });
     const result = applyAdminSecurityHeaders(original, env);
