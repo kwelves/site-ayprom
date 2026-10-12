@@ -24,5 +24,7 @@
     "isomorphic-dompurify": "./src/cloudflare/admin-worker/shims/dompurify.ts",
     "@/lib/supabase/server": "./src/cloudflare/admin-worker/shims/supabase-server.ts"
   },
+  // Every 15 minutes: wakes a publication or photo worker whose wake-up was lost (src/cloudflare/admin-worker/safety-net.ts).
+  "triggers": { "crons": ["*/15 * * * *"] },
   "observability": { "enabled": true }
 }

@@ -11,6 +11,7 @@ import { routeAdminRequest, type AssetsBinding } from "./routing";
 import { runWithBackground } from "@/lib/background-tasks";
 import { createGuardedFetch } from "./fetch-guard";
 import { applyAdminSecurityHeaders } from "./security-headers";
+import { runSafetyNet } from "./safety-net";
 
 // Every database call made by the shared admin code goes through the guarded fetch (timeout, one retry of reads).
 globalThis.fetch = createGuardedFetch(globalThis.fetch.bind(globalThis));
@@ -62,6 +63,10 @@ const worker = {
   async fetch(request: Request, env: AdminWorkerEnv, ctx: { waitUntil(promise: Promise<unknown>): void }): Promise<Response> {
     // Every answer, including redirects, errors and static files, carries the security headers.
     return applyAdminSecurityHeaders(await respond(request, env, ctx), env);
+  },
+  // Cron Trigger every 15 minutes: wakes a publication or photo worker whose wake-up was lost (see safety-net.ts).
+  scheduled(_event: unknown, env: AdminWorkerEnv, ctx: { waitUntil(promise: Promise<unknown>): void }): void {
+    ctx.waitUntil(runSafetyNet(env as unknown as Record<string, string | undefined>));
   },
 };
 
