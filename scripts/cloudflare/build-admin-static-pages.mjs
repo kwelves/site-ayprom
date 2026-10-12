@@ -48,4 +48,17 @@ function pageFiles(directory, prefix) {
 }
 mkdirSync(dist, { recursive: true });
 writeFileSync(path.join(dist, "admin-routes.json"), pages.routesJson(pageFiles(path.join(root, "src", "app", "admin"), "/src/app/admin")));
+// Static files are answered by Cloudflare without running the Worker, so the Worker's own headers do not reach them.
+// The page shell and API answers get the full set from the Worker; these files only need the cheap protections.
+writeFileSync(path.join(dist, "_headers"), [
+  "/*",
+  "  X-Content-Type-Options: nosniff",
+  "  X-Robots-Tag: noindex, nofollow",
+  "  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload",
+  "",
+  // File names carry a content hash, so a changed file always has a new name.
+  "/admin-assets/*",
+  "  Cache-Control: public, max-age=31536000, immutable",
+  "",
+].join("\n"));
 console.log("admin static pages written");

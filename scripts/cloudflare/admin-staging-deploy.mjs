@@ -68,6 +68,9 @@ try {
       NEXT_PUBLIC_SUPABASE_URL: STAGING_URL,
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: STAGING_PUBLISHABLE,
       NODE_ENV: "production",
+      // Catalog photos are served from here (the staging data is a copy of the real catalog); the admin's security
+      // policy lets the browser load images from this address only.
+      NEXT_PUBLIC_MEDIA_BASE_URL: "https://media.ayprom-gidravlika.kg",
       // Photos are processed in the background by the photo queue worker; this Worker only wakes it up.
       PHOTO_PROCESSING: "queue",
       GITHUB_REPOSITORY: "kwelves/site-ayprom",

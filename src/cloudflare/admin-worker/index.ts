@@ -10,6 +10,7 @@ import { handleAdminRpc, type AdminRpcAction } from "./rpc";
 import { routeAdminRequest, type AssetsBinding } from "./routing";
 import { runWithBackground } from "@/lib/background-tasks";
 import { createGuardedFetch } from "./fetch-guard";
+import { applyAdminSecurityHeaders } from "./security-headers";
 
 // Every database call made by the shared admin code goes through the guarded fetch (timeout, one retry of reads).
 globalThis.fetch = createGuardedFetch(globalThis.fetch.bind(globalThis));
@@ -53,26 +54,33 @@ const bodyLimits: Record<string, number> = {
 interface AdminWorkerEnv {
   ADMIN_SESSION_SECRET: string;
   ASSETS: AssetsBinding;
+  NEXT_PUBLIC_SUPABASE_URL?: string;
+  NEXT_PUBLIC_MEDIA_BASE_URL?: string;
 }
 
 const worker = {
-  fetch(request: Request, env: AdminWorkerEnv, ctx: { waitUntil(promise: Promise<unknown>): void }): Promise<Response> {
-    // Work that must outlive the answer (waking the publication worker) goes to the platform's waitUntil.
-    return runWithBackground((promise) => ctx.waitUntil(promise), () => routeAdminRequest(request, {
-      assets: env.ASSETS,
-      rpc: (rpcRequest, name) =>
-        handleAdminRpc(rpcRequest, name, {
-          registry,
-          secret: env.ADMIN_SESSION_SECRET,
-          now: Date.now,
-          credentialVersion: getAdminCredentialVersion,
-          // getAdminCredentialVersion already shares its answer for a few seconds; do not stack a second delay on it.
-          credentialCacheMs: 0,
-          publicActions: ["login"],
-          bodyLimits,
-        }),
-    }));
+  async fetch(request: Request, env: AdminWorkerEnv, ctx: { waitUntil(promise: Promise<unknown>): void }): Promise<Response> {
+    // Every answer, including redirects, errors and static files, carries the security headers.
+    return applyAdminSecurityHeaders(await respond(request, env, ctx), env);
   },
 };
+
+function respond(request: Request, env: AdminWorkerEnv, ctx: { waitUntil(promise: Promise<unknown>): void }): Promise<Response> {
+  // Work that must outlive the answer (waking the publication worker) goes to the platform's waitUntil.
+  return runWithBackground((promise) => ctx.waitUntil(promise), () => routeAdminRequest(request, {
+    assets: env.ASSETS,
+    rpc: (rpcRequest, name) =>
+      handleAdminRpc(rpcRequest, name, {
+        registry,
+        secret: env.ADMIN_SESSION_SECRET,
+        now: Date.now,
+        credentialVersion: getAdminCredentialVersion,
+        // getAdminCredentialVersion already shares its answer for a few seconds; do not stack a second delay on it.
+        credentialCacheMs: 0,
+        publicActions: ["login"],
+        bodyLimits,
+      }),
+  }));
+}
 
 export default worker;
