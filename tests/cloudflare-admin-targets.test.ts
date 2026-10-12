@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { ADMIN_TARGETS, buildAdminDeployment } from "../scripts/cloudflare/admin-targets.mjs";
 
 const secretValues = {
-  SUPABASE_SECRET_KEY: "sb_secret_unit_test_value_0123456789",
+  SUPABASE_SECRET_KEY: "fake-supabase-secret-key-for-unit-tests-0123456789",
   ADMIN_SESSION_SECRET: "s".repeat(64),
   ADMIN_PASSWORD: "unit-test-password-123",
-  GITHUB_DISPATCH_TOKEN: "ghp_unit_test_token_0123456789",
+  GITHUB_DISPATCH_TOKEN: "fake-github-token-for-unit-tests-0123456789",
   R2_ACCOUNT_ID: "a".repeat(32),
   R2_ACCESS_KEY_ID: "r2accesskeyid0123456789",
   R2_SECRET_ACCESS_KEY: "r2secretaccesskey0123456789abcdef",
@@ -49,7 +49,7 @@ describe("admin Worker targets", () => {
     });
     expect(Object.keys(secrets).sort()).toEqual(Object.keys(secretValues).sort());
     // Nothing secret may end up among the plain variables.
-    expect(JSON.stringify(vars)).not.toMatch(/unit_test_value_0123456789|unit-test-password|ghp_unit|r2secret/);
+    expect(JSON.stringify(vars)).not.toMatch(/fake-supabase-secret|unit-test-password|fake-github-token|r2secret/);
   });
 
   it("refuses production without the explicit confirmation, or with the staging one", () => {
