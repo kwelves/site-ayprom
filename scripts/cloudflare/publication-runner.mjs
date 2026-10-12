@@ -260,7 +260,7 @@ async function releaseOnce() {
       // The journal lists each release step and the reason a step failed, so a refusal can be understood from the log.
       try {
         const lines = readFileSync(path.join(ROOT, "dist/release-journals", `publication-${claim.revision}.jsonl`), "utf8").trim().split("\n");
-        log("journal", { lines: lines.slice(-12).map((line) => hide(line).slice(0, 300)) });
+        log("journal", { steps: lines.slice(-14).map((line) => { try { const row = JSON.parse(line); return row.reasonCode ? `${row.status}:${row.reasonCode}` : String(row.status); } catch { return hide(line).slice(0, 80); } }) });
       } catch { /* no journal to show */ }
     }
     return result.status;
