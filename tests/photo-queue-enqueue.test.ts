@@ -77,6 +77,24 @@ describe("requestPhotoWorker", () => {
     expect(logged.join(" ")).not.toContain("ghp_test_token_value");
   });
 
+  it("names the GitHub environment (staging or production) only when one is configured", async () => {
+    const withEnvironment = vi.fn(async () => new Response(null, { status: 204 }));
+    expect(await requestPhotoWorker({ ...dispatchEnv, WORKFLOW_ENVIRONMENT: "production" }, withEnvironment as unknown as typeof fetch)).toBe(true);
+    expect(JSON.parse(String((withEnvironment.mock.calls[0] as unknown as [string, RequestInit])[1].body)))
+      .toEqual({ ref: "photo-worker", inputs: { environment: "production" } });
+    const without = vi.fn(async () => new Response(null, { status: 204 }));
+    await requestPhotoWorker(dispatchEnv, without as unknown as typeof fetch);
+    expect(JSON.parse(String((without.mock.calls[0] as unknown as [string, RequestInit])[1].body))).toEqual({ ref: "photo-worker" });
+  });
+
+  it("refuses an unknown environment name instead of sending it to GitHub", async () => {
+    const fetchImpl = vi.fn();
+    for (const value of ["prod", "Production", "staging; rm", "../production"]) {
+      expect(await requestPhotoWorker({ ...dispatchEnv, WORKFLOW_ENVIRONMENT: value }, fetchImpl as unknown as typeof fetch)).toBe(false);
+    }
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it("refuses a repository or workflow value that could redirect the request elsewhere", async () => {
     const fetchImpl = vi.fn();
     expect(await requestPhotoWorker({ ...dispatchEnv, GITHUB_REPOSITORY: "../evil/repo" }, fetchImpl as unknown as typeof fetch)).toBe(false);

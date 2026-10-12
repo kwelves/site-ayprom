@@ -5,9 +5,15 @@ name: photo-queue
 
 on:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: Which site's photos to process
+        type: choice
+        options: [staging, production]
+        default: staging
 
 concurrency:
-  group: photo-queue
+  group: photo-queue-${{ inputs.environment || 'staging' }}
   cancel-in-progress: false
 
 permissions:
@@ -19,6 +25,7 @@ jobs:
   process:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    environment: ${{ inputs.environment || 'staging' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,3 +52,5 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           PUBLICATION_WORKFLOW_FILE: ${{ vars.PUBLICATION_WORKFLOW_FILE }}
           PUBLICATION_WORKFLOW_REF: ${{ vars.PUBLICATION_WORKFLOW_REF }}
+          # The publication this job requests afterwards belongs to the same environment.
+          WORKFLOW_ENVIRONMENT: ${{ inputs.environment || 'staging' }}

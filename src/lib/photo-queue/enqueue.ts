@@ -11,6 +11,7 @@ type Env = Record<string, string | undefined>;
 const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const WORKFLOW_FILE = /^[A-Za-z0-9_.-]+\.ya?ml$/;
 const GIT_REF = /^[A-Za-z0-9_./-]{1,100}$/;
+const GITHUB_ENVIRONMENT = /^(staging|production)$/;
 
 export function isPhotoQueueMode(env: Env = process.env): boolean {
   return env.PHOTO_PROCESSING === "queue";
@@ -32,6 +33,13 @@ async function dispatchWorkflow(
     console.error(`[${label}] invalid worker configuration`);
     return false;
   }
+  // Which GitHub environment (staging or production) the workflow runs in, with that environment's own secrets.
+  // Sent only when configured: a workflow file that does not declare the input would refuse the request.
+  const environment = env.WORKFLOW_ENVIRONMENT?.trim();
+  if (environment && !GITHUB_ENVIRONMENT.test(environment)) {
+    console.error(`[${label}] invalid worker configuration`);
+    return false;
+  }
   try {
     const response = await fetchImpl(`https://api.github.com/repos/${repository}/actions/workflows/${workflow}/dispatches`, {
       method: "POST",
@@ -42,7 +50,7 @@ async function dispatchWorkflow(
         "user-agent": "ayprom-admin",
         "content-type": "application/json",
       },
-      body: JSON.stringify({ ref }),
+      body: JSON.stringify(environment ? { ref, inputs: { environment } } : { ref }),
       signal: AbortSignal.timeout(5000),
     });
     if (!response.ok) console.error(`[${label}] worker start refused: ${response.status}`);

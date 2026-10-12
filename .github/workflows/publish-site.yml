@@ -3,14 +3,28 @@
 # It waits for a quiet period, builds a snapshot of the catalog, checks it on a private preview address,
 # switches the site to it, checks the live site, and rolls back automatically if that check fails.
 # It never runs for pull requests or forks, so repository secrets are not exposed to outside code.
+#
+# The run belongs to one GitHub environment, "staging" or "production", and reads that environment's own secrets and
+# variables. The target name is derived from the chosen environment, never from a free-form variable, and
+# scripts/cloudflare/publication-targets.mjs refuses any mix of database, Worker and target.
 name: publish-site
 
 on:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: Which site to publish
+        type: choice
+        options: [staging, production]
+        default: staging
+      dry_run:
+        description: Only check the settings and report the state; publish nothing
+        type: boolean
+        default: false
 
-# One publication at a time; a newer request waits for the running one (GitHub keeps one pending run).
+# One publication per environment at a time; a newer request waits for the running one (GitHub keeps one pending run).
 concurrency:
-  group: publish-site
+  group: publish-site-${{ inputs.environment || 'staging' }}
   cancel-in-progress: false
 
 permissions:
@@ -20,6 +34,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    environment: ${{ inputs.environment || 'staging' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -31,11 +46,14 @@ jobs:
       - name: Install Wrangler (Cloudflare command line)
         run: npm install --no-save --no-audit --no-fund --prefix .wrangler/tools/wrangler-4.135.0 wrangler@4.135.0
       - name: Install the browser used for the build check
+        if: ${{ !inputs.dry_run }}
         run: npx playwright install --with-deps chromium
       - name: Publish
         run: node scripts/cloudflare/publication-runner.mjs
         env:
-          PUBLICATION_TARGET: ${{ vars.PUBLICATION_TARGET }}
+          PUBLICATION_TARGET: ${{ inputs.environment || 'staging' }}
+          PUBLICATION_CONFIRM: ${{ vars.PUBLICATION_CONFIRM }}
+          PUBLICATION_DRY_RUN: ${{ inputs.dry_run && 'yes' || 'no' }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}

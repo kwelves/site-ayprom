@@ -2,7 +2,7 @@
 // Actions, started by the admin after edits, or by hand. One run: wait for the quiet period after the last
 // edit, build a snapshot of the catalog, verify it on a private preview address, switch the site to it, verify
 // the live site, and roll back automatically if the live check fails. Repeats while newer edits keep arriving.
-// STAGING ONLY for now: the target is fixed by environment variables and must be the staging project.
+// The target (staging or production) comes from environment variables and is checked by publication-targets.mjs.
 // Secrets come from the environment and are never printed.
 // Usage: node scripts/cloudflare/publication-runner.mjs
 import assert from "node:assert/strict";
@@ -15,6 +15,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { inspectPublicationPackage } from "./publication-package-inspector.mjs";
 import { runWorkersBuildEntry } from "./workers-build-runner-lib.mjs";
 import { adoptionPlan, currentDeployment } from "./publication-reconcile.mjs";
+import { resolvePublicationTarget } from "./publication-targets.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const need = (name) => {
@@ -36,9 +37,9 @@ const WAIT_FOR_QUIET_MS = Number(process.env.PUBLICATION_WAIT_MS ?? 6 * 60_000);
 const MAX_RELEASES = Number(process.env.PUBLICATION_MAX_RELEASES ?? 3);
 const LIVE = `https://${WORKER}.${SUBDOMAIN}.workers.dev`;
 
-// Guard: this runner publishes only to the staging project until the production steps are approved.
-assert.ok(process.env.PUBLICATION_TARGET === "staging", "PUBLICATION_TARGET must be staging");
-assert.ok(new URL(SUPABASE_URL).hostname === "jpmoxtqafgbqihvjhvri.supabase.co", "staging project only");
+// Interlock: the database, the Worker and the target name must belong together (staging data only to the staging
+// Worker, production only to the production Worker, and production only with its explicit confirmation).
+const TARGET = resolvePublicationTarget(process.env);
 
 const secrets = [CLOUDFLARE_TOKEN, SECRET_KEY];
 const hide = (value) => secrets.reduce((text, secret) => text.replaceAll(secret, "[hidden]"), String(value));
@@ -146,6 +147,56 @@ async function until(check, label, timeoutMs = 90_000) {
   throw new Error(`timeout waiting for ${label}`);
 }
 
+const pointerNameOf = async (product) => (await publicRpc("read_catalog_publication_document", { kind: "product", key: product.slug }))?.name;
+
+// Does the Worker exist yet? Only Cloudflare's "not found" answer (10007) means no; any other failure stops the run.
+async function workerExists() {
+  const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/workers/scripts/${WORKER}/settings`, {
+    headers: { authorization: `Bearer ${CLOUDFLARE_TOKEN}` }, signal: AbortSignal.timeout(20_000) });
+  const answer = await response.json().catch(() => ({}));
+  if (answer.success === true) return true;
+  if (answer.errors?.some((error) => error.code === 10007)) return false;
+  throw new Error(`could not check whether the Worker exists (status ${response.status})`);
+}
+
+// The very first release of a Worker: `versions upload` cannot create a Worker, so the built snapshot itself becomes its
+// first deployment (workers.dev and preview addresses on), and only then are the database pointer and the queue updated.
+// Refused when a pointer already exists: a Worker that is gone while the database remembers a release needs a person.
+async function firstRelease({ claim, candidate, pinned, product }) {
+  const previous = await control.current();
+  assert.ok(!previous?.releaseId, "the Worker does not exist but the database already points at a release: needs a person");
+  log("first_release", { worker: WORKER, revision: candidate.revision });
+  const dir = mkdtempSync(path.join(os.tmpdir(), "ayprom-first-release-"));
+  try {
+    const config = { name: WORKER, account_id: ACCOUNT_ID, main: path.join(candidate.packageDir, "worker.js"),
+      compatibility_date: "2026-09-19", compatibility_flags: ["nodejs_compat"], workers_dev: true, preview_urls: true, send_metrics: false,
+      vars: { SUPABASE_URL: TARGET.supabaseOrigin, SUPABASE_PUBLISHABLE_KEY: PUBLISHABLE_KEY, PUBLICATION_ID: candidate.releaseId },
+      assets: { directory: path.join(candidate.packageDir, "site"), binding: "ASSETS", html_handling: "drop-trailing-slash",
+        not_found_handling: "404-page", run_worker_first: ["/api/*", "/product/*"] } };
+    writeFileSync(path.join(dir, "wrangler.json"), JSON.stringify(config), { mode: 0o600 });
+    writeFileSync(path.join(dir, "bindings.json"), JSON.stringify({ PUBLICATION_CAPABILITY: pinned.capability }), { mode: 0o600 });
+    const env = { CLOUDFLARE_API_TOKEN: CLOUDFLARE_TOKEN, WRANGLER_SEND_METRICS: "false", CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: "false",
+      CI: "true", NO_COLOR: "1", WRANGLER_LOG_PATH: path.join(dir, "wrangler.log") };
+    for (const name of ["PATH", "Path", "SystemRoot", "WINDIR", "TEMP", "TMP", "HOME", "USERPROFILE"]) if (process.env[name]) env[name] = process.env[name];
+    try {
+      execFileSync(process.execPath, [WRANGLER, "deploy", "--config", path.join(dir, "wrangler.json"), "--no-bundle",
+        "--secrets-file", path.join(dir, "bindings.json"), "--message", `ayprom first release (${TARGET.name})`],
+      { cwd: dir, env, windowsHide: true, timeout: 180_000, stdio: ["ignore", "pipe", "pipe"] });
+    } catch (error) { throw new Error("first deploy failed: " + hide(String(error.stderr ?? error.message)).slice(-600)); }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+
+  await until(() => show(LIVE, product), "the first release is visible on the Worker address", 120_000);
+  const deployment = currentDeployment(listDeployments());
+  assert.ok(deployment, "no single-version deployment after the first deploy");
+  assert.equal(await control.markReady({ releaseId: candidate.releaseId, revision: candidate.revision,
+    releaseSha256: candidate.releaseSha256, leaseToken: claim.token }), true, "could not mark the release ready");
+  assert.equal(await control.compareAndSet(null, candidate.releaseId), true, "could not move the database pointer");
+  assert.equal(await queue.confirm(claim.token, candidate.revision, `cf:${deployment.deploymentId}`), true, "could not confirm the publication");
+  assert.equal(await pointerNameOf(product), product.name, "the pointer does not show the product");
+  log("first_release_done", { revision: candidate.revision });
+  return "published";
+}
+
 async function releaseOnce() {
   const claim = await claimWhenQuiet();
   if (!claim) return "nothing";
@@ -169,15 +220,19 @@ async function releaseOnce() {
     assert.equal(inspected.revision, claim.revision, "built revision differs from the claimed one");
     log("built", { revision: inspected.revision });
     await queue.renew(claim.token, claim.revision, 1200);
+    if (!(await workerExists())) {
+      const first = { packageDir, releaseId: pinned.releaseId, revision: inspected.revision, releaseSha256: inspected.releaseSha256, packageSha256: inspected.packageSha256 };
+      return await firstRelease({ claim, candidate: first, pinned, product });
+    }
 
     const candidate = { packageDir, releaseId: pinned.releaseId, revision: inspected.revision,
       releaseSha256: inspected.releaseSha256, packageSha256: inspected.packageSha256 };
     const cloudflare = createWranglerReleasePort({ candidate, wranglerPath: WRANGLER, apiToken: CLOUDFLARE_TOKEN,
-      target: { kind: "staging", accountId: ACCOUNT_ID, workersSubdomain: SUBDOMAIN, supabaseUrl: SUPABASE_URL,
+      target: { kind: TARGET.name, workerName: TARGET.workerName, accountId: ACCOUNT_ID, workersSubdomain: SUBDOMAIN, supabaseUrl: SUPABASE_URL,
         publishableKey: PUBLISHABLE_KEY, publicationCapability: pinned.capability } });
     mkdirSync(path.join(ROOT, "dist/release-journals"), { recursive: true });
     const journal = createReleaseJournal({ path: path.join(ROOT, "dist/release-journals", `publication-${claim.revision}.jsonl`) });
-    const pointerName = async () => (await publicRpc("read_catalog_publication_document", { kind: "product", key: product.slug }))?.name;
+    const pointerName = () => pointerNameOf(product);
     const probe = {
       async preview(target) {
         assert.ok(target.releaseId === candidate.releaseId && target.releaseSha256 === candidate.releaseSha256);
@@ -216,7 +271,26 @@ async function releaseOnce() {
   }
 }
 
-await reconcileRemembered();
+// PUBLICATION_DRY_RUN=yes: check every setting and read the current state, publish nothing, claim nothing.
+async function dryRun() {
+  const [revision] = await rest("content_revision?select=current_revision&singleton=eq.true");
+  const [job] = await rest("publication_jobs?select=deployed_revision&singleton=eq.true");
+  const exists = await workerExists();
+  const product = await pickProbeProduct();
+  const pointer = await control.current();
+  const contentRevision = Number(revision?.current_revision ?? 0);
+  const deployedRevision = Number(job?.deployed_revision ?? 0);
+  log("dry_run", { target: TARGET.name, worker: WORKER, workerExists: exists, contentRevision, deployedRevision,
+    pendingPublication: contentRevision > deployedRevision, hasPointer: Boolean(pointer?.releaseId),
+    firstReleaseNeeded: !exists, probeProduct: product.slug });
+}
+if (process.env.PUBLICATION_DRY_RUN === "yes") {
+  await dryRun();
+  process.exit(0);
+}
+
+if (await workerExists()) await reconcileRemembered();
+else log("reconcile", { skipped: "the Worker does not exist yet" });
 let published = 0;
 for (let round = 0; round < MAX_RELEASES; round += 1) {
   const status = await releaseOnce();

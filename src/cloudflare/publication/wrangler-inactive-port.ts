@@ -12,8 +12,10 @@ export interface WranglerCommand {
 }
 interface CommandResult { status: number; stdout: string; stderr: string }
 type Runner = (command: WranglerCommand) => Promise<CommandResult>;
-interface StagingTarget {
-  kind: "staging";
+interface PublicationTarget {
+  kind: "staging" | "production";
+  /** The Worker this target publishes to; defaults to the staging Worker. */
+  workerName?: string;
   accountId: string;
   workersSubdomain: string;
   supabaseUrl: string;
@@ -21,7 +23,8 @@ interface StagingTarget {
   publicationCapability: string;
 }
 
-const WORKER = "ayprom-publication-staging";
+const DEFAULT_WORKER = "ayprom-publication-staging";
+const WORKER_NAME = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 const PREFIX = "ayprom-inactive-wrangler-";
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 const HASH = /^[a-f0-9]{64}$/;
@@ -34,7 +37,7 @@ const releaseUnavailable = () => new Error("wrangler_release_unavailable");
 interface PortInput {
   candidate: Candidate;
   wranglerPath: string;
-  target: StagingTarget;
+  target: PublicationTarget;
   apiToken: string;
   run?: Runner;
 }
@@ -65,7 +68,12 @@ function createPort(input: PortInput, allowRelease: boolean): CloudflareVersionP
     const wranglerPath = input.wranglerPath;
     const c = { ...input.candidate };
     const t = { ...input.target };
-    if (t.kind !== "staging" || !/^[a-f0-9]{32}$/.test(t.accountId)
+    const WORKER = t.workerName ?? DEFAULT_WORKER;
+    if ((t.kind !== "staging" && t.kind !== "production") || !WORKER_NAME.test(WORKER)
+      // The two targets never share a Worker: staging is always the staging Worker, production must name its own.
+      || (t.kind === "staging" && WORKER !== DEFAULT_WORKER)
+      || (t.kind === "production" && (!t.workerName || WORKER === DEFAULT_WORKER))
+      || !/^[a-f0-9]{32}$/.test(t.accountId)
       || !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(t.workersSubdomain)
       || !/^sb_publishable_[A-Za-z0-9_-]+$/.test(t.publishableKey)
       || !/^[A-Za-z0-9_-]{16,256}$/.test(t.publicationCapability)
