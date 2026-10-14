@@ -178,6 +178,22 @@ describe("workers build binding", () => {
     expect(Object.values(pinned).join(" ")).not.toContain(serviceKey);
     expect(Object.values(pinned).join(" ")).not.toContain("private-capability-fixture");
   });
+
+  it("hands the browser two optional public settings to the build, the Sentry address and the analytics token, and drops anything that does not look right", () => {
+    const base = { binding: { mode: "workers-build" as const, url: remoteOrigin, key: publicKey }, allowlist: [remoteOrigin], cacheNonce: "0123456789abcdef0123456789abcdef" };
+    const dsn = "https://0123456789abcdef0123456789abcdef@o123456.ingest.de.sentry.io/4511000000000001";
+    const token = "0123456789abcdef0123456789abcdef";
+    const given = createWorkersBuildChildEnv({ ...base, parent: { PATH: "x", NEXT_PUBLIC_SENTRY_DSN: dsn, NEXT_PUBLIC_CF_WEB_ANALYTICS_TOKEN: token } });
+    expect(given.NEXT_PUBLIC_SENTRY_DSN).toBe(dsn);
+    expect(given.NEXT_PUBLIC_CF_WEB_ANALYTICS_TOKEN).toBe(token);
+    const absent = createWorkersBuildChildEnv({ ...base, parent: { PATH: "x" } });
+    expect(absent).not.toHaveProperty("NEXT_PUBLIC_SENTRY_DSN");
+    expect(absent).not.toHaveProperty("NEXT_PUBLIC_CF_WEB_ANALYTICS_TOKEN");
+    // A malformed value must not stop a publication: it is left out and the site is built without it.
+    const broken = createWorkersBuildChildEnv({ ...base, parent: { PATH: "x", NEXT_PUBLIC_SENTRY_DSN: "https://key@evil.example/1", NEXT_PUBLIC_CF_WEB_ANALYTICS_TOKEN: "not-a-token\"><script>" } });
+    expect(broken).not.toHaveProperty("NEXT_PUBLIC_SENTRY_DSN");
+    expect(broken).not.toHaveProperty("NEXT_PUBLIC_CF_WEB_ANALYTICS_TOKEN");
+  });
 });
 
 describe("workers build runner", () => {

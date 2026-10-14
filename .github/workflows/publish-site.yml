@@ -61,4 +61,8 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           WORKERS_SUBDOMAIN: ${{ vars.WORKERS_SUBDOMAIN }}
           WORKER_NAME: ${{ vars.WORKER_NAME }}
+          # Optional and public by design (the visitor's browser gets them): where browsers report errors, and the
+          # Cloudflare Web Analytics site token. Empty means the site is built without them.
+          NEXT_PUBLIC_SENTRY_DSN: ${{ vars.SENTRY_DSN }}
+          NEXT_PUBLIC_CF_WEB_ANALYTICS_TOKEN: ${{ vars.CF_WEB_ANALYTICS_TOKEN }}
           WRANGLER_PATH: ${{ github.workspace }}/.wrangler/tools/wrangler-4.135.0/node_modules/wrangler/bin/wrangler.js
