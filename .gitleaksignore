@@ -1,0 +1,16 @@
+# Findings of the secret scan that were checked by hand and are not secrets. Each line is a fingerprint
+# (commit:file:rule:line) printed by gitleaks. Real secrets are never listed here: they get rotated instead.
+
+# Supabase publishable (anon-class) key of the STAGING project: public by design, it ships in browser code.
+9abe73aa4307afd141bafa34713347828976a6cd:scripts/cloudflare/admin-targets.mjs:generic-api-key:8
+4da2915e0294600c47940931a04729ff0bdf673a:scripts/cloudflare/r2-path-smoke.mjs:generic-api-key:46
+
+# SQL text `lease_token=excluded.lease_token` in test code: a column name, not a value.
+7d8372853c8212fcb4a288d76e9baf829c8cfa76:scripts/cloudflare/publication-control-http-probes.mjs:generic-api-key:64
+7d8372853c8212fcb4a288d76e9baf829c8cfa76:supabase/tests/database/catalog_publication_control.test.sql:generic-api-key:17
+
+# Made-up key in a unit test fixture.
+7d8372853c8212fcb4a288d76e9baf829c8cfa76:tests/cloudflare-publication-queue.test.ts:generic-api-key:74
+
+# Golden session token signed with the test secret that is written in the same test file.
+7d8372853c8212fcb4a288d76e9baf829c8cfa76:tests/session-codec.test.ts:generic-api-key:8
