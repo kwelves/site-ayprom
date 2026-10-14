@@ -61,7 +61,7 @@
 | `NEXT_PUBLIC_MEDIA_BASE_URL` | П | `https://media.ayprom-gidravlika.kg` |
 | `MEDIA_STORAGE_WRITE_TARGET` | П | `r2` |
 | `MEDIA_STORAGE_JOURNAL_BUCKET` | П | `media-migration-journal` (закрытый бакет Supabase) |
-| `MEDIA_STORAGE_DUAL_WRITE_SUPABASE` | П | как сейчас на Vercel — сверить (см. 2.4) |
+| `MEDIA_STORAGE_DUAL_WRITE_SUPABASE` | П | **`true`** (владелец подтвердил значение на Vercel 2026-10-14; совпадает с данными базы). Деплой боевой админки: `--dual-write=true` |
 | `MEDIA_STORAGE_RETAIN_OBJECTS` | П | `true` (файлы при удалении не стираются до отдельного решения) |
 | `NEXT_PUBLIC_SITE_URL` | П | `https://www.ayprom-gidravlika.kg` |
 | `PHOTO_PROCESSING` | П | `queue` |
@@ -102,7 +102,7 @@
 | `NEXT_PUBLIC_MEDIA_BASE_URL` | П | тестовый адрес R2 | `https://media.ayprom-gidravlika.kg` |
 | `MEDIA_STORAGE_WRITE_TARGET` | П | `r2` | `r2` |
 | `MEDIA_STORAGE_JOURNAL_BUCKET` ⚠ | П | `media-migration-journal` (создать на staging) | `media-migration-journal` |
-| `MEDIA_STORAGE_DUAL_WRITE_SUPABASE` | П | `false` | как на Vercel |
+| `MEDIA_STORAGE_DUAL_WRITE_SUPABASE` | П | `false` | **`true`** (как на Vercel, подтверждено) |
 | `PUBLICATION_WORKFLOW_FILE` / `_REF` | П | `publish-site.yml` / ветка интеграции | `publish-site.yml` / `main` |
 
 Сейчас тестовые значения лежат на уровне всего репозитория. Их нужно перенести в окружение `staging`, а уровень репозитория очистить,
@@ -152,7 +152,7 @@
 
 | № | Что | Да? |
 |---|---|---|
-| C1 | Pull request ветки интеграции в `main`. Vercel строит превью — проверяю его: публичные страницы, поиск, админка (превью читает боевую базу — проверяю только чтение) | **да** (открыть PR) |
+| C1 ✅ **ВЫПОЛНЕНО 2026-10-14** | Pull request ветки интеграции в `main` ([#5](https://github.com/kwelves/site-ayprom/pull/5), черновик «не сливать»). Vercel строит превью — проверяю его: публичные страницы, поиск, админка (превью читает боевую базу — проверяю только чтение). **Результаты:** превью `site-ayprom-77yjde0f5-room22.vercel.app` (коммит `4f9dad4`, READY): `/`, `/catalog`, поиск, категория, карточка товара, `/about`, `/contacts`, `/admin/login`, `/api/health` — 200; `/admin/products` без входа → редирект на `/admin/login`; `info@ayprom-gidravlika.kg` в подвале и на странице контактов; карта сайта 131 адрес **идентична** живой; наборы товаров в каталоге и двух категориях **идентичны** живому сайту; скрипт Cloudflare Web Analytics на Vercel не выводится (токена там нет) — так задумано. **Способ слияния для C2: «Create a merge commit»**, не squash и не rebase: список исключений `.gitleaksignore` привязан к SHA коммитов, а squash создаёт новый коммит с теми же тестовыми значениями, и сканер секретов на `main` стал бы красным | **да** (открыть PR) |
 | C2 | Вы сливаете PR — Vercel выкладывает новый код на живой сайт; я сразу проверяю живой сайт | **да** (сливаете вы) |
 | C3 | Ветки `PHOTO_WORKFLOW_REF`/`PUBLICATION_WORKFLOW_REF` переключаются на `main`; ветку интеграции больше не используем | — |
 
