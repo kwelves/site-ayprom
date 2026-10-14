@@ -35,12 +35,12 @@ describe("CloudflareWebAnalytics", () => {
     expect(container.querySelector("script")).toBeNull();
   });
 
-  it("adds Cloudflare's script, deferred, with the site token", () => {
+  it("adds Cloudflare's script as a module (loaded after the page, as Cloudflare's own snippet does), with the site token", () => {
     vi.stubEnv("NEXT_PUBLIC_CF_WEB_ANALYTICS_TOKEN", TOKEN);
     const { container } = render(<CloudflareWebAnalytics />);
     const script = container.querySelector("script");
     expect(script?.getAttribute("src")).toBe("https://static.cloudflareinsights.com/beacon.min.js");
-    expect(script?.hasAttribute("defer")).toBe(true);
+    expect(script?.getAttribute("type")).toBe("module");
     expect(JSON.parse(script?.getAttribute("data-cf-beacon") ?? "{}")).toEqual({ token: TOKEN });
   });
 });
