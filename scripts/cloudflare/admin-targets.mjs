@@ -32,6 +32,8 @@ const SHARED = Object.freeze({
   publicationWorkflow: "publish-site.yml",
 });
 
+const SENTRY_DSN_PATTERN = /^https:\/\/[A-Za-z0-9]+@(?:[a-z0-9-]+\.)*sentry\.io\/\d+$/;
+
 const SECRET_RULES = {
   SUPABASE_SECRET_KEY: (value) => value.length >= 32,
   ADMIN_SESSION_SECRET: (value) => value.length >= 32,
@@ -44,7 +46,7 @@ const SECRET_RULES = {
 
 /**
  * @param {{ target: string, secrets: Record<string, string | undefined>, publishableKey?: string,
- *   dualWriteSupabase?: string, confirm?: string }} input
+ *   dualWriteSupabase?: string, confirm?: string, sentryDsn?: string }} input
  * @returns {{ workerName: string, vars: Record<string, string>, secrets: Record<string, string> }}
  */
 export function buildAdminDeployment(input) {
@@ -79,7 +81,12 @@ export function buildAdminDeployment(input) {
     throw new Error("the dual-write decision (true or false) must be given: copy it from the current production setting");
   }
 
+  // Optional error reporting. The address is public by design (browsers get it too), so it is a plain variable.
+  const sentryDsn = input.sentryDsn?.trim();
+  if (sentryDsn && !SENTRY_DSN_PATTERN.test(sentryDsn)) throw new Error("the Sentry address must be an https address on sentry.io");
+
   const vars = {
+    ...(sentryDsn ? { SENTRY_DSN: sentryDsn, SENTRY_ENVIRONMENT: input.target } : {}),
     NEXT_PUBLIC_SUPABASE_URL: target.supabaseUrl,
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishableKey,
     NEXT_PUBLIC_MEDIA_BASE_URL: target.mediaBaseUrl,

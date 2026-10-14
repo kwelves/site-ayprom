@@ -12,6 +12,8 @@ import { runWithBackground } from "@/lib/background-tasks";
 import { createGuardedFetch } from "./fetch-guard";
 import { applyAdminSecurityHeaders } from "./security-headers";
 import { runSafetyNet } from "./safety-net";
+import { configureSentry } from "./shims/sentry";
+import { respondSafely } from "./safe-respond";
 
 // Every database call made by the shared admin code goes through the guarded fetch (timeout, one retry of reads).
 globalThis.fetch = createGuardedFetch(globalThis.fetch.bind(globalThis));
@@ -57,15 +59,20 @@ interface AdminWorkerEnv {
   ASSETS: AssetsBinding;
   NEXT_PUBLIC_SUPABASE_URL?: string;
   NEXT_PUBLIC_MEDIA_BASE_URL?: string;
+  SENTRY_DSN?: string;
+  SENTRY_ENVIRONMENT?: string;
+  SENTRY_RELEASE?: string;
 }
 
 const worker = {
   async fetch(request: Request, env: AdminWorkerEnv, ctx: { waitUntil(promise: Promise<unknown>): void }): Promise<Response> {
+    configureSentry(env);
     // Every answer, including redirects, errors and static files, carries the security headers.
-    return applyAdminSecurityHeaders(await respond(request, env, ctx), env);
+    return applyAdminSecurityHeaders(await respondSafely(() => respond(request, env, ctx), ctx), env);
   },
   // Cron Trigger every 15 minutes: wakes a publication or photo worker whose wake-up was lost (see safety-net.ts).
   scheduled(_event: unknown, env: AdminWorkerEnv, ctx: { waitUntil(promise: Promise<unknown>): void }): void {
+    configureSentry(env);
     ctx.waitUntil(runSafetyNet(env as unknown as Record<string, string | undefined>));
   },
 };

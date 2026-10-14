@@ -6,6 +6,7 @@ import {
 import { createRequestContext, runWithRequestContext } from "./request-context";
 import { serializeSetCookie } from "./shims/next-headers";
 import { isNotFoundError, readRedirectTarget } from "./shims/next-navigation";
+import { captureException } from "./shims/sentry";
 
 const SESSION_COOKIE = "admin_session";
 const MAX_BODY_BYTES = 1024 * 1024;
@@ -200,6 +201,7 @@ export async function handleAdminRpc(request: Request, name: string, deps: Admin
     if (isNotFoundError(error)) return json(404, { ok: false, notFound: true });
     // Only the action name, error class and a short machine code are logged: messages may carry secrets or personal data.
     console.error(`[admin-rpc] action_failed name=${name} error=${describeError(error)}`);
+    captureException(error, { tags: { subsystem: "admin-rpc", action: name } });
     return json(500, { ok: false, error: { code: "action_failed", message: FAILURE_MESSAGE } });
   }
 }

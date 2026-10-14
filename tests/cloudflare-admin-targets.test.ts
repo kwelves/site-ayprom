@@ -85,6 +85,22 @@ describe("admin Worker targets", () => {
     expect(Object.keys(secrets)).not.toContain("R2_SECRET_ACCESS_KEY");
   });
 
+  it("passes a Sentry address and the site name to the Worker when one is given, and nothing when not", () => {
+    const dsn = "https://0123456789abcdef0123456789abcdef@o123456.ingest.de.sentry.io/4511000000000001";
+    const withSentry = buildAdminDeployment({ ...productionInput, sentryDsn: dsn });
+    expect(withSentry.vars).toMatchObject({ SENTRY_DSN: dsn, SENTRY_ENVIRONMENT: "production" });
+    expect(Object.keys(withSentry.secrets)).not.toContain("SENTRY_DSN");
+    const without = buildAdminDeployment(productionInput);
+    expect(without.vars).not.toHaveProperty("SENTRY_DSN");
+    expect(without.vars).not.toHaveProperty("SENTRY_ENVIRONMENT");
+  });
+
+  it("refuses a Sentry address that is not an https address on sentry.io", () => {
+    for (const bad of ["http://key@o1.ingest.sentry.io/1", "https://key@evil.example/1", "https://key@sentry.io.evil.example/1", "garbage", "https://o1.ingest.sentry.io/1"]) {
+      expect(() => buildAdminDeployment({ ...productionInput, sentryDsn: bad })).toThrow(/sentry/i);
+    }
+  });
+
   it("refuses an unknown target", () => {
     expect(() => buildAdminDeployment({ ...productionInput, target: "prod" })).toThrow(/target/i);
   });

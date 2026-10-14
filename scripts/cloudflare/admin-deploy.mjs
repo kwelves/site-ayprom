@@ -62,13 +62,15 @@ const secretFiles = targetName === "production"
     GITHUB_DISPATCH_TOKEN: readIn(secretDir, "github-dispatch-token.txt"),
   };
 const publishableKey = targetName === "production" ? readIn(targetDir, "supabase-publishable-key.txt") : undefined;
+// Optional: the Sentry address of this site (public by design, so a plain variable, not a secret). No file, no reporting.
+const sentryDsn = readIn(targetDir, "sentry-dsn.txt");
 
 const hidden = [cloudflareToken, ...Object.values(secretFiles)].filter(Boolean);
 const hide = (value) => hidden.reduce((text, secret) => text.replaceAll(secret, "[hidden]"), String(value));
 
 const deployment = buildAdminDeployment({
   target: targetName, secrets: secretFiles, publishableKey,
-  dualWriteSupabase: option("dual-write"), confirm: option("confirm"),
+  dualWriteSupabase: option("dual-write"), confirm: option("confirm"), sentryDsn,
 });
 if (!cloudflareToken) throw new Error("the Cloudflare token file is missing");
 
