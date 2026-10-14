@@ -2,6 +2,7 @@
 // stays separate: a remote public URL is accepted only in workers-build mode.
 import path from "node:path";
 import { parseSentryDsn } from "../../../lib/error-reporting/sentry-lite";
+import { webAnalyticsToken } from "../../../lib/web-analytics";
 
 export const LOOPBACK_FIXTURE_ORIGINS = [
   "http://127.0.0.1:54321",
@@ -108,8 +109,8 @@ export function createWorkersBuildChildEnv(input: {
   // and the Cloudflare Web Analytics site token. A malformed value is left out rather than stopping a publication.
   const sentryDsn = parseSentryDsn(input.parent.NEXT_PUBLIC_SENTRY_DSN)?.dsn;
   if (sentryDsn) env.NEXT_PUBLIC_SENTRY_DSN = sentryDsn;
-  const analyticsToken = input.parent.NEXT_PUBLIC_CF_WEB_ANALYTICS_TOKEN?.trim();
-  if (analyticsToken && /^[a-f0-9]{32}$/.test(analyticsToken)) env.NEXT_PUBLIC_CF_WEB_ANALYTICS_TOKEN = analyticsToken;
+  const analyticsToken = webAnalyticsToken(input.parent.NEXT_PUBLIC_CF_WEB_ANALYTICS_TOKEN);
+  if (analyticsToken) env.NEXT_PUBLIC_CF_WEB_ANALYTICS_TOKEN = analyticsToken;
   if (input.binding.mode === "workers-build") {
     env.AYPROM_WORKERS_BUILD_MODE = "workers-build";
     env.AYPROM_WORKERS_BUILD_SUPABASE_ALLOWLIST = input.allowlist.join(",");

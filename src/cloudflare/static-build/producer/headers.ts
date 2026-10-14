@@ -21,12 +21,15 @@ export function serializeStaticHeaders(input: {
   siteOrigin: string;
   mediaOrigin: string;
   browserSupabaseUrl?: string;
+  /** The site is built with the Cloudflare Web Analytics script. */
+  webAnalytics?: boolean;
 }): string {
   const supabaseOrigin = browserOrigin(input.browserSupabaseUrl, input.siteOrigin);
   const csp = buildContentSecurityPolicy({
     isDevelopment: false,
     supabaseOrigin,
     mediaOrigin: input.mediaOrigin,
+    webAnalytics: input.webAnalytics === true,
   });
   const lines = [
     "/*",

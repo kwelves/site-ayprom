@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { CloudflareWebAnalytics } from "@/components/analytics/CloudflareWebAnalytics";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { WhatsAppBadge } from "@/components/site/WhatsAppBadge";
@@ -107,6 +108,7 @@ export default async function RootLayout({
         <WhatsAppBadge />
         </HomeEntrySequence>
         {isVercelRuntime ? <SpeedInsights /> : null}
+        <CloudflareWebAnalytics />
       </body>
     </html>
   );

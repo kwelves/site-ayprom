@@ -6,6 +6,7 @@ import { collectProductAliases, serializeAliasWorkerEntry } from "./alias-worker
 import { serializeSpeculationRules, serializeStaticHeaders, SPECULATION_RULES_FILE } from "./headers";
 import { createRouteManifest, routePathToOutputFile, serializeRouteManifest } from "../route-manifest";
 import type { StaticBuildIssue } from "../validation";
+import { webAnalyticsToken } from "../../../lib/web-analytics";
 import { startChildServer } from "./child-server";
 import { crawlRoutes } from "./crawl";
 import { isProducerError, ProducerError } from "./errors";
@@ -93,6 +94,7 @@ export async function runStaticProducer(input: StaticProducerInput): Promise<Sta
       siteOrigin: preflight.value.siteOrigin,
       mediaOrigin: preflight.value.mediaOrigin,
       browserSupabaseUrl: input.preflight.env.NEXT_PUBLIC_SUPABASE_URL,
+      webAnalytics: webAnalyticsToken(input.preflight.env.NEXT_PUBLIC_CF_WEB_ANALYTICS_TOKEN) !== null,
     });
   } catch (error) {
     if (!isProducerError(error)) throw error;
