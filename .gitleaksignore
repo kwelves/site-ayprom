@@ -14,3 +14,7 @@
 
 # Golden session token signed with the test secret that is written in the same test file.
 7d8372853c8212fcb4a288d76e9baf829c8cfa76:tests/session-codec.test.ts:generic-api-key:8
+
+# Obviously made-up values (0123456789abcdef repeated) in unit tests of the Sentry reporter and the analytics token.
+969d55ea2cceaaed3502bdc839ea5d7d201ee8c6:tests/sentry-lite.test.ts:generic-api-key:93
+a5b320b99608452c5bfc26033664988762bf4e46:tests/cloudflare-workers-build-runner.test.ts:generic-api-key:185
