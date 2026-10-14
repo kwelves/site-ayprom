@@ -19,6 +19,12 @@ const productionInput = {
 };
 
 describe("admin Worker targets", () => {
+  it("starts the photo and publication workflows from main on both sites, now that the integration is merged", () => {
+    expect(ADMIN_TARGETS.staging.workflowRef).toBe("main");
+    expect(ADMIN_TARGETS.production.workflowRef).toBe("main");
+    expect(JSON.stringify(ADMIN_TARGETS)).not.toContain("cloudflare-integration-publish");
+  });
+
   it("describes staging and production, each with its own Worker, database and bucket", () => {
     expect(Object.keys(ADMIN_TARGETS).sort()).toEqual(["production", "staging"]);
     expect(ADMIN_TARGETS.staging.workerName).toBe("ayprom-admin-staging");

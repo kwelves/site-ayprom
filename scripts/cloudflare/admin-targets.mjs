@@ -8,7 +8,7 @@ export const ADMIN_TARGETS = Object.freeze({
     publishableKey: "sb_publishable_yxS4_LQqsdPRtWxxUgg8-g_jQdYsJci", // public by design
     mediaBaseUrl: "https://media.ayprom-gidravlika.kg",
     siteUrl: undefined,
-    workflowRef: "cloudflare-integration-publish", // until the integration is merged into main
+    workflowRef: "main",
     workflowEnvironment: "staging",
     r2: undefined, // staging writes media to the database's own storage
     confirmation: undefined,
