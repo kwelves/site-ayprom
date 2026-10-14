@@ -125,7 +125,9 @@ describe("static producer staging root boundaries", () => {
     const before = repo.siteSnapshot();
     const beforeNames = names(siteRoot);
 
-    for (const outputRoot of [siteRoot, nested, path.join(repo.repoRoot, "dist", "Site")]) {
+    // dist/Site is the same folder as dist/site only where paths ignore letter case (Windows, macOS); on Linux it is a different folder.
+    const caseVariant = process.platform === "linux" ? [] : [path.join(repo.repoRoot, "dist", "Site")];
+    for (const outputRoot of [siteRoot, nested, ...caseVariant]) {
       const input = fixtureProducerInput(repo);
       input.preflight.outputRoot = outputRoot;
       const result = await runStaticProducer(input);
