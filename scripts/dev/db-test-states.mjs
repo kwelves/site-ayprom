@@ -23,7 +23,10 @@ function reset() {
 }
 function runTests(files) {
   const result = supabase(["test", "db", ...files]);
-  const summary = result.out.split(/\r?\n/).filter((line) => /^(Files=|Result:)|Failed test|Wstat/.test(line)).join("\n");
+  // The summary lines, plus whatever explains a failure: pgTAP diagnostics ("# ..."), SQL errors and their context.
+  const summary = result.out.split(/\r?\n/)
+    .filter((line) => /^(Files=|Result:)|Failed test|Wstat|^#|ERROR|^psql:|^DETAIL|^HINT|^CONTEXT|^LINE|Looks like/.test(line))
+    .join("\n");
   return { ok: result.status === 0, summary };
 }
 const databaseTests = readdirSync(path.join(ROOT, "supabase", "tests", "database")).filter((name) => name.endsWith(".test.sql"));
