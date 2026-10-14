@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -189,8 +189,8 @@ describe("explicit admin preview package", () => {
 });
 
 function junction(link: string, target: string) {
-  const result = spawnSync("cmd", ["/c", "mklink", "/J", link, target], { windowsHide: true, encoding: "utf8" });
-  expect(result.status, result.stderr || result.stdout).toBe(0);
+  // A junction on Windows, a plain symbolic link elsewhere: both are links the code under test must refuse to follow.
+  symlinkSync(target, link, "junction");
 }
 
 describe("local worker package", () => {

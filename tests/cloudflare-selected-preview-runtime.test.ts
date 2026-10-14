@@ -1,7 +1,6 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
 import { afterEach, describe, expect, it } from "vitest";
 import { collectPackageInventory } from "../scripts/cloudflare/package-integrity.mjs";
 import { readAdminPreviewRuntime } from "../scripts/cloudflare/admin-preview-runtime.mjs";
@@ -143,7 +142,7 @@ describe("selected admin preview resolution", () => {
     const outside = tempDir();
     writeFileSync(path.join(outside, "marker.txt"), "junction-secret");
     const link = path.join(repo, "dist", "worker-packages", "linked");
-    expect(spawnSync("cmd", ["/c", "mklink", "/J", link, outside], { windowsHide: true }).status).toBe(0);
+    symlinkSync(outside, link, "junction");
     mkdirSync(path.join(repo, "dist", "local-preview"), { recursive: true });
     writeFileSync(selectionFile(repo), `${JSON.stringify({ schemaVersion: 1, generation: 1, current: "linked", previous: null })}\n`);
     const selection = fileBytes(selectionFile(repo));

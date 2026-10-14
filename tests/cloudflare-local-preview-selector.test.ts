@@ -1,5 +1,5 @@
-import { spawn, spawnSync } from "node:child_process";
-import { closeSync, existsSync, ftruncateSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { closeSync, existsSync, ftruncateSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -203,7 +203,7 @@ describe("local preview selector", () => {
     const outside = tempDir();
     writeFileSync(path.join(outside, "marker.txt"), "junction-secret");
     const link = path.join(repo, "dist", "worker-packages", "linked");
-    expect(spawnSync("cmd", ["/c", "mklink", "/J", link, outside], { windowsHide: true }).status).toBe(0);
+    symlinkSync(outside, link, "junction");
     const result = selectPreviewPackage({ repoRoot: repo, packageName: "linked", expectedGeneration: 0 });
     expect(result).toMatchObject({ ok: false });
     expect(JSON.stringify(result)).not.toContain("junction-secret");

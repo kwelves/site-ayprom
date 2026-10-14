@@ -45,8 +45,8 @@ async function seal(root: string, extra: Record<string, unknown> = {}) {
 }
 
 function junction(link: string, target: string) {
-  const result = spawnSync("cmd", ["/c", "mklink", "/J", link, target], { windowsHide: true, encoding: "utf8" });
-  expect(result.status, result.stderr || result.stdout).toBe(0);
+  // A junction on Windows, a plain symbolic link elsewhere: both are links the code under test must refuse to follow.
+  fs.symlinkSync(target, link, "junction");
 }
 
 describe("package integrity", () => {
