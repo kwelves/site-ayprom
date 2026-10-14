@@ -52,6 +52,9 @@ export default defineConfig({
   base: "/",
   publicDir: path.join(root, "public"),
   plugins: [adminRpcClients()],
+  // Marks this as the Cloudflare admin: only here do the publication badge and the product form's photo queue
+  // ask the server for their status (see AdminPublicationStatus and ProductForm).
+  define: { "process.env.NEXT_PUBLIC_ADMIN_CLOUDFLARE": JSON.stringify("on") },
   resolve: {
     alias: [
       { find: "@", replacement: path.join(root, "src") },

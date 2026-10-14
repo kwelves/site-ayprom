@@ -25,6 +25,9 @@ export function AdminPublicationStatus({ compact = false }: AdminPublicationStat
   const nudged = useRef(false);
 
   useEffect(() => {
+    // The Cloudflare admin build switches the badge on (vite.admin-spa.config.ts). The Next.js admin never has a
+    // published snapshot, and asking the server there would only add a request that page changes then cancel.
+    if (process.env.NEXT_PUBLIC_ADMIN_CLOUDFLARE !== "on") return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
 

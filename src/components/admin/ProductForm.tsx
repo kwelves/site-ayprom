@@ -130,7 +130,9 @@ export function ProductForm({
   const productId = mode === "edit" ? product?.id : undefined;
   const hasPendingPhotos = photoQueue.pending > 0;
   useEffect(() => {
-    if (!productId) return;
+    // Only the Cloudflare admin build has a photo queue (vite.admin-spa.config.ts); the Next.js admin finishes
+    // photos while saving, and asking the server there would only add a request that saving then cancels.
+    if (!productId || process.env.NEXT_PUBLIC_ADMIN_CLOUDFLARE !== "on") return;
     let cancelled = false;
     const applyQueue = (state: Awaited<ReturnType<typeof fetchProductPhotoQueue>>) => {
       if (cancelled) return;
