@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Смена пароля — локальная админка AYPROM</title>
+</head>
+<body>
+  <main>
+    <h1>Смена пароля</h1>
+    <p>После сохранения все прежние сеансы завершатся.</p>
+    <p role="alert"><!-- AUTH_MESSAGE --></p>
+    <form method="post" action="/api/admin/password">
+      <p><label for="currentPassword">Текущий пароль</label><br><input id="currentPassword" name="currentPassword" type="password" autocomplete="current-password" required></p>
+      <p><label for="newPassword">Новый пароль</label><br><input id="newPassword" name="newPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></p>
+      <p><label for="confirmPassword">Повторите новый пароль</label><br><input id="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></p>
+      <button type="submit">Изменить пароль</button>
+    </form>
+    <p><a href="/admin">Вернуться в админку</a></p>
+  </main>
+</body>
+</html>

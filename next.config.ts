@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import path from "path";
 import { withSentryConfig } from "@sentry/nextjs";
 import { buildContentSecurityPolicy } from "@/lib/security/csp";
+import { webAnalyticsToken } from "@/lib/web-analytics";
 
 const supabaseUrl = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!);
 const mediaUrl = process.env.NEXT_PUBLIC_MEDIA_BASE_URL
@@ -11,6 +12,7 @@ const contentSecurityPolicy = buildContentSecurityPolicy({
   isDevelopment: process.env.NODE_ENV === "development",
   supabaseOrigin: supabaseUrl.origin,
   mediaOrigin: mediaUrl?.origin,
+  webAnalytics: webAnalyticsToken(process.env.NEXT_PUBLIC_CF_WEB_ANALYTICS_TOKEN) !== null,
 });
 
 const nextConfig: NextConfig = {
@@ -56,6 +58,9 @@ const nextConfig: NextConfig = {
     root: path.resolve(__dirname),
   },
   images: {
+    // Crawl-and-freeze artifacts have no Next image optimizer endpoint.
+    // Keep Vercel and ordinary local builds on their existing optimizer path.
+    unoptimized: process.env.AYPROM_STATIC_BUILD === "1",
     // Product-card thumbnails deliberately use 60 while full galleries use
     // the default 75. Next 16 requires every optimizer quality explicitly.
     qualities: [60, 75],

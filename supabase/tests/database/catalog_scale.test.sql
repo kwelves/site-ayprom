@@ -21,6 +21,11 @@ select
   100000 + number
 from generate_series(1, 5000) as number;
 
+do $$ begin
+  perform public.capture_catalog_publication(public.get_content_revision(),'40000000-0000-4000-8000-000000000001',repeat('1',64));
+  update catalog_private.catalog_releases set state='ready' where id='40000000-0000-4000-8000-000000000001';
+  insert into catalog_private.catalog_publication_active(release_id) values ('40000000-0000-4000-8000-000000000001');
+end $$;
 set local role anon;
 
 select is(

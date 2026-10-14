@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "snapshotId": "static-producer-fixture",
+  "categories": [
+    { "slug": "fittings", "name": "Фитинги", "type": null },
+    { "slug": "pto", "name": "Коробки отбора мощности", "type": "brand" }
+  ],
+  "subcategories": [],
+  "brands": [
+    { "slug": "kamaz", "name": "КАМАЗ" },
+    { "slug": "shacman", "name": "SHACMAN" }
+  ],
+  "vehicleTypes": [
+    { "slug": "truck", "name": "Грузовик" }
+  ],
+  "categoryBrands": {
+    "pto": ["shacman", "kamaz"]
+  },
+  "directProductCategorySlugs": ["fittings"],
+  "products": [
+    {
+      "slug": "seal-24",
+      "name": "Уплотнение 24 мм",
+      "category": "fittings",
+      "compatibleBrands": [],
+      "vehicleTypes": ["truck"],
+      "images": [{ "url": "https://media.ayprom-gidravlika.kg/products/seal-24/master.webp" }],
+      "shortDescription": "Уплотнительное кольцо для фитингов высокого давления.",
+      "updatedAt": "2026-09-22T10:00:00Z"
+    },
+    {
+      "slug": "pto-shaft-110",
+      "name": "Вал КОМ 110",
+      "category": "pto",
+      "compatibleBrands": ["shacman", "kamaz"],
+      "vehicleTypes": ["truck"],
+      "images": [],
+      "shortDescription": "Вал коробки отбора мощности.",
+      "updatedAt": "2026-09-22T11:00:00Z"
+    }
+  ]
+}

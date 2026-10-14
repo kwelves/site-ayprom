@@ -2,7 +2,13 @@ type ContentSecurityPolicyOptions = {
   isDevelopment: boolean;
   supabaseOrigin: string;
   mediaOrigin?: string;
+  /** The public site loads the Cloudflare Web Analytics script; the admin never does. */
+  webAnalytics?: boolean;
 };
+
+/** Cloudflare Web Analytics: the script, and the address it reports to. */
+const WEB_ANALYTICS_SCRIPT_ORIGIN = "https://static.cloudflareinsights.com";
+const WEB_ANALYTICS_REPORT_ORIGIN = "https://cloudflareinsights.com";
 
 /**
  * Builds the site's static CSP. Keeping this policy free of request-specific
@@ -16,6 +22,7 @@ export function buildContentSecurityPolicy({
   isDevelopment,
   supabaseOrigin,
   mediaOrigin,
+  webAnalytics = false,
 }: ContentSecurityPolicyOptions): string {
   // Historically this also excluded mediaOrigin === supabaseOrigin, to avoid a
   // literal duplicate token back when img-src/media-src concatenated
@@ -28,7 +35,7 @@ export function buildContentSecurityPolicy({
   const publicMediaOrigin = mediaOrigin ? ` ${mediaOrigin}` : "";
   return [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""}`,
+    `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""}${webAnalytics ? ` ${WEB_ANALYTICS_SCRIPT_ORIGIN}` : ""}`,
     // React and several framework integrations insert runtime style rules.
     // `style-src-attr` is not sufficient for those `<style>` elements, so
     // preserve this compatibility exception while keeping scripts strict.
@@ -40,7 +47,7 @@ export function buildContentSecurityPolicy({
     `media-src 'self'${publicMediaOrigin}`,
     // https://*.sentry.io covers regional ingest without baking an
     // organization-specific Sentry DSN into the policy.
-    `connect-src 'self' ${supabaseOrigin} https://*.sentry.io`,
+    `connect-src 'self' ${supabaseOrigin} https://*.sentry.io${webAnalytics ? ` ${WEB_ANALYTICS_REPORT_ORIGIN}` : ""}`,
     "font-src 'self' data:",
     "object-src 'none'",
     "base-uri 'self'",

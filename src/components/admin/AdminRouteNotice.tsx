@@ -10,6 +10,7 @@ const NOTICE_MESSAGES: Record<string, string> = {
   "category-deleted": "Категория успешно удалена",
   "subcategory-deleted": "Подкатегория успешно удалена",
   "vehicle-type-deleted": "Тип техники успешно удалён",
+  "photos-queued": "Фотографии обрабатываются: они появятся в товаре примерно через минуту",
 };
 
 export function AdminRouteNotice() {

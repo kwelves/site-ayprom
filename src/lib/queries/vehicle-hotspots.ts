@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { activeCatalogReaderIfEnabled } from "@/lib/catalog-publication-reader";
 import { resolveGalleryImageUrl, resolveImageFallbackUrl } from "@/lib/product-image-variants";
 import type { VehicleType } from "@/types/catalog";
 
@@ -84,6 +85,18 @@ function mapHotspot(row: HotspotRow): VehicleHotspot {
 // Wrapped in cache() since the section and its metadata never need this
 // twice in one request, matching the convention in queries/vehicle-types.ts.
 export const getVehicleShowcaseData = cache(async (): Promise<VehicleShowcaseEntry[]> => {
+  const reader = await activeCatalogReaderIfEnabled();
+  if (reader) {
+    const [vehicleTypes, hotspotRows] = await Promise.all([
+      reader.list<VehicleType & { order: number }>("vehicle_type"),
+      reader.list<HotspotRow>("vehicle_hotspot"),
+    ]);
+    return vehicleTypes.sort((a, b) => a.order - b.order).map((vehicleType) => ({
+      vehicleType: { slug: vehicleType.slug, name: vehicleType.name },
+      hotspots: hotspotRows.filter((row) => row.vehicle_type_slug === vehicleType.slug)
+        .sort((a, b) => a.hotspot_number - b.hotspot_number).map(mapHotspot),
+    })).filter((entry) => entry.hotspots.length > 0);
+  }
   const supabase = await createClient();
   const [{ data: vehicleTypes, error: vehicleTypesError }, { data: hotspotRows, error: hotspotsError }] =
     await Promise.all([

@@ -57,6 +57,18 @@ describe("buildContentSecurityPolicy", () => {
     expect(directive(policy, "script-src")).toBe("script-src 'self' 'unsafe-inline' 'unsafe-eval'");
   });
 
+  it("opens the Cloudflare Web Analytics script and its report address only when the site asks for it", () => {
+    const off = buildContentSecurityPolicy({ isDevelopment: false, supabaseOrigin });
+    expect(off).not.toContain("cloudflareinsights.com");
+
+    const on = buildContentSecurityPolicy({ isDevelopment: false, supabaseOrigin, webAnalytics: true });
+    expect(directive(on, "script-src")).toBe("script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com");
+    expect(directive(on, "connect-src")).toContain("https://cloudflareinsights.com");
+    // Nothing else is widened.
+    expect(directive(on, "img-src")).toBe(directive(off, "img-src"));
+    expect(directive(on, "frame-src")).toBe("frame-src 'none'");
+  });
+
   it("disables embeds and limits workers to same-origin scripts", () => {
     const policy = buildContentSecurityPolicy({ isDevelopment: false, supabaseOrigin });
 

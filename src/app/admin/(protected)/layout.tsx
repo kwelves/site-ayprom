@@ -5,6 +5,7 @@ import { AdminNav } from "@/components/admin/AdminNav";
 import { AdminMobileNav } from "@/components/admin/AdminMobileNav";
 import { AdminRouteNotice } from "@/components/admin/AdminRouteNotice";
 import { AdminToastProvider } from "@/components/admin/ui/AdminToastProvider";
+import { AdminPublicationStatus } from "@/components/admin/AdminPublicationStatus";
 
 // Wraps every admin page except /admin/login — middleware already gates
 // access to this whole subtree, so no auth check here, just the nav chrome.
@@ -32,6 +33,7 @@ export default function ProtectedAdminLayout({ children }: Readonly<{ children: 
           <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-3">
             <AdminNav variant="sidebar" />
           </nav>
+          <AdminPublicationStatus />
           <form action={logout} data-testid="admin-logout" className="shrink-0 border-t border-border p-3">
             <button
               type="submit"
@@ -47,6 +49,7 @@ export default function ProtectedAdminLayout({ children }: Readonly<{ children: 
             <Link href="/admin/products" className="text-sm font-semibold text-card-foreground">
               AYPROM — Админка
             </Link>
+            <AdminPublicationStatus compact />
             <AdminMobileNav />
           </header>
           <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>

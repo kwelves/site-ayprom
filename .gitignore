@@ -24,6 +24,7 @@
 
 # production
 /build
+/dist/
 
 # misc
 .DS_Store
@@ -41,6 +42,9 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# cloudflare wrangler local state and machine-specific cache
+/.wrangler/
 
 # typescript
 *.tsbuildinfo
@@ -66,3 +70,6 @@ next-env.d.ts
 /.tmp-*/
 
 .vercel
+
+# Local Worker secrets
+.dev.vars*

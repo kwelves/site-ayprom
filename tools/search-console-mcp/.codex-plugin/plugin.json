@@ -1,0 +1,22 @@
+{
+  "name": "ayprom-search-console",
+  "version": "0.1.0",
+  "description": "Guarded Google Search Console access for the AYPROM domain property.",
+  "author": {
+    "name": "AYPROM"
+  },
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "AYPROM Search Console",
+    "shortDescription": "Search Console analytics and sitemap controls for AYPROM.",
+    "longDescription": "Reads Search Console performance, sitemap and URL Inspection data for AYPROM. Sitemap writes require explicit confirmation and are audited locally.",
+    "developerName": "AYPROM",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "defaultPrompt": [
+      "Проверь показатели AYPROM в Search Console.",
+      "Проверь индексацию ключевых страниц AYPROM.",
+      "Покажи статус sitemap AYPROM."
+    ]
+  }
+}

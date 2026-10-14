@@ -68,10 +68,26 @@ export async function verifyAdminPassword(
   return constantTimePasswordEqual(password, requireServerEnv("ADMIN_PASSWORD"));
 }
 
+// Cloudflare Workers must not share an unfinished I/O promise between requests: when the request that started it
+// is cancelled (the browser left the page), the promise never settles and every other request on that instance
+// waits for it forever. The Cloudflare admin turns the sharing off; each request then asks the database itself
+// and only the finished number is cached.
+let shareInFlightRequests = true;
+
+export function disableCredentialRequestSharing(): void {
+  shareInFlightRequests = false;
+}
+
 export async function getAdminCredentialVersion(): Promise<number> {
   const now = Date.now();
   if (cachedCredentialVersion && cachedCredentialVersion.expiresAt > now) {
     return cachedCredentialVersion.value;
+  }
+
+  if (!shareInFlightRequests) {
+    const state = await getAdminCredentialState();
+    cachedCredentialVersion = { value: state.sessionVersion, expiresAt: Date.now() + CREDENTIAL_VERSION_CACHE_MS };
+    return state.sessionVersion;
   }
 
   if (!credentialVersionRequest) {

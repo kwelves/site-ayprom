@@ -1,5 +1,5 @@
-// QA-014: `supabase/schemas/prod.sql` объявлен источником истины, но ведётся
-// руками и разошёлся с миграциями — из него пропала таблица
+// QA-014: файлы `supabase/schemas/*.sql` объявлены источником истины, но могут
+// разойтись с миграциями — из `prod.sql` однажды пропала таблица
 // `admin_credentials`, а имя CHECK у `admin_auth_events` было выдумано.
 //
 // Опасность не в самой базе: файл не выполняется. Опасность в том, что он
@@ -20,11 +20,11 @@
 //
 // QA-013 — это другая находка (права клиентских ролей), не путать.
 import { execSync } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-const declarativePath = path.join(process.cwd(), "supabase", "schemas", "prod.sql");
+const declarativeDirectory = path.join(process.cwd(), "supabase", "schemas");
 
 /**
  * Ограничение времени на снятие схемы. Без него проверка молча висела бы,
@@ -45,12 +45,14 @@ const MIN_EXPECTED_OBJECTS = 20;
 // Оба файла имеют формат pg_dump, поэтому к ним применяются одни и те же
 // выражения: систематическая погрешность разбора сокращается с обеих сторон.
 const OBJECT_PATTERNS = [
-  { kind: "table", pattern: /CREATE TABLE (?:IF NOT EXISTS )?"public"\."([^"]+)"/g },
-  { kind: "constraint", pattern: /(?:ADD )?CONSTRAINT "([^"]+)"/g },
-  { kind: "function", pattern: /CREATE (?:OR REPLACE )?FUNCTION "public"\."([^"]+)"/g },
-  { kind: "index", pattern: /CREATE (?:UNIQUE )?INDEX "([^"]+)"/g },
+  // Identifiers may be quoted (pg_dump style) or bare (the zz_*.sql files written by hand or by a schema differ).
+  { kind: "table", pattern: /CREATE TABLE (?:IF NOT EXISTS )?"?public"?\."?([A-Za-z0-9_]+)"?/g },
+  { kind: "constraint", pattern: /(?:ADD )?CONSTRAINT "?([A-Za-z0-9_]+)"?/g },
+  { kind: "function", pattern: /CREATE (?:OR REPLACE )?FUNCTION "?public"?\."?([A-Za-z0-9_]+)"?/g },
+  { kind: "index", pattern: /CREATE (?:UNIQUE )?INDEX (?:IF NOT EXISTS )?"?([A-Za-z0-9_]+)"?/g },
   { kind: "policy", pattern: /CREATE POLICY "([^"]+)"/g },
-  { kind: "trigger", pattern: /CREATE (?:OR REPLACE )?TRIGGER "([^"]+)"/g },
+  // Only triggers on public tables: the dump of the public schema does not contain the catalog_private ones.
+  { kind: "trigger", pattern: /CREATE (?:OR REPLACE )?TRIGGER "?([A-Za-z0-9_]+)"?[^;]*?\bON "?public"?\./g },
 ];
 
 function collectObjects(sql) {
@@ -131,10 +133,12 @@ const { sql: liveSql, directory } = await dumpLiveSchema();
 
 let declarativeSql;
 try {
-  declarativeSql = await readFile(declarativePath, "utf8");
+  const schemaFiles = (await readdir(declarativeDirectory)).filter((name) => name.endsWith(".sql")).sort();
+  if (schemaFiles.length === 0) throw new Error("Нет файлов схемы.");
+  declarativeSql = (await Promise.all(schemaFiles.map((name) => readFile(path.join(declarativeDirectory, name), "utf8")))).join("\n");
 } catch (error) {
   await rm(directory, { recursive: true, force: true });
-  fail([`Не найден файл декларативной схемы: ${declarativePath}`], error.message);
+  fail([`Не удалось прочитать декларативные схемы: ${declarativeDirectory}`], error.message);
 }
 
 const liveObjects = collectObjects(liveSql);
@@ -153,7 +157,7 @@ if (liveObjects.size < MIN_EXPECTED_OBJECTS) {
 
 if (declaredObjects.size < MIN_EXPECTED_OBJECTS) {
   fail([
-    `В ${path.relative(process.cwd(), declarativePath)} распознано всего ${declaredObjects.size} объектов.`,
+    `В supabase/schemas распознано всего ${declaredObjects.size} объектов.`,
     "Либо файл повреждён, либо изменился формат pg_dump и выражения разбора устарели.",
   ]);
 }
@@ -167,12 +171,12 @@ if (missingFromFile.length === 0 && absentFromDatabase.length === 0) {
 }
 
 if (missingFromFile.length > 0) {
-  console.error("Есть в локальной базе, но не объявлено в supabase/schemas/prod.sql:");
+  console.error("Есть в локальной базе, но не объявлено в supabase/schemas:");
   for (const name of missingFromFile) console.error(`  ${name}`);
 }
 
 if (absentFromDatabase.length > 0) {
-  console.error("Объявлено в supabase/schemas/prod.sql, но отсутствует в локальной базе:");
+  console.error("Объявлено в supabase/schemas, но отсутствует в локальной базе:");
   for (const name of absentFromDatabase) console.error(`  ${name}`);
 }
 

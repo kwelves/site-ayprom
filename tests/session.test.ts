@@ -30,6 +30,13 @@ describe("административная сессия", () => {
     expect(await verifySessionToken(`${payload}.${replacement}${signature.slice(1)}`)).toBe(false);
   });
 
+  it("при отсутствующем секрете не принимает существующую cookie", async () => {
+    const token = await createSessionToken();
+    delete process.env.ADMIN_SESSION_SECRET;
+    expect(await getSessionPayload(token)).toBeNull();
+    expect(await verifySessionToken(token)).toBe(false);
+  });
+
   it("отклоняет истёкший токен", async () => {
     vi.useFakeTimers();
     const issuedAt = new Date("2026-01-01T00:00:00Z");

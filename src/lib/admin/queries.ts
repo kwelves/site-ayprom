@@ -3,6 +3,8 @@
 // src/lib/admin/usage-descriptions.ts, so importing it can't pull this
 // module (and the service-role client with it) into the client bundle.
 import "server-only";
+import { isPhotoQueueMode, isPublicationEnabled } from "@/lib/photo-queue/enqueue";
+import { describePublicationStatus, type PublicationStatus } from "@/lib/publication/status";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ADMIN_PAGE_SIZE } from "@/lib/admin/pagination";
@@ -426,6 +428,80 @@ export async function getAdminProduct(slug: string): Promise<AdminProduct | null
       })),
     characteristics: [...row.product_characteristics].sort((a, b) => a.order - b.order),
     hotspotCount: row.vehicle_hotspots?.length ?? 0,
+  };
+}
+
+export interface AdminProductPhotoQueue {
+  /** Photos waiting for the background worker (or being processed right now). */
+  pending: number;
+  /** Photos the worker gave up on after several attempts. */
+  failed: number;
+  /** The product's finished photos, in order: the form adds the ones that appeared since it opened. */
+  images: AdminProduct["images"];
+}
+
+// Status of the background photo queue for one product; the edit form polls it while photos are processed.
+export async function getProductPhotoQueue(productId: string): Promise<AdminProductPhotoQueue> {
+  // The queue exists only in the Cloudflare admin; elsewhere photos are finished on the spot.
+  if (!isPhotoQueueMode()) return { pending: 0, failed: 0, images: [] };
+  const supabase = createAdminClient();
+  const [{ data: images, error: imagesError }, { data: waiting, error: waitingError }] = await Promise.all([
+    supabase
+      .from("product_images")
+      .select("id, url, \"order\", scale, thumbnail_url, gallery_url")
+      .eq("product_id", productId)
+      .order("order"),
+    supabase
+      .from("product_image_staging")
+      .select("failed_at")
+      .eq("queued_product_id", productId)
+      .is("finalized_at", null),
+  ]);
+  if (imagesError) throw imagesError;
+  if (waitingError) throw waitingError;
+  const rows = (waiting ?? []) as Array<{ failed_at: string | null }>;
+  return {
+    pending: rows.filter((row) => row.failed_at === null).length,
+    failed: rows.filter((row) => row.failed_at !== null).length,
+    images: ((images ?? []) as Array<{ id: string; url: string; order: number; scale: number | null; thumbnail_url: string | null; gallery_url: string | null }>).map((image) => ({
+      id: image.id,
+      url: image.url,
+      previewUrl: resolveCardImageUrl(image),
+      order: image.order,
+      scale: image.scale,
+    })),
+  };
+}
+
+export type AdminPublicationStatus = { enabled: false } | ({ enabled: true } & PublicationStatus);
+
+// Are the latest edits already on the public site? Only meaningful in the Cloudflare admin, where the public
+// site is a published snapshot; elsewhere edits are live at once.
+export async function getPublicationStatus(): Promise<AdminPublicationStatus> {
+  if (!isPublicationEnabled()) return { enabled: false };
+  const supabase = createAdminClient();
+  const [revision, job] = await Promise.all([
+    supabase.from("content_revision").select("current_revision").eq("singleton", true).maybeSingle(),
+    supabase
+      .from("publication_jobs")
+      .select("deployed_revision, lease_until, attempt_count, last_error_code")
+      .eq("singleton", true)
+      .maybeSingle(),
+  ]);
+  if (revision.error) throw revision.error;
+  if (job.error) throw job.error;
+  return {
+    enabled: true,
+    ...describePublicationStatus(
+      {
+        currentRevision: Number(revision.data?.current_revision ?? 0),
+        deployedRevision: Number(job.data?.deployed_revision ?? 0),
+        leaseUntil: job.data?.lease_until ?? null,
+        attemptCount: Number(job.data?.attempt_count ?? 0),
+        lastErrorCode: job.data?.last_error_code ?? null,
+      },
+      Date.now(),
+    ),
   };
 }
 

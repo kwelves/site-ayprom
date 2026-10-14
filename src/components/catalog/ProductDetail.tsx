@@ -9,6 +9,7 @@ import { getProducts } from "@/lib/queries/products";
 import { getCategoryBrandSlugs } from "@/lib/queries/category-brands";
 import { getDirectProductCategorySlugs } from "@/lib/queries/categories";
 import { getProductHref } from "@/lib/product-href";
+import { preloadGalleryImages } from "@/lib/preload-gallery-images";
 import type { Product } from "@/types/catalog";
 
 // Shared product-detail render, used by both the subcategory-path and the
@@ -37,6 +38,8 @@ export async function ProductDetail({ product }: { product: Product }) {
     getDirectProductCategorySlugs(),
   ]);
   const relatedProducts = relatedPage.items.filter((item) => item.slug !== product.slug).slice(0, 4);
+  // Start downloading every gallery photo while the HTML is still arriving (see preloadGalleryImages).
+  preloadGalleryImages(product.images);
 
   return (
     <>

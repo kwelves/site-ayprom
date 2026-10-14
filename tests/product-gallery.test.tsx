@@ -113,7 +113,7 @@ describe("ProductGallery", () => {
     });
   });
 
-  it("warms only the second image after the first decodes on an exact 4g non-save-data connection", async () => {
+  it("warms every other image after the first decodes, on any connection that is not slow or save-data", async () => {
     setConnection(createObservableConnection("4g"));
     render(<ProductGallery images={images} alt="Фото товара" />);
 
@@ -121,14 +121,27 @@ describe("ProductGallery", () => {
 
     await waitFor(() => {
       const warmups = document.querySelectorAll<HTMLImageElement>('img[aria-hidden="true"]');
-      expect(warmups).toHaveLength(1);
+      expect(warmups).toHaveLength(2);
       expect(warmups[0].getAttribute("src")).toContain("two.webp");
-      expect(warmups[0].getAttribute("src")).not.toContain("three.webp");
+      expect(warmups[1].getAttribute("src")).toContain("three.webp");
     });
   });
 
-  it("fails closed when the Network Information API or required fields are absent", async () => {
-    setConnection({ effectiveType: "4g", saveData: false });
+  it("also warms every other image when the Network Information API is absent (Safari, Firefox)", async () => {
+    setConnection(undefined);
+    render(<ProductGallery images={images} alt="Фото товара" />);
+
+    fireEvent.load(document.querySelector<HTMLImageElement>('[data-carousel-layer="committed"] img')!);
+
+    await waitFor(() => expect(document.querySelectorAll('img[aria-hidden="true"]')).toHaveLength(2));
+  });
+
+  it.each([
+    ["Save-Data", { effectiveType: "4g", saveData: true }],
+    ["2G", { effectiveType: "2g", saveData: false }],
+    ["slow 2G", { effectiveType: "slow-2g", saveData: false }],
+  ])("never warms in the background on an explicit %s signal", async (_name, signal) => {
+    setConnection(createObservableConnection(signal.effectiveType, signal.saveData));
     render(<ProductGallery images={images} alt="Фото товара" />);
 
     fireEvent.load(document.querySelector<HTMLImageElement>('[data-carousel-layer="committed"] img')!);
@@ -136,8 +149,8 @@ describe("ProductGallery", () => {
     await waitFor(() => expect(document.querySelector('img[aria-hidden="true"]')).toBeNull());
   });
 
-  it("adds and removes the second-image warmup when the connection changes", async () => {
-    const connection = createObservableConnection("3g");
+  it("adds and removes the warmup when the connection changes between slow and fast", async () => {
+    const connection = createObservableConnection("2g");
     setConnection(connection);
     render(<ProductGallery images={images} alt="Фото товара" />);
     fireEvent.load(document.querySelector<HTMLImageElement>('[data-carousel-layer="committed"] img')!);
@@ -148,20 +161,21 @@ describe("ProductGallery", () => {
     act(() => connection.emitChange());
     await waitFor(() => expect(document.querySelector('img[aria-hidden="true"]')).not.toBeNull());
 
-    connection.effectiveType = "3g";
+    connection.effectiveType = "2g";
     act(() => connection.emitChange());
     await waitFor(() => expect(document.querySelector('img[aria-hidden="true"]')).toBeNull());
   });
 
-  it("does not create the third gallery image until the user selects it", async () => {
+  it("has the third image ready before the user selects it, so any photo switches without a network wait", async () => {
     setConnection(createObservableConnection("4g"));
     render(<ProductGallery images={images} alt="Фото товара" />);
     fireEvent.load(document.querySelector<HTMLImageElement>('[data-carousel-layer="committed"] img')!);
 
-    await waitFor(() => expect(document.querySelector('img[aria-hidden="true"]')).not.toBeNull());
-    expect(Array.from(document.images).some((image) => image.src.includes("three.webp"))).toBe(false);
+    await waitFor(() => expect(Array.from(document.images).some((image) => image.src.includes("three.webp"))).toBe(true));
+    const requestsBefore = Array.from(document.images).filter((image) => image.src.includes("three.webp")).length;
 
     fireEvent.click(screen.getByRole("button", { name: "Показать фото 3" }));
+    expect(requestsBefore).toBeGreaterThan(0);
     expect(Array.from(document.images).some((image) => image.src.includes("three.webp"))).toBe(true);
   });
 
@@ -211,9 +225,19 @@ describe("ProductGallery", () => {
   it("reveals a neutral fallback over the committed frame when the selected image fails", async () => {
     render(<ProductGallery images={images} alt="Фото товара" />);
 
+    vi.useFakeTimers();
     fireEvent.click(screen.getByRole("button", { name: "Следующее фото" }));
-    const pendingImage = document.querySelector<HTMLImageElement>('[data-carousel-layer="pending"] img');
-    fireEvent.error(pendingImage!);
+    const failPending = () => fireEvent.error(document.querySelector<HTMLImageElement>('[data-carousel-layer="pending"] img')!);
+    // The selected photo is retried three times (0.5, 1.5 and 3.5 s) before the neutral fallback is revealed.
+    failPending();
+    expect(document.querySelector('[data-carousel-layer="committed"] [role="img"]')).toBeNull();
+    act(() => { vi.advanceTimersByTime(500); });
+    failPending();
+    act(() => { vi.advanceTimersByTime(1500); });
+    failPending();
+    act(() => { vi.advanceTimersByTime(3500); });
+    failPending();
+    vi.useRealTimers();
 
     await waitFor(() => {
       const committed = document.querySelector<HTMLElement>('[data-carousel-layer="committed"]');

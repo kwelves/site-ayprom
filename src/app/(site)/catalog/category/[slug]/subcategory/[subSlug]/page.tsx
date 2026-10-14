@@ -4,12 +4,21 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/motion/Reveal";
 import { ProductSearchForm } from "@/components/catalog/ProductSearchForm";
 import { ProductGridWithSearch } from "@/components/catalog/ProductGridWithSearch";
+import { ClientCatalogSearch } from "@/components/catalog/ClientCatalogSearch";
 import { CatalogPageShell } from "@/components/catalog/CatalogPageShell";
 import { getCategory } from "@/lib/queries/categories";
 import { getSubcategory } from "@/lib/queries/subcategories";
 import { getProducts, parseCatalogPage } from "@/lib/queries/products";
 
 export const revalidate = 60;
+
+// Static-build (Cloudflare crawl-and-freeze) delivery has no server to
+// re-render on a new q/page after the HTML is frozen, so the first vertical
+// slice of client-side search/pagination is wired up here — and only here.
+// Normal Next/Vercel rendering is untouched below: it keeps computing
+// productPage from the real request's q/page and rendering the existing
+// server-driven ProductSearchForm + ProductGridWithSearch exactly as before.
+const STATIC_BUILD = process.env.AYPROM_STATIC_BUILD === "1";
 
 interface SubcategoryPageProps {
   params: Promise<{ slug: string; subSlug: string }>;
@@ -38,8 +47,20 @@ export default async function SubcategoryProductsPage({ params, searchParams }: 
     notFound();
   }
 
-  const productPage = await getProducts({ categorySlug: slug, subcategorySlug: subSlug, query: q, page });
+  // Static-build HTML must freeze a useful page-one without depending on
+  // whatever q/page the crawler's request happened to carry — the client
+  // adapter is what handles every other combination, after hydration. Normal
+  // rendering keeps using the real request's q/page, unchanged.
+  const productPage = await getProducts(
+    STATIC_BUILD
+      ? { categorySlug: slug, subcategorySlug: subSlug }
+      : { categorySlug: slug, subcategorySlug: subSlug, query: q, page },
+  );
   const action = `/catalog/category/${slug}/subcategory/${subSlug}`;
+  const scopeLabel = `в разделе «${subcategory.name}»`;
+  const emptyLabel = "В этой подкатегории пока нет товаров. Скоро они здесь появятся.";
+  const productHref = (productSlug: string) =>
+    `/catalog/category/${slug}/subcategory/${subSlug}/${productSlug}`;
 
   return (
     <CatalogPageShell
@@ -53,25 +74,39 @@ export default async function SubcategoryProductsPage({ params, searchParams }: 
         <SectionHeading as="h1" className="mx-auto max-w-2xl text-center" title={subcategory.name} />
       </Reveal>
 
-      <div className="mt-6">
-        <ProductSearchForm
-          action={action}
-          defaultValue={q}
-          placeholder={`Поиск по разделу «${subcategory.name}»`}
+      {STATIC_BUILD ? (
+        <ClientCatalogSearch
+          categorySlug={slug}
+          subcategorySlug={subSlug}
+          basePath={action}
+          initial={productPage}
+          scopeLabel={scopeLabel}
+          emptyLabel={emptyLabel}
+          searchPlaceholder={`Поиск по разделу «${subcategory.name}»`}
         />
-      </div>
+      ) : (
+        <>
+          <div className="mt-6">
+            <ProductSearchForm
+              action={action}
+              defaultValue={q}
+              placeholder={`Поиск по разделу «${subcategory.name}»`}
+            />
+          </div>
 
-      <ProductGridWithSearch
-        products={productPage.items}
-        total={productPage.total}
-        page={productPage.page}
-        totalPages={productPage.totalPages}
-        query={q}
-        scopeLabel={`в разделе «${subcategory.name}»`}
-        action={action}
-        href={(product) => `/catalog/category/${slug}/subcategory/${subSlug}/${product.slug}`}
-        emptyLabel="В этой подкатегории пока нет товаров. Скоро они здесь появятся."
-      />
+          <ProductGridWithSearch
+            products={productPage.items}
+            total={productPage.total}
+            page={productPage.page}
+            totalPages={productPage.totalPages}
+            query={q}
+            scopeLabel={scopeLabel}
+            action={action}
+            href={(product) => productHref(product.slug)}
+            emptyLabel={emptyLabel}
+          />
+        </>
+      )}
 
       {subcategory.intro && (
         <Reveal>

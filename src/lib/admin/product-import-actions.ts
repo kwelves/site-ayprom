@@ -14,6 +14,21 @@ import {
 // — держим запрос заведомо ниже потолка и в разумных по времени пределах.
 const IMPORT_BATCH_SIZE = 500;
 const MAX_IMPORT_FILE_BYTES = 5 * 1024 * 1024;
+const REFERENCE_PAGE_SIZE = 500;
+
+// Read below PostgREST's max_rows ceiling, in a unique, stable order.
+// A failed page must never turn a partial reference into a valid import.
+async function readReferencePages<T>(
+  readPage: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
+): Promise<T[]> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += REFERENCE_PAGE_SIZE) {
+    const { data, error } = await readPage(from, from + REFERENCE_PAGE_SIZE - 1);
+    if (error || !Array.isArray(data)) throw new Error("Не удалось загрузить справочники для импорта. Повторите попытку.");
+    rows.push(...data);
+    if (data.length < REFERENCE_PAGE_SIZE) return rows;
+  }
+}
 
 async function parseUploadedImport(formData: FormData): Promise<ImportPreview> {
   const file = formData.get("file");
@@ -31,13 +46,13 @@ async function parseUploadedImport(formData: FormData): Promise<ImportPreview> {
 
 async function loadCatalogReference(): Promise<ImportCatalogReference> {
   const supabase = createAdminClient();
-  const [{ data: categories }, { data: subcategories }, { data: brands }, { data: vehicleTypes }, { data: products }] =
+  const [categories, subcategories, brands, vehicleTypes, products] =
     await Promise.all([
-      supabase.from("categories").select("slug"),
-      supabase.from("subcategories").select("id, slug, category_slug"),
-      supabase.from("brands").select("slug"),
-      supabase.from("vehicle_types").select("slug"),
-      supabase.from("products").select("slug, article"),
+      readReferencePages((from, to) => supabase.from("categories").select("slug").order("slug").range(from, to)),
+      readReferencePages((from, to) => supabase.from("subcategories").select("id, slug, category_slug").order("id").range(from, to)),
+      readReferencePages((from, to) => supabase.from("brands").select("slug").order("slug").range(from, to)),
+      readReferencePages((from, to) => supabase.from("vehicle_types").select("slug").order("slug").range(from, to)),
+      readReferencePages((from, to) => supabase.from("products").select("slug, article").order("slug").range(from, to)),
     ]);
 
   const subcategoriesByCategory = new Map<string, Map<string, string>>();

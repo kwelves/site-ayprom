@@ -1,0 +1,15 @@
+{
+  // Local auth prototype only. Never use this fixture config for production.
+  "name": "ayprom-admin-local-prototype",
+  "main": "src/cloudflare/worker.ts",
+  "compatibility_date": "2026-09-19",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "assets": {
+    "directory": "fixtures/cloudflare-admin-assets",
+    "binding": "ASSETS",
+    "html_handling": "drop-trailing-slash",
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/api/*", "/admin", "/admin/*"]
+  }
+}

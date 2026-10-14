@@ -44674,6 +44674,62 @@ async function cleanupAbandonedStaging(ports) {
 	return rows.length;
 }
 //#endregion
+//#region src/lib/photo-queue/enqueue.ts
+var REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+var WORKFLOW_FILE = /^[A-Za-z0-9_.-]+\.ya?ml$/;
+var GIT_REF = /^[A-Za-z0-9_./-]{1,100}$/;
+var GITHUB_ENVIRONMENT = /^(staging|production)$/;
+/** Starts a GitHub workflow. Returns false (never throws): a missed wake-up must not break saving. */
+async function dispatchWorkflow(env, names, label, fetchImpl) {
+	const token = env.GITHUB_DISPATCH_TOKEN?.trim();
+	const repository = env.GITHUB_REPOSITORY?.trim();
+	const workflow = env[names.file]?.trim();
+	const ref = env[names.ref]?.trim() || "main";
+	if (!token || !repository || !workflow) return false;
+	if (!REPOSITORY.test(repository) || repository.includes("..") || !WORKFLOW_FILE.test(workflow) || !GIT_REF.test(ref) || ref.includes("..")) {
+		console.error(`[${label}] invalid worker configuration`);
+		return false;
+	}
+	const environment = env.WORKFLOW_ENVIRONMENT?.trim();
+	if (environment && !GITHUB_ENVIRONMENT.test(environment)) {
+		console.error(`[${label}] invalid worker configuration`);
+		return false;
+	}
+	try {
+		const response = await fetchImpl(`https://api.github.com/repos/${repository}/actions/workflows/${workflow}/dispatches`, {
+			method: "POST",
+			headers: {
+				authorization: `Bearer ${token}`,
+				accept: "application/vnd.github+json",
+				"x-github-api-version": "2022-11-28",
+				"user-agent": "ayprom-admin",
+				"content-type": "application/json"
+			},
+			body: JSON.stringify(environment ? {
+				ref,
+				inputs: { environment }
+			} : { ref }),
+			signal: AbortSignal.timeout(5e3)
+		});
+		if (!response.ok) console.error(`[${label}] worker start refused: ${response.status}`);
+		return response.ok;
+	} catch (error) {
+		console.error(`[${label}] worker start failed: ${error instanceof Error ? error.name : typeof error}`);
+		return false;
+	}
+}
+/** Cloudflare admin: edits reach the public site through a published snapshot, built by this workflow. */
+function isPublicationEnabled(env = process.env) {
+	return Boolean(env.PUBLICATION_WORKFLOW_FILE?.trim());
+}
+/** Starts the publication workflow. */
+function requestPublicationWorker(env = process.env, fetchImpl = fetch) {
+	return dispatchWorkflow(env, {
+		file: "PUBLICATION_WORKFLOW_FILE",
+		ref: "PUBLICATION_WORKFLOW_REF"
+	}, "publication", fetchImpl);
+}
+//#endregion
 //#region src/lib/photo-queue/main.ts
 var LEASE_SECONDS = 300;
 var BUDGET_MS = 72e4;
@@ -44749,6 +44805,7 @@ async function main() {
 			maxImages: 10
 		});
 		if (result.processed || result.failed) console.log(`[photo-queue] processed=${result.processed} failed=${result.failed} stopped=${result.stopped}`);
+		if (result.processed > 0 && isPublicationEnabled()) await requestPublicationWorker();
 		if (Date.now() - lastCleanup >= CLEANUP_EVERY_MS || !watch) {
 			lastCleanup = Date.now();
 			try {

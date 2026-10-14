@@ -1,5 +1,6 @@
 import { getSiteUrl } from "@/lib/site-url";
 import { HOME_SEO_DESCRIPTION } from "@/lib/home-seo";
+import { CORPORATE_EMAIL } from "@/lib/contact-info";
 
 const SAME_AS = [
   "https://instagram.com/ayprom.kg",
@@ -57,9 +58,11 @@ export function buildHomeStructuredData(): Record<string, unknown> {
           height: 512,
         },
         telephone: "+996500461155",
+        email: CORPORATE_EMAIL,
         contactPoint: {
           "@type": "ContactPoint",
           telephone: "+996500461155",
+          email: CORPORATE_EMAIL,
           contactType: "sales",
           availableLanguage: ["ru", "ky"],
         },

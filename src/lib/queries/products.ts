@@ -1,13 +1,27 @@
 import { cache } from "react";
 import * as Sentry from "@sentry/nextjs";
 import { createClient } from "@/lib/supabase/server";
+import { activeCatalogReaderIfEnabled, catalogPublicationReadMode, CatalogPublicationReadError,
+  type CatalogPublicationReader } from "@/lib/catalog-publication-reader";
 import { normalizeSearchQuery } from "@/lib/normalize-search";
 import {
   resolveCardImageUrl,
   resolveGalleryImageUrl,
   resolveImageFallbackUrl,
 } from "@/lib/product-image-variants";
+import {
+  CATALOG_PAGE_SIZE,
+  createCatalogSearchRequest,
+  executeCatalogSearch,
+  mapCatalogSearchRow,
+  parseCatalogSearchRpcRows,
+  type ProductFilters,
+  type ProductPage,
+} from "@/lib/catalog-search-contract";
 import type { Product, ProductListItem } from "@/types/catalog";
+
+export { CATALOG_PAGE_SIZE } from "@/lib/catalog-search-contract";
+export type { ProductFilters, ProductPage } from "@/lib/catalog-search-contract";
 
 const PRODUCT_SELECT = `
   slug, name, category_slug, short_description, description, article,
@@ -75,39 +89,6 @@ function mapProduct(row: ProductRow): Product {
   };
 }
 
-export const CATALOG_PAGE_SIZE = 24;
-
-export interface ProductFilters {
-  categorySlug?: string;
-  subcategorySlug?: string;
-  brandSlug?: string;
-  vehicleTypeSlug?: string;
-  query?: string;
-  page?: number;
-  pageSize?: number;
-}
-
-export interface ProductPage {
-  items: ProductListItem[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
-
-interface ProductCardRpcRow {
-  slug: string;
-  name: string;
-  category_slug: string;
-  subcategory_slug: string | null;
-  short_description: string;
-  article: string | null;
-  cover_url: string | null;
-  cover_fallback_url: string | null;
-  cover_scale: number | null;
-  compatible_brands: string[] | null;
-}
-
 interface LegacyProductCardRow {
   slug: string;
   name: string;
@@ -128,25 +109,6 @@ interface LegacyProductCardRow {
 export function parseCatalogPage(value?: string): number {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
-}
-
-function mapProductCard(row: ProductCardRpcRow): ProductListItem {
-  return {
-    slug: row.slug,
-    name: row.name,
-    category: row.category_slug,
-    subcategory: row.subcategory_slug ?? undefined,
-    compatibleBrands: row.compatible_brands ?? [],
-    images: row.cover_url
-      ? [{
-          url: row.cover_url,
-          fallbackUrl: row.cover_fallback_url ?? undefined,
-          scale: row.cover_scale ?? undefined,
-        }]
-      : [],
-    shortDescription: row.short_description,
-    article: row.article ?? undefined,
-  };
 }
 
 async function getLegacyProductPage(filters: ProductFilters, page: number, pageSize: number): Promise<ProductPage> {
@@ -176,6 +138,7 @@ async function getLegacyProductPage(filters: ProductFilters, page: number, pageS
 
   if (filters.categorySlug) query = query.eq("category_slug", filters.categorySlug);
   if (filters.subcategorySlug) query = query.eq("subcategories.slug", filters.subcategorySlug);
+  if (filters.withoutSubcategory) query = query.is("subcategory_id", null);
   if (filters.brandSlug) query = query.eq("brand_filter.brand_slug", filters.brandSlug);
   if (filters.vehicleTypeSlug) query = query.eq("vehicle_filter.vehicle_type_slug", filters.vehicleTypeSlug);
   if (filters.query?.trim()) {
@@ -184,10 +147,18 @@ async function getLegacyProductPage(filters: ProductFilters, page: number, pageS
   }
 
   const { data, error, count } = await query;
+  if (hasPostgrestCode(error, "PGRST103") && from > 0) {
+    // Keep all filters while asking only for the first row. supabase-js does
+    // not expose the exact count from the out-of-range 416 response.
+    const retry = await query.range(0, 0);
+    if (retry.error) throw retry.error;
+    if (retry.count === null || retry.count > from) throw error;
+    return { items: [], total: retry.count, page, pageSize, totalPages: Math.max(1, Math.ceil(retry.count / pageSize)) };
+  }
   if (error) throw error;
   const total = count ?? 0;
   const items = (data as unknown as LegacyProductCardRow[]).map((row) =>
-    mapProductCard({
+    mapCatalogSearchRow({
       slug: row.slug,
       name: row.name,
       category_slug: row.category_slug,
@@ -197,7 +168,7 @@ async function getLegacyProductPage(filters: ProductFilters, page: number, pageS
       // Карточка каталога: приоритет thumbnail_url — см.
       // src/lib/product-image-variants.ts. RPC-путь (getProducts) уже
       // применяет тот же порядок в SQL; здесь его дублирует fallback-путь
-      // (RPC отсутствует / getProductsWithoutSubcategory).
+      // (RPC отсутствует или ещё не знает require_no_subcategory).
       cover_url: row.product_images[0] ? resolveCardImageUrl(row.product_images[0]) : null,
       cover_fallback_url: row.product_images[0]
         ? resolveImageFallbackUrl(row.product_images[0], resolveCardImageUrl(row.product_images[0])) ?? null
@@ -211,53 +182,114 @@ async function getLegacyProductPage(filters: ProductFilters, page: number, pageS
 }
 
 export async function getProducts(filters: ProductFilters = {}): Promise<ProductPage> {
-  const supabase = await createClient();
-  const page = Math.max(1, filters.page ?? 1);
-  const pageSize = Math.min(48, Math.max(1, filters.pageSize ?? CATALOG_PAGE_SIZE));
-  const from = (page - 1) * pageSize;
-  const { data, error, count } = await supabase
-    .rpc(
-      "search_catalog_products",
-      {
-        search_query: filters.query?.trim() || null,
-        category_filter: filters.categorySlug ?? null,
-        subcategory_filter: filters.subcategorySlug ?? null,
-        brand_filter: filters.brandSlug ?? null,
-        vehicle_type_filter: filters.vehicleTypeSlug ?? null,
-      },
-      { count: "exact" },
-    )
-    .range(from, from + pageSize - 1);
-
-  // Keeps the site usable while a newly deployed application waits for the
-  // migration to be applied. Once the RPC exists, every catalog/search path
-  // uses the indexed backend implementation above.
-  //
-  // Reported to Sentry rather than taken silently, and that is the whole
-  // point. Two features in this codebase — backend search and the admin login
-  // rate limit — were broken for months precisely because their fallbacks
-  // engaged without a sound: the site kept working, the logs stayed clean, and
-  // nothing indicated the real implementation had never run. A fallback that
-  // hides a missing migration is worse than an outage, because nobody goes
-  // looking. If this fires in production, the deploy is half-applied.
-  if (error?.code === "PGRST202" || error?.code === "42883") {
-    Sentry.captureMessage("search_catalog_products RPC missing — serving catalog from legacy fallback", {
-      level: "error",
-      tags: { subsystem: "catalog-search", fallback: "legacy-product-page" },
-      extra: { postgrestCode: error.code, message: error.message },
-    });
-    return getLegacyProductPage(filters, page, pageSize);
+  const publicationMode = catalogPublicationReadMode();
+  if (publicationMode === "pinned") {
+    const reader = await activeCatalogReaderIfEnabled();
+    if (!reader) throw new CatalogPublicationReadError();
+    return getPinnedProductPage(filters, reader);
   }
-  if (error) throw error;
+  const supabase = await createClient();
+  const request = createCatalogSearchRequest(filters);
 
-  const total = count ?? 0;
-  return {
-    items: (data as unknown as ProductCardRpcRow[]).map(mapProductCard),
-    total,
-    page,
-    pageSize,
-    totalPages: Math.max(1, Math.ceil(total / pageSize)),
-  };
+  try {
+    return await executeCatalogSearch(filters, async (searchRequest) => {
+      const { data, error, count } = await supabase
+        .rpc(
+          "search_catalog_products",
+          searchRequest.rpcArgs,
+          { count: "exact" },
+        )
+        .range(searchRequest.from, searchRequest.to);
+
+      if (hasPostgrestCode(error, "PGRST103") && searchRequest.from > 0) {
+        // supabase-js reports PostgREST's out-of-range 416 as an error and
+        // drops Content-Range. Re-read the first row only to recover the
+        // exact filtered count without loading the catalog into memory.
+        const retry = await supabase
+          .rpc("search_catalog_products", searchRequest.rpcArgs, { count: "exact" })
+          .range(0, 0);
+        if (retry.error) throw retry.error;
+        if (retry.count === null || retry.count > searchRequest.from) throw error;
+        return { rows: [], count: retry.count };
+      }
+      if (error) throw error;
+      return { rows: parseCatalogSearchRpcRows(data), count };
+    });
+  } catch (error) {
+    // In publication mode a missing RPC is an outage, never permission to
+    // expose editable source rows while static pages still show an old release.
+    if (publicationMode === "active") throw error;
+    // Keeps the site usable while a newly deployed application waits for the
+    // migration to be applied. Once the RPC exists, every catalog/search path
+    // uses the indexed backend implementation above.
+    //
+    // Reported to Sentry rather than taken silently, and that is the whole
+    // point. Two features in this codebase — backend search and the admin login
+    // rate limit — were broken for months precisely because their fallbacks
+    // engaged without a sound: the site kept working, the logs stayed clean, and
+    // nothing indicated the real implementation had never run. A fallback that
+    // hides a missing migration is worse than an outage, because nobody goes
+    // looking. If this fires in production, the deploy is half-applied.
+    if (hasPostgrestCode(error, "PGRST202") || hasPostgrestCode(error, "42883")) {
+      Sentry.captureMessage("search_catalog_products RPC missing — serving catalog from legacy fallback", {
+        level: "error",
+        tags: { subsystem: "catalog-search", fallback: "legacy-product-page" },
+        extra: {
+          postgrestCode: error.code,
+          message: error.message,
+          // Новый режим требует миграции с require_no_subcategory: при
+          // app-first выкладке сюда попадут именно такие запросы.
+          requireNoSubcategory: request.rpcArgs.require_no_subcategory === true,
+        },
+      });
+      return getLegacyProductPage(filters, request.page, request.pageSize);
+    }
+    throw error;
+  }
+}
+
+async function getPinnedProductPage(filters: ProductFilters, reader: CatalogPublicationReader): Promise<ProductPage> {
+  const request = createCatalogSearchRequest(filters);
+  // Build-mode static pages never freeze a query-specific search result. The
+  // browser uses the Worker RPC for q; refuse to approximate DB search_text.
+  if (request.rpcArgs.search_query) throw new CatalogPublicationReadError();
+  const rows = await reader.list<ProductRow & { order: number }>("product");
+  const selected = rows.filter((row) =>
+    (request.rpcArgs.category_filter === null || row.category_slug === request.rpcArgs.category_filter)
+    && (request.rpcArgs.subcategory_filter === null || row.subcategories?.slug === request.rpcArgs.subcategory_filter)
+    && (!request.rpcArgs.require_no_subcategory || row.subcategories === null)
+    && (request.rpcArgs.brand_filter === null || row.product_brands.some((brand) => brand.brands.slug === request.rpcArgs.brand_filter))
+    && (request.rpcArgs.vehicle_type_filter === null || row.product_vehicle_types.some((vehicle) => vehicle.vehicle_type_slug === request.rpcArgs.vehicle_type_filter)))
+    .sort((a, b) => a.order - b.order || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  const items = selected.slice(request.from, request.to + 1).map((row) => {
+    const image = [...row.product_images].sort((a, b) => a.order - b.order)[0];
+    const cover = image ? resolveCardImageUrl(image) : null;
+    return mapCatalogSearchRow({
+      slug: row.slug, name: row.name, category_slug: row.category_slug,
+      subcategory_slug: row.subcategories?.slug ?? null,
+      short_description: row.short_description, article: row.article,
+      cover_url: cover,
+      cover_fallback_url: image && cover ? resolveImageFallbackUrl(image, cover) ?? null : null,
+      cover_scale: image?.scale ?? null,
+      compatible_brands: row.product_brands.map((brand) => brand.brands.slug),
+    });
+  });
+  return { items, total: selected.length, page: request.page, pageSize: request.pageSize,
+    totalPages: Math.max(1, Math.ceil(selected.length / request.pageSize)) };
+}
+
+function hasPostgrestCode(
+  error: unknown,
+  code: string,
+): error is { code: string; message: string } {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === code &&
+    "message" in error &&
+    typeof error.message === "string"
+  );
 }
 
 export async function getProductsWithoutSubcategory(
@@ -265,61 +297,10 @@ export async function getProductsWithoutSubcategory(
   page = 1,
   pageSize = CATALOG_PAGE_SIZE,
 ): Promise<ProductPage> {
-  // The search RPC treats a NULL subcategory filter as "all subcategories".
-  // This dedicated query applies an actual SQL NULL filter so count and
-  // pagination cover only the direct products in a mixed category.
-  const supabase = await createClient();
-  const safePage = Math.max(1, page);
-  const safePageSize = Math.min(48, Math.max(1, pageSize));
-  const from = (safePage - 1) * safePageSize;
-  const { data, error, count } = await supabase
-    .from("products")
-    .select(
-      `
-        slug, name, category_slug, short_description, article,
-        subcategories(slug),
-        product_images(url, "order", scale, thumbnail_url, gallery_url),
-        product_brands(brand_slug)
-      `,
-      { count: "exact" },
-    )
-    .eq("category_slug", categorySlug)
-    .is("subcategory_id", null)
-    .order("order")
-    .order("order", { referencedTable: "product_images" })
-    .limit(1, { referencedTable: "product_images" })
-    .range(from, from + safePageSize - 1);
-
-  if (error) throw error;
-  const total = count ?? 0;
-  const items = (data as unknown as LegacyProductCardRow[]).map((row) =>
-    mapProductCard({
-      slug: row.slug,
-      name: row.name,
-      category_slug: row.category_slug,
-      subcategory_slug: null,
-      short_description: row.short_description,
-      article: row.article,
-      // Карточка каталога: приоритет thumbnail_url — см.
-      // src/lib/product-image-variants.ts. RPC-путь (getProducts) уже
-      // применяет тот же порядок в SQL; здесь его дублирует fallback-путь
-      // (RPC отсутствует / getProductsWithoutSubcategory).
-      cover_url: row.product_images[0] ? resolveCardImageUrl(row.product_images[0]) : null,
-      cover_fallback_url: row.product_images[0]
-        ? resolveImageFallbackUrl(row.product_images[0], resolveCardImageUrl(row.product_images[0])) ?? null
-        : null,
-      cover_scale: row.product_images[0]?.scale ?? null,
-      compatible_brands: row.product_brands.map((brand) => brand.brand_slug),
-    }),
-  );
-
-  return {
-    items,
-    total,
-    page: safePage,
-    pageSize: safePageSize,
-    totalPages: Math.max(1, Math.ceil(total / safePageSize)),
-  };
+  // Прямые товары смешанной категории идут через тот же контракт, что поиск и
+  // Worker (`noSubcategory=1`): count и пагинация считаются в SQL только по
+  // товарам без подкатегории, а нормализация страницы совпадает с Worker.
+  return getProducts({ categorySlug, withoutSubcategory: true, page, pageSize });
 }
 
 export interface SitemapProduct extends ProductListItem {
@@ -327,6 +308,21 @@ export interface SitemapProduct extends ProductListItem {
 }
 
 export async function getSitemapProducts(): Promise<SitemapProduct[]> {
+  const reader = await activeCatalogReaderIfEnabled();
+  if (reader) {
+    const rows = await reader.list<ProductRow & { updated_at: string }>("product");
+    return rows.sort((a, b) => a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0).map((row) => ({
+      ...mapCatalogSearchRow({
+        slug: row.slug, name: row.name, category_slug: row.category_slug,
+        subcategory_slug: row.subcategories?.slug ?? null,
+        short_description: row.short_description, article: row.article,
+        cover_url: row.product_images[0]?.url ?? null,
+        cover_fallback_url: null, cover_scale: row.product_images[0]?.scale ?? null,
+        compatible_brands: row.product_brands.map((brand) => brand.brands.slug),
+      }),
+      updatedAt: row.updated_at,
+    }));
+  }
   const supabase = await createClient();
   const batchSize = 1000;
   const products: SitemapProduct[] = [];
@@ -349,7 +345,7 @@ export async function getSitemapProducts(): Promise<SitemapProduct[]> {
     const rows = data as unknown as (LegacyProductCardRow & { updated_at: string })[];
     products.push(
       ...rows.map((row) => ({
-        ...mapProductCard({
+        ...mapCatalogSearchRow({
           slug: row.slug,
           name: row.name,
           category_slug: row.category_slug,
@@ -377,6 +373,11 @@ export async function getSitemapProducts(): Promise<SitemapProduct[]> {
 // call this with the same slug — share one Supabase request per render
 // instead of two.
 export const getProduct = cache(async (slug: string): Promise<Product | null> => {
+  const reader = await activeCatalogReaderIfEnabled();
+  if (reader) {
+    const row = await reader.get<ProductRow>("product", slug);
+    return row ? mapProduct(row) : null;
+  }
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("products")

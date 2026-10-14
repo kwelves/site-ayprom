@@ -1,5 +1,13 @@
-const PASSWORD_HASH_ALGORITHM = "pbkdf2-sha256";
-const PASSWORD_HASH_ITERATIONS = 600_000;
+// Older hashes: one PBKDF2 pass of 600 000 iterations. Node can still check them, but Cloudflare Workers refuse
+// PBKDF2 above 100 000 iterations, so a Worker cannot (see verifyAdminPasswordHash).
+const LEGACY_HASH_ALGORITHM = "pbkdf2-sha256";
+const LEGACY_HASH_ITERATIONS = 600_000;
+// New hashes: six PBKDF2 passes of 100 000 iterations, each pass salted with the output of the one before.
+// Same total work as the legacy hash, yet every single call stays inside the Workers limit.
+const PASSWORD_HASH_ALGORITHM = "pbkdf2-sha256-chain";
+const CHAIN_ITERATIONS = 100_000;
+const CHAIN_ROUNDS = 6;
+const PASSWORD_HASH_PARAMETERS = `${CHAIN_ITERATIONS}x${CHAIN_ROUNDS}`;
 const PASSWORD_HASH_BYTES = 32;
 const PASSWORD_SALT_BYTES = 16;
 
@@ -52,6 +60,14 @@ async function derivePasswordHash(password: string, salt: Uint8Array, iterations
   return new Uint8Array(bits);
 }
 
+async function deriveChainedPasswordHash(password: string, salt: Uint8Array): Promise<Uint8Array> {
+  let current = salt;
+  for (let round = 0; round < CHAIN_ROUNDS; round += 1) {
+    current = await derivePasswordHash(password, current, CHAIN_ITERATIONS);
+  }
+  return current;
+}
+
 export async function constantTimePasswordEqual(provided: string, expected: string): Promise<boolean> {
   const [providedDigest, expectedDigest] = await Promise.all([
     crypto.subtle.digest("SHA-256", new TextEncoder().encode(provided)),
@@ -62,33 +78,32 @@ export async function constantTimePasswordEqual(provided: string, expected: stri
 
 export async function hashAdminPassword(password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(PASSWORD_SALT_BYTES));
-  const hash = await derivePasswordHash(password, salt, PASSWORD_HASH_ITERATIONS);
+  const hash = await deriveChainedPasswordHash(password, salt);
   return [
     PASSWORD_HASH_ALGORITHM,
-    PASSWORD_HASH_ITERATIONS,
+    PASSWORD_HASH_PARAMETERS,
     bytesToBase64Url(salt),
     bytesToBase64Url(hash),
   ].join(":");
 }
 
 export async function verifyAdminPasswordHash(password: string, encodedHash: string): Promise<boolean> {
-  const [algorithm, iterationsRaw, saltRaw, hashRaw, extra] = encodedHash.split(":");
-  const iterations = Number(iterationsRaw);
+  const [algorithm, parameters, saltRaw, hashRaw, extra] = encodedHash.split(":");
   const salt = base64UrlToBytes(saltRaw ?? "");
   const expectedHash = base64UrlToBytes(hashRaw ?? "");
 
-  if (
-    algorithm !== PASSWORD_HASH_ALGORITHM ||
-    extra !== undefined ||
-    iterations !== PASSWORD_HASH_ITERATIONS ||
-    salt?.length !== PASSWORD_SALT_BYTES ||
-    expectedHash?.length !== PASSWORD_HASH_BYTES
-  ) {
+  if (extra !== undefined || salt?.length !== PASSWORD_SALT_BYTES || expectedHash?.length !== PASSWORD_HASH_BYTES) {
     return false;
   }
 
-  const actualHash = await derivePasswordHash(password, salt, iterations);
-  return constantTimeBytesEqual(actualHash, expectedHash);
+  if (algorithm === PASSWORD_HASH_ALGORITHM && parameters === PASSWORD_HASH_PARAMETERS) {
+    return constantTimeBytesEqual(await deriveChainedPasswordHash(password, salt), expectedHash);
+  }
+  if (algorithm === LEGACY_HASH_ALGORITHM && Number(parameters) === LEGACY_HASH_ITERATIONS) {
+    // In a Worker this throws (iteration limit). The failure is passed on, never mistaken for "wrong password".
+    return constantTimeBytesEqual(await derivePasswordHash(password, salt, LEGACY_HASH_ITERATIONS), expectedHash);
+  }
+  return false;
 }
 
 export function validateNewAdminPassword(password: string, confirmation: string): string | null {

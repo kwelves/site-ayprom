@@ -29,13 +29,22 @@ export function buildHeroVideoStoragePrefix(options: {
   return `${options.supabaseUrl.replace(/\/$/, "")}/storage/v1/object/public/site-media/hero`;
 }
 
-const STORAGE_PREFIX = buildHeroVideoStoragePrefix({
-  source: process.env.NEXT_PUBLIC_HERO_MEDIA_SOURCE,
+// Keep the build-time choice outside the generic helper. In an R2 build,
+// bundlers can then remove the unused Supabase branch and its loopback URL.
+const STORAGE_PREFIX = process.env.NEXT_PUBLIC_HERO_MEDIA_SOURCE === "r2"
+  ? buildR2HeroPrefix(process.env.NEXT_PUBLIC_MEDIA_BASE_URL)
+  : buildHeroVideoStoragePrefix({
   // Unit tests intentionally run without .env.local. next.config.ts already
   // rejects a missing production URL before an actual app build starts.
   supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "http://127.0.0.1:54321",
-  mediaBaseUrl: process.env.NEXT_PUBLIC_MEDIA_BASE_URL,
 });
+
+function buildR2HeroPrefix(mediaBaseUrl: string | undefined): string {
+  if (!mediaBaseUrl) {
+    throw new Error("NEXT_PUBLIC_MEDIA_BASE_URL обязателен, когда NEXT_PUBLIC_HERO_MEDIA_SOURCE=r2.");
+  }
+  return `${mediaBaseUrl.replace(/\/$/, "")}/site-media/hero`;
+}
 
 export const HERO_VIDEO_ORIGIN = new URL(STORAGE_PREFIX).origin;
 

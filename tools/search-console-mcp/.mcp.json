@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "ayprom_search_console": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["server.mjs"],
+      "startup_timeout_sec": 20,
+      "tool_timeout_sec": 120,
+      "default_tools_approval_mode": "approve",
+      "tools": {
+        "gsc_submit_sitemap": {
+          "approval_mode": "prompt"
+        },
+        "gsc_delete_sitemap": {
+          "approval_mode": "prompt"
+        }
+      },
+      "env_vars": ["LOCALAPPDATA", "USERPROFILE", "AYPROM_GSC_CONFIG_DIR"]
+    }
+  }
+}

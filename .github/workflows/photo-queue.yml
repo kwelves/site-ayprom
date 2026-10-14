@@ -5,18 +5,27 @@ name: photo-queue
 
 on:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: Which site's photos to process
+        type: choice
+        options: [staging, production]
+        default: staging
 
 concurrency:
-  group: photo-queue
+  group: photo-queue-${{ inputs.environment || 'staging' }}
   cancel-in-progress: false
 
 permissions:
   contents: read
+  # Lets this job start the publication workflow once photos are finished.
+  actions: write
 
 jobs:
   process:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    environment: ${{ inputs.environment || 'staging' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -39,3 +48,9 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET_NAME: ${{ vars.R2_BUCKET_NAME }}
+          GITHUB_DISPATCH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PUBLICATION_WORKFLOW_FILE: ${{ vars.PUBLICATION_WORKFLOW_FILE }}
+          PUBLICATION_WORKFLOW_REF: ${{ vars.PUBLICATION_WORKFLOW_REF }}
+          # The publication this job requests afterwards belongs to the same environment.
+          WORKFLOW_ENVIRONMENT: ${{ inputs.environment || 'staging' }}

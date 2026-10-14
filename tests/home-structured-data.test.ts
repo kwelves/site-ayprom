@@ -40,9 +40,11 @@ describe("home structured data", () => {
       alternateName: ["Айпром", "Ayprom Gidravlika", "AYPROM Гидравлика", "Айпром Гидравлика"],
       description: HOME_SEO_DESCRIPTION,
       telephone: "+996500461155",
+      email: "info@ayprom-gidravlika.kg",
       contactPoint: {
         "@type": "ContactPoint",
         telephone: "+996500461155",
+        email: "info@ayprom-gidravlika.kg",
         contactType: "sales",
         availableLanguage: ["ru", "ky"],
       },

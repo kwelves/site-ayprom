@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { CloudflareWebAnalytics } from "@/components/analytics/CloudflareWebAnalytics";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { WhatsAppBadge } from "@/components/site/WhatsAppBadge";
@@ -75,6 +76,8 @@ export const metadata: Metadata = {
 
 export const revalidate = 60;
 
+const isVercelRuntime = process.env.VERCEL === "1";
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -104,7 +107,8 @@ export default async function RootLayout({
         <Footer categories={categories} brands={brands} />
         <WhatsAppBadge />
         </HomeEntrySequence>
-        <SpeedInsights />
+        {isVercelRuntime ? <SpeedInsights /> : null}
+        <CloudflareWebAnalytics />
       </body>
     </html>
   );

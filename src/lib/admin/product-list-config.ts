@@ -158,6 +158,8 @@ export function buildAdminProductMutationRedirect(options: {
   flashAction: "created" | "updated";
   slug: string;
   photoErrorCount?: number;
+  /** Photos waiting in the background queue: the list shows a notice that they will appear shortly. */
+  photoQueuedCount?: number;
   relaxed?: Array<"category" | "status" | "availability">;
 }): string {
   const params = new URLSearchParams();
@@ -172,6 +174,9 @@ export function buildAdminProductMutationRedirect(options: {
   params.set(options.flashAction, options.slug);
   if (options.photoErrorCount && options.photoErrorCount > 0) {
     params.set("photoError", String(options.photoErrorCount));
+  }
+  if (options.photoQueuedCount && options.photoQueuedCount > 0) {
+    params.set("notice", "photos-queued");
   }
 
   return `/admin/products?${params.toString()}`;

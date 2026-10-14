@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { activeCatalogReaderIfEnabled } from "@/lib/catalog-publication-reader";
 import type { VehicleType } from "@/types/catalog";
 
 interface VehicleTypeRow {
@@ -19,6 +20,9 @@ function mapVehicleType(row: VehicleTypeRow): VehicleType {
 // nav, and the same request's page also fetches them (homepage Hero,
 // ProductDetail's "Подходит для" pills) — two calls collapse to one.
 export const getVehicleTypes = cache(async (): Promise<VehicleType[]> => {
+  const reader = await activeCatalogReaderIfEnabled();
+  if (reader) return (await reader.list<VehicleTypeRow & { order: number }>("vehicle_type"))
+    .sort((a, b) => a.order - b.order).map(mapVehicleType);
   const supabase = await createClient();
   const { data, error } = await supabase.from("vehicle_types").select("slug, name").order("order");
   if (error) throw error;
@@ -29,6 +33,11 @@ export const getVehicleTypes = cache(async (): Promise<VehicleType[]> => {
 // call this with the same slug — share one Supabase request per render
 // instead of two.
 export const getVehicleType = cache(async (slug: string): Promise<VehicleType | null> => {
+  const reader = await activeCatalogReaderIfEnabled();
+  if (reader) {
+    const row = await reader.get<VehicleTypeRow>("vehicle_type", slug);
+    return row ? mapVehicleType(row) : null;
+  }
   const supabase = await createClient();
   const { data, error } = await supabase.from("vehicle_types").select("slug, name").eq("slug", slug).maybeSingle();
   if (error) throw error;
