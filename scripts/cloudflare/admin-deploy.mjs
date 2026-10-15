@@ -35,7 +35,7 @@ const readIn = (directory, name) => {
 function readOrCreate(directory, name, create) {
   const file = path.join(directory, name);
   if (!existsSync(file)) {
-    if (dryRun) return undefined; // a dry run never writes
+    if (dryRun) return create(); // a dry run never writes: the value that would be created is only held in memory
     mkdirSync(directory, { recursive: true });
     writeFileSync(file, create(), { mode: 0o600 });
   }
@@ -43,7 +43,11 @@ function readOrCreate(directory, name, create) {
 }
 
 // Where each secret comes from. Staging keeps its original file names; production has its own folder.
-const cloudflareToken = readIn(secretDir, targetName === "production" ? "cloudflare-token-zone.txt" : "cloudflare-token.txt");
+// Production uses its own long-lived Workers token (production\cloudflare-token-publish.txt); the broad migration token
+// is only a fallback while it still exists.
+const cloudflareToken = targetName === "production"
+  ? readIn(targetDir, "cloudflare-token-publish.txt") ?? readIn(secretDir, "cloudflare-token-zone.txt")
+  : readIn(secretDir, "cloudflare-token.txt");
 const secretFiles = targetName === "production"
   ? {
     SUPABASE_SECRET_KEY: readIn(targetDir, "supabase-secret-key.txt"),

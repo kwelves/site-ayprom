@@ -48,6 +48,10 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET_NAME: ${{ vars.R2_BUCKET_NAME }}
+          # Writing to R2 needs the private journal bucket; the other two switches mirror the site's setting.
+          MEDIA_STORAGE_JOURNAL_BUCKET: ${{ vars.MEDIA_STORAGE_JOURNAL_BUCKET }}
+          MEDIA_STORAGE_DUAL_WRITE_SUPABASE: ${{ vars.MEDIA_STORAGE_DUAL_WRITE_SUPABASE }}
+          MEDIA_STORAGE_RETAIN_OBJECTS: ${{ vars.MEDIA_STORAGE_RETAIN_OBJECTS }}
           GITHUB_DISPATCH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PUBLICATION_WORKFLOW_FILE: ${{ vars.PUBLICATION_WORKFLOW_FILE }}
