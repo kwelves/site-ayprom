@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState, type ChangeEvent, type RefObject } from "react";
+import { ImagePlus, Loader2, Trash2 } from "lucide-react";
 import { ImageFallback } from "@/components/ui/ImageFallback";
+import { buttonClassName } from "@/components/admin/ui/button-styles";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/admin/ui/Input";
 import { SortableList } from "@/components/admin/SortableList";
 import { ProgressBar } from "@/components/admin/ui/ProgressBar";
@@ -55,6 +58,15 @@ const ESTIMATED_MS_PER_PHOTO = 1800;
 const PROGRESS_TICK_MS = 200;
 const MAX_HEURISTIC_PERCENT = 92;
 
+// The drop target for photos: the whole width of the section, so it is easy to hit and reads as the place where
+// photos go, with the accepted formats under the action.
+function uploadZoneClassName(busy: boolean) {
+  return cn(
+    "mt-3 flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-[14px] border border-dashed border-input px-4 py-4 text-center text-sm text-foreground transition-[border-color,background-color,color] duration-fast ease-ui hover:border-primary hover:bg-accent hover:text-primary has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-primary/30",
+    busy && "pointer-events-none opacity-70",
+  );
+}
+
 export function ProductFormPhotosSection({
   mode,
   product,
@@ -100,25 +112,41 @@ export function ProductFormPhotosSection({
       <div>
         {images.length > 0 && (
           <SortableList
+            surface="inset"
             items={images}
             getId={(img) => img.id}
             onReorder={onImageReorder}
             enableStepButtons
             renderItem={(img) => (
               <div className="flex items-center gap-3">
-                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md bg-muted/40">
-                  <ImageFallback
-                    src={img.previewUrl}
-                    fallbackSrc={img.previewUrl !== img.url ? img.url : undefined}
-                    alt=""
-                    sizes="48px"
-                    unoptimized
-                    className="object-contain"
-                  />
-                </div>
-                <span className="flex-1 truncate text-xs text-muted-foreground">{img.url}</span>
-                <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
-                  Масштаб
+                <span className="group/photo relative shrink-0">
+                  <span className="relative block size-16 overflow-hidden rounded-[12px] bg-surface-subtle">
+                    <ImageFallback
+                      src={img.previewUrl}
+                      fallbackSrc={img.previewUrl !== img.url ? img.url : undefined}
+                      alt=""
+                      sizes="64px"
+                      unoptimized
+                      className="object-contain p-1 transition-[scale] duration-base ease-ui pointer-fine:group-hover/photo:scale-[1.06]"
+                    />
+                  </span>
+                  {img.id === images[0]?.id && (
+                    <span className="absolute -top-1.5 -left-1.5 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground shadow-sm">
+                      Главное
+                    </span>
+                  )}
+                  <span
+                    aria-hidden="true"
+                    className="glass-float pointer-events-none absolute top-1/2 right-full z-20 mr-3 hidden size-60 origin-right -translate-y-1/2 scale-95 rounded-[18px] p-3 opacity-0 transition-[opacity,scale] duration-fast ease-ui pointer-fine:block pointer-fine:group-hover/photo:scale-100 pointer-fine:group-hover/photo:opacity-100 pointer-fine:group-hover/photo:delay-200 pointer-fine:group-hover/photo:duration-base"
+                  >
+                    <span className="relative block size-full">
+                      <ImageFallback src={img.url} alt="" sizes="240px" unoptimized className="rounded-[12px] object-contain" />
+                    </span>
+                  </span>
+                </span>
+                <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={img.url}>{img.url}</span>
+                <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground" title="Во сколько раз увеличить деталь на карточке сайта">
+                  <span className="sr-only sm:not-sr-only">Масштаб</span>
                   <Input
                     type="number"
                     step={VISUAL_SCALE_STEP}
@@ -126,43 +154,52 @@ export function ProductFormPhotosSection({
                     max={MAX_VISUAL_SCALE}
                     defaultValue={img.scale ?? undefined}
                     onBlur={(e) => onImageScaleBlur(img.id, e.target.value)}
-                    className="w-20"
+                    aria-label="Масштаб"
+                    placeholder="1"
+                    className="w-16 px-2 text-center tabular-nums"
                   />
                 </label>
                 <button
                   type="button"
                   onClick={() => onImageDelete(img.id)}
-                  className="shrink-0 text-sm text-danger hover:underline"
+                  aria-label="Удалить"
+                  title="Удалить фото"
+                  className={buttonClassName({ variant: "ghost", size: "icon", className: "hover:bg-danger-surface hover:text-danger" })}
                 >
-                  Удалить
+                  <Trash2 aria-hidden="true" />
                 </button>
               </div>
             )}
           />
         )}
+        {images.length === 0 && photoQueue.pending === 0 && (
+          <p className="text-sm text-muted-foreground">Фото пока нет. Без фото на сайте стоит нейтральная заглушка.</p>
+        )}
         {photoQueue.pending > 0 && (
           <div
             role="status"
-            className="mt-3 flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
+            className="mt-3 flex animate-fade-up items-center gap-3 rounded-[12px] border border-border-accent bg-info-surface px-3 py-2.5 text-sm text-info"
           >
-            <span aria-hidden="true" className="size-4 shrink-0 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <Loader2 aria-hidden="true" className="size-4 shrink-0 animate-spin" />
             <span>
-              Обрабатывается фото: {photoQueue.pending}. Они появятся в списке сами, обычно в течение минуты.
+              Обрабатывается фото: <span className="font-semibold tabular-nums">{photoQueue.pending}</span>. Они появятся в списке сами, обычно в течение минуты.
             </span>
           </div>
         )}
         {photoQueue.failed > 0 && (
-          <p role="alert" className="mt-3 text-sm text-danger">
+          <p role="alert" className="mt-3 rounded-[12px] border border-danger-border bg-danger-surface px-3 py-2 text-sm text-danger">
             Не удалось обработать фото: {photoQueue.failed}. Загрузите {photoQueue.failed === 1 ? "его" : "их"} ещё раз.
           </p>
         )}
-        <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-input px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary">
-          {isUploading ? "Загрузка…" : "Загрузить фото"}
+        <label className={uploadZoneClassName(isUploading)}>
+          {isUploading ? <Loader2 aria-hidden="true" className="size-5 animate-spin" /> : <ImagePlus aria-hidden="true" className="size-5" />}
+          <span className="font-semibold">{isUploading ? "Загрузка…" : "Загрузить фото"}</span>
+          <span className="text-xs text-muted-foreground">JPEG, PNG, WebP или AVIF · можно несколько</span>
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp,image/avif"
             multiple
-            className="hidden"
+            className="sr-only"
             onChange={onImageUpload}
             disabled={isUploading}
           />
@@ -173,25 +210,26 @@ export function ProductFormPhotosSection({
 
   return (
     <div>
-      <p className="text-xs text-muted-foreground">
-        Необязательно: товар без фото поддерживается и будет показан с нейтральной заглушкой. До 10 файлов JPEG,
-        PNG, WebP или AVIF, не более 8 МБ каждый.
+      <p className="text-xs leading-snug text-muted-foreground">
+        Необязательно: без фото на сайте стоит нейтральная заглушка. JPEG, PNG, WebP или AVIF.
       </p>
 
-      <div className="mt-3 max-w-xs">
+      <div className="mt-3">
         <ProductPhotoModeSelect value={photoMode} onChange={onPhotoModeChange} />
       </div>
       <input type="hidden" name="photoMode" value={photoMode} />
 
       {photoAlphaWarning && (
-        <p role="status" className="mt-3 rounded-md border border-warning-border bg-warning-surface px-3 py-2 text-sm text-warning">
-          Похоже, у одного или нескольких выбранных фото нет прозрачного фона. Обрезка по границе детали в этом
-          режиме может сработать некорректно — но загрузку это не блокирует.
+        <p role="status" className="mt-3 rounded-[12px] border border-warning-border bg-warning-surface px-3 py-2 text-sm text-warning">
+          У некоторых фото, похоже, нет прозрачного фона. В этом режиме обрезка по контуру детали может сработать
+          неточно. Загрузку это не останавливает.
         </p>
       )}
 
-      <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-input px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary">
-        {pendingPhotoCount > 0 ? `Выбрано фото: ${pendingPhotoCount}` : "Выбрать фото"}
+      <label className={uploadZoneClassName(false)}>
+        <ImagePlus aria-hidden="true" className="size-5" />
+        <span className="font-semibold">{pendingPhotoCount > 0 ? `Выбрано фото: ${pendingPhotoCount}` : "Выбрать фото"}</span>
+        <span className="text-xs text-muted-foreground">До 10 файлов, каждый до 8 МБ</span>
         {/* Без `name`: файлы больше не попадают в запрос сохранения товара —
             они уже загружены в промежуточное хранилище, а форма присылает
             только ссылки на них. */}
@@ -200,7 +238,7 @@ export function ProductFormPhotosSection({
           type="file"
           accept="image/jpeg,image/png,image/webp,image/avif"
           multiple
-          className="hidden"
+          className="sr-only"
           onChange={onFileInputChange}
         />
       </label>
@@ -211,7 +249,7 @@ export function ProductFormPhotosSection({
       {stagedPhotos.length > 0 && (
         <ul className="mt-3 space-y-2">
           {stagedPhotos.map((photo) => (
-            <li key={photo.key} className="rounded-md border border-border px-3 py-2">
+            <li key={photo.key} className="glass-plate animate-[admin-row-in_var(--transition-duration-base)_var(--ease-ui)_both] rounded-[12px] px-3 py-2">
               <div className="flex items-center gap-3">
                 <span className="flex-1 truncate text-xs text-muted-foreground">{photo.fileName}</span>
                 {photo.status === "uploaded" && (

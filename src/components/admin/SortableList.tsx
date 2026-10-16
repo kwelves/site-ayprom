@@ -36,6 +36,30 @@ interface SortableListProps<T> {
   // screen with no hover state. Reuses the exact same onReorder(arrayMove(...))
   // call as a drag, so there is no separate reorder code path to keep in sync.
   enableStepButtons?: boolean;
+  /** "panel" (default): the rows sit in one glass panel, like a table. "inset": the list already lives inside a
+   * panel (photos, characteristics), so each row is a light plate instead of a second glass layer. */
+  surface?: "panel" | "inset";
+}
+
+// Rows of the working place (design system v2, "Таблица"): blue 8% on hover, 14% for the row just saved; each row
+// comes in 6px from below, 24ms after the previous one (only the first dozen wait, so long lists stay quick).
+function listClassName(surface: "panel" | "inset", className?: string) {
+  return cn(
+    surface === "panel" ? "glass-panel flex flex-col gap-0.5 rounded-[18px] p-1.5" : "flex flex-col gap-1.5",
+    className,
+  );
+}
+
+function rowClassName(surface: "panel" | "inset", highlighted: boolean) {
+  return cn(
+    "relative flex animate-[admin-row-in_var(--transition-duration-base)_var(--ease-ui)_both] items-start gap-2 rounded-[12px] px-2 py-2 transition-colors duration-fast ease-ui hover:z-10 focus-within:z-10 md:items-center",
+    surface === "inset" ? "glass-plate" : "hover:bg-accent",
+    highlighted && "bg-accent-strong",
+  );
+}
+
+function rowDelay(index: number): React.CSSProperties {
+  return { animationDelay: `${Math.min(index, 12) * 24}ms` };
 }
 
 // Generic drag-and-drop reorderable list (@dnd-kit) — reused for the
@@ -59,6 +83,7 @@ export function SortableList<T>({
   getFlashKey,
   highlightedKey,
   enableStepButtons,
+  surface = "panel",
 }: SortableListProps<T>) {
   const [mounted, setMounted] = useState(false);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate hasMounted flip to skip SSR for DndContext (see comment above); there's no external state to synchronize, just "is this the client yet".
@@ -73,15 +98,13 @@ export function SortableList<T>({
 
   if (!mounted || disabled) {
     return (
-      <div className={cn("flex flex-col gap-2", className)}>
+      <div className={listClassName(surface, className)}>
         {items.map((item, index) => (
           <div
             key={getId(item)}
             data-flash-key={flashKeyOf(item)}
-            className={cn(
-              "flex items-start gap-2 rounded-md border border-border bg-card p-2 transition-colors duration-fast ease-ui md:items-center",
-              highlightedKey === flashKeyOf(item) && "border-border-interactive bg-accent"
-            )}
+            style={rowDelay(index)}
+            className={rowClassName(surface, highlightedKey === flashKeyOf(item))}
           >
             {enableStepButtons && !disabled && (
               <StepButtons
@@ -108,6 +131,7 @@ export function SortableList<T>({
       getFlashKey={getFlashKey}
       highlightedKey={highlightedKey}
       enableStepButtons={enableStepButtons}
+      surface={surface}
     />
   );
 }
@@ -158,6 +182,7 @@ function SortableListClient<T>({
   getFlashKey,
   highlightedKey,
   enableStepButtons,
+  surface = "panel",
 }: SortableListProps<T>) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -185,11 +210,13 @@ function SortableListClient<T>({
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={items.map(getId)} strategy={verticalListSortingStrategy}>
-        <div className={cn("flex flex-col gap-2", className)}>
+        <div className={listClassName(surface, className)}>
           {items.map((item, index) => (
             <SortableRow
               key={getId(item)}
               id={getId(item)}
+              index={index}
+              surface={surface}
               flashKey={flashKeyOf(item)}
               highlighted={highlightedKey === flashKeyOf(item)}
               stepButtons={
@@ -209,19 +236,23 @@ function SortableListClient<T>({
 
 function SortableRow({
   id,
+  index,
+  surface,
   flashKey,
   highlighted,
   stepButtons,
   children,
 }: {
   id: string;
+  index: number;
+  surface: "panel" | "inset";
   flashKey: string;
   highlighted: boolean;
   stepButtons?: { onMoveUp: () => void; onMoveDown: () => void; disabledUp: boolean; disabledDown: boolean };
   children: React.ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-  const style = { transform: CSS.Transform.toString(transform), transition };
+  const style = { ...rowDelay(index), transform: CSS.Transform.toString(transform), transition };
   const dragHandle = (
     <button
       type="button"
@@ -229,7 +260,7 @@ function SortableRow({
       {...attributes}
       {...listeners}
       aria-label="Перетащить для изменения порядка"
-      className="flex min-h-11 min-w-8 shrink-0 touch-none items-center justify-center rounded text-faint-foreground transition-colors hover:bg-accent hover:text-muted-foreground active:cursor-grabbing md:-m-2 md:min-h-0 md:min-w-0 md:cursor-grab md:p-2"
+      className="flex min-h-11 min-w-8 shrink-0 touch-none items-center justify-center rounded-[8px] text-faint-foreground transition-colors hover:bg-accent hover:text-muted-foreground active:cursor-grabbing md:min-h-8 md:min-w-6 md:cursor-grab"
     >
       <GripVertical className="h-4 w-4" />
     </button>
@@ -240,11 +271,7 @@ function SortableRow({
       ref={setNodeRef}
       style={style}
       data-flash-key={flashKey}
-      className={cn(
-        "flex items-start gap-2 rounded-md border border-border bg-card p-2 transition-colors duration-fast ease-ui md:items-center",
-        isDragging && "opacity-50",
-        highlighted && "border-border-interactive bg-accent"
-      )}
+      className={cn(rowClassName(surface, highlighted), isDragging && "z-20 bg-secondary opacity-90 shadow-lg")}
     >
       {stepButtons ? (
         <div className="flex shrink-0 flex-col items-center md:contents">

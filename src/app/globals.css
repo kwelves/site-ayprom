@@ -597,6 +597,13 @@ a {
   }
 }
 
+@keyframes admin-row-in {
+  from {
+    opacity: 0;
+    translate: 0 6px;
+  }
+}
+
 @keyframes admin-screen-fade {
   from {
     opacity: 0;

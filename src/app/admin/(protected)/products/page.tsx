@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { Plus } from "lucide-react";
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { buttonClassName } from "@/components/admin/ui/button-styles";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import {
@@ -85,15 +88,25 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-foreground">Товары</h1>
-        <Link
-          href="/admin/products/new"
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover"
-        >
-          Добавить товар
-        </Link>
-      </div>
+      <AdminPageHeader
+        title="Товары"
+        description={
+          productPage.total > 0 ? (
+            <>
+              <span className="tabular-nums">{isFiltered ? "Найдено" : "Всего"}: {productPage.total}</span>
+              {productPage.totalPages > 1 && (
+                <span className="tabular-nums">{` · страница ${productPage.page} из ${productPage.totalPages}`}</span>
+              )}
+            </>
+          ) : undefined
+        }
+        actions={
+          <Link href="/admin/products/new" className={buttonClassName({ variant: "primary" })}>
+            <Plus aria-hidden="true" />
+            Добавить товар
+          </Link>
+        }
+      />
 
       <ProductsFilterBar
         key={`${config.category}:${config.status}:${config.availability}:${config.sort}:${savedConfig !== null}`}
@@ -103,19 +116,12 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
       />
 
       {showTargetViewNotice && (
-        <div className="mt-3 flex flex-col gap-2 rounded-md bg-warning-surface px-3 py-2 text-sm text-warning sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-3 flex flex-col gap-2 rounded-[12px] border border-warning-border bg-warning-surface px-3 py-2 text-sm text-warning sm:flex-row sm:items-center sm:justify-between">
           <p>Некоторые сохранённые фильтры временно сняты, чтобы показать изменённый товар.</p>
           <Link href={savedViewHref} className="inline-flex min-h-11 items-center font-medium underline underline-offset-2 sm:min-h-0">
             Вернуть сохранённую конфигурацию
           </Link>
         </div>
-      )}
-
-      {productPage.total > 0 && (
-        <p className="mt-3 text-xs text-muted-foreground">
-          {isFiltered ? "Найдено" : "Всего"}: {productPage.total}
-          {productPage.totalPages > 1 && ` · страница ${productPage.page} из ${productPage.totalPages}`}
-        </p>
       )}
 
       {productPage.items.length === 0 ? (

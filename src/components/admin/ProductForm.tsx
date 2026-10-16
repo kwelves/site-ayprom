@@ -1,6 +1,8 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import Link from "next/link";
+import { Trash2 } from "lucide-react";
 import {
   createProduct,
   updateProduct,
@@ -28,7 +30,6 @@ import {
 import { DEFAULT_PRODUCT_AVAILABILITY, type ProductAvailability } from "@/lib/admin/product-availability";
 import { SubmitButton } from "@/components/admin/ui/SubmitButton";
 import { BackLink } from "@/components/admin/ui/BackLink";
-import { Collapsible } from "@/components/admin/ui/Collapsible";
 import { StickyFormActions } from "@/components/admin/ui/StickyFormActions";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
@@ -39,6 +40,11 @@ import { ProductFormDescriptionsSection } from "@/components/admin/product-form/
 import { ProductFormCharacteristicsSection } from "@/components/admin/product-form/ProductFormCharacteristicsSection";
 import { ProductFormPhotosSection } from "@/components/admin/product-form/ProductFormPhotosSection";
 import { ProductFormSeoSection } from "@/components/admin/product-form/ProductFormSeoSection";
+import { ProductFormPublicationSection } from "@/components/admin/product-form/ProductFormPublicationSection";
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { FormSection } from "@/components/admin/ui/FormSection";
+import { FormSectionNav } from "@/components/admin/ui/FormSectionNav";
+import { buttonClassName } from "@/components/admin/ui/button-styles";
 import type { Category, Subcategory, Brand, VehicleType } from "@/types/catalog";
 import type { AdminProduct } from "@/lib/admin/queries";
 
@@ -66,6 +72,9 @@ async function anyFileLacksAlpha(files: FileList): Promise<boolean> {
   }
   return false;
 }
+
+// The updated_at trigger writes UTC; shown in Bishkek time like the change log.
+const EDITED_FORMAT = new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Bishkek" });
 
 interface CharacteristicRow {
   key: string;
@@ -412,14 +421,41 @@ export function ProductForm({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  const sectionNav = [
+    { id: "product-basic", label: "Основное" },
+    { id: "product-publication", label: "Публикация" },
+    { id: "product-photos", label: "Фотографии", count: mode === "edit" ? images.length : stagedPhotos.photos.length },
+    { id: "product-compatibility", label: "Совместимость", count: selectedBrands.size + selectedVehicleTypes.size },
+    { id: "product-descriptions", label: "Описание" },
+    { id: "product-characteristics", label: "Характеристики", count: characteristics.filter((c) => c.attribute.trim()).length },
+    { id: "product-seo", label: "SEO" },
+  ];
+
   return (
-    <div className="max-w-3xl pb-4">
+    <div className="pb-4">
       <BackLink href="/admin/products" label="Товары" />
 
-      <form ref={formRef} action={formAction} onSubmit={handleFormSubmit} className="mt-4 space-y-4">
-        <h1 className="text-xl font-semibold text-foreground">
-          {mode === "create" ? "Новый товар" : `Редактировать: ${product?.name}`}
-        </h1>
+      <form ref={formRef} action={formAction} onSubmit={handleFormSubmit} className="mt-3">
+        <AdminPageHeader
+          title={mode === "create" ? "Новый товар" : (product?.name ?? "Товар")}
+          description={
+            mode === "create" ? (
+              "Достаточно основного: название и категория. Остальное можно добавить позже."
+            ) : (
+              <>
+                {product?.article && (
+                  <>
+                    {"Арт. "}
+                    <span className="tabular-nums slashed-zero">{product.article}</span>
+                    {" · "}
+                  </>
+                )}
+                {"изменено "}
+                <span className="tabular-nums">{product ? EDITED_FORMAT.format(new Date(product.updatedAt)) : ""}</span>
+              </>
+            )
+          }
+        />
 
         {/* Версия товара на момент открытия формы. Сервер сверяет её перед
             записью, поэтому правка из устаревшей вкладки не затирает молча
@@ -436,93 +472,133 @@ export function ProductForm({
           </>
         )}
 
-        <Collapsible title="Основное" defaultOpen>
-          <ProductFormBasicSection
-            mode={mode}
-            product={product}
-            name={name}
-            onNameChange={handleNameChange}
-            slug={slug}
-            onSlugChange={handleSlugChange}
-            categorySlug={categorySlug}
-            onCategoryChange={handleCategoryChange}
-            subcategorySlug={subcategorySlug}
-            onSubcategoryChange={setSubcategorySlug}
-            categories={categories}
-            categorySubcategories={categorySubcategories}
-            selectedCategory={selectedCategory}
-            published={published}
-            onPublishedChange={setPublished}
-            hotspotCount={hotspotCount}
-            availability={availability}
-            onAvailabilityChange={setAvailability}
-          />
-        </Collapsible>
+        <FormSectionNav items={sectionNav} className="mt-5 w-fit" />
 
-        <Collapsible title="Совместимость" description="Бренды и типы спецтехники" defaultOpen={false}>
-          <ProductFormCompatibilitySection
-            brands={brands}
-            selectedBrands={selectedBrands}
-            onToggleBrand={toggleBrand}
-            onToggleAllBrands={toggleAllBrands}
-            vehicleTypes={vehicleTypes}
-            selectedVehicleTypes={selectedVehicleTypes}
-            onToggleVehicleType={toggleVehicleType}
-            onToggleAllVehicleTypes={toggleAllVehicleTypes}
-          />
-        </Collapsible>
+        {/* Every part is open: what is filled in is visible without a click. On a laptop the wide column holds the
+            texts, the side column what is changed most often (publication, photos, compatibility). On narrower
+            screens the parts stack in the order of work: the wrappers dissolve (display: contents) and order-* sets
+            the sequence. */}
+        <div className="mt-5 flex flex-col gap-5 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(340px,400px)] xl:items-start">
+          <div className="contents xl:flex xl:flex-col xl:gap-5">
+            <FormSection id="product-basic" title="Основное" className="order-1">
+              <ProductFormBasicSection
+                mode={mode}
+                product={product}
+                name={name}
+                onNameChange={handleNameChange}
+                slug={slug}
+                onSlugChange={handleSlugChange}
+                categorySlug={categorySlug}
+                onCategoryChange={handleCategoryChange}
+                subcategorySlug={subcategorySlug}
+                onSubcategoryChange={setSubcategorySlug}
+                categories={categories}
+                categorySubcategories={categorySubcategories}
+                selectedCategory={selectedCategory}
+              />
+            </FormSection>
 
-        <Collapsible title="Описания" defaultOpen={false}>
-          <ProductFormDescriptionsSection product={product} />
-        </Collapsible>
+            <FormSection id="product-descriptions" title="Описание" description="Что покупатель читает на странице товара." className="order-5">
+              <ProductFormDescriptionsSection product={product} />
+            </FormSection>
 
-        <Collapsible title="Характеристики" defaultOpen={false}>
-          <ProductFormCharacteristicsSection
-            characteristics={characteristics}
-            onReorder={setCharacteristics}
-            onUpdate={updateCharacteristic}
-            onRemove={removeCharacteristic}
-            onAdd={addCharacteristic}
-          />
-        </Collapsible>
+            <FormSection
+              id="product-characteristics"
+              title="Характеристики"
+              description="Перетащите строку, чтобы изменить порядок на сайте."
+              className="order-6"
+            >
+              <ProductFormCharacteristicsSection
+                characteristics={characteristics}
+                onReorder={setCharacteristics}
+                onUpdate={updateCharacteristic}
+                onRemove={removeCharacteristic}
+                onAdd={addCharacteristic}
+              />
+            </FormSection>
 
-        <Collapsible title="Фотографии" defaultOpen={false}>
-          <ProductFormPhotosSection
-            mode={mode}
-            product={product}
-            images={images}
-            onImageReorder={handleImageReorder}
-            onImageDelete={handleImageDelete}
-            onImageScaleBlur={handleImageScaleBlur}
-            isUploading={isUploading}
-            onImageUpload={handleImageUpload}
-            photoMode={photoMode}
-            onPhotoModeChange={handlePhotoModeChange}
-            photoAlphaWarning={photoAlphaWarning}
-            pendingPhotoCount={pendingPhotoCount}
-            photoInputRef={photoInputRef}
-            onFileInputChange={handleFileInputChange}
-            stagedPhotos={stagedPhotos.photos}
-            onStagedRetry={stagedPhotos.retry}
-            onStagedCancel={stagedPhotos.cancel}
-            photoQueue={photoQueue}
-            isSubmitting={isSubmitting}
-          />
-        </Collapsible>
+            <FormSection id="product-seo" title="SEO" description="Как товар выглядит в поиске Google и Яндекса." className="order-7">
+              <ProductFormSeoSection product={product} />
+            </FormSection>
+          </div>
 
-        <Collapsible title="SEO" defaultOpen={false}>
-          <ProductFormSeoSection product={product} />
-        </Collapsible>
+          <div className="contents xl:flex xl:flex-col xl:gap-5">
+            <FormSection id="product-publication" title="Публикация" className="order-2">
+              <ProductFormPublicationSection
+                mode={mode}
+                published={published}
+                onPublishedChange={setPublished}
+                hotspotCount={hotspotCount}
+                availability={availability}
+                onAvailabilityChange={setAvailability}
+              />
+            </FormSection>
+
+            <FormSection
+              id="product-photos"
+              title="Фотографии"
+              description={mode === "edit" ? "Первое фото главное. Порядок меняется перетаскиванием." : undefined}
+              className="order-3"
+            >
+              <ProductFormPhotosSection
+                mode={mode}
+                product={product}
+                images={images}
+                onImageReorder={handleImageReorder}
+                onImageDelete={handleImageDelete}
+                onImageScaleBlur={handleImageScaleBlur}
+                isUploading={isUploading}
+                onImageUpload={handleImageUpload}
+                photoMode={photoMode}
+                onPhotoModeChange={handlePhotoModeChange}
+                photoAlphaWarning={photoAlphaWarning}
+                pendingPhotoCount={pendingPhotoCount}
+                photoInputRef={photoInputRef}
+                onFileInputChange={handleFileInputChange}
+                stagedPhotos={stagedPhotos.photos}
+                onStagedRetry={stagedPhotos.retry}
+                onStagedCancel={stagedPhotos.cancel}
+                photoQueue={photoQueue}
+                isSubmitting={isSubmitting}
+              />
+            </FormSection>
+
+            <FormSection id="product-compatibility" title="Совместимость" className="order-4">
+              <ProductFormCompatibilitySection
+                brands={brands}
+                selectedBrands={selectedBrands}
+                onToggleBrand={toggleBrand}
+                onToggleAllBrands={toggleAllBrands}
+                vehicleTypes={vehicleTypes}
+                selectedVehicleTypes={selectedVehicleTypes}
+                onToggleVehicleType={toggleVehicleType}
+                onToggleAllVehicleTypes={toggleAllVehicleTypes}
+              />
+            </FormSection>
+          </div>
+        </div>
 
         <StickyFormActions>
-          <SubmitButton pendingLabel={mode === "create" ? "Создание…" : "Сохранение…"}>
-            {mode === "create" ? "Создать товар" : "Сохранить"}
-          </SubmitButton>
           {mode === "edit" && (
-            <button type="button" onClick={handleDeleteProduct} className="text-sm text-danger hover:underline">
+            <button
+              type="button"
+              onClick={handleDeleteProduct}
+              className={buttonClassName({ variant: "ghost", className: "text-danger hover:bg-danger-surface hover:text-danger" })}
+            >
+              <Trash2 aria-hidden="true" />
               Удалить товар
             </button>
           )}
+          <span className="ml-auto hidden items-center gap-1.5 text-xs text-muted-foreground md:inline-flex">
+            <kbd className="rounded-[6px] bg-surface-strong px-1.5 py-0.5 font-sans text-[11px] font-medium">Ctrl S</kbd>
+            сохранить
+          </span>
+          <Link href="/admin/products" className={buttonClassName({ variant: "glass", className: "max-md:ml-auto" })}>
+            Отмена
+          </Link>
+          <SubmitButton pendingLabel={mode === "create" ? "Создание…" : "Сохранение…"}>
+            {mode === "create" ? "Создать товар" : "Сохранить"}
+          </SubmitButton>
         </StickyFormActions>
       </form>
       <AdminActionFeedback

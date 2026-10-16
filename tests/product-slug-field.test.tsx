@@ -12,9 +12,7 @@ function Form({ mode }: { mode: "create" | "edit" }) {
   return <form aria-label="Товар"><ProductFormBasicSection mode={mode}
     name="Товар" onNameChange={() => {}} slug={slug} onSlugChange={setSlug}
     categorySlug="parts" onCategoryChange={() => {}} subcategorySlug=""
-    onSubcategoryChange={() => {}} categories={[]} categorySubcategories={[]}
-    published={true} onPublishedChange={() => {}} hotspotCount={0}
-    availability="in_stock" onAvailabilityChange={() => {}} /></form>;
+    onSubcategoryChange={() => {}} categories={[]} categorySubcategories={[]} /></form>;
 }
 
 describe("product slug field", () => {

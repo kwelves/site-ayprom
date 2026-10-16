@@ -116,6 +116,7 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
     <div>
       {attached.length > 0 ? (
         <SortableList
+          surface="inset"
           items={attached}
           getId={(brand) => brand.brandSlug}
           onReorder={handleReorder}
