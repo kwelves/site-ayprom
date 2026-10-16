@@ -1,13 +1,6 @@
 import { cn } from "@/lib/utils";
+import { singleLineFieldClassName } from "./field-styles";
 
 export function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      className={cn(
-        "block w-full rounded-md border border-input px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-        className
-      )}
-      {...props}
-    />
-  );
+  return <input className={cn(singleLineFieldClassName, className)} {...props} />;
 }

@@ -1,58 +1,29 @@
-import Link from "next/link";
 import { Suspense } from "react";
-import { logout } from "@/lib/admin/actions";
-import { AdminNav } from "@/components/admin/AdminNav";
-import { AdminMobileNav } from "@/components/admin/AdminMobileNav";
+import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { AdminTopBar } from "@/components/admin/AdminTopBar";
 import { AdminRouteNotice } from "@/components/admin/AdminRouteNotice";
 import { AdminToastProvider } from "@/components/admin/ui/AdminToastProvider";
-import { AdminPublicationStatus } from "@/components/admin/AdminPublicationStatus";
 
 // Wraps every admin page except /admin/login — middleware already gates
-// access to this whole subtree, so no auth check here, just the nav chrome.
+// access to this whole subtree, so no auth check here, just the shell.
 //
-// Persistent left sidebar from `lg` up (Linear/Stripe-style — always
-// visible, no need to open anything to switch section); below that, a
-// hamburger + drawer (AdminMobileNav) replaces it, since 8 sections don't
-// fit a bottom tab bar without truncation.
+// The working-place shell of the AYPROM design system: a glass sidebar from
+// `lg` up (always visible, folds to icons), a sticky 60px glass bar on top,
+// and the page on the light scene, up to 1640px wide, 20px between panels.
+// Below `lg` the sidebar gives way to the menu button in the top bar.
 export default function ProtectedAdminLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <AdminToastProvider>
       <Suspense fallback={null}>
         <AdminRouteNotice />
       </Suspense>
-      <div data-testid="admin-shell" className="flex min-h-dvh">
-        <aside
-          data-testid="admin-sidebar"
-          className="hidden w-60 shrink-0 flex-col border-r border-border bg-card lg:sticky lg:top-0 lg:flex lg:h-dvh lg:self-start"
-        >
-          <div className="border-b border-border px-4 py-4">
-            <Link href="/admin/products" className="text-sm font-semibold text-card-foreground">
-              AYPROM — Админка
-            </Link>
-          </div>
-          <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-3">
-            <AdminNav variant="sidebar" />
-          </nav>
-          <AdminPublicationStatus />
-          <form action={logout} data-testid="admin-logout" className="shrink-0 border-t border-border p-3">
-            <button
-              type="submit"
-              className="w-full rounded-md px-3 py-2 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-card-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              Выйти
-            </button>
-          </form>
-        </aside>
-
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex items-center justify-between border-b border-border bg-card px-4 py-2.5 lg:hidden">
-            <Link href="/admin/products" className="text-sm font-semibold text-card-foreground">
-              AYPROM — Админка
-            </Link>
-            <AdminPublicationStatus compact />
-            <AdminMobileNav />
-          </header>
-          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
+      <div data-testid="admin-shell" className="flex min-h-dvh gap-5 p-3">
+        <AdminSidebar />
+        <div className="flex min-w-0 flex-1 flex-col gap-5">
+          <AdminTopBar />
+          <main id="admin-main" className="mx-auto flex w-full max-w-[1640px] flex-1 flex-col px-1 pb-10 sm:px-2">
+            {children}
+          </main>
         </div>
       </div>
     </AdminToastProvider>

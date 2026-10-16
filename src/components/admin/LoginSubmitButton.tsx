@@ -2,6 +2,8 @@
 
 import { Loader2 } from "lucide-react";
 import { useFormStatus } from "react-dom";
+import { buttonClassName } from "@/components/admin/ui/button-styles";
+import { cn } from "@/lib/utils";
 
 // Lives inside the login <form>: useFormStatus reacts to both a button click
 // and the form's native Enter-key submission, so both paths get the same
@@ -10,13 +12,14 @@ export function LoginSubmitButton() {
   const { pending } = useFormStatus();
 
   return (
-    <div className="mt-6">
+    <div className="mt-5">
       <button
         type="submit"
         disabled={pending}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-75 sm:py-2"
+        aria-busy={pending}
+        className={buttonClassName({ variant: "primary", size: "lg", className: "w-full disabled:cursor-wait disabled:opacity-100" })}
       >
-        {pending && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />}
+        <Loader2 aria-hidden="true" className={cn("!size-3.5 animate-spin", !pending && "hidden")} />
         {pending ? "Проверяем доступ…" : "Войти"}
       </button>
 

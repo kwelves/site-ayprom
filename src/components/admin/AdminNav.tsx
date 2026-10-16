@@ -1,40 +1,74 @@
 "use client";
 
+import { useId } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Package, Truck, Tag, Wrench, LayoutGrid, Upload, ScrollText, KeyRound } from "lucide-react";
+import { LayoutGroup, motion, useReducedMotion } from "framer-motion";
+import { Package, Truck, Tag, Wrench, LayoutGrid, Upload, ScrollText, KeyRound, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export const NAV_ITEMS = [
-  { href: "/admin/products", label: "Товары", icon: Package },
-  { href: "/admin/vehicle-showcase", label: "Спецтехника", icon: Truck },
-  { href: "/admin/brands", label: "Бренды", icon: Tag },
-  { href: "/admin/vehicle-types", label: "Типы техники", icon: Wrench },
-  { href: "/admin/categories", label: "Категории", icon: LayoutGrid },
-  { href: "/admin/import", label: "Импорт", icon: Upload },
-  { href: "/admin/audit", label: "Журнал", icon: ScrollText },
-  { href: "/admin/security", label: "Пароль", icon: KeyRound },
-] as const;
+interface NavItem {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+}
 
-function isNavItemActive(pathname: string, href: string): boolean {
+// Sections grouped the way the work goes: the catalog itself, what the public home page shows, data moved in
+// bulk and the record of changes, then access.
+export const NAV_GROUPS: readonly { label: string; items: readonly NavItem[] }[] = [
+  {
+    label: "Каталог",
+    items: [
+      { href: "/admin/products", label: "Товары", icon: Package },
+      { href: "/admin/categories", label: "Категории", icon: LayoutGrid },
+      { href: "/admin/brands", label: "Бренды", icon: Tag },
+      { href: "/admin/vehicle-types", label: "Типы техники", icon: Wrench },
+    ],
+  },
+  {
+    label: "Сайт",
+    items: [{ href: "/admin/vehicle-showcase", label: "Спецтехника", icon: Truck }],
+  },
+  {
+    label: "Данные",
+    items: [
+      { href: "/admin/import", label: "Импорт", icon: Upload },
+      { href: "/admin/audit", label: "Журнал", icon: ScrollText },
+    ],
+  },
+  {
+    label: "Доступ",
+    items: [{ href: "/admin/security", label: "Пароль", icon: KeyRound }],
+  },
+];
+
+export const NAV_ITEMS: readonly NavItem[] = NAV_GROUPS.flatMap((group) => group.items);
+
+export function isNavItemActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+export function activeNavItem(pathname: string): NavItem | undefined {
+  return NAV_ITEMS.find((item) => isNavItemActive(pathname, item.href));
+}
+
 interface AdminNavProps {
-  /** "sidebar" — vertical list with icons, full label, for the lg+ sidebar.
-   * "inline" — the original compact horizontal text-only list, kept for any
-   * context that still wants it. */
+  /** "sidebar" — grouped vertical list with icons (sidebar and phone drawer).
+   * "inline" — compact horizontal text-only list, kept for any context that still wants it. */
   variant?: "sidebar" | "inline";
+  /** Sidebar folded to icons (72px). Labels stay for screen readers and as tooltips. */
+  collapsed?: boolean;
   onNavigate?: () => void;
 }
 
 // A client component just for the nav links (rather than the whole layout)
-// so the surrounding chrome — header bar, logout form — stays a plain
-// server-rendered shell; usePathname() is only needed here, to know which
-// section the admin is currently in.
-export function AdminNav({ variant = "inline", onNavigate }: AdminNavProps) {
+// so the surrounding chrome stays a plain shell; usePathname() is only needed
+// here, to know which section the admin is currently in.
+export function AdminNav({ variant = "inline", collapsed = false, onNavigate }: AdminNavProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const groupId = useId();
+  const reduceMotion = useReducedMotion();
 
   function warmRoute(href: string) {
     if (!isNavItemActive(pathname, href)) router.prefetch(href);
@@ -42,31 +76,70 @@ export function AdminNav({ variant = "inline", onNavigate }: AdminNavProps) {
 
   if (variant === "sidebar") {
     return (
-      <>
-        {NAV_ITEMS.map((item) => {
-          const active = isNavItemActive(pathname, item.href);
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={active ? "page" : undefined}
-              onClick={onNavigate}
-              onPointerEnter={() => warmRoute(item.href)}
-              onFocus={() => warmRoute(item.href)}
+      <LayoutGroup id={groupId}>
+        {NAV_GROUPS.map((group, groupIndex) => (
+          <div key={group.label} className={cn(groupIndex > 0 && "mt-4")}>
+            <p
               className={cn(
-                "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                active
-                  ? "bg-accent text-primary"
-                  : "text-muted-foreground hover:bg-accent hover:text-card-foreground"
+                "mb-1.5 h-4 px-3 text-[11px] font-semibold tracking-[0.06em] text-faint-foreground uppercase transition-opacity duration-fast ease-ui",
+                collapsed && "opacity-0",
               )}
+              aria-hidden={collapsed || undefined}
             >
-              <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-              {item.label}
-            </Link>
-          );
-        })}
-      </>
+              {group.label}
+            </p>
+            <div className="flex flex-col gap-0.5">
+              {group.items.map((item) => {
+                const active = isNavItemActive(pathname, item.href);
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    aria-label={collapsed ? item.label : undefined}
+                    title={collapsed ? item.label : undefined}
+                    onClick={onNavigate}
+                    onPointerEnter={() => warmRoute(item.href)}
+                    onFocus={() => warmRoute(item.href)}
+                    className={cn(
+                      "group/nav relative flex h-10 items-center gap-3 rounded-[12px] px-3 text-sm font-medium transition-colors duration-fast ease-ui focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30",
+                      active ? "text-primary" : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {active && (
+                      <motion.span
+                        layoutId="admin-nav-active"
+                        aria-hidden="true"
+                        className="glass-float absolute inset-0 rounded-[12px] [backdrop-filter:none]"
+                        transition={reduceMotion ? { duration: 0.12 } : { type: "spring", duration: 0.4, bounce: 0.15 }}
+                      />
+                    )}
+                    {!active && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute inset-0 rounded-[12px] bg-accent opacity-0 transition-opacity duration-fast ease-ui group-hover/nav:opacity-100"
+                      />
+                    )}
+                    <Icon
+                      aria-hidden="true"
+                      className="relative size-[18px] shrink-0 transition-[scale,translate] duration-base ease-spring-soft group-hover/nav:scale-[1.08]"
+                    />
+                    <span
+                      className={cn(
+                        "relative truncate transition-[opacity,translate] duration-base ease-ui group-hover/nav:translate-x-px",
+                        collapsed && "pointer-events-none opacity-0",
+                      )}
+                    >
+                      {item.label}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </LayoutGroup>
     );
   }
 

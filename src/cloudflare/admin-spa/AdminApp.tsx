@@ -143,7 +143,11 @@ export function AdminApp() {
   if (!view) return null;
   const content = (
     <PageBoundary resetKey={view.key}>
-      <div key={view.key}>{loading ? <AdminLoading /> : view.node}</div>
+      {/* Stretches like the page it holds (the login screen centres itself in the full height) and plays the
+          screen entrance once per page: the key changes, the element is new. */}
+      <div key={view.key} data-admin-screen className="flex min-h-0 flex-1 flex-col">
+        {loading ? <AdminLoading /> : view.node}
+      </div>
     </PageBoundary>
   );
   return (

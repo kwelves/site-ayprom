@@ -1,9 +1,11 @@
 "use client";
 
+import { singleLineFieldClassName } from "@/components/admin/ui/field-styles";
+
 // React Server Action forms do not reliably perform implicit submission from
 // this password field in every browser. requestSubmit() keeps native form
 // validation and invokes the same submit button/action as a pointer click.
-export function LoginPasswordInput() {
+export function LoginPasswordInput({ invalid = false }: { invalid?: boolean }) {
   function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
     if (
       (event.key === "Enter" || event.key === "NumpadEnter") &&
@@ -19,10 +21,13 @@ export function LoginPasswordInput() {
       type="password"
       name="password"
       required
+      autoFocus
       autoComplete="current-password"
       enterKeyHint="go"
+      aria-invalid={invalid || undefined}
+      aria-describedby="login-status"
       onKeyDown={handleKeyDown}
-      className="mt-1.5 block w-full rounded-md border border-input px-3 py-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:py-2"
+      className={`${singleLineFieldClassName} mt-2 sm:h-11`}
     />
   );
 }
