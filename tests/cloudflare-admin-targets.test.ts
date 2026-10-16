@@ -107,6 +107,18 @@ describe("admin Worker targets", () => {
     }
   });
 
+  it("with keepSecrets, deploys the settings and code but sends no secrets (those stay as they are in Cloudflare)", () => {
+    const { vars, secrets } = buildAdminDeployment({ ...productionInput, secrets: {}, keepSecrets: true });
+    expect(secrets).toEqual({});
+    expect(vars).toMatchObject({ NEXT_PUBLIC_SUPABASE_URL: ADMIN_TARGETS.production.supabaseUrl, MEDIA_STORAGE_WRITE_TARGET: "r2", MEDIA_STORAGE_DUAL_WRITE_SUPABASE: "false" });
+  });
+
+  it("with keepSecrets, still needs the confirmation, a public key and the dual-write decision", () => {
+    expect(() => buildAdminDeployment({ ...productionInput, secrets: {}, keepSecrets: true, confirm: undefined })).toThrow(/confirm/i);
+    expect(() => buildAdminDeployment({ ...productionInput, secrets: {}, keepSecrets: true, publishableKey: undefined })).toThrow(/publishable/i);
+    expect(() => buildAdminDeployment({ ...productionInput, secrets: {}, keepSecrets: true, dualWriteSupabase: undefined })).toThrow(/dual-write/i);
+  });
+
   it("refuses an unknown target", () => {
     expect(() => buildAdminDeployment({ ...productionInput, target: "prod" })).toThrow(/target/i);
   });

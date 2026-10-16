@@ -1,5 +1,6 @@
 # Publication worker: turns the latest admin edits into a new version of the public Cloudflare site.
-# Started by the admin (workflow_dispatch API call) after edits and by the photo worker when photos finish.
+# Started by the admin (workflow_dispatch API call) after edits, by the photo worker when photos finish,
+# and by every merge of code into main (then the site is rebuilt even if no content changed).
 # It waits for a quiet period, builds a snapshot of the catalog, checks it on a private preview address,
 # switches the site to it, checks the live site, and rolls back automatically if that check fails.
 # It never runs for pull requests or forks, so repository secrets are not exposed to outside code.
@@ -10,6 +11,15 @@
 name: publish-site
 
 on:
+  # Code merged into main: publish the production site again so the public site always matches the code.
+  # Changes that cannot alter the public pages (documents, tests, database files) do not start a run.
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "tests/**"
+      - "**/*.md"
+      - "supabase/**"
   workflow_dispatch:
     inputs:
       environment:
@@ -21,10 +31,14 @@ on:
         description: Only check the settings and report the state; publish nothing
         type: boolean
         default: false
+      force_rebuild:
+        description: Publish again even if no content changed (after a code change)
+        type: boolean
+        default: false
 
 # One publication per environment at a time; a newer request waits for the running one (GitHub keeps one pending run).
 concurrency:
-  group: publish-site-${{ inputs.environment || 'staging' }}
+  group: publish-site-${{ inputs.environment || (github.event_name == 'push' && 'production') || 'staging' }}
   cancel-in-progress: false
 
 permissions:
@@ -34,7 +48,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    environment: ${{ inputs.environment || 'staging' }}
+    environment: ${{ inputs.environment || (github.event_name == 'push' && 'production') || 'staging' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -51,7 +65,8 @@ jobs:
       - name: Publish
         run: node scripts/cloudflare/publication-runner.mjs
         env:
-          PUBLICATION_TARGET: ${{ inputs.environment || 'staging' }}
+          PUBLICATION_TARGET: ${{ inputs.environment || (github.event_name == 'push' && 'production') || 'staging' }}
+          PUBLICATION_FORCE_REBUILD: ${{ (github.event_name == 'push' || inputs.force_rebuild) && 'yes' || 'no' }}
           PUBLICATION_CONFIRM: ${{ vars.PUBLICATION_CONFIRM }}
           PUBLICATION_DRY_RUN: ${{ inputs.dry_run && 'yes' || 'no' }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

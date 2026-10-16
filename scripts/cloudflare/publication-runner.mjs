@@ -16,6 +16,7 @@ import { inspectPublicationPackage } from "./publication-package-inspector.mjs";
 import { runWorkersBuildEntry } from "./workers-build-runner-lib.mjs";
 import { adoptionPlan, currentDeployment } from "./publication-reconcile.mjs";
 import { resolvePublicationTarget } from "./publication-targets.mjs";
+import { requestRebuild } from "./publication-rebuild.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const need = (name) => {
@@ -291,6 +292,8 @@ if (process.env.PUBLICATION_DRY_RUN === "yes") {
 
 if (await workerExists()) await reconcileRemembered();
 else log("reconcile", { skipped: "the Worker does not exist yet" });
+// After a change of the site's code nothing in the content is newer, so ask for a publication explicitly.
+if (process.env.PUBLICATION_FORCE_REBUILD === "yes" && !(await pending())) log("force_rebuild", await requestRebuild({ supabaseUrl: SUPABASE_URL, secretKey: SECRET_KEY }));
 let published = 0;
 for (let round = 0; round < MAX_RELEASES; round += 1) {
   const status = await releaseOnce();
