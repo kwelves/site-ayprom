@@ -63,6 +63,30 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
   const [pickedLogo, setPickedLogo] = useState<string | null>(null);
   const shownLogo = pickedLogo ?? (mode === "edit" ? logo : null);
 
+  // Save and delete sit in the side column under the logo and stay in view while the page scrolls; below xl the
+  // columns stack and the same actions float at the bottom of the screen.
+  const actions = (
+    <>
+      <SubmitButton pendingLabel={mode === "create" ? "Создание…" : "Сохранение…"} size="lg" className="flex-1">
+        {mode === "create" ? "Создать бренд" : "Сохранить"}
+      </SubmitButton>
+      <Link href="/admin/brands" className={buttonClassName({ variant: "glass", size: "lg" })}>
+        Отмена
+      </Link>
+      {mode === "edit" && (
+        <button
+          type="button"
+          onClick={() => setIsDeleteDialogOpen(true)}
+          aria-label="Удалить бренд"
+          title="Удалить бренд"
+          className={buttonClassName({ variant: "ghost", size: "icon", className: "size-11 text-danger hover:bg-danger-surface hover:text-danger" })}
+        >
+          <Trash2 aria-hidden="true" />
+        </button>
+      )}
+    </>
+  );
+
   return (
     <div className="pb-4">
       <BackLink href="/admin/brands" label="Бренды" />
@@ -73,8 +97,8 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
           description={mode === "create" ? "Название, страна и логотип. Адрес подставится сам." : brand?.country}
         />
 
-        <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(340px,420px)] xl:items-stretch">
-          <FormSection id="brand-data" title="О бренде" className="xl:flex-1">
+        <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(340px,420px)] xl:items-start">
+          <FormSection id="brand-data" title="О бренде">
             <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2">
               <FormField label="Название" htmlFor="name" required className="sm:col-span-2">
                 <Input
@@ -116,7 +140,8 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
             </div>
           </FormSection>
 
-          <FormSection id="brand-logo" title="Логотип" description="Так он выглядит на сайте. Масштаб меняет размер логотипа в плитке." className="xl:flex-1">
+          <div className="flex flex-col gap-5 xl:sticky xl:top-3">
+          <FormSection id="brand-logo" title="Логотип" description="Так он выглядит на сайте. Масштаб меняет размер логотипа в плитке.">
             <div className="grid aspect-[16/9] place-items-center overflow-hidden rounded-[14px] bg-logo-plate">
               {shownLogo ? (
                 // eslint-disable-next-line @next/next/no-img-element -- brand logos are SVGs, possibly hosted on Supabase Storage (external host)
@@ -187,26 +212,11 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
               </label>
             )}
           </FormSection>
+            <div className="glass-panel hidden items-center gap-2 rounded-[18px] p-3 xl:flex">{actions}</div>
+          </div>
         </div>
 
-        <StickyFormActions>
-          {mode === "edit" && (
-            <button
-              type="button"
-              onClick={() => setIsDeleteDialogOpen(true)}
-              className={buttonClassName({ variant: "ghost", className: "text-danger hover:bg-danger-surface hover:text-danger" })}
-            >
-              <Trash2 aria-hidden="true" />
-              <span className="max-sm:sr-only">Удалить бренд</span>
-            </button>
-          )}
-          <Link href="/admin/brands" className={buttonClassName({ variant: "glass", className: "ml-auto max-sm:hidden" })}>
-            Отмена
-          </Link>
-          <SubmitButton pendingLabel={mode === "create" ? "Создание…" : "Сохранение…"} className="max-sm:ml-auto max-sm:flex-1">
-            {mode === "create" ? "Создать бренд" : "Сохранить"}
-          </SubmitButton>
-        </StickyFormActions>
+        <StickyFormActions className="xl:hidden">{actions}</StickyFormActions>
       </form>
       <AdminActionFeedback message={actionError} onDismiss={() => setDismissedError(formState)} />
       <ConfirmDialog

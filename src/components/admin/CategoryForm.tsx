@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { ChevronRight, ImagePlus, Layers, Loader2, Package, Tags, Trash2 } from "lucide-react";
 import { createCategory, updateCategory, deleteCategory, replaceCategoryImage } from "@/lib/admin/actions";
 import type { FormActionState } from "@/lib/admin/actions";
 import { describeCategoryUsage } from "@/lib/admin/usage-descriptions";
@@ -12,6 +13,9 @@ import { compressFileInput } from "@/lib/admin/compress-image";
 import { useImageReplace } from "@/lib/admin/use-image-replace";
 import { BackLink } from "@/components/admin/ui/BackLink";
 import { SubmitButton } from "@/components/admin/ui/SubmitButton";
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { FormSection } from "@/components/admin/ui/FormSection";
+import { StickyFormActions } from "@/components/admin/ui/StickyFormActions";
 import { FormField } from "@/components/admin/ui/FormField";
 import { Input } from "@/components/admin/ui/Input";
 import { Textarea } from "@/components/admin/ui/Textarea";
@@ -67,167 +71,231 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
   const [formState, formAction] = useActionState(boundAction, null);
   const actionError = formState !== dismissedError ? (formState?.error ?? null) : null;
 
+  const [pickedImage, setPickedImage] = useState<string | null>(null);
+  const shownImage = pickedImage ?? (mode === "edit" && image ? image : null);
+  const typeLabel = category?.type === "brand" ? "По брендам" : category?.type === "subcategory" ? "По подкатегориям" : "Напрямую";
+
+  // Save and delete live in the side column and stay in view while the long form scrolls; below xl, where the
+  // columns stack, the same actions float at the bottom of the screen instead.
+  const actions = (
+    <>
+      <SubmitButton pendingLabel={mode === "create" ? "Создание…" : "Сохранение…"} size="lg" className="flex-1">
+        {mode === "create" ? "Создать категорию" : "Сохранить"}
+      </SubmitButton>
+      <Link href="/admin/categories" className={buttonClassName({ variant: "glass", size: "lg" })}>
+        Отмена
+      </Link>
+      {mode === "edit" && (
+        <button
+          type="button"
+          onClick={handleDeleteCategory}
+          aria-label="Удалить категорию"
+          title="Удалить категорию"
+          className={buttonClassName({ variant: "ghost", size: "icon", className: "size-11 text-danger hover:bg-danger-surface hover:text-danger" })}
+        >
+          <Trash2 aria-hidden="true" />
+        </button>
+      )}
+    </>
+  );
+
   return (
-    <div className="max-w-2xl">
+    <div className="pb-4">
       <BackLink href="/admin/categories" label="Категории" />
 
-      <form action={formAction} className="glass-panel mt-4 space-y-6 rounded-[18px] p-[18px] sm:p-6">
-        <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em] text-balance text-foreground sm:text-[26px]">
-          {mode === "create" ? "Новая категория" : `Редактировать: ${category?.name}`}
-        </h1>
+      <form action={formAction} className="mt-3">
+        <AdminPageHeader
+          title={mode === "create" ? "Новая категория" : (category?.name ?? "Категория")}
+          description={mode === "create" ? "Название, тип, описание и картинка. Адрес подставится сам." : `${typeLabel} · ${formatRussianCount(category?.productCount ?? 0, ["товар", "товара", "товаров"])}`}
+        />
 
-        <FormField label="Название" htmlFor="name">
-          <Input id="name" name="name" required value={name} onChange={(e) => handleNameChange(e.target.value)} />
-        </FormField>
+        <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(340px,400px)] xl:items-start">
+          <FormSection id="category-data" title="О категории">
+            <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2">
+              <FormField label="Название" htmlFor="name" required className="sm:col-span-2">
+                <Input
+                  id="name"
+                  name="name"
+                  required
+                  value={name}
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  className="font-medium sm:h-11 sm:text-[15px]"
+                />
+              </FormField>
 
-        {mode === "create" ? (
-          <FormField
-            label="Адрес (slug)"
-            htmlFor="slug"
-            description="Заполняется автоматически из названия, можно изменить."
-          >
-            <Input
-              id="slug"
-              name="slug"
-              value={slug}
-              onChange={(e) => {
-                setSlug(e.target.value);
-                setSlugTouched(true);
-              }}
-            />
-          </FormField>
-        ) : (
-          <FormField label="Адрес (slug)" htmlFor="slug-display" description="Не меняется: на этот адрес ведут ссылки.">
-            <Input id="slug-display" value={category?.slug ?? ""} disabled />
-          </FormField>
-        )}
+              {mode === "create" ? (
+                <FormField
+                  label="Адрес (slug)"
+                  htmlFor="slug"
+                  description="Заполняется из названия, можно изменить."
+                >
+                  <Input
+                    id="slug"
+                    name="slug"
+                    value={slug}
+                    spellCheck={false}
+                    onChange={(e) => {
+                      setSlug(e.target.value);
+                      setSlugTouched(true);
+                    }}
+                  />
+                </FormField>
+              ) : (
+                <FormField label="Адрес (slug)" htmlFor="slug-display" description="Не меняется: на этот адрес ведут ссылки.">
+                  <Input id="slug-display" value={category?.slug ?? ""} disabled />
+                </FormField>
+              )}
 
-        {mode === "create" ? (
-          <FormField
-            label="Тип категории"
-            htmlFor="type"
-            description="«По подкатегориям» — товары делятся на подразделы (как Гидронасосы). «По брендам» — товары показываются сразу по маркам техники (как КОМ/ВОМ). «Напрямую» — без группировки, товары категории списком. Нельзя изменить после создания — от этого зависит, что показывать на странице категории."
-          >
-            <Select id="type" name="type" required defaultValue="">
-              <option value="" disabled>
-                Выберите тип
-              </option>
-              <option value="subcategory">По подкатегориям</option>
-              <option value="brand">По брендам</option>
-              <option value="direct">Напрямую (без группировки)</option>
-            </Select>
-          </FormField>
-        ) : (
-          <FormField
-            label="Тип категории"
-            htmlFor="type-display"
-            description="Не меняется: от него зависит устройство страницы категории."
-          >
-            <Input
-              id="type-display"
-              value={
-                category?.type === "brand" ? "По брендам" : category?.type === "subcategory" ? "По подкатегориям" : "Напрямую"
-              }
-              disabled
-            />
-          </FormField>
-        )}
+              {mode === "create" ? (
+                <FormField
+                  label="Тип категории"
+                  htmlFor="type"
+                  required
+                  description="После создания тип не меняется: от него зависит страница категории."
+                >
+                  <Select id="type" name="type" required defaultValue="">
+                    <option value="" disabled>
+                      Выберите тип
+                    </option>
+                    <option value="subcategory">По подкатегориям</option>
+                    <option value="brand">По брендам</option>
+                    <option value="direct">Напрямую (без группировки)</option>
+                  </Select>
+                </FormField>
+              ) : (
+                <FormField label="Тип категории" htmlFor="type-display" description="Не меняется: от него зависит устройство страницы категории.">
+                  <Input id="type-display" value={typeLabel} disabled />
+                </FormField>
+              )}
 
-        <FormField
-          label="Описание для меню и SEO"
-          htmlFor="description"
-          description="Необязательно. Если оставить пустым, дополнительный текст в меню и SEO-описание не выводятся."
-        >
-          <Textarea id="description" name="description" rows={2} defaultValue={category?.description} />
-        </FormField>
+              {mode === "create" && (
+                <p className="rounded-[12px] bg-info-surface px-3 py-2.5 text-[13px] leading-snug text-info sm:col-span-2">
+                  «По подкатегориям»: товары делятся на подразделы, как гидронасосы. «По брендам»: товары сразу по маркам техники,
+                  как КОМ и ВОМ. «Напрямую»: без группировки, одним списком.
+                </p>
+              )}
 
-        <FormField
-          label="Вступление"
-          htmlFor="intro"
-          description="Необязательно. Короткий поясняющий текст на странице категории (актуально для категорий «по брендам»)."
-        >
-          <Textarea id="intro" name="intro" rows={3} defaultValue={category?.intro} />
-        </FormField>
+              <FormField
+                label="Описание для меню и SEO"
+                htmlFor="description"
+                className="sm:col-span-2"
+                description="Необязательно. Пусто: дополнительный текст в меню и описание для поисковиков не выводятся."
+              >
+                <Textarea id="description" name="description" rows={2} defaultValue={category?.description} />
+              </FormField>
 
-        <div>
-          <h2 className="text-base font-semibold tracking-[-0.01em] text-foreground">Изображение</h2>
-          {mode === "edit" && image && (
-            <div className="mt-3 flex h-24 w-40 items-center justify-center overflow-hidden glass-plate rounded-[12px]">
-              <Image src={image} alt="" width={160} height={96} unoptimized className="h-full w-full object-cover" />
+              <FormField
+                label="Вступление"
+                htmlFor="intro"
+                className="sm:col-span-2"
+                description="Необязательно. Короткий текст над товарами на странице категории, чаще всего для категорий «по брендам»."
+              >
+                <Textarea id="intro" name="intro" rows={4} defaultValue={category?.intro} />
+              </FormField>
             </div>
-          )}
-          {mode === "create" ? (
-            <div className="mt-3">
-              <label htmlFor="image" className="sr-only">
-                Изображение
-              </label>
-              <input
-                id="image"
-                type="file"
-                name="image"
-                accept="image/*"
-                required
-                className="text-sm"
-                onChange={(e) => {
-                  const input = e.target;
-                  void compressFileInput(input);
-                }}
-              />
-            </div>
-          ) : (
-            <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-[12px] border border-dashed border-input px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-primary hover:bg-accent hover:text-primary has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-primary/30">
-              {isUploadingImage ? "Загрузка…" : "Заменить изображение"}
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleImageReplace}
-                disabled={isUploadingImage}
-              />
-            </label>
-          )}
+          </FormSection>
+
+          <div className="flex flex-col gap-5 xl:sticky xl:top-3">
+            <FormSection id="category-image" title="Изображение" description="Плитка категории на сайте.">
+              <div className="relative grid aspect-[16/10] place-items-center overflow-hidden rounded-[14px] bg-surface-subtle [@media(max-height:760px)]:aspect-[16/7]">
+                {shownImage ? (
+                  <Image
+                    src={shownImage}
+                    alt=""
+                    fill
+                    sizes="400px"
+                    unoptimized
+                    className="object-cover"
+                  />
+                ) : (
+                  <span className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
+                    <ImagePlus aria-hidden="true" className="size-6" />
+                    Изображение появится здесь
+                  </span>
+                )}
+              </div>
+              {mode === "create" ? (
+                <div>
+                  <label htmlFor="image" className="block text-[13px] font-medium text-foreground">
+                    Файл изображения <span className="text-danger" aria-hidden="true">*</span>
+                  </label>
+                  <input
+                    id="image"
+                    type="file"
+                    name="image"
+                    accept="image/*"
+                    required
+                    className="mt-1.5 block w-full text-sm text-muted-foreground file:mr-3 file:h-10 file:cursor-pointer file:rounded-[10px] file:border-0 file:bg-accent-strong file:px-4 file:text-[13px] file:font-semibold file:text-accent-foreground"
+                    onChange={(e) => {
+                      const input = e.target;
+                      const file = input.files?.[0];
+                      setPickedImage(file ? URL.createObjectURL(file) : null);
+                      void compressFileInput(input);
+                    }}
+                  />
+                </div>
+              ) : (
+                <label className="flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-[14px] border border-dashed border-input px-4 py-3 text-sm font-semibold text-foreground transition-[border-color,background-color,color] duration-fast ease-ui hover:border-primary hover:bg-accent hover:text-primary has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-primary/30">
+                  {isUploadingImage ? <Loader2 aria-hidden="true" className="size-4 animate-spin" /> : <ImagePlus aria-hidden="true" className="size-4" />}
+                  {isUploadingImage ? "Загрузка…" : "Заменить изображение"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={handleImageReplace}
+                    disabled={isUploadingImage}
+                  />
+                </label>
+              )}
+            </FormSection>
+
+            {mode === "edit" && category && category.type !== null && (
+              <FormSection id="category-links" title="Что внутри">
+                <div className="-my-1 flex flex-col gap-1.5">
+                  <Link
+                    href={category.type === "brand" ? `/admin/categories/${category.slug}/category-brands` : `/admin/categories/${category.slug}/subcategories`}
+                    className="glass-plate group/link flex min-h-12 items-center gap-3 rounded-[12px] px-3 transition-colors duration-fast ease-ui hover:bg-secondary focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30"
+                  >
+                    <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-[8px] bg-accent-strong text-accent-foreground">
+                      {category.type === "brand" ? <Tags className="size-4" /> : <Layers className="size-4" />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold text-foreground">
+                        {category.type === "brand" ? "Бренды категории" : "Подкатегории"}
+                      </span>
+                      {category.type === "subcategory" && (
+                        <span className="block text-xs text-muted-foreground">
+                          Без подкатегории: {formatRussianCount(category.directProductCount, ["товар", "товара", "товаров"])}
+                        </span>
+                      )}
+                    </span>
+                    <span className="rounded-full bg-neutral-surface px-2 py-0.5 text-xs font-semibold text-muted-foreground tabular-nums">
+                      {category.type === "brand" ? category.categoryBrandCount : category.subcategoryCount}
+                    </span>
+                    <ChevronRight aria-hidden="true" className="size-4 text-muted-foreground transition-[translate] duration-fast ease-ui group-hover/link:translate-x-0.5" />
+                  </Link>
+                  <Link
+                    href={`/admin/products?category=${encodeURIComponent(category.slug)}`}
+                    className="glass-plate group/link flex min-h-12 items-center gap-3 rounded-[12px] px-3 transition-colors duration-fast ease-ui hover:bg-secondary focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30"
+                  >
+                    <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-[8px] bg-accent-strong text-accent-foreground">
+                      <Package className="size-4" />
+                    </span>
+                    <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">Товары категории</span>
+                    <span className="rounded-full bg-neutral-surface px-2 py-0.5 text-xs font-semibold text-muted-foreground tabular-nums">
+                      {category.productCount}
+                    </span>
+                    <ChevronRight aria-hidden="true" className="size-4 text-muted-foreground transition-[translate] duration-fast ease-ui group-hover/link:translate-x-0.5" />
+                  </Link>
+                </div>
+              </FormSection>
+            )}
+
+            <div className="glass-panel hidden items-center gap-2 rounded-[18px] p-3 xl:flex">{actions}</div>
+          </div>
         </div>
 
-        {mode === "edit" && category && category.type === "subcategory" && (
-          <div className="rounded-md border border-border bg-surface-subtle p-4">
-            <Link
-              href={`/admin/categories/${category.slug}/subcategories`}
-              className="text-sm text-primary hover:underline"
-            >
-              Управлять подкатегориями ({category.subcategoryCount}) →
-            </Link>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Без подкатегории: {formatRussianCount(category.directProductCount, ["товар", "товара", "товаров"])}. Опубликованные товары показываются прямо в общей сетке после подкатегорий.
-            </p>
-            <Link
-              href={`/admin/products?category=${encodeURIComponent(category.slug)}`}
-              className="mt-2 inline-block text-sm text-primary hover:underline"
-            >
-              Посмотреть товары категории →
-            </Link>
-          </div>
-        )}
-        {mode === "edit" && category && category.type === "brand" && (
-          <div>
-            <Link
-              href={`/admin/categories/${category.slug}/category-brands`}
-              className="text-sm text-primary hover:underline"
-            >
-              Управлять брендами категории ({category.categoryBrandCount}) →
-            </Link>
-          </div>
-        )}
-
-        <div className="flex flex-wrap items-center gap-3 border-t border-border pt-5">
-          <SubmitButton pendingLabel={mode === "create" ? "Создание…" : "Сохранение…"}>
-            {mode === "create" ? "Создать категорию" : "Сохранить"}
-          </SubmitButton>
-          {mode === "edit" && (
-            <button type="button" onClick={handleDeleteCategory} className={buttonClassName({ variant: "ghost", className: "ml-auto text-danger hover:bg-danger-surface hover:text-danger" })}>
-              Удалить категорию
-            </button>
-          )}
-        </div>
+        <StickyFormActions className="xl:hidden">{actions}</StickyFormActions>
       </form>
       <AdminActionFeedback message={actionError} onDismiss={() => setDismissedError(formState)} />
       <ConfirmDialog
