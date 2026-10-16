@@ -179,7 +179,7 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
                 label="Описание для меню и SEO"
                 htmlFor="description"
                 className="sm:col-span-2"
-                description="Необязательно. Пусто: дополнительный текст в меню и описание для поисковиков не выводятся."
+                description="Необязательно. Если оставить пустым, дополнительный текст в меню и SEO-описание не выводятся."
               >
                 <Textarea id="description" name="description" rows={2} defaultValue={category?.description} />
               </FormField>
