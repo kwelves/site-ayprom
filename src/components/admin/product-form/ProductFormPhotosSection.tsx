@@ -249,7 +249,7 @@ export function ProductFormPhotosSection({
       {stagedPhotos.length > 0 && (
         <ul className="mt-3 space-y-2">
           {stagedPhotos.map((photo) => (
-            <li key={photo.key} className="glass-plate animate-[admin-row-in_var(--transition-duration-base)_var(--ease-ui)_both] rounded-[12px] px-3 py-2">
+            <li key={photo.key} className="glass-plate animate-[admin-row-in_var(--transition-duration-base)_var(--ease-ui)_backwards] rounded-[12px] px-3 py-2">
               <div className="flex items-center gap-3">
                 <span className="flex-1 truncate text-xs text-muted-foreground">{photo.fileName}</span>
                 {photo.status === "uploaded" && (

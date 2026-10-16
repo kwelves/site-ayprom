@@ -52,7 +52,7 @@ function listClassName(surface: "panel" | "inset", className?: string) {
 
 function rowClassName(surface: "panel" | "inset", highlighted: boolean) {
   return cn(
-    "relative flex animate-[admin-row-in_var(--transition-duration-base)_var(--ease-ui)_both] items-start gap-2 rounded-[12px] px-2 py-2 transition-colors duration-fast ease-ui hover:z-10 focus-within:z-10 md:items-center",
+    "relative flex animate-[admin-row-in_var(--transition-duration-base)_var(--ease-ui)_backwards] items-start gap-2 rounded-[12px] px-2 py-2 transition-colors duration-fast ease-ui hover:z-10 focus-within:z-10 md:items-center",
     surface === "inset" ? "glass-plate" : "hover:bg-accent",
     highlighted && "bg-accent-strong",
   );

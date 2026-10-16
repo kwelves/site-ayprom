@@ -74,7 +74,7 @@ export function AdminMobileNav() {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-40 flex animate-[admin-screen-fade_200ms_var(--ease-ui)_both] bg-overlay p-3 backdrop-blur-[2px]" onClick={close}>
+        <div className="fixed inset-0 z-40 flex animate-[admin-screen-fade_200ms_var(--ease-ui)_backwards] bg-overlay p-3 backdrop-blur-[2px]" onClick={close}>
           <div
             ref={panelRef}
             role="dialog"

@@ -19,7 +19,7 @@ export function AdminActionFeedback({ message, tone = "error", onDismiss }: Admi
       role={tone === "error" ? "alert" : "status"}
       aria-live="polite"
       className={cn(
-        "glass-float fixed right-4 bottom-4 z-[70] flex max-w-md animate-[admin-toast-in_320ms_var(--ease-spring)_both] items-start gap-3 rounded-[14px] py-3 pr-2 pl-3.5 sm:right-6 sm:bottom-6",
+        "glass-float fixed right-4 bottom-4 z-[70] flex max-w-md animate-[admin-toast-in_320ms_var(--ease-spring)_backwards] items-start gap-3 rounded-[14px] py-3 pr-2 pl-3.5 sm:right-6 sm:bottom-6",
         tone === "error" && "border-danger-border",
       )}
     >

@@ -98,7 +98,7 @@ export function BulkActionBar({ count, itemLabel, onClear, groups, className }: 
         role="toolbar"
         aria-label="Массовые действия"
         className={cn(
-          "fixed left-1/2 z-40 flex w-[calc(100vw-1.5rem)] -translate-x-1/2 items-center gap-2 rounded-[18px] glass-float p-2 animate-[admin-dialog-in_240ms_var(--ease-spring-soft)_both] sm:hidden",
+          "fixed left-1/2 z-40 flex w-[calc(100vw-1.5rem)] -translate-x-1/2 items-center gap-2 rounded-[18px] glass-float p-2 animate-[admin-dialog-in_240ms_var(--ease-spring-soft)_backwards] sm:hidden",
           className,
         )}
         style={{ bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
@@ -130,7 +130,7 @@ export function BulkActionBar({ count, itemLabel, onClear, groups, className }: 
         role="toolbar"
         aria-label="Массовые действия"
         className={cn(
-          "fixed bottom-4 left-1/2 z-20 hidden w-fit max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-wrap items-center gap-3 rounded-[18px] glass-float px-4 py-2.5 animate-[admin-dialog-in_240ms_var(--ease-spring-soft)_both] sm:flex",
+          "fixed bottom-4 left-1/2 z-20 hidden w-fit max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-wrap items-center gap-3 rounded-[18px] glass-float px-4 py-2.5 animate-[admin-dialog-in_240ms_var(--ease-spring-soft)_backwards] sm:flex",
           className,
         )}
       >

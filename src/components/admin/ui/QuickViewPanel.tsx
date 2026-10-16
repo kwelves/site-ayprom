@@ -73,7 +73,7 @@ export function QuickViewPanel({ open, title, onClose, children, footer }: Quick
     // Design system v2, "Выдвижная панель": from the right, 12px off the screen edges, radius 22, dense glass;
     // a fixed head, a scrolling body and the actions at the bottom.
     <div
-      className="fixed inset-0 z-40 flex animate-[admin-screen-fade_200ms_var(--ease-ui)_both] justify-end bg-overlay p-3 backdrop-blur-[2px]"
+      className="fixed inset-0 z-40 flex animate-[admin-screen-fade_200ms_var(--ease-ui)_backwards] justify-end bg-overlay p-3 backdrop-blur-[2px]"
       onClick={onClose}
     >
       <div
@@ -85,7 +85,7 @@ export function QuickViewPanel({ open, title, onClose, children, footer }: Quick
         onClick={(event) => event.stopPropagation()}
         className={cn(
           "glass-float flex h-full w-full max-w-[480px] flex-col rounded-[22px]",
-          "animate-[admin-drawer-in_360ms_var(--ease-drawer)_both]",
+          "animate-[admin-drawer-in_360ms_var(--ease-drawer)_backwards]",
         )}
       >
         <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3">

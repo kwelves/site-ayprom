@@ -176,7 +176,7 @@ export function ProductActionsPanel({
         onKeyDown={handleKeyDown}
         className={cn(
           "glass-float flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-[22px] animate-fade-up",
-          "motion-reduce:animate-none md:h-full md:max-h-none md:max-w-[480px] md:rounded-[22px] md:animate-[admin-drawer-in_360ms_var(--ease-drawer)_both]",
+          "motion-reduce:animate-none md:h-full md:max-h-none md:max-w-[480px] md:rounded-[22px] md:animate-[admin-drawer-in_360ms_var(--ease-drawer)_backwards]",
         )}
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >

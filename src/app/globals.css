@@ -584,7 +584,7 @@ a {
 /* A new admin screen comes in from 10px below (design system v2, 360ms). CSS, not JS, so it stays smooth
    while the page's data is still arriving. Reduced motion keeps the fade only. */
 [data-admin-screen] {
-  animation: admin-screen-in var(--transition-duration-screen) var(--ease-ui) both;
+  animation: admin-screen-in var(--transition-duration-screen) var(--ease-ui) backwards;
 }
 
 @media (prefers-reduced-motion: reduce) {

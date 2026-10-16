@@ -87,7 +87,7 @@ export function ConfirmDialog({
   return (
     // Design system v2, "Окна": darkened scene with a light blur, the dialog comes in from 0.96 on the soft spring.
     // A dangerous action names its object in the title; cancel on the left, the red action on the right.
-    <div className="fixed inset-0 z-50 flex animate-[admin-screen-fade_200ms_var(--ease-ui)_both] items-center justify-center bg-overlay p-4 backdrop-blur-[2px]">
+    <div className="fixed inset-0 z-50 flex animate-[admin-screen-fade_200ms_var(--ease-ui)_backwards] items-center justify-center bg-overlay p-4 backdrop-blur-[2px]">
       <div
         ref={dialogRef}
         role="alertdialog"
@@ -95,7 +95,7 @@ export function ConfirmDialog({
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
         onKeyDown={handleKeyDown}
-        className="glass-float w-full max-w-[460px] animate-[admin-dialog-in_280ms_var(--ease-spring-soft)_both] rounded-[22px] p-6"
+        className="glass-float w-full max-w-[460px] animate-[admin-dialog-in_280ms_var(--ease-spring-soft)_backwards] rounded-[22px] p-6"
       >
         <div className="flex items-start gap-4">
           {tone === "danger" && (
