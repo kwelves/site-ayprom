@@ -15,6 +15,7 @@ import { Input } from "@/components/admin/ui/Input";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
 import type { AdminBrand } from "@/lib/admin/queries";
+import { buttonClassName } from "@/components/admin/ui/button-styles";
 
 interface BrandFormProps {
   mode: "create" | "edit";
@@ -55,7 +56,7 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
     <div className="max-w-xl">
       <BackLink href="/admin/brands" label="Бренды" />
 
-      <form action={formAction} className="mt-4 space-y-6">
+      <form action={formAction} className="glass-panel mt-4 space-y-6 rounded-[18px] p-[18px] sm:p-6">
         <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em] text-balance text-foreground sm:text-[26px]">
           {mode === "create" ? "Новый бренд" : `Редактировать: ${brand?.name}`}
         </h1>
@@ -107,9 +108,9 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
         </FormField>
 
         <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Логотип</h2>
+          <h2 className="text-base font-semibold tracking-[-0.01em] text-foreground">Логотип</h2>
           {mode === "edit" && logo && (
-            <div className="mt-3 flex h-16 w-32 items-center justify-center rounded-md border border-border bg-muted/40">
+            <div className="mt-3 flex h-16 w-32 items-center justify-center rounded-[12px] bg-logo-plate">
               {/* eslint-disable-next-line @next/next/no-img-element -- brand logos are SVGs, possibly hosted on Supabase Storage (external host) */}
               <img src={logo} alt="" className="max-h-full max-w-full object-contain p-2" />
             </div>
@@ -125,7 +126,7 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
                 name="logo"
                 accept="image/*"
                 required
-                className="text-sm"
+                className="text-sm text-muted-foreground file:mr-3 file:h-9 file:cursor-pointer file:rounded-[10px] file:border-0 file:bg-accent-strong file:px-3 file:text-[13px] file:font-semibold file:text-accent-foreground"
                 onChange={(e) => {
                   const input = e.target;
                   void compressFileInput(input);
@@ -133,7 +134,7 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
               />
             </div>
           ) : (
-            <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-input px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary">
+            <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-[12px] border border-dashed border-input px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-primary hover:bg-accent hover:text-primary has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-primary/30">
               {isUploadingLogo ? "Загрузка…" : "Заменить логотип"}
               <input
                 type="file"
@@ -146,12 +147,12 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
           )}
         </div>
 
-        <div className="flex items-center gap-4 border-t border-border pt-6">
+        <div className="flex flex-wrap items-center gap-3 border-t border-border pt-5">
           <SubmitButton pendingLabel={mode === "create" ? "Создание…" : "Сохранение…"}>
             {mode === "create" ? "Создать бренд" : "Сохранить"}
           </SubmitButton>
           {mode === "edit" && (
-            <button type="button" onClick={() => setIsDeleteDialogOpen(true)} className="text-sm text-danger hover:underline">
+            <button type="button" onClick={() => setIsDeleteDialogOpen(true)} className={buttonClassName({ variant: "ghost", className: "ml-auto text-danger hover:bg-danger-surface hover:text-danger" })}>
               Удалить бренд
             </button>
           )}

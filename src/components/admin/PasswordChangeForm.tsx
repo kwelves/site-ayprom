@@ -22,7 +22,7 @@ export function PasswordChangeForm() {
   }
 
   return (
-    <form action={formAction} onKeyDown={handleKeyDown} className="space-y-5">
+    <form action={formAction} onKeyDown={handleKeyDown} className="glass-panel max-w-xl space-y-5 rounded-[18px] p-[18px] sm:p-6">
       <FormField label="Текущий пароль" htmlFor="currentPassword">
         <Input
           id="currentPassword"

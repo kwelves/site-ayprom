@@ -19,6 +19,7 @@ import { Select } from "@/components/admin/ui/Select";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
 import type { AdminCategory } from "@/lib/admin/queries";
+import { buttonClassName } from "@/components/admin/ui/button-styles";
 
 interface CategoryFormProps {
   mode: "create" | "edit";
@@ -70,7 +71,7 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
     <div className="max-w-2xl">
       <BackLink href="/admin/categories" label="Категории" />
 
-      <form action={formAction} className="mt-4 space-y-6">
+      <form action={formAction} className="glass-panel mt-4 space-y-6 rounded-[18px] p-[18px] sm:p-6">
         <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em] text-balance text-foreground sm:text-[26px]">
           {mode === "create" ? "Новая категория" : `Редактировать: ${category?.name}`}
         </h1>
@@ -149,9 +150,9 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
         </FormField>
 
         <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Изображение</h2>
+          <h2 className="text-base font-semibold tracking-[-0.01em] text-foreground">Изображение</h2>
           {mode === "edit" && image && (
-            <div className="mt-3 flex h-24 w-40 items-center justify-center overflow-hidden rounded-md border border-border bg-muted/40">
+            <div className="mt-3 flex h-24 w-40 items-center justify-center overflow-hidden glass-plate rounded-[12px]">
               <Image src={image} alt="" width={160} height={96} unoptimized className="h-full w-full object-cover" />
             </div>
           )}
@@ -174,7 +175,7 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
               />
             </div>
           ) : (
-            <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-input px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary">
+            <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-[12px] border border-dashed border-input px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-primary hover:bg-accent hover:text-primary has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-primary/30">
               {isUploadingImage ? "Загрузка…" : "Заменить изображение"}
               <input
                 type="file"
@@ -217,12 +218,12 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
           </div>
         )}
 
-        <div className="flex items-center gap-4 border-t border-border pt-6">
+        <div className="flex flex-wrap items-center gap-3 border-t border-border pt-5">
           <SubmitButton pendingLabel={mode === "create" ? "Создание…" : "Сохранение…"}>
             {mode === "create" ? "Создать категорию" : "Сохранить"}
           </SubmitButton>
           {mode === "edit" && (
-            <button type="button" onClick={handleDeleteCategory} className="text-sm text-danger hover:underline">
+            <button type="button" onClick={handleDeleteCategory} className={buttonClassName({ variant: "ghost", className: "ml-auto text-danger hover:bg-danger-surface hover:text-danger" })}>
               Удалить категорию
             </button>
           )}

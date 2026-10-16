@@ -286,6 +286,8 @@
   /* Darkened scene behind dialogs and drawers. */
   --color-overlay: rgb(15 23 42 / 0.38);
   --color-selection: rgb(8 75 185 / 0.18);
+  /* Brand logos are drawn for a light ground; they keep a light plate in the dark theme too. */
+  --color-logo-plate: rgb(255 255 255 / 0.92);
 }
 
 html {
@@ -434,6 +436,7 @@ body {
   --color-warning-border: rgb(251 191 36 / 0.28);
   --color-overlay: rgb(2 6 23 / 0.6);
   --color-selection: rgb(79 145 248 / 0.3);
+  --color-logo-plate: rgb(241 245 249 / 0.94);
   color-scheme: dark;
 }
 

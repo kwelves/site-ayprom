@@ -98,7 +98,7 @@ export function BulkActionBar({ count, itemLabel, onClear, groups, className }: 
         role="toolbar"
         aria-label="Массовые действия"
         className={cn(
-          "fixed left-1/2 z-40 flex w-[calc(100vw-1.5rem)] -translate-x-1/2 items-center gap-2 rounded-2xl border border-border bg-card p-2 shadow-lg sm:hidden",
+          "fixed left-1/2 z-40 flex w-[calc(100vw-1.5rem)] -translate-x-1/2 items-center gap-2 rounded-[18px] glass-float p-2 animate-[admin-dialog-in_240ms_var(--ease-spring-soft)_both] sm:hidden",
           className,
         )}
         style={{ bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
@@ -112,7 +112,7 @@ export function BulkActionBar({ count, itemLabel, onClear, groups, className }: 
           onClick={() => setMobileSheetOpen(true)}
           aria-haspopup="dialog"
           aria-expanded={mobileSheetOpen}
-          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          className="inline-flex min-h-11 items-center justify-center primary-surface rounded-[10px] px-4 text-[13px] font-semibold transition-[filter,scale] duration-fast ease-ui hover:brightness-110 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         >
           Изменить
         </button>
@@ -130,7 +130,7 @@ export function BulkActionBar({ count, itemLabel, onClear, groups, className }: 
         role="toolbar"
         aria-label="Массовые действия"
         className={cn(
-          "fixed bottom-4 left-1/2 z-20 hidden w-fit max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-wrap items-center gap-3 rounded-full border border-border bg-card px-4 py-2.5 shadow-lg sm:flex",
+          "fixed bottom-4 left-1/2 z-20 hidden w-fit max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-wrap items-center gap-3 rounded-[18px] glass-float px-4 py-2.5 animate-[admin-dialog-in_240ms_var(--ease-spring-soft)_both] sm:flex",
           className,
         )}
       >
@@ -152,7 +152,7 @@ export function BulkActionBar({ count, itemLabel, onClear, groups, className }: 
       </div>
 
       {mobileSheetOpen && (
-        <div className="fixed inset-0 z-50 flex items-end bg-foreground/40 sm:hidden" onClick={closeMobileSheet}>
+        <div className="fixed inset-0 z-50 flex items-end bg-overlay backdrop-blur-[2px] sm:hidden" onClick={closeMobileSheet}>
           <div
             ref={sheetRef}
             role="dialog"
@@ -160,7 +160,7 @@ export function BulkActionBar({ count, itemLabel, onClear, groups, className }: 
             aria-labelledby={titleId}
             onKeyDown={handleSheetKeyDown}
             onClick={(event) => event.stopPropagation()}
-            className="max-h-[calc(100dvh-1rem)] w-full overflow-y-auto rounded-t-3xl border-t border-border bg-card px-4 pt-2 shadow-lg animate-fade-up"
+            className="max-h-[calc(100dvh-1rem)] w-full overflow-y-auto glass-float rounded-t-[22px] px-4 pt-2 animate-fade-up"
             style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
           >
             <div className="mx-auto h-1 w-10 rounded-full bg-border" aria-hidden="true" />
@@ -185,7 +185,7 @@ export function BulkActionBar({ count, itemLabel, onClear, groups, className }: 
             <div className="mt-5 space-y-5">
               {groups.map((group) => (
                 <section key={group.label} aria-label={group.label}>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <h3 className="mb-2 text-[13px] font-semibold text-foreground">
                     {group.label}
                   </h3>
                   <div

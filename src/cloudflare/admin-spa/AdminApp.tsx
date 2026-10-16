@@ -17,7 +17,8 @@ interface PageModule {
 
 const pageLoaders = import.meta.glob("../../app/admin/**/page.tsx") as Record<string, () => Promise<PageModule>>;
 const routeTable = buildRouteTable(Object.keys(pageLoaders));
-const LOADING_AFTER_MS = 80;
+// Design system v2: a placeholder never flashes for an answer faster than 300ms.
+const LOADING_AFTER_MS = 300;
 const PREFETCH_COOLDOWN_MS = 3000;
 
 function queryObject(search: string): Record<string, string | string[]> {

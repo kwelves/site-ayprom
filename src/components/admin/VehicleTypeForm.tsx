@@ -12,6 +12,7 @@ import { SubmitButton } from "@/components/admin/ui/SubmitButton";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
 import type { AdminVehicleType } from "@/lib/admin/queries";
+import { buttonClassName } from "@/components/admin/ui/button-styles";
 
 interface VehicleTypeFormProps {
   mode: "create" | "edit";
@@ -46,7 +47,7 @@ export function VehicleTypeForm({ mode, vehicleType }: VehicleTypeFormProps) {
     <div className="max-w-xl">
       <BackLink href="/admin/vehicle-types" label="Типы техники" />
 
-      <form action={formAction} className="mt-4 space-y-6">
+      <form action={formAction} className="glass-panel mt-4 space-y-6 rounded-[18px] p-[18px] sm:p-6">
         <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em] text-balance text-foreground sm:text-[26px]">
           {mode === "create" ? "Новый тип техники" : `Редактировать: ${vehicleType?.name}`}
         </h1>
@@ -77,12 +78,12 @@ export function VehicleTypeForm({ mode, vehicleType }: VehicleTypeFormProps) {
           </FormField>
         )}
 
-        <div className="flex items-center gap-4 border-t border-border pt-6">
+        <div className="flex flex-wrap items-center gap-3 border-t border-border pt-5">
           <SubmitButton pendingLabel={mode === "create" ? "Создание…" : "Сохранение…"}>
             {mode === "create" ? "Создать тип техники" : "Сохранить"}
           </SubmitButton>
           {mode === "edit" && (
-            <button type="button" onClick={() => setIsDeleteDialogOpen(true)} className="text-sm text-danger hover:underline">
+            <button type="button" onClick={() => setIsDeleteDialogOpen(true)} className={buttonClassName({ variant: "ghost", className: "ml-auto text-danger hover:bg-danger-surface hover:text-danger" })}>
               Удалить тип техники
             </button>
           )}

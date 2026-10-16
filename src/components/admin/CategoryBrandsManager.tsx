@@ -124,7 +124,7 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
           enableStepButtons
           renderItem={(brand) => (
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex h-10 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/40">
+              <div className="flex h-10 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-logo-plate">
                 {/* eslint-disable-next-line @next/next/no-img-element -- brand logos are SVGs, possibly hosted on Supabase Storage (external host) */}
                 <img src={brand.brandLogo} alt="" className="max-h-full max-w-full object-contain p-1" />
               </div>

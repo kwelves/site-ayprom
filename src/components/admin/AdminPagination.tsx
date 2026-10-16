@@ -34,7 +34,7 @@ export function AdminPagination({ page, totalPages }: AdminPaginationProps) {
   }
 
   const linkClass =
-    "inline-flex h-9 min-w-9 items-center justify-center gap-1 rounded-md border border-border px-3 text-sm font-medium transition-colors hover:border-border-interactive hover:bg-accent";
+    "glass-plate inline-flex h-11 min-w-11 items-center justify-center gap-1 rounded-[10px] px-3 text-[13px] font-semibold text-foreground transition-[background-color,scale] duration-fast ease-ui hover:bg-secondary active:scale-[0.97] sm:h-9.5 sm:min-w-9.5";
   const disabledClass = "pointer-events-none opacity-40";
 
   return (
@@ -50,7 +50,7 @@ export function AdminPagination({ page, totalPages }: AdminPaginationProps) {
         Назад
       </Link>
 
-      <span aria-live="polite" className="text-sm text-muted-foreground">
+      <span aria-live="polite" className="text-sm text-muted-foreground tabular-nums">
         {page} / {totalPages}
       </span>
 

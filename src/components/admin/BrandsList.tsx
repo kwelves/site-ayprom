@@ -45,7 +45,7 @@ export function BrandsList({ brands: initialBrands, flashSlug, flashAction }: Br
       highlightedKey={highlightedKey}
       renderItem={(brand) => (
         <div className="grid grid-cols-[5rem_minmax(0,1fr)] items-start gap-x-3 gap-y-3 md:flex md:gap-3">
-          <div className="flex h-12 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/40">
+          <div className="flex h-12 w-20 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-logo-plate">
             {/* eslint-disable-next-line @next/next/no-img-element -- brand logos are SVGs, possibly hosted on Supabase Storage (external host) */}
             <img
               src={brand.logo}
