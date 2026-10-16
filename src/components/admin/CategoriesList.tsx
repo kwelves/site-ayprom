@@ -100,7 +100,7 @@ export function CategoriesList({ categories: initialCategories, flashSlug, flash
             <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-4">
               <Link
                 href={`/admin/categories/${category.slug}/edit`}
-                className={buttonClassName({ variant: "glass", size: "sm", className: "min-h-11 md:min-h-0" })}
+                className={buttonClassName({ variant: "soft", size: "sm", className: "min-h-11 md:min-h-0" })}
               >
                 <Pencil aria-hidden="true" className="!size-4" />
                 Редактировать

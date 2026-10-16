@@ -71,7 +71,7 @@ export function SubcategoriesList({
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <Link
                 href={`/admin/categories/${categorySlug}/subcategories/${sub.slug}/edit`}
-                className={buttonClassName({ variant: "glass", size: "sm" })}
+                className={buttonClassName({ variant: "soft", size: "sm" })}
               >
                 Редактировать
               </Link>

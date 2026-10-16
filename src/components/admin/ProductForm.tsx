@@ -42,8 +42,7 @@ import { ProductFormPhotosSection } from "@/components/admin/product-form/Produc
 import { ProductFormSeoSection } from "@/components/admin/product-form/ProductFormSeoSection";
 import { ProductFormPublicationSection } from "@/components/admin/product-form/ProductFormPublicationSection";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
-import { FormSection } from "@/components/admin/ui/FormSection";
-import { FormSectionNav } from "@/components/admin/ui/FormSectionNav";
+import { FormSection, SectionCount } from "@/components/admin/ui/FormSection";
 import { buttonClassName } from "@/components/admin/ui/button-styles";
 import type { Category, Subcategory, Brand, VehicleType } from "@/types/catalog";
 import type { AdminProduct } from "@/lib/admin/queries";
@@ -421,16 +420,6 @@ export function ProductForm({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const sectionNav = [
-    { id: "product-basic", label: "Основное" },
-    { id: "product-publication", label: "Публикация" },
-    { id: "product-photos", label: "Фотографии", count: mode === "edit" ? images.length : stagedPhotos.photos.length },
-    { id: "product-compatibility", label: "Совместимость", count: selectedBrands.size + selectedVehicleTypes.size },
-    { id: "product-descriptions", label: "Описание" },
-    { id: "product-characteristics", label: "Характеристики", count: characteristics.filter((c) => c.attribute.trim()).length },
-    { id: "product-seo", label: "SEO" },
-  ];
-
   return (
     <div className="pb-4">
       <BackLink href="/admin/products" label="Товары" />
@@ -472,8 +461,6 @@ export function ProductForm({
           </>
         )}
 
-        <FormSectionNav items={sectionNav} className="mt-5" />
-
         {/* Every part is open: what is filled in is visible without a click. On a laptop the wide column holds the
             texts, the side column what is changed most often (publication, photos, compatibility). On narrower
             screens the parts stack in the order of work: the wrappers dissolve (display: contents) and order-* sets
@@ -505,6 +492,7 @@ export function ProductForm({
             <FormSection
               id="product-characteristics"
               title="Характеристики"
+              aside={characteristics.some((c) => c.attribute.trim()) ? <SectionCount>{characteristics.filter((c) => c.attribute.trim()).length}</SectionCount> : undefined}
               description="Перетащите строку, чтобы изменить порядок на сайте."
               className="order-6"
             >
@@ -537,6 +525,7 @@ export function ProductForm({
             <FormSection
               id="product-photos"
               title="Фотографии"
+              aside={(mode === "edit" ? images.length : stagedPhotos.photos.length) > 0 ? <SectionCount>{mode === "edit" ? images.length : stagedPhotos.photos.length}</SectionCount> : undefined}
               description={mode === "edit" ? "Первое фото главное. Порядок меняется перетаскиванием." : undefined}
               className="order-3"
             >
@@ -563,7 +552,12 @@ export function ProductForm({
               />
             </FormSection>
 
-            <FormSection id="product-compatibility" title="Совместимость" className="order-4 xl:flex-1">
+            <FormSection
+              id="product-compatibility"
+              title="Совместимость"
+              aside={selectedBrands.size + selectedVehicleTypes.size > 0 ? <SectionCount>{selectedBrands.size + selectedVehicleTypes.size}</SectionCount> : undefined}
+              className="order-4 xl:flex-1"
+            >
               <ProductFormCompatibilitySection
                 brands={brands}
                 selectedBrands={selectedBrands}

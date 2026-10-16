@@ -67,7 +67,7 @@ export function BrandsList({ brands: initialBrands, flashSlug, flashAction }: Br
             <div className="col-span-2 grid grid-cols-2 gap-2 border-t border-border pt-3 md:mt-2 md:flex md:flex-wrap md:items-center md:gap-3 md:border-0 md:pt-0">
               <Link
                 href={`/admin/brands/${brand.slug}/edit`}
-                className={buttonClassName({ variant: "glass", size: "sm", className: "min-h-11 md:min-h-0" })}
+                className={buttonClassName({ variant: "soft", size: "sm", className: "min-h-11 md:min-h-0" })}
               >
                 Редактировать
               </Link>

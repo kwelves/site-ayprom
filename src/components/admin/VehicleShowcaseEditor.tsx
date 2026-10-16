@@ -291,7 +291,7 @@ export function VehicleShowcaseEditor({ vehicleTypeSlug, hotspots: initialHotspo
   return (
     <form action={formAction} onSubmit={saveSnapshotBeforeSubmit} className="space-y-4">
       <input type="hidden" name="hotspots" value={JSON.stringify(payload)} />
-      <fieldset disabled={isEditorMutationPending} className="contents">
+      <fieldset disabled={isEditorMutationPending} className="flex min-w-0 flex-col gap-5 border-0 p-0">
 
 
         {hotspots.map((hotspot) => {

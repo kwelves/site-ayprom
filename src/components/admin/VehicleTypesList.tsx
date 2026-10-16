@@ -80,7 +80,7 @@ export function VehicleTypesList({ vehicleTypes: initialVehicleTypes, flashSlug,
               <div className="mt-auto flex items-center gap-1.5 pt-4">
                 <Link
                   href={`/admin/vehicle-types/${vehicleType.slug}/edit`}
-                  className={buttonClassName({ variant: "glass", size: "sm", className: "min-h-11 md:min-h-0" })}
+                  className={buttonClassName({ variant: "soft", size: "sm", className: "min-h-11 md:min-h-0" })}
                 >
                   <Pencil aria-hidden="true" className="!size-4" />
                   Редактировать

@@ -487,7 +487,7 @@ export function ProductsList({
             />
             <Link
               href={`/admin/products/${product.slug}/edit`}
-              className={buttonClassName({ variant: "glass", size: "sm", className: "min-h-11 xl:ml-auto xl:min-h-0" })}
+              className={buttonClassName({ variant: "soft", size: "sm", className: "min-h-11 xl:ml-auto xl:min-h-0" })}
             >
               <Pencil aria-hidden="true" className="!size-4" />
               <span className="xl:hidden">Изменить</span>

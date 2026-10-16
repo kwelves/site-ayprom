@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 // Buttons of the working place (design system v2, "Кнопки"). One main (gradient) button per block; the glass
 // button sits next to it for the second action; ghost for quiet actions and icons; danger for removal. Text on one
 // line, 13px, weight 600. Press: scale 0.97 (90ms). Hover lift only where a real pointer can hover.
-export type ButtonVariant = "primary" | "glass" | "ghost" | "danger";
+export type ButtonVariant = "primary" | "soft" | "glass" | "ghost" | "danger";
 export type ButtonSize = "sm" | "md" | "lg" | "icon";
 
 const BASE =
@@ -12,6 +12,9 @@ const BASE =
 const VARIANTS: Record<ButtonVariant, string> = {
   primary:
     "primary-surface pointer-fine:hover:-translate-y-px pointer-fine:hover:brightness-110 active:brightness-95",
+  // The visible action of a row ("Редактировать"): blue tint and outline, filled blue on hover. Not the main button of the
+  // screen, so no gradient; one step louder than glass, one step quieter than primary.
+  soft: "bg-accent-strong text-accent-foreground shadow-[inset_0_0_0_1px_var(--color-border-accent)] hover:bg-primary hover:text-primary-foreground hover:shadow-none",
   glass:
     "glass-plate text-foreground pointer-fine:hover:bg-secondary",
   ghost: "text-muted-foreground hover:bg-accent hover:text-foreground",
