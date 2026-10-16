@@ -49,7 +49,7 @@ export function SubcategoryForm({ mode, categorySlug, categoryName, subcategory 
     if (!subcategory) return;
     if (subcategory.productCount > 0) {
       alert(
-        `Нельзя удалить «${subcategory.name}» — в ней ${formatRussianCount(subcategory.productCount, ["товар", "товара", "товаров"])}. Сначала перенесите или удалите их.`
+        `Нельзя удалить «${subcategory.name}»: в ней ${formatRussianCount(subcategory.productCount, ["товар", "товара", "товаров"])}. Сначала перенесите или удалите их.`
       );
       return;
     }
@@ -102,7 +102,7 @@ export function SubcategoryForm({ mode, categorySlug, categoryName, subcategory 
             />
           </FormField>
         ) : (
-          <FormField label="Адрес (slug)" htmlFor="slug-display" description="Нельзя изменить — используется в ссылках.">
+          <FormField label="Адрес (slug)" htmlFor="slug-display" description="Не меняется: на этот адрес ведут ссылки.">
             <Input id="slug-display" value={subcategory?.slug ?? ""} disabled />
           </FormField>
         )}
@@ -110,7 +110,7 @@ export function SubcategoryForm({ mode, categorySlug, categoryName, subcategory 
         <FormField
           label="Вступление"
           htmlFor="intro"
-          description="Необязательно — короткий поясняющий текст на странице подкатегории."
+          description="Необязательно. Короткий поясняющий текст на странице подкатегории."
         >
           <Textarea id="intro" name="intro" rows={3} defaultValue={subcategory?.intro} />
         </FormField>

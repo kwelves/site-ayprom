@@ -37,7 +37,7 @@ export function VehicleHotspotPreview({ vehicleTypeSlug, hotspots }: VehicleHots
     <div className="glass-panel rounded-[18px] p-4">
       <p className="text-sm font-medium text-card-foreground">Расположение точек на фото</p>
       <p className="mt-1 text-xs text-muted-foreground">
-        Только для справки — позиция и нумерация здесь не редактируются.
+        Только для справки: позицию и нумерацию точек здесь не меняют.
       </p>
       <div ref={stageRef} className="relative mt-3 aspect-4/3 w-full overflow-hidden rounded-md bg-muted/40">
         {/* Same pre-built static file the public stage uses (see

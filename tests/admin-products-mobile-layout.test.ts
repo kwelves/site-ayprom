@@ -19,11 +19,11 @@ describe("мобильная строка товара в админке", () =>
   it("выносит управление товаром на всю ширину под компактной шапкой", () => {
     // Шапка строки: чекбокс, фото, название с подписью, меню; управление ниже на всю ширину (до md).
     expect(productsList).toContain("grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center");
-    expect(productsList).toContain("col-span-4 grid grid-cols-2");
+    expect(productsList).toContain("col-span-4 grid grid-cols-[auto_minmax(0,1fr)_auto]");
     expect(productsList).toContain("min-w-0 xl:flex-1");
     expect(productsList).toContain("break-words text-sm");
     expect(productsList).toContain("[overflow-wrap:anywhere]");
-    expect(productsList).toContain("className=\"col-span-2 row-start-2 w-full");
+    expect(productsList).toContain("className=\"col-span-3 row-start-2 w-full");
   });
 
   it("сохраняет удобные touch-зоны и адаптируется к узким экранам", () => {

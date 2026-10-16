@@ -586,17 +586,17 @@ export function ProductForm({
               className={buttonClassName({ variant: "ghost", className: "text-danger hover:bg-danger-surface hover:text-danger" })}
             >
               <Trash2 aria-hidden="true" />
-              Удалить товар
+              <span className="max-sm:sr-only">Удалить товар</span>
             </button>
           )}
           <span className="ml-auto hidden items-center gap-1.5 text-xs text-muted-foreground md:inline-flex">
             <kbd className="rounded-[6px] bg-surface-strong px-1.5 py-0.5 font-sans text-[11px] font-medium">Ctrl S</kbd>
             сохранить
           </span>
-          <Link href="/admin/products" className={buttonClassName({ variant: "glass", className: "max-md:ml-auto" })}>
+          <Link href="/admin/products" className={buttonClassName({ variant: "glass", className: "max-sm:hidden max-md:ml-auto" })}>
             Отмена
           </Link>
-          <SubmitButton pendingLabel={mode === "create" ? "Создание…" : "Сохранение…"}>
+          <SubmitButton pendingLabel={mode === "create" ? "Создание…" : "Сохранение…"} className="max-sm:flex-1">
             {mode === "create" ? "Создать товар" : "Сохранить"}
           </SubmitButton>
         </StickyFormActions>

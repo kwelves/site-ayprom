@@ -82,7 +82,7 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
             />
           </FormField>
         ) : (
-          <FormField label="Адрес (slug)" htmlFor="slug-display" description="Нельзя изменить — используется в ссылках.">
+          <FormField label="Адрес (slug)" htmlFor="slug-display" description="Не меняется: на этот адрес ведут ссылки.">
             <Input id="slug-display" value={brand?.slug ?? ""} disabled />
           </FormField>
         )}
@@ -94,7 +94,7 @@ export function BrandForm({ mode, brand }: BrandFormProps) {
         <FormField
           label="Масштаб логотипа"
           htmlFor="logoScale"
-          description="Необязательно — поправка масштаба, если у SVG много лишних полей."
+          description="Необязательно. Поправка масштаба, если у SVG много пустых полей."
         >
           <Input
             id="logoScale"

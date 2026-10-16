@@ -50,7 +50,7 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
     if (!category) return;
     if (category.productCount > 0) {
       alert(
-        `Нельзя удалить «${category.name}» — в категории ${formatRussianCount(category.productCount, ["товар", "товара", "товаров"])}. Сначала перенесите или удалите их.`
+        `Нельзя удалить «${category.name}»: в категории ${formatRussianCount(category.productCount, ["товар", "товара", "товаров"])}. Сначала перенесите или удалите их.`
       );
       return;
     }
@@ -97,7 +97,7 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
             />
           </FormField>
         ) : (
-          <FormField label="Адрес (slug)" htmlFor="slug-display" description="Нельзя изменить — используется в ссылках.">
+          <FormField label="Адрес (slug)" htmlFor="slug-display" description="Не меняется: на этот адрес ведут ссылки.">
             <Input id="slug-display" value={category?.slug ?? ""} disabled />
           </FormField>
         )}
@@ -121,7 +121,7 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
           <FormField
             label="Тип категории"
             htmlFor="type-display"
-            description="Нельзя изменить — определяет структуру страницы категории."
+            description="Не меняется: от него зависит устройство страницы категории."
           >
             <Input
               id="type-display"
@@ -144,7 +144,7 @@ export function CategoryForm({ mode, category }: CategoryFormProps) {
         <FormField
           label="Вступление"
           htmlFor="intro"
-          description="Необязательно — короткий поясняющий текст на странице категории (актуально для категорий «по брендам»)."
+          description="Необязательно. Короткий поясняющий текст на странице категории (актуально для категорий «по брендам»)."
         >
           <Textarea id="intro" name="intro" rows={3} defaultValue={category?.intro} />
         </FormField>

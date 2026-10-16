@@ -73,7 +73,7 @@ export function VehicleTypeForm({ mode, vehicleType }: VehicleTypeFormProps) {
             />
           </FormField>
         ) : (
-          <FormField label="Адрес (slug)" htmlFor="slug-display" description="Нельзя изменить — используется в связях.">
+          <FormField label="Адрес (slug)" htmlFor="slug-display" description="Не меняется: на этот адрес опираются связи с товарами.">
             <Input id="slug-display" value={vehicleType?.slug ?? ""} disabled />
           </FormField>
         )}

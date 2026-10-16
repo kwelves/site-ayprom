@@ -71,7 +71,7 @@ export function ImportProducts() {
               Выберите CSV-файл с товарами. Обязательные колонки: <code>name</code>, <code>category</code>,{" "}
               <code>short_description</code>. Необязательные: <code>article</code>, <code>subcategory</code>,{" "}
               <code>description</code>, <code>published</code>, <code>brands</code>, <code>vehicle_types</code>,{" "}
-              <code>characteristics</code>. Списки — через «;», характеристики — «Атрибут=Значение;…».
+              <code>characteristics</code>. Списки через «;», характеристики в виде «Атрибут=Значение;…».
             </p>
           </div>
           <label className={buttonClassName({ variant: "primary", className: "cursor-pointer gap-2" })}>

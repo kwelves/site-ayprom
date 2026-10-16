@@ -202,7 +202,7 @@ export function ProductsList({
         setProducts((current) => applyProductHotspotPatch(current, undo.restorePatch));
         setHotspotOptions((current) => applyHotspotOptionsPatch(current, undo.restorePatch));
         reportActionError(
-          result?.error ?? "Не удалось изменить хотспот. Данные могли измениться — обновите страницу и попробуйте снова.",
+          result?.error ?? "Не удалось изменить хотспот. Данные могли измениться. Обновите страницу и попробуйте снова.",
         );
         return;
       }
@@ -290,7 +290,7 @@ export function ProductsList({
         setProducts((current) => applyProductHotspotPatch(current, rollbackPatch));
         setHotspotOptions((current) => applyHotspotOptionsPatch(current, rollbackPatch));
         reportActionError(
-          result?.error ?? "Не удалось отменить действие. Данные могли измениться — обновите страницу.",
+          result?.error ?? "Не удалось отменить действие. Данные могли измениться. Обновите страницу.",
         );
         return;
       }
@@ -444,7 +444,7 @@ export function ProductsList({
           <div className="xl:order-last">
             <ProductActionsButton product={product} onOpen={() => setActionsProductId(product.id)} />
           </div>
-          <div className="col-span-4 grid grid-cols-2 items-center gap-2 min-[420px]:flex min-[420px]:flex-wrap xl:flex-nowrap xl:gap-2.5">
+          <div className="col-span-4 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 min-[420px]:flex min-[420px]:flex-wrap xl:flex-nowrap xl:gap-2.5">
             <button
               type="button"
               onClick={() => handleTogglePublished(product, !product.published)}
@@ -483,7 +483,7 @@ export function ProductsList({
               options={AVAILABILITY_OPTIONS}
               value={product.availability}
               onChange={(next) => handleAvailabilityChange(product, next)}
-              className="col-span-2 row-start-2 w-full min-[420px]:w-auto"
+              className="col-span-3 row-start-2 w-full min-[420px]:w-auto"
             />
             <Link
               href={`/admin/products/${product.slug}/edit`}
@@ -499,7 +499,7 @@ export function ProductsList({
               className={buttonClassName({ variant: "ghost", size: "sm", className: "min-h-11 text-danger hover:bg-danger-surface hover:text-danger xl:min-h-0" })}
             >
               <Trash2 aria-hidden="true" className="!size-4" />
-              Удалить
+              <span className="max-sm:sr-only">Удалить</span>
             </button>
           </div>
         </div>

@@ -315,7 +315,7 @@ export function VehicleShowcaseEditor({ vehicleTypeSlug, vehicleTypeName, hotspo
               Название хотспота
             </label>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Можно переименовать в любой момент — название на карточке товара на сайте обновится синхронно,
+              Можно переименовать в любой момент: название на карточке товара на сайте обновится синхронно,
               позиция точки не меняется.
             </p>
             <Input
@@ -399,7 +399,7 @@ export function VehicleShowcaseEditor({ vehicleTypeSlug, vehicleTypeName, hotspo
                 </div>
               ) : (
                 <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <p className="text-sm text-muted-foreground">Товар не закреплён — на сайте будет показана заглушка.</p>
+                  <p className="text-sm text-muted-foreground">Товар не закреплён. На сайте будет показана заглушка.</p>
                   {removedProducts[hotspot.id] && (
                     <button
                       type="button"

@@ -68,7 +68,7 @@ export function ProductFormBasicSection({
           value={slug}
           onChange={(e) => onSlugChange(e.target.value)}
           spellCheck={false}
-          className="font-mono text-[13px]"
+          className="tracking-[0.01em]"
         />
       </FormField>
 

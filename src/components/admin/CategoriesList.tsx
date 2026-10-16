@@ -42,7 +42,7 @@ export function CategoriesList({ categories: initialCategories, flashSlug, flash
   function handleDelete(category: AdminCategory) {
     if (category.productCount > 0) {
       alert(
-        `Нельзя удалить «${category.name}» — в категории ${formatRussianCount(category.productCount, ["товар", "товара", "товаров"])}. Сначала перенесите или удалите их.`
+        `Нельзя удалить «${category.name}»: в категории ${formatRussianCount(category.productCount, ["товар", "товара", "товаров"])}. Сначала перенесите или удалите их.`
       );
       return;
     }

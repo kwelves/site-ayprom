@@ -27,10 +27,14 @@ export function FormSectionNav({ items, className }: { items: readonly FormSecti
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) visible.set(entry.target.id, entry.isIntersecting ? entry.boundingClientRect.top : Infinity);
+        // Two columns put parts side by side at the same height; then the part that comes first in the bar wins
+        // (a tie is anything within 24px), so the bar does not jump to the side column.
         let best: string | undefined;
         let bestTop = Infinity;
-        for (const [id, top] of visible) {
-          if (top !== Infinity && Math.abs(top) < Math.abs(bestTop)) {
+        for (const id of ids.split(",")) {
+          const top = visible.get(id);
+          if (top === undefined || top === Infinity) continue;
+          if (Math.abs(top) < Math.abs(bestTop) - 24) {
             best = id;
             bestTop = top;
           }

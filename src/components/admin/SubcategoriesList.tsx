@@ -44,7 +44,7 @@ export function SubcategoriesList({
   function handleDelete(subcategory: AdminSubcategory) {
     if (subcategory.productCount > 0) {
       alert(
-        `Нельзя удалить «${subcategory.name}» — в ней ${formatRussianCount(subcategory.productCount, ["товар", "товара", "товаров"])}. Сначала перенесите или удалите их.`
+        `Нельзя удалить «${subcategory.name}»: в ней ${formatRussianCount(subcategory.productCount, ["товар", "товара", "товаров"])}. Сначала перенесите или удалите их.`
       );
       return;
     }

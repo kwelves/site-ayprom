@@ -224,7 +224,7 @@ export function ProductActionsPanel({
           {view === "actions" ? (
             <div className="space-y-4">
               <div className="glass-plate rounded-[14px] p-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Использование в спецтехнике</p>
+                <p className="text-xs font-medium text-muted-foreground">Использование в спецтехнике</p>
                 {assignmentGroups.length > 0 ? (
                   <div className="mt-2 space-y-3">
                     <p className="text-sm font-medium text-card-foreground">
