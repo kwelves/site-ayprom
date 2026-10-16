@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Pencil, Trash2 } from "lucide-react";
+import { ChevronRight, Pencil, Trash2 } from "lucide-react";
 import { SortableList } from "@/components/admin/SortableList";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
@@ -82,14 +82,26 @@ export function CategoriesList({ categories: initialCategories, flashSlug, flash
             <p className="text-[15px] leading-snug font-semibold tracking-[-0.01em] text-foreground">{category.name}</p>
             {category.description && <p className="mt-1 line-clamp-2 text-[13px] leading-snug text-muted-foreground">{category.description}</p>}
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span
-                className={cn(
-                  "inline-flex h-6 items-center rounded-full px-2.5 text-xs font-semibold",
-                  category.type === "brand" ? "bg-info-surface text-info" : "bg-neutral-surface text-muted-foreground",
-                )}
-              >
-                {category.type === "brand" ? "По брендам" : category.type === "subcategory" ? "По подкатегориям" : "Напрямую"}
-              </span>
+              {category.type === null ? (
+                <span className="inline-flex h-6 items-center rounded-full bg-neutral-surface px-2.5 text-xs font-semibold text-muted-foreground">
+                  Напрямую
+                </span>
+              ) : (
+                // The type chip is also the way into the category's brands or subcategories.
+                <Link
+                  href={category.type === "brand" ? `/admin/categories/${category.slug}/category-brands` : `/admin/categories/${category.slug}/subcategories`}
+                  title={category.type === "brand" ? "Открыть бренды категории" : "Открыть подкатегории"}
+                  className={cn(
+                    "inline-flex h-6 items-center gap-0.5 rounded-full pr-1.5 pl-2.5 text-xs font-semibold transition-colors duration-fast ease-ui focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30",
+                    category.type === "brand"
+                      ? "bg-info-surface text-info hover:bg-accent-strong"
+                      : "bg-neutral-surface text-muted-foreground hover:bg-surface-strong hover:text-foreground",
+                  )}
+                >
+                  {category.type === "brand" ? "По брендам" : "По подкатегориям"}
+                  <ChevronRight aria-hidden="true" className="size-3.5" />
+                </Link>
+              )}
               <span className="text-xs text-muted-foreground tabular-nums">
                 {formatRussianCount(category.productCount, ["товар", "товара", "товаров"])}
                 {category.type === "subcategory" && category.directProductCount > 0
@@ -97,28 +109,20 @@ export function CategoriesList({ categories: initialCategories, flashSlug, flash
                   : ""}
               </span>
             </div>
-            <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-4">
+            <div className="mt-auto flex items-center gap-1.5 pt-4">
               <Link
                 href={`/admin/categories/${category.slug}/edit`}
-                className={buttonClassName({ variant: "soft", size: "sm", className: "min-h-11 md:min-h-0" })}
+                className={buttonClassName({ variant: "soft", size: "sm", className: "min-h-11 flex-1 md:min-h-0" })}
               >
                 <Pencil aria-hidden="true" className="!size-4" />
                 Редактировать
               </Link>
-              {category.type !== null && (
-                <Link
-                  href={category.type === "brand" ? `/admin/categories/${category.slug}/category-brands` : `/admin/categories/${category.slug}/subcategories`}
-                  className={buttonClassName({ variant: "ghost", size: "sm", className: "min-h-11 md:min-h-0" })}
-                >
-                  {category.type === "brand" ? "Бренды" : "Подкатегории"}
-                </Link>
-              )}
               <button
                 type="button"
                 onClick={() => handleDelete(category)}
                 aria-label="Удалить"
                 title={`Удалить категорию «${category.name}»`}
-                className={buttonClassName({ variant: "ghost", size: "icon", className: "ml-auto text-danger hover:bg-danger-surface hover:text-danger" })}
+                className={buttonClassName({ variant: "ghost", size: "icon", className: "text-danger hover:bg-danger-surface hover:text-danger" })}
               >
                 <Trash2 aria-hidden="true" />
               </button>
