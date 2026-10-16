@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { getAdminVehicleTypes } from "@/lib/admin/queries";
 import { VehicleTypesList } from "@/components/admin/VehicleTypesList";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { buttonClassName } from "@/components/admin/ui/button-styles";
 
 export const metadata: Metadata = {
   title: "Типы техники — Админка AYPROM",
@@ -21,10 +22,10 @@ export default async function AdminVehicleTypesPage({ searchParams }: AdminVehic
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-foreground">Типы техники</h1>
+        <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em] text-balance text-foreground sm:text-[26px]">Типы техники</h1>
         <Link
           href="/admin/vehicle-types/new"
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover"
+          className={buttonClassName({ variant: "primary" })}
         >
           Добавить тип техники
         </Link>

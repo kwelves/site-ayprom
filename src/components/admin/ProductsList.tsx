@@ -413,17 +413,17 @@ export function ProductsList({
         enableStepButtons
         highlightedKey={highlightedKey}
         renderItem={(product) => (
-        <div className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-3 md:flex">
+        <div className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-3 xl:flex">
           <Checkbox
             label=""
             aria-label={`Выделить товар «${product.name}»`}
             checked={selected.has(product.slug)}
             onChange={() => toggleSelected(product.slug)}
-            containerClassName="min-h-11 justify-center md:min-h-0"
-            className="size-5 md:size-4"
+            containerClassName="min-h-11 justify-center xl:min-h-0"
+            className="size-5 xl:size-4"
           />
           <ProductThumb product={product} onOpen={() => setQuickViewProduct(product)} />
-          <div className="min-w-0 md:flex-1">
+          <div className="min-w-0 xl:flex-1">
             <button type="button" onClick={() => setQuickViewProduct(product)} className="block min-w-0 max-w-full text-left">
               <p className="break-words text-sm font-semibold leading-snug text-foreground [overflow-wrap:anywhere] decoration-primary/40 underline-offset-4 hover:underline">
                 {product.name}
@@ -441,10 +441,10 @@ export function ProductsList({
               <span className="tabular-nums">{UPDATED_DATE_FORMAT.format(new Date(product.updatedAt))}</span>
             </p>
           </div>
-          <div className="md:order-last">
+          <div className="xl:order-last">
             <ProductActionsButton product={product} onOpen={() => setActionsProductId(product.id)} />
           </div>
-          <div className="col-span-4 grid grid-cols-2 items-center gap-2 min-[420px]:flex min-[420px]:flex-wrap md:flex-nowrap md:gap-2.5">
+          <div className="col-span-4 grid grid-cols-2 items-center gap-2 min-[420px]:flex min-[420px]:flex-wrap xl:flex-nowrap xl:gap-2.5">
             <button
               type="button"
               onClick={() => handleTogglePublished(product, !product.published)}
@@ -452,7 +452,7 @@ export function ProductsList({
               aria-label={`Переключить публикацию товара «${product.name}»`}
               title={product.published ? "Снять с публикации" : "Опубликовать"}
               className={cn(
-                "inline-flex min-h-11 items-center gap-1.5 justify-self-start overflow-hidden rounded-full px-3 text-xs font-semibold transition-[background-color,color,scale] duration-fast ease-ui active:scale-[0.97] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30 md:h-7 md:min-h-0",
+                "inline-flex min-h-11 items-center gap-1.5 justify-self-start overflow-hidden rounded-full px-3 text-xs font-semibold transition-[background-color,color,scale] duration-fast ease-ui active:scale-[0.97] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30 xl:h-7 xl:min-h-0",
                 product.published
                   ? "bg-success-surface text-success hover:bg-success-surface-hover"
                   : "bg-warning-surface text-warning hover:bg-warning-surface-hover"
@@ -487,16 +487,16 @@ export function ProductsList({
             />
             <Link
               href={`/admin/products/${product.slug}/edit`}
-              className={buttonClassName({ variant: "glass", size: "sm", className: "min-h-11 md:ml-auto md:min-h-0" })}
+              className={buttonClassName({ variant: "glass", size: "sm", className: "min-h-11 xl:ml-auto xl:min-h-0" })}
             >
               <Pencil aria-hidden="true" className="!size-4" />
-              <span className="md:hidden">Изменить</span>
-              <span className="hidden md:inline">Редактировать</span>
+              <span className="xl:hidden">Изменить</span>
+              <span className="hidden xl:inline">Редактировать</span>
             </Link>
             <button
               type="button"
               onClick={() => deleteConfirm.request(product)}
-              className={buttonClassName({ variant: "ghost", size: "sm", className: "min-h-11 text-danger hover:bg-danger-surface hover:text-danger md:min-h-0" })}
+              className={buttonClassName({ variant: "ghost", size: "sm", className: "min-h-11 text-danger hover:bg-danger-surface hover:text-danger xl:min-h-0" })}
             >
               <Trash2 aria-hidden="true" className="!size-4" />
               Удалить

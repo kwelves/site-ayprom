@@ -12,6 +12,7 @@ import { useAdminList } from "@/lib/admin/use-admin-list";
 import { useConfirmDelete } from "@/lib/admin/use-confirm-delete";
 import { cn } from "@/lib/utils";
 import type { AdminCategory } from "@/lib/admin/queries";
+import { buttonClassName } from "@/components/admin/ui/button-styles";
 
 interface CategoriesListProps {
   categories: AdminCategory[];
@@ -89,14 +90,14 @@ export function CategoriesList({ categories: initialCategories, flashSlug, flash
             <div className="col-span-2 grid grid-cols-2 gap-2 border-t border-border pt-3 md:mt-2 md:flex md:flex-wrap md:items-center md:gap-3 md:border-0 md:pt-0">
               <Link
                 href={`/admin/categories/${category.slug}/edit`}
-                className="flex min-h-11 items-center justify-center rounded-md border border-border px-3 py-1 text-sm font-medium text-primary transition-colors hover:border-border-interactive hover:bg-accent md:min-h-0"
+                className={buttonClassName({ variant: "glass", size: "sm", className: "min-h-11 md:min-h-0" })}
               >
                 Редактировать
               </Link>
               <button
                 type="button"
                 onClick={() => handleDelete(category)}
-                className="flex min-h-11 items-center justify-center rounded-md border border-danger-border px-3 py-1 text-sm font-medium text-danger transition-colors hover:bg-danger-surface md:min-h-0"
+                className={buttonClassName({ variant: "ghost", size: "sm", className: "text-danger hover:bg-danger-surface hover:text-danger min-h-11 md:min-h-0" })}
               >
                 Удалить
               </button>

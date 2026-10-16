@@ -47,7 +47,7 @@ export function VehicleTypeForm({ mode, vehicleType }: VehicleTypeFormProps) {
       <BackLink href="/admin/vehicle-types" label="Типы техники" />
 
       <form action={formAction} className="mt-4 space-y-6">
-        <h1 className="text-xl font-semibold text-foreground">
+        <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em] text-balance text-foreground sm:text-[26px]">
           {mode === "create" ? "Новый тип техники" : `Редактировать: ${vehicleType?.name}`}
         </h1>
 

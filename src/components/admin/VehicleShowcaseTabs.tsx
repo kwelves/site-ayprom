@@ -51,7 +51,7 @@ export function VehicleShowcaseTabs({
       </nav>
 
       {selectedHotspots.length === 0 ? (
-        <div className="mt-6 rounded-lg border border-border bg-card p-4">
+        <div className="mt-6 glass-panel rounded-[18px] p-4">
           <h2 className="text-base font-semibold text-card-foreground">{selectedVehicle.name}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Для этого типа техники хотспоты ещё не настроены. Здесь нельзя создавать или перемещать точки.

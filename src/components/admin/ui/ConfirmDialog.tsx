@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import { TriangleAlert } from "lucide-react";
+import { buttonClassName } from "@/components/admin/ui/button-styles";
 
 type ConfirmDialogTone = "primary" | "danger";
 
@@ -84,7 +85,9 @@ export function ConfirmDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
+    // Design system v2, "Окна": darkened scene with a light blur, the dialog comes in from 0.96 on the soft spring.
+    // A dangerous action names its object in the title; cancel on the left, the red action on the right.
+    <div className="fixed inset-0 z-50 flex animate-[admin-screen-fade_200ms_var(--ease-ui)_both] items-center justify-center bg-overlay p-4 backdrop-blur-[2px]">
       <div
         ref={dialogRef}
         role="alertdialog"
@@ -92,35 +95,35 @@ export function ConfirmDialog({
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
         onKeyDown={handleKeyDown}
-        className={cn(
-          "w-full max-w-md rounded-lg bg-card p-5 shadow-lg",
-          tone === "danger" ? "border border-warning-border" : "border border-border",
-        )}
+        className="glass-float w-full max-w-[460px] animate-[admin-dialog-in_280ms_var(--ease-spring-soft)_both] rounded-[22px] p-6"
       >
-        <h2 id={titleId} className="text-base font-semibold text-card-foreground">
-          {title}
-        </h2>
-        <div id={descriptionId} className="mt-2 text-sm text-muted-foreground">
-          {description}
+        <div className="flex items-start gap-4">
+          {tone === "danger" && (
+            <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-full bg-danger-surface text-danger">
+              <TriangleAlert className="size-5" />
+            </span>
+          )}
+          <div className="min-w-0">
+            <h2 id={titleId} className="text-[17px] font-semibold tracking-[-0.01em] text-balance text-foreground">
+              {title}
+            </h2>
+            <div id={descriptionId} className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+              {description}
+            </div>
+          </div>
         </div>
-        <div className="mt-5 flex flex-wrap justify-end gap-3">
-          <button
-            ref={cancelButtonRef}
-            type="button"
-            onClick={onCancel}
-            className="rounded-md border border-border px-4 py-2 text-sm font-medium text-card-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          >
+        <div className="mt-6 flex flex-wrap justify-end gap-2">
+          <button ref={cancelButtonRef} type="button" onClick={onCancel} className={buttonClassName({ variant: "glass" })}>
             {cancelLabel}
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className={cn(
-              "rounded-md px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2",
+            className={
               tone === "danger"
-                ? "border border-danger-border bg-danger-surface text-danger hover:bg-danger-surface-hover focus-visible:ring-danger"
-                : "bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:ring-primary focus-visible:ring-offset-2",
-            )}
+                ? buttonClassName({ className: "bg-danger text-primary-foreground hover:brightness-110" })
+                : buttonClassName({ variant: "primary" })
+            }
           >
             {confirmLabel}
           </button>

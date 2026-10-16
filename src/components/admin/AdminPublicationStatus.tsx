@@ -197,7 +197,7 @@ export function AdminPublicationStatus({ compact = false, collapsed = false }: A
               <span
                 className={cn(
                   "mt-1.5 block truncate text-[11px]",
-                  current ? cn("font-semibold", tone.text) : done ? "text-muted-foreground" : "text-faint-foreground",
+                  current ? cn("font-semibold", tone.text) : "text-muted-foreground",
                 )}
               >
                 {step}

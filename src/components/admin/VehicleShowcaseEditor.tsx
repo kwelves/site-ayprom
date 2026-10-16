@@ -291,7 +291,7 @@ export function VehicleShowcaseEditor({ vehicleTypeSlug, vehicleTypeName, hotspo
       <input type="hidden" name="hotspots" value={JSON.stringify(payload)} />
       <fieldset disabled={isEditorMutationPending} className="contents">
 
-        <div className="rounded-lg border border-border bg-card p-4">
+        <div className="glass-panel rounded-[18px] p-4">
         <h2 className="text-base font-semibold text-card-foreground">{vehicleTypeName}</h2>
         <p className="mt-1 text-sm text-muted-foreground">Настройка пяти точек на технике.</p>
         </div>
@@ -303,7 +303,7 @@ export function VehicleShowcaseEditor({ vehicleTypeSlug, vehicleTypeName, hotspo
         const searchId = `hotspot-${hotspot.id}-search`;
 
         return (
-          <section key={hotspot.id} className="rounded-lg border border-border bg-card p-4" aria-labelledby={`hotspot-${hotspot.id}-heading`}>
+          <section key={hotspot.id} className="glass-panel rounded-[18px] p-4" aria-labelledby={`hotspot-${hotspot.id}-heading`}>
             <div className="flex items-center justify-between gap-3">
               <h3 id={`hotspot-${hotspot.id}-heading`} className="text-sm font-semibold text-card-foreground">
                 Точка {hotspot.hotspotNumber}

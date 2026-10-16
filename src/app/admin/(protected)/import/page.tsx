@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 export default function AdminImportPage() {
   return (
     <div>
-      <h1 className="text-xl font-semibold text-foreground">Импорт товаров</h1>
+      <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em] text-balance text-foreground sm:text-[26px]">Импорт товаров</h1>
       <p className="mt-2 text-sm text-muted-foreground">
         Загрузите CSV-файл — сначала покажем предпросмотр с построчными ошибками, запись в базу произойдёт
         только после подтверждения. Товар с указанным артикулом, который уже есть в каталоге, будет обновлён;

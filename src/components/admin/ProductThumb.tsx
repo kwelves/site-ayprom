@@ -33,7 +33,7 @@ export function ProductThumb({ product, onOpen }: { product: AdminProductListIte
       {product.coverImage && (
         <span
           aria-hidden="true"
-          className="glass-float pointer-events-none absolute top-1/2 left-full z-20 ml-3 hidden size-60 origin-left -translate-y-1/2 scale-95 rounded-[18px] p-3 opacity-0 transition-[opacity,scale] duration-fast ease-ui pointer-fine:block pointer-fine:group-hover/thumb:scale-100 pointer-fine:group-hover/thumb:opacity-100 pointer-fine:group-hover/thumb:delay-200 pointer-fine:group-hover/thumb:duration-base"
+          className="glass-float pointer-events-none absolute top-1/2 left-full z-20 ml-3 hidden size-60 origin-left -translate-y-1/2 scale-95 rounded-[18px] p-3 opacity-0 transition-[opacity,scale] duration-fast ease-ui lg:pointer-fine:block pointer-fine:group-hover/thumb:scale-100 pointer-fine:group-hover/thumb:opacity-100 pointer-fine:group-hover/thumb:delay-200 pointer-fine:group-hover/thumb:duration-base"
         >
           <ImageFallback
             src={product.coverImage}

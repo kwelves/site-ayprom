@@ -81,7 +81,7 @@ export function AdminNav({ variant = "inline", collapsed = false, onNavigate }: 
           <div key={group.label} className={cn(groupIndex > 0 && "mt-4")}>
             <p
               className={cn(
-                "mb-1.5 h-4 px-3 text-[11px] font-semibold tracking-[0.06em] text-faint-foreground uppercase transition-opacity duration-fast ease-ui",
+                "mb-1.5 h-4 px-3 text-[11px] font-semibold tracking-[0.06em] text-muted-foreground uppercase transition-opacity duration-fast ease-ui",
                 collapsed && "opacity-0",
               )}
               aria-hidden={collapsed || undefined}

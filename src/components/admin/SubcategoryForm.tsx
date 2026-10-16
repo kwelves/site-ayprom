@@ -75,7 +75,7 @@ export function SubcategoryForm({ mode, categorySlug, categoryName, subcategory 
       <form action={formAction} className="mt-4 space-y-6">
         <div>
           <p className="text-sm text-muted-foreground">{categoryName}</p>
-          <h1 className="text-xl font-semibold text-foreground">
+          <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em] text-balance text-foreground sm:text-[26px]">
             {mode === "create" ? "Новая подкатегория" : `Редактировать: ${subcategory?.name}`}
           </h1>
         </div>

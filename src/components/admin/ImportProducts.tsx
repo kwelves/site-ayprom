@@ -5,6 +5,7 @@ import { AlertTriangle, CheckCircle2, Loader2, UploadCloud } from "lucide-react"
 import { previewProductImport, commitProductImport, type ImportCommitResult } from "@/lib/admin/product-import-actions";
 import type { ImportPreview } from "@/lib/admin/product-import-parse";
 import { useAdminToast } from "@/components/admin/ui/AdminToastProvider";
+import { buttonClassName } from "@/components/admin/ui/button-styles";
 
 type Stage = { name: "idle" } | { name: "preview"; preview: ImportPreview } | { name: "done"; result: ImportCommitResult };
 
@@ -73,7 +74,7 @@ export function ImportProducts() {
               <code>characteristics</code>. Списки — через «;», характеристики — «Атрибут=Значение;…».
             </p>
           </div>
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover">
+          <label className={buttonClassName({ variant: "primary", className: "cursor-pointer gap-2" })}>
             {isPending && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />}
             Выбрать файл
             <input

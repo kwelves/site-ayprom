@@ -370,8 +370,8 @@ body {
   --color-input: rgb(15 23 42 / 0.15);
   --color-border-accent: rgb(8 75 185 / 0.16);
   --color-border-interactive: rgb(8 75 185 / 0.18);
-  --color-danger: #c81e1e;
-  --color-danger-surface: rgb(200 30 30 / 0.1);
+  --color-danger: #b42318;
+  --color-danger-surface: rgb(200 30 30 / 0.08);
   --color-danger-surface-hover: rgb(200 30 30 / 0.16);
   --color-danger-border: rgb(200 30 30 / 0.24);
   --color-success: #15803d;
@@ -594,6 +594,35 @@ a {
   from {
     opacity: 0;
     translate: 0 10px;
+  }
+}
+
+/* Dialog: from 0.96 on the soft spring. Drawer: from the right edge on the drawer curve. Toast: from below. */
+@keyframes admin-dialog-in {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+
+@keyframes admin-drawer-in {
+  from {
+    opacity: 0;
+    translate: 48px 0;
+  }
+}
+
+@keyframes admin-toast-in {
+  from {
+    opacity: 0;
+    translate: 0 16px;
+    scale: 0.98;
+  }
+}
+
+@keyframes admin-toast-timer {
+  to {
+    scale: 0 1;
   }
 }
 

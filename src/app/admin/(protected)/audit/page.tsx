@@ -46,7 +46,7 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-foreground">Журнал изменений</h1>
+        <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em] text-balance text-foreground sm:text-[26px]">Журнал изменений</h1>
       </div>
 
       <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
@@ -117,7 +117,7 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
 
           <div className="mt-6 flex flex-col gap-2 sm:hidden">
             {log.items.map((entry) => (
-              <div key={entry.id} className="rounded-lg border border-border bg-card p-3">
+              <div key={entry.id} className="glass-panel rounded-[18px] p-3">
                 <div className="flex items-center justify-between gap-2">
                   <span
                     className={cn(

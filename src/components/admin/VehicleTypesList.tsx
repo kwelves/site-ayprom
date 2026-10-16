@@ -10,6 +10,7 @@ import { describeVehicleTypeUsage } from "@/lib/admin/usage-descriptions";
 import { useAdminList } from "@/lib/admin/use-admin-list";
 import { useConfirmDelete } from "@/lib/admin/use-confirm-delete";
 import type { AdminVehicleType } from "@/lib/admin/queries";
+import { buttonClassName } from "@/components/admin/ui/button-styles";
 
 interface VehicleTypesListProps {
   vehicleTypes: AdminVehicleType[];
@@ -57,14 +58,14 @@ export function VehicleTypesList({ vehicleTypes: initialVehicleTypes, flashSlug,
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <Link
                 href={`/admin/vehicle-types/${vehicleType.slug}/edit`}
-                className="rounded-md border border-border px-3 py-1 text-sm font-medium text-primary transition-colors hover:border-border-interactive hover:bg-accent"
+                className={buttonClassName({ variant: "glass", size: "sm" })}
               >
                 Редактировать
               </Link>
               <button
                 type="button"
                 onClick={() => deleteConfirm.request(vehicleType)}
-                className="rounded-md border border-danger-border px-3 py-1 text-sm font-medium text-danger transition-colors hover:bg-danger-surface"
+                className={buttonClassName({ variant: "ghost", size: "sm", className: "text-danger hover:bg-danger-surface hover:text-danger" })}
               >
                 Удалить
               </button>

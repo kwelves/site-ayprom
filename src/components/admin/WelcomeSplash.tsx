@@ -37,7 +37,7 @@ export function WelcomeSplash() {
         />
       </span>
       <div className="animate-fade-up [animation-delay:150ms]" role="status" aria-live="polite">
-        <h1 className="text-xl font-semibold text-foreground">Здравствуйте, шеф</h1>
+        <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em] text-balance text-foreground sm:text-[26px]">Здравствуйте, шеф</h1>
         <p className="mt-1.5 text-sm text-muted-foreground">Загружаем панель управления...</p>
         <span
           aria-hidden="true"

@@ -137,7 +137,7 @@ export function ProductFormPhotosSection({
                   )}
                   <span
                     aria-hidden="true"
-                    className="glass-float pointer-events-none absolute top-1/2 right-full z-20 mr-3 hidden size-60 origin-right -translate-y-1/2 scale-95 rounded-[18px] p-3 opacity-0 transition-[opacity,scale] duration-fast ease-ui pointer-fine:block pointer-fine:group-hover/photo:scale-100 pointer-fine:group-hover/photo:opacity-100 pointer-fine:group-hover/photo:delay-200 pointer-fine:group-hover/photo:duration-base"
+                    className="glass-float pointer-events-none absolute top-1/2 right-full z-20 mr-3 hidden size-60 origin-right -translate-y-1/2 scale-95 rounded-[18px] p-3 opacity-0 transition-[opacity,scale] duration-fast ease-ui lg:pointer-fine:block pointer-fine:group-hover/photo:scale-100 pointer-fine:group-hover/photo:opacity-100 pointer-fine:group-hover/photo:delay-200 pointer-fine:group-hover/photo:duration-base"
                   >
                     <span className="relative block size-full">
                       <ImageFallback src={img.url} alt="" sizes="240px" unoptimized className="rounded-[12px] object-contain" />

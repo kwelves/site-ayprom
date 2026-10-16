@@ -20,7 +20,7 @@ describe("мобильная строка товара в админке", () =>
     // Шапка строки: чекбокс, фото, название с подписью, меню; управление ниже на всю ширину (до md).
     expect(productsList).toContain("grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center");
     expect(productsList).toContain("col-span-4 grid grid-cols-2");
-    expect(productsList).toContain("min-w-0 md:flex-1");
+    expect(productsList).toContain("min-w-0 xl:flex-1");
     expect(productsList).toContain("break-words text-sm");
     expect(productsList).toContain("[overflow-wrap:anywhere]");
     expect(productsList).toContain("className=\"col-span-2 row-start-2 w-full");
@@ -30,7 +30,7 @@ describe("мобильная строка товара в админке", () =>
     expect(productsList).toContain("min-[420px]:flex min-[420px]:flex-wrap");
     expect(productsList).toContain("inline-flex min-h-11 items-center");
     expect(productsList).toContain("containerClassName=\"min-h-11");
-    expect(productsList).toContain("className: \"min-h-11 md:ml-auto md:min-h-0\"");
+    expect(productsList).toContain("className: \"min-h-11 xl:ml-auto xl:min-h-0\"");
     expect(sortableList).toContain("min-h-11 min-w-8");
     expect(productsList).toContain("ProductActionsButton");
   });

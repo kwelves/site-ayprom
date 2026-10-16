@@ -25,7 +25,7 @@ export default async function AdminVehicleShowcasePage({ searchParams }: AdminVe
   if (!selectedVehicle) {
     return (
       <div>
-        <h1 className="text-xl font-semibold text-foreground">Спецтехника</h1>
+        <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em] text-balance text-foreground sm:text-[26px]">Спецтехника</h1>
         <p className="mt-4 text-sm text-muted-foreground">Сначала добавьте тип техники, чтобы настроить хотспоты.</p>
       </div>
     );
@@ -33,7 +33,7 @@ export default async function AdminVehicleShowcasePage({ searchParams }: AdminVe
 
   return (
     <div className="max-w-3xl">
-      <h1 className="text-xl font-semibold text-foreground">Спецтехника</h1>
+      <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em] text-balance text-foreground sm:text-[26px]">Спецтехника</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Изменяйте подписи и закреплённые товары. Положение и нумерация точек остаются прежними — фото ниже показывает,
         где они сейчас находятся.

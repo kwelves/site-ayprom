@@ -34,7 +34,7 @@ export function VehicleHotspotPreview({ vehicleTypeSlug, hotspots }: VehicleHots
   if (!visual) return null;
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <div className="glass-panel rounded-[18px] p-4">
       <p className="text-sm font-medium text-card-foreground">Расположение точек на фото</p>
       <p className="mt-1 text-xs text-muted-foreground">
         Только для справки — позиция и нумерация здесь не редактируются.
