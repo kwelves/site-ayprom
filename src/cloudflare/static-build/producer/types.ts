@@ -95,6 +95,8 @@ export interface StaticProducerInput {
   publicRepoRoot?: string;
   /** Paths from derivePublicRoutes sitemapEntries. Omitted skips the sitemap gate. */
   sitemapPaths?: string[];
+  /** The pages are built with the Cloudflare Web Analytics script, so the headers must let it run. */
+  webAnalytics?: boolean;
   /** Test seam; defaults to the real child-process starter. */
   startServer?: StartChildServer;
 }

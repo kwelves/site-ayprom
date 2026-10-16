@@ -15,6 +15,7 @@ const { localProbeBindings } = await load("local-browser-probe.ts");
 const { loadLocalCatalogSnapshot } = await load("producer/local-snapshot.ts");
 const { catalogSnapshotFromPublication } = await load("producer/catalog-publication-route-snapshot.ts");
 const { loadCatalogPublicationFile } = await import(pathToFileURL(path.join(repo, "src/lib/catalog-publication-file.ts")).href);
+const { webAnalyticsToken } = await import(pathToFileURL(path.join(repo, "src/lib/web-analytics.ts")).href);
 const { parseWorkersBuildAllowlist, resolveWorkersBuildBinding } = await load("producer/workers-build-config.ts");
 const { derivePublicRoutes } = await load("derive-routes.ts");
 const { runStaticProducer } = await load("producer/run.ts");
@@ -100,6 +101,8 @@ try {
     entries: routes.manifestEntries,
     blockers: routes.blockers,
     sitemapPaths: routes.sitemapEntries.map((entry) => entry.path),
+    // The pages were built with the Cloudflare Web Analytics script when the build had a valid token: let it run.
+    webAnalytics: webAnalyticsToken(process.env.NEXT_PUBLIC_CF_WEB_ANALYTICS_TOKEN) !== null,
     nextStaticDir: path.join(repo, ".next/static"),
     publicRepoRoot: repo,
     server: {
