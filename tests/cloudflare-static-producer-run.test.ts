@@ -118,6 +118,18 @@ describe("static producer: validation before side effects", () => {
   });
 });
 
+describe("static producer: headers for a build with the analytics script", { timeout: 30_000 }, () => {
+  it("lets the Cloudflare Web Analytics script and its report address through the policy, and nothing else wider", async () => {
+    const result = await runStaticProducer(fixtureProducerInput(repo, { webAnalytics: true }));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const headers = readFileSync(path.join(result.siteDir, "_headers"), "utf8");
+    expect(headers).toContain("script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com");
+    expect(headers).toContain("connect-src 'self' https://www.ayprom-gidravlika.kg https://*.sentry.io https://cloudflareinsights.com");
+    expect(headers).toContain("img-src 'self' data: blob: https://media.ayprom-gidravlika.kg;");
+  });
+});
+
 describe("static producer: fixture server crawl into staging", { timeout: 30_000 }, () => {
   it("writes every static/query document with the expected bytes, 404, robots and sitemap", async () => {
     const result = await runStaticProducer(fixtureProducerInput(repo));
@@ -135,6 +147,8 @@ describe("static producer: fixture server crawl into staging", { timeout: 30_000
     expect(headers).toContain("  Content-Security-Policy: default-src 'self'");
     expect(headers).toContain("connect-src 'self' https://www.ayprom-gidravlika.kg https://*.sentry.io");
     expect(headers).toContain("img-src 'self' data: blob: https://media.ayprom-gidravlika.kg");
+    // The analytics script is allowed only for a build that includes it (see the next test).
+    expect(headers).not.toContain("cloudflareinsights.com");
     expect(headers).toContain("  Referrer-Policy: strict-origin-when-cross-origin\n");
     expect(headers).toContain("  X-Content-Type-Options: nosniff\n");
     expect(headers).toContain("  X-Frame-Options: DENY\n");
