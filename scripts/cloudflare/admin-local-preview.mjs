@@ -19,6 +19,8 @@ writeFileSync(varsFile, [
   `ADMIN_PASSWORD=${env.ADMIN_PASSWORD}`,
   `ADMIN_SESSION_SECRET=${env.ADMIN_SESSION_SECRET}`,
   "PHOTO_PROCESSING=queue",
+  // Shows the publication status card in the preview; no token is set, so nothing is ever started from here.
+  "PUBLICATION_WORKFLOW_FILE=publish-site.yml",
   "NODE_ENV=development",
   "",
 ].join("\n"));

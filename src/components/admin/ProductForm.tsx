@@ -472,13 +472,13 @@ export function ProductForm({
           </>
         )}
 
-        <FormSectionNav items={sectionNav} className="mt-5 w-fit" />
+        <FormSectionNav items={sectionNav} className="mt-5" />
 
         {/* Every part is open: what is filled in is visible without a click. On a laptop the wide column holds the
             texts, the side column what is changed most often (publication, photos, compatibility). On narrower
             screens the parts stack in the order of work: the wrappers dissolve (display: contents) and order-* sets
             the sequence. */}
-        <div className="mt-5 flex flex-col gap-5 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(340px,400px)] xl:items-start">
+        <div className="mt-5 flex flex-col gap-5 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(340px,400px)] xl:items-stretch">
           <div className="contents xl:flex xl:flex-col xl:gap-5">
             <FormSection id="product-basic" title="Основное" className="order-1">
               <ProductFormBasicSection
@@ -517,7 +517,7 @@ export function ProductForm({
               />
             </FormSection>
 
-            <FormSection id="product-seo" title="SEO" description="Как товар выглядит в поиске Google и Яндекса." className="order-7">
+            <FormSection id="product-seo" title="SEO" description="Как товар выглядит в поиске Google и Яндекса." className="order-7 xl:flex-1">
               <ProductFormSeoSection product={product} />
             </FormSection>
           </div>
@@ -563,7 +563,7 @@ export function ProductForm({
               />
             </FormSection>
 
-            <FormSection id="product-compatibility" title="Совместимость" className="order-4">
+            <FormSection id="product-compatibility" title="Совместимость" className="order-4 xl:flex-1">
               <ProductFormCompatibilitySection
                 brands={brands}
                 selectedBrands={selectedBrands}

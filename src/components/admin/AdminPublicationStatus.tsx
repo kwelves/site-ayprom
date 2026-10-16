@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Check, RotateCw, TriangleAlert } from "lucide-react";
+import { Check, CheckCircle2, Clock3, Loader2, RotateCw, TriangleAlert, X } from "lucide-react";
+import { formatRussianCount } from "@/lib/russian-plural";
 import { fetchPublicationStatus, retryPublication } from "@/lib/admin/actions";
 import type { AdminPublicationStatus as Status } from "@/lib/admin/queries";
 import { buttonClassName } from "@/components/admin/ui/button-styles";
@@ -32,15 +33,22 @@ const TONE: Record<State, { text: string; dot: string }> = {
   failed: { text: "text-danger", dot: "bg-danger" },
 };
 
-// The way an edit travels: saved in the admin, built into the site, live. How far the latest edits are.
-const STEPS = ["Сохранено", "Публикуется", "На сайте"] as const;
-const REACHED: Record<State, number> = { pending: 1, publishing: 2, published: 3, failed: 1 };
+const SURFACE: Record<State, string> = {
+  published: "bg-success-surface",
+  publishing: "bg-info-surface",
+  pending: "bg-warning-surface",
+  failed: "bg-danger-surface",
+};
 
 interface AdminPublicationStatusProps {
   /** Short pill for the phone top bar. */
   compact?: boolean;
   /** Sidebar folded to icons: only the dot with the state as its tooltip. */
   collapsed?: boolean;
+  /** The pill spans the width it is given (sidebar). */
+  fill?: boolean;
+  /** Where the card opens: under the pill (top bar) or beside it (sidebar). */
+  placement?: "below" | "side";
 }
 
 // One poll for the whole admin, however many places show the status (sidebar, phone top bar, phone menu): the
@@ -112,10 +120,29 @@ function usePublicationStatus(): Status | null {
   return useSyncExternalStore(subscribeStatus, () => latest, () => null);
 }
 
-export function AdminPublicationStatus({ compact = false, collapsed = false }: AdminPublicationStatusProps) {
+export function AdminPublicationStatus({ compact = false, collapsed = false, fill = false, placement = "below" }: AdminPublicationStatusProps) {
   const status = usePublicationStatus();
   const [retrying, setRetrying] = useState(false);
   const reduceMotion = useReducedMotion();
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // The top-bar pill opens the full card; a click elsewhere or Esc closes it.
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
 
   if (!status || !status.enabled) return null;
 
@@ -139,72 +166,45 @@ export function AdminPublicationStatus({ compact = false, collapsed = false }: A
       .finally(() => setRetrying(false));
   }
 
-  if (compact || collapsed) {
-    return (
-      <span
-        role="status"
-        title={`${label}. ${hint}`}
-        aria-label={collapsed ? `${label}. ${hint}` : undefined}
-        className={cn(
-          "inline-flex h-7 items-center gap-1.5 rounded-full text-xs font-semibold",
-          collapsed ? "w-7 justify-center" : "glass-plate px-2.5",
-          tone.text,
-        )}
-      >
-        <StatusDot state={state} className={tone.dot} />
-        {!collapsed && (
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.span key={state} {...swap}>
-              {label}
-            </motion.span>
-          </AnimatePresence>
-        )}
-      </span>
-    );
-  }
-
-  const reached = REACHED[state];
-  return (
-    <div role="status" data-testid="admin-publication-status" className="glass-plate rounded-[14px] p-3">
+  const behind = "behind" in status ? status.behind : 0;
+  const steps = stepsFor(state, behind);
+  const HeadIcon = state === "published" ? CheckCircle2 : state === "failed" ? TriangleAlert : state === "publishing" ? Loader2 : Clock3;
+  const card = (
+    <div role="status" data-testid="admin-publication-status" className="rounded-[14px] p-3">
       <AnimatePresence mode="wait" initial={false}>
-        <motion.div key={state} {...swap}>
-          <p className={cn("flex items-center gap-2 text-[13px] font-semibold", tone.text)}>
-            <StatusDot state={state} className={tone.dot} />
-            {label}
-          </p>
-          <p className="mt-1 text-xs leading-snug text-muted-foreground">{hint}</p>
+        <motion.div key={state} {...swap} className="flex items-start gap-3">
+          <span aria-hidden="true" className={cn("grid size-9 shrink-0 place-items-center rounded-full", SURFACE[state], tone.text)}>
+            <HeadIcon className={cn("size-[18px]", state === "publishing" && "animate-spin")} />
+          </span>
+          <span className="min-w-0 pt-0.5">
+            <span className="block text-[15px] font-semibold tracking-[-0.01em] text-foreground">{label}</span>
+            <span className="mt-0.5 block text-[13px] leading-snug text-muted-foreground">{hint}</span>
+          </span>
         </motion.div>
       </AnimatePresence>
 
-      <ol className="mt-3 grid grid-cols-3 gap-1" aria-label="Путь изменений на сайт">
-        {STEPS.map((step, index) => {
-          const done = index < reached;
-          const current = index === reached - 1 && state !== "published";
-          return (
-            <li key={step} className="min-w-0">
-              <span className="relative block h-1 overflow-hidden rounded-full bg-surface-strong">
+      <ol className="mt-4" aria-label="Путь изменений на сайт">
+        {steps.map((step, index) => (
+          <li key={step.title} className="relative flex gap-3 pb-4 last:pb-0">
+            {index < steps.length - 1 && (
+              <span aria-hidden="true" className="absolute top-6 bottom-1 left-[10px] w-0.5 overflow-hidden rounded-full bg-surface-strong">
                 <span
                   className={cn(
-                    "absolute inset-0 origin-left rounded-full transition-[scale,background-color] duration-slow ease-ui",
-                    done ? "scale-x-100" : "scale-x-0",
-                    state === "failed" && index === 1 ? "bg-danger" : tone.dot,
+                    "absolute inset-0 origin-top rounded-full transition-[scale] duration-slow ease-ui",
+                    step.state === "done" ? cn("scale-y-100", tone.dot) : "scale-y-0",
                   )}
                 />
-                {state === "publishing" && index === 1 && (
-                  <span className="absolute inset-y-0 w-1/2 animate-site-loading-progress rounded-full bg-primary-foreground/60" />
-                )}
               </span>
-              <span
-                className={cn(
-                  "mt-1.5 block truncate text-[11px]",
-                  current ? cn("font-semibold", tone.text) : "text-muted-foreground",
-                )}
-              >
-                {step}
+            )}
+            <StepNode state={step.state} toneDot={tone.dot} toneText={tone.text} failed={state === "failed"} />
+            <span className="min-w-0 pt-px">
+              <span className={cn("block text-[13px] font-medium", step.state === "upcoming" ? "text-muted-foreground" : "text-foreground")}>
+                {step.title}
               </span>
-            </li>
-          );
-        })}
+              <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">{step.note}</span>
+            </span>
+          </li>
+        ))}
       </ol>
 
       {state === "failed" && (
@@ -212,7 +212,7 @@ export function AdminPublicationStatus({ compact = false, collapsed = false }: A
           type="button"
           disabled={retrying}
           onClick={retry}
-          className={buttonClassName({ variant: "danger", size: "sm", className: "mt-3 w-full" })}
+          className={buttonClassName({ variant: "danger", size: "sm", className: "mt-4 w-full" })}
         >
           <RotateCw aria-hidden="true" className={cn("!size-3.5", retrying && "animate-spin")} />
           {retrying ? "Запускаем…" : "Повторить публикацию"}
@@ -220,6 +220,95 @@ export function AdminPublicationStatus({ compact = false, collapsed = false }: A
       )}
     </div>
   );
+  if (!compact && !collapsed) return card;
+
+  // Top bar: a small pill that is always in sight; the card with the steps and the retry opens under it.
+  return (
+    <div ref={rootRef} className={cn("relative", fill && "w-full")}>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        title={`${label}. ${hint}`}
+        className={cn(
+          "inline-flex items-center gap-2 text-xs font-semibold transition-[background-color,scale] duration-fast ease-ui active:scale-[0.97] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30",
+          fill
+            ? collapsed
+              ? "size-10 justify-center rounded-[12px] hover:bg-accent"
+              : "h-10 w-full rounded-[12px] px-3 hover:bg-accent"
+            : "glass-plate h-9 rounded-full px-3 hover:bg-secondary",
+          tone.text,
+        )}
+      >
+        <StatusDot state={state} className={tone.dot} />
+        <span role="status" className={cn(!fill && "max-sm:sr-only", collapsed && "sr-only")}>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.span key={state} className="block" {...swap}>
+              {label}
+            </motion.span>
+          </AnimatePresence>
+        </span>
+      </button>
+      {open && (
+        <div
+          className={cn(
+            "glass-float absolute z-40 w-72 animate-[admin-dialog-in_200ms_var(--ease-spring-soft)_backwards] rounded-[18px] p-2",
+            placement === "side" ? "bottom-0 left-full ml-3 origin-bottom-left" : "top-full right-0 mt-2 origin-top-right",
+          )}
+        >
+          {card}
+        </div>
+      )}
+    </div>
+  );
+}
+
+type StepState = "done" | "current" | "failed" | "upcoming";
+
+// The way an edit travels, with what is true at each stop right now.
+function stepsFor(state: State, behind: number): { title: string; note: string; state: StepState }[] {
+  const queued = behind > 0 ? `${formatRussianCount(behind, ["изменение", "изменения", "изменений"])} в очереди` : "Всё сохранено в каталоге";
+  return [
+    { title: "Сохранено в админке", note: queued, state: "done" },
+    {
+      title: "Сборка сайта",
+      note:
+        state === "published" ? "Готово" : state === "publishing" ? "Идёт сейчас, обычно 2–4 минуты" : state === "failed" ? "Не удалась, изменения целы" : "Начнётся сама через минуту-две",
+      state: state === "published" ? "done" : state === "failed" ? "failed" : state === "publishing" ? "current" : "upcoming",
+    },
+    {
+      title: "На сайте",
+      note: state === "published" ? "Посетители видят последнюю версию" : "Пока показана прошлая версия",
+      state: state === "published" ? "done" : "upcoming",
+    },
+  ];
+}
+
+function StepNode({ state, toneDot, toneText, failed }: { state: StepState; toneDot: string; toneText: string; failed: boolean }) {
+  if (state === "done") {
+    return (
+      <span aria-hidden="true" className={cn("relative z-10 grid size-[22px] shrink-0 place-items-center rounded-full text-primary-foreground", failed ? "bg-success" : toneDot)}>
+        <Check className="size-3 animate-pop-in" strokeWidth={3} />
+      </span>
+    );
+  }
+  if (state === "failed") {
+    return (
+      <span aria-hidden="true" className="relative z-10 grid size-[22px] shrink-0 place-items-center rounded-full bg-danger text-primary-foreground">
+        <X className="size-3" strokeWidth={3} />
+      </span>
+    );
+  }
+  if (state === "current") {
+    return (
+      <span aria-hidden="true" className={cn("relative z-10 grid size-[22px] shrink-0 place-items-center rounded-full border-2 border-current bg-secondary", toneText)}>
+        <span className={cn("absolute size-[22px] rounded-full opacity-30 animate-attention-pulse", toneDot)} />
+        <span className={cn("size-2 rounded-full", toneDot)} />
+      </span>
+    );
+  }
+  return <span aria-hidden="true" className="relative z-10 size-[22px] shrink-0 rounded-full border-2 border-input bg-secondary" />;
 }
 
 // The dot carries the state: a calm ring breathes while waiting, a check is drawn when the site is live, a

@@ -6,6 +6,8 @@ import { restoreVehicleHotspots, saveVehicleHotspots, searchAvailableHotspotProd
 import type { VehicleHotspotActionState, VehicleHotspotUpdate } from "@/lib/admin/vehicle-hotspot-updates";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import { AdminUndoToast } from "@/components/admin/ui/AdminUndoToast";
+import { StickyFormActions } from "@/components/admin/ui/StickyFormActions";
+import { buttonClassName } from "@/components/admin/ui/button-styles";
 import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
 import { Input } from "@/components/admin/ui/Input";
 import { SubmitButton } from "@/components/admin/ui/SubmitButton";
@@ -64,7 +66,7 @@ function hotspotsMatch(first: EditableHotspot[], second: EditableHotspot[]): boo
   );
 }
 
-export function VehicleShowcaseEditor({ vehicleTypeSlug, vehicleTypeName, hotspots: initialHotspots }: VehicleShowcaseEditorProps) {
+export function VehicleShowcaseEditor({ vehicleTypeSlug, hotspots: initialHotspots }: VehicleShowcaseEditorProps) {
   const [hotspots, setHotspots] = useState<EditableHotspot[]>(() => toEditableHotspots(initialHotspots));
   const [savedHotspots, setSavedHotspots] = useState<EditableHotspot[]>(() => toEditableHotspots(initialHotspots));
   const [queries, setQueries] = useState<Record<string, string>>({});
@@ -287,14 +289,10 @@ export function VehicleShowcaseEditor({ vehicleTypeSlug, vehicleTypeName, hotspo
 
   const isUndoConfirmation = confirmation?.kind === "undo";
   return (
-    <form action={formAction} onSubmit={saveSnapshotBeforeSubmit} className="mt-6 space-y-4">
+    <form action={formAction} onSubmit={saveSnapshotBeforeSubmit} className="space-y-4">
       <input type="hidden" name="hotspots" value={JSON.stringify(payload)} />
       <fieldset disabled={isEditorMutationPending} className="contents">
 
-        <div className="glass-panel rounded-[18px] p-4">
-        <h2 className="text-base font-semibold text-card-foreground">{vehicleTypeName}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Настройка пяти точек на технике.</p>
-        </div>
 
         {hotspots.map((hotspot) => {
         const foundProducts = results[hotspot.id] ?? [];
@@ -303,21 +301,21 @@ export function VehicleShowcaseEditor({ vehicleTypeSlug, vehicleTypeName, hotspo
         const searchId = `hotspot-${hotspot.id}-search`;
 
         return (
-          <section key={hotspot.id} className="glass-panel rounded-[18px] p-4" aria-labelledby={`hotspot-${hotspot.id}-heading`}>
-            <div className="flex items-center justify-between gap-3">
-              <h3 id={`hotspot-${hotspot.id}-heading`} className="text-sm font-semibold text-card-foreground">
+          <section key={hotspot.id} className="glass-panel rounded-[18px] p-[18px]" aria-labelledby={`hotspot-${hotspot.id}-heading`}>
+            <div className="flex items-center gap-3">
+              <span aria-hidden="true" className="primary-surface grid size-7 shrink-0 place-items-center rounded-full text-[13px] font-semibold tabular-nums">
+                {hotspot.hotspotNumber}
+              </span>
+              <h3 id={`hotspot-${hotspot.id}-heading`} className="text-base font-semibold tracking-[-0.01em] text-foreground">
                 Точка {hotspot.hotspotNumber}
               </h3>
-              <span className="text-xs text-muted-foreground">№ {hotspot.hotspotNumber}</span>
             </div>
 
-            <label htmlFor={inputId} className="mt-4 block text-sm font-medium text-card-foreground">
-              Название хотспота
+            <div className="mt-4 grid gap-x-5 gap-y-4 lg:grid-cols-2">
+            <div>
+            <label htmlFor={inputId} className="block text-[13px] font-medium text-foreground">
+              Название точки
             </label>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Можно переименовать в любой момент: название на карточке товара на сайте обновится синхронно,
-              позиция точки не меняется.
-            </p>
             <Input
               id={inputId}
               value={hotspot.label}
@@ -326,9 +324,13 @@ export function VehicleShowcaseEditor({ vehicleTypeSlug, vehicleTypeName, hotspo
               className="mt-1.5"
               onChange={(event) => updateHotspot(hotspot.id, { label: event.target.value })}
             />
+            <p className="mt-1.5 text-xs leading-snug text-muted-foreground">
+              Видно на карточке товара на сайте и меняется сразу. Положение точки не меняется.
+            </p>
+            </div>
 
-            <div className="mt-4">
-              <label htmlFor={searchId} className="block text-sm font-medium text-card-foreground">
+            <div>
+              <label htmlFor={searchId} className="block text-[13px] font-medium text-foreground">
                 Закреплённый товар
               </label>
               <div className="relative mt-1.5">
@@ -343,12 +345,12 @@ export function VehicleShowcaseEditor({ vehicleTypeSlug, vehicleTypeName, hotspo
                   className="pl-9"
                 />
               </div>
-              <p className="mt-1.5 text-xs text-muted-foreground">
-                Введите минимум 2 символа. В поиске доступны все опубликованные товары.
+              <p className="mt-1.5 text-xs leading-snug text-muted-foreground">
+                От 2 символов. Ищем среди всех опубликованных товаров.
               </p>
 
               {query.trim().length >= 2 && (
-                <div className="mt-2 overflow-hidden rounded-md border border-border" aria-live="polite">
+                <div className="glass-float mt-2 max-h-72 overflow-y-auto rounded-[12px] p-1" aria-live="polite">
                   {foundProducts.length > 0 ? (
                     foundProducts.map((product) => {
                       return (
@@ -358,7 +360,7 @@ export function VehicleShowcaseEditor({ vehicleTypeSlug, vehicleTypeName, hotspo
                           aria-label={`Выбрать товар «${product.name}» для точки ${hotspot.hotspotNumber}`}
                           disabled={isSavePending}
                           onClick={() => chooseProduct(hotspot, product)}
-                          className="block w-full border-b border-border px-3 py-2 text-left last:border-b-0 hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                          className="block w-full rounded-[8px] px-3 py-2 text-left transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <span className="block text-sm font-medium text-card-foreground">{product.name}</span>
                           {product.article && <span className="mt-0.5 block text-xs text-muted-foreground">Артикул: {product.article}</span>}
@@ -382,7 +384,7 @@ export function VehicleShowcaseEditor({ vehicleTypeSlug, vehicleTypeName, hotspo
               )}
 
               {hotspot.product ? (
-                <div className="mt-3 flex items-start justify-between gap-3 rounded-md bg-accent px-3 py-2">
+                <div className="mt-3 flex items-start justify-between gap-3 rounded-[12px] bg-accent px-3 py-2.5">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-card-foreground">{hotspot.product.name}</p>
                     {hotspot.product.article && <p className="mt-0.5 text-xs text-muted-foreground">Артикул: {hotspot.product.article}</p>}
@@ -414,22 +416,26 @@ export function VehicleShowcaseEditor({ vehicleTypeSlug, vehicleTypeName, hotspo
                 </div>
               )}
             </div>
+            </div>
           </section>
         );
         })}
 
-        <div className="flex flex-wrap items-center gap-3 border-t border-border pt-6">
-        <SubmitButton pendingLabel="Сохранение…">Сохранить изменения</SubmitButton>
+        <StickyFormActions>
+        <span className="mr-auto hidden text-sm text-muted-foreground sm:block">
+          {hasUnsavedChanges ? "Есть несохранённые изменения" : "Все изменения сохранены"}
+        </span>
         <button
           type="button"
           onClick={requestDiscardChanges}
           disabled={!hasUnsavedChanges || isEditorMutationPending}
-          className="inline-flex items-center gap-2 rounded-md border border-border px-5 py-2.5 text-sm font-medium text-card-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          className={buttonClassName({ variant: "glass" })}
         >
-          <RotateCcw aria-hidden="true" className="h-4 w-4" />
+          <RotateCcw aria-hidden="true" />
           Отменить изменения
         </button>
-        </div>
+        <SubmitButton pendingLabel="Сохранение…">Сохранить изменения</SubmitButton>
+        </StickyFormActions>
       </fieldset>
       <ConfirmDialog
         open={confirmation !== null}

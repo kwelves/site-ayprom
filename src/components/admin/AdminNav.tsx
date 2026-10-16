@@ -78,17 +78,21 @@ export function AdminNav({ variant = "inline", collapsed = false, onNavigate }: 
     return (
       <LayoutGroup id={groupId}>
         {NAV_GROUPS.map((group, groupIndex) => (
-          <div key={group.label} className={cn(groupIndex > 0 && "mt-4")}>
-            <p
-              className={cn(
-                "mb-1.5 h-4 px-3 text-[11px] font-semibold tracking-[0.06em] text-muted-foreground uppercase transition-opacity duration-fast ease-ui",
-                collapsed && "opacity-0",
-              )}
-              aria-hidden={collapsed || undefined}
-            >
-              {group.label}
-            </p>
-            <div className="flex flex-col gap-0.5">
+          // Folded, the group names give way to a short divider; every item becomes a 40px square centred on the
+          // sidebar's axis, the same axis as the logo, the status dot and the buttons at the bottom.
+          <div
+            key={group.label}
+            className={cn(
+              groupIndex > 0 && !collapsed && "mt-3 [@media(max-height:700px)]:mt-1.5",
+              groupIndex > 0 && collapsed && "mx-auto mt-2 w-8 border-t border-border pt-2",
+            )}
+          >
+            {!collapsed && (
+              <p className="mb-1 h-4 px-3 text-[11px] font-semibold tracking-[0.06em] text-muted-foreground uppercase [@media(max-height:700px)]:sr-only">
+                {group.label}
+              </p>
+            )}
+            <div className={cn("flex flex-col gap-0.5", collapsed && "items-center")}>
               {group.items.map((item) => {
                 const active = isNavItemActive(pathname, item.href);
                 const Icon = item.icon;
@@ -103,7 +107,8 @@ export function AdminNav({ variant = "inline", collapsed = false, onNavigate }: 
                     onPointerEnter={() => warmRoute(item.href)}
                     onFocus={() => warmRoute(item.href)}
                     className={cn(
-                      "group/nav relative flex h-10 items-center gap-3 rounded-[12px] px-3 text-sm font-medium transition-colors duration-fast ease-ui focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30",
+                      "group/nav relative flex shrink-0 items-center rounded-[12px] text-sm font-medium transition-colors duration-fast ease-ui focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30",
+                      collapsed ? "size-10 justify-center" : "h-9 gap-3 px-3",
                       active ? "text-primary" : "text-muted-foreground hover:text-foreground",
                     )}
                   >
@@ -125,14 +130,11 @@ export function AdminNav({ variant = "inline", collapsed = false, onNavigate }: 
                       aria-hidden="true"
                       className="relative size-[18px] shrink-0 transition-[scale,translate] duration-base ease-spring-soft group-hover/nav:scale-[1.08]"
                     />
-                    <span
-                      className={cn(
-                        "relative truncate transition-[opacity,translate] duration-base ease-ui group-hover/nav:translate-x-px",
-                        collapsed && "pointer-events-none opacity-0",
-                      )}
-                    >
-                      {item.label}
-                    </span>
+                    {!collapsed && (
+                      <span className="relative truncate transition-[translate] duration-base ease-ui group-hover/nav:translate-x-px">
+                        {item.label}
+                      </span>
+                    )}
                   </Link>
                 );
               })}

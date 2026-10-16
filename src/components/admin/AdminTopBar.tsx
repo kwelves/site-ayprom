@@ -27,6 +27,7 @@ export function AdminTopBar() {
   const [query, setQuery] = useState("");
   const section = activeNavItem(pathname);
   const onProducts = pathname === PRODUCTS_PATH;
+  const deep = pathname.split("/").filter(Boolean).length > 2;
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -51,7 +52,7 @@ export function AdminTopBar() {
   }
 
   return (
-    <header className="glass-float sticky top-3 z-30 flex h-[60px] items-center gap-3 rounded-[18px] px-3 sm:px-4">
+    <header className={cn("glass-float sticky top-3 z-30 flex h-[60px] items-center gap-3 rounded-[18px] px-3 sm:px-4", deep && "lg:hidden")}>
       <div className="lg:hidden">
         <AdminMobileNav />
       </div>
@@ -89,10 +90,10 @@ export function AdminTopBar() {
             </kbd>
           </form>
         )}
-        <span className="lg:hidden">
+        <span className="contents lg:hidden">
           <AdminPublicationStatus compact />
+          <AdminThemeToggle />
         </span>
-        <AdminThemeToggle />
       </div>
     </header>
   );

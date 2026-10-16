@@ -5,6 +5,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import {
   SortableContext,
   verticalListSortingStrategy,
+  rectSortingStrategy,
   sortableKeyboardCoordinates,
   useSortable,
   arrayMove,
@@ -38,19 +39,38 @@ interface SortableListProps<T> {
   enableStepButtons?: boolean;
   /** "panel" (default): the rows sit in one glass panel, like a table. "inset": the list already lives inside a
    * panel (photos, characteristics), so each row is a light plate instead of a second glass layer. */
-  surface?: "panel" | "inset";
+  surface?: Surface;
 }
+
+/** "grid": few, picture-led items (categories) as cards in a grid; dragging works across rows and columns. */
+type Surface = "panel" | "inset" | "grid" | "tiles";
 
 // Rows of the working place (design system v2, "Таблица"): blue 8% on hover, 14% for the row just saved; each row
 // comes in 6px from below, 24ms after the previous one (only the first dozen wait, so long lists stay quick).
-function listClassName(surface: "panel" | "inset", className?: string) {
+function listClassName(surface: Surface, className?: string) {
   return cn(
-    surface === "panel" ? "glass-panel flex flex-col gap-0.5 rounded-[18px] p-1.5" : "flex flex-col gap-1.5",
+    surface === "panel" && "glass-panel flex flex-col gap-0.5 rounded-[18px] p-1.5",
+    surface === "inset" && "flex flex-col gap-1.5",
+    surface === "grid" && "grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4",
+    surface === "tiles" && "grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-2",
     className,
   );
 }
 
-function rowClassName(surface: "panel" | "inset", highlighted: boolean) {
+function rowClassName(surface: Surface, highlighted: boolean) {
+  if (surface === "tiles") {
+    return cn(
+      "glass-plate group/card relative flex animate-[admin-row-in_var(--transition-duration-base)_var(--ease-ui)_backwards] flex-col rounded-[14px] p-1.5 transition-shadow duration-base ease-ui focus-within:z-10 hover:z-10",
+      highlighted && "ring-2 ring-primary/40",
+    );
+  }
+  if (surface === "grid") {
+    // A card lifts 1px on hover (design system v2, "Панели"); the one just saved carries a blue ring.
+    return cn(
+      "glass-panel group/card relative flex animate-[admin-row-in_var(--transition-duration-base)_var(--ease-ui)_backwards] flex-col rounded-[18px] p-2.5 transition-[translate,box-shadow] duration-base ease-ui hover:z-10 hover:-translate-y-px focus-within:z-10",
+      highlighted && "ring-2 ring-primary/40",
+    );
+  }
   return cn(
     "relative flex animate-[admin-row-in_var(--transition-duration-base)_var(--ease-ui)_backwards] items-start gap-2 rounded-[12px] px-2 py-2 transition-colors duration-fast ease-ui hover:z-10 focus-within:z-10 md:items-center",
     surface === "inset" ? "glass-plate" : "hover:bg-accent",
@@ -209,7 +229,7 @@ function SortableListClient<T>({
 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={items.map(getId)} strategy={verticalListSortingStrategy}>
+      <SortableContext items={items.map(getId)} strategy={surface === "grid" || surface === "tiles" ? rectSortingStrategy : verticalListSortingStrategy}>
         <div className={listClassName(surface, className)}>
           {items.map((item, index) => (
             <SortableRow
@@ -245,7 +265,7 @@ function SortableRow({
 }: {
   id: string;
   index: number;
-  surface: "panel" | "inset";
+  surface: Surface;
   flashKey: string;
   highlighted: boolean;
   stepButtons?: { onMoveUp: () => void; onMoveDown: () => void; disabledUp: boolean; disabledDown: boolean };
@@ -260,7 +280,13 @@ function SortableRow({
       {...attributes}
       {...listeners}
       aria-label="Перетащить для изменения порядка"
-      className="flex min-h-11 min-w-8 shrink-0 touch-none items-center justify-center rounded-[8px] text-faint-foreground transition-colors hover:bg-accent hover:text-muted-foreground active:cursor-grabbing md:min-h-8 md:min-w-6 md:cursor-grab"
+      className={
+        surface === "tiles"
+          ? "glass-float absolute top-3 left-3 z-10 flex size-8 touch-none items-center justify-center rounded-[8px] text-muted-foreground opacity-0 transition-[opacity,color] duration-fast ease-ui hover:text-foreground focus-visible:opacity-100 group-hover/card:opacity-100 active:cursor-grabbing pointer-coarse:opacity-100 md:cursor-grab"
+          : surface === "grid"
+          ? "glass-float absolute top-4 left-4 z-10 flex size-9 touch-none items-center justify-center rounded-[10px] text-muted-foreground transition-colors hover:text-foreground active:cursor-grabbing md:cursor-grab"
+          : "flex min-h-11 min-w-8 shrink-0 touch-none items-center justify-center rounded-[8px] text-faint-foreground transition-colors hover:bg-accent hover:text-muted-foreground active:cursor-grabbing md:min-h-8 md:min-w-6 md:cursor-grab"
+      }
     >
       <GripVertical className="h-4 w-4" />
     </button>

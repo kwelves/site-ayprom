@@ -288,6 +288,7 @@
   --color-selection: rgb(8 75 185 / 0.18);
   /* Brand logos are drawn for a light ground; they keep a light plate in the dark theme too. */
   --color-logo-plate: rgb(255 255 255 / 0.92);
+  --color-logo-plate-foreground: var(--color-slate-500);
 }
 
 html {
@@ -376,7 +377,8 @@ body {
   --color-danger-surface: rgb(200 30 30 / 0.08);
   --color-danger-surface-hover: rgb(200 30 30 / 0.16);
   --color-danger-border: rgb(200 30 30 / 0.24);
-  --color-success: #15803d;
+  /* One step darker than the design-system green: 12px text on its own tinted fill needs 4.5:1. */
+  --color-success: #166534;
   --color-success-surface: rgb(21 128 61 / 0.12);
   --color-success-surface-hover: rgb(21 128 61 / 0.18);
   --color-success-border: rgb(21 128 61 / 0.26);

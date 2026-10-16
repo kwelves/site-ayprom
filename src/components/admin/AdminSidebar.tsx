@@ -6,6 +6,7 @@ import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { logout } from "@/lib/admin/actions";
 import { AdminNav } from "@/components/admin/AdminNav";
 import { AdminPublicationStatus } from "@/components/admin/AdminPublicationStatus";
+import { AdminThemeToggle } from "@/components/admin/AdminThemeToggle";
 import { AdminMark } from "@/components/admin/ui/AdminMark";
 import { buttonClassName } from "@/components/admin/ui/button-styles";
 import { cn } from "@/lib/utils";
@@ -52,31 +53,34 @@ export function AdminSidebar() {
       data-testid="admin-sidebar"
       data-collapsed={collapsed || undefined}
       className={cn(
-        "glass-panel hidden shrink-0 flex-col overflow-hidden rounded-[18px] transition-[width] duration-slow ease-spring lg:sticky lg:top-3 lg:flex lg:h-[calc(100dvh-1.5rem)] lg:self-start",
+        "glass-panel hidden shrink-0 flex-col rounded-[18px] transition-[width] duration-slow ease-spring lg:sticky lg:top-3 lg:z-30 lg:flex lg:h-[calc(100dvh-1.5rem)] lg:self-start",
         collapsed ? "w-[72px]" : "w-[248px]",
       )}
     >
-      <div className={cn("flex h-[68px] shrink-0 items-center", collapsed ? "justify-center px-0" : "px-[18px]")}>
+      {/* One edge for everything: expanded, the logo, the highlights, the status card and the buttons all start
+          12px from the panel edge; folded, they all sit on the 72px column's centre line. */}
+      <div className={cn("flex shrink-0 items-center px-3 pt-3 pb-2", collapsed && "justify-center")}>
         <Link
           href="/admin/products"
-          className="flex min-w-0 items-center rounded-[10px] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30"
+          className={cn("flex min-w-0 items-center rounded-[10px] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30", !collapsed && "w-full")}
           aria-label="AYPROM · Админка, к товарам"
           title="AYPROM · Админка"
         >
-          {collapsed ? <AdminMark variant="icon" size="sm" /> : <AdminMark variant="logo" size="md" />}
+          {/* Expanded, the logo plate spans the menu's full width, edge to edge with the items below it. */}
+          {collapsed ? <AdminMark variant="icon" className="h-[35px]" /> : <AdminMark variant="logo" className="h-auto w-full" />}
         </Link>
       </div>
 
-      <nav aria-label="Разделы админки" className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden px-3 py-2">
+      <nav aria-label="Разделы админки" className={cn("flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden px-3 py-2 [scrollbar-width:none]")}>
         <AdminNav variant="sidebar" collapsed={collapsed} />
       </nav>
 
-      <div className={cn("shrink-0 px-3", collapsed && "flex justify-center")}>
-        <AdminPublicationStatus collapsed={collapsed} />
+      <div className="mx-3 shrink-0 border-t border-border pt-3">
+        <AdminPublicationStatus compact fill placement="side" collapsed={collapsed} />
       </div>
 
-      <div className={cn("flex shrink-0 items-center gap-1 p-3", collapsed && "flex-col")}>
-        <form action={logout} data-testid="admin-logout" className={cn("shrink-0", !collapsed && "min-w-0 grow")}>
+      <div className={cn("mx-3 flex shrink-0 items-center gap-1 py-3", collapsed && "flex-col")}>
+        <form action={logout} data-testid="admin-logout" className={cn("shrink-0", !collapsed && "mr-auto")}>
           <button
             type="submit"
             title="Выйти"
@@ -84,7 +88,7 @@ export function AdminSidebar() {
             className={buttonClassName({
               variant: "ghost",
               size: collapsed ? "icon" : "md",
-              className: cn(!collapsed && "w-full justify-start px-3"),
+              className: cn("sm:h-10", collapsed ? "size-10" : "px-3"),
             })}
           >
             <LogOut aria-hidden="true" />
@@ -96,10 +100,11 @@ export function AdminSidebar() {
           onClick={toggle}
           aria-label={collapsed ? "Развернуть меню" : "Свернуть меню"}
           title={collapsed ? "Развернуть меню" : "Свернуть меню"}
-          className={buttonClassName({ variant: "ghost", size: "icon" })}
+          className={buttonClassName({ variant: "ghost", size: "icon", className: "size-10" })}
         >
           {collapsed ? <PanelLeftOpen aria-hidden="true" /> : <PanelLeftClose aria-hidden="true" />}
         </button>
+        <AdminThemeToggle className="size-10" />
       </div>
     </aside>
   );

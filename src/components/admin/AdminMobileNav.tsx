@@ -3,7 +3,6 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { LogOut, Menu, X } from "lucide-react";
 import { AdminNav } from "@/components/admin/AdminNav";
-import { AdminPublicationStatus } from "@/components/admin/AdminPublicationStatus";
 import { AdminMark } from "@/components/admin/ui/AdminMark";
 import { buttonClassName } from "@/components/admin/ui/button-styles";
 import { logout } from "@/lib/admin/actions";
@@ -102,9 +101,6 @@ export function AdminMobileNav() {
             <nav aria-label="Разделы админки" className="flex flex-1 flex-col overflow-y-auto px-3 py-2">
               <AdminNav variant="sidebar" onNavigate={close} />
             </nav>
-            <div className="shrink-0 px-3">
-              <AdminPublicationStatus />
-            </div>
             <form action={logout} className="shrink-0 p-3">
               <button type="submit" className={buttonClassName({ variant: "ghost", size: "lg", className: "w-full justify-start px-3" })}>
                 <LogOut aria-hidden="true" />

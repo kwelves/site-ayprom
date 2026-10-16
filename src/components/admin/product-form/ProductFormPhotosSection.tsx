@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ChangeEvent, type RefObject } from "react";
-import { ImagePlus, Loader2, Trash2 } from "lucide-react";
+import { ImagePlus, Loader2, Star, Trash2 } from "lucide-react";
 import { ImageFallback } from "@/components/ui/ImageFallback";
 import { buttonClassName } from "@/components/admin/ui/button-styles";
 import { cn } from "@/lib/utils";
@@ -112,26 +112,24 @@ export function ProductFormPhotosSection({
       <div>
         {images.length > 0 && (
           <SortableList
-            surface="inset"
+            surface="tiles"
             items={images}
             getId={(img) => img.id}
             onReorder={onImageReorder}
-            enableStepButtons
             renderItem={(img) => (
-              <div className="flex items-center gap-3">
-                <span className="group/photo relative shrink-0">
-                  <span className="relative block size-16 overflow-hidden rounded-[12px] bg-surface-subtle">
-                    <ImageFallback
-                      src={img.previewUrl}
-                      fallbackSrc={img.previewUrl !== img.url ? img.url : undefined}
-                      alt=""
-                      sizes="64px"
-                      unoptimized
-                      className="object-contain p-1 transition-[scale] duration-base ease-ui pointer-fine:group-hover/photo:scale-[1.06]"
-                    />
-                  </span>
+              <div className="flex flex-col gap-1.5">
+                <span className="group/photo relative block aspect-square overflow-hidden rounded-[10px] bg-surface-subtle">
+                  <ImageFallback
+                    src={img.previewUrl}
+                    fallbackSrc={img.previewUrl !== img.url ? img.url : undefined}
+                    alt=""
+                    sizes="160px"
+                    unoptimized
+                    className="object-contain p-2 transition-[scale] duration-base ease-ui pointer-fine:group-hover/photo:scale-[1.08]"
+                  />
                   {img.id === images[0]?.id && (
-                    <span className="absolute -top-1.5 -left-1.5 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground shadow-sm">
+                    <span className="absolute bottom-1.5 left-1.5 inline-flex h-5 items-center gap-1 rounded-full bg-primary px-2 text-[11px] font-semibold text-primary-foreground">
+                      <Star aria-hidden="true" className="size-3 fill-current" />
                       Главное
                     </span>
                   )}
@@ -144,9 +142,20 @@ export function ProductFormPhotosSection({
                     </span>
                   </span>
                 </span>
-                <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={img.url}>{img.url}</span>
-                <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground" title="Во сколько раз увеличить деталь на карточке сайта">
-                  <span className="sr-only sm:not-sr-only">Масштаб</span>
+                <div className="flex items-center gap-1 pl-1">
+                  <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground" title={img.url}>{img.url}</span>
+                  <button
+                    type="button"
+                    onClick={() => onImageDelete(img.id)}
+                    aria-label="Удалить"
+                    title="Удалить фото"
+                    className={buttonClassName({ variant: "ghost", size: "icon", className: "size-8 hover:bg-danger-surface hover:text-danger" })}
+                  >
+                    <Trash2 aria-hidden="true" className="!size-4" />
+                  </button>
+                </div>
+                <label className="flex items-center gap-2 pl-1 text-xs text-muted-foreground" title="Во сколько раз увеличить деталь на карточке сайта">
+                  Масштаб
                   <Input
                     type="number"
                     step={VISUAL_SCALE_STEP}
@@ -156,18 +165,9 @@ export function ProductFormPhotosSection({
                     onBlur={(e) => onImageScaleBlur(img.id, e.target.value)}
                     aria-label="Масштаб"
                     placeholder="1"
-                    className="w-16 px-2 text-center tabular-nums"
+                    className="h-8 min-w-0 flex-1 px-2 text-center text-xs tabular-nums sm:h-8"
                   />
                 </label>
-                <button
-                  type="button"
-                  onClick={() => onImageDelete(img.id)}
-                  aria-label="Удалить"
-                  title="Удалить фото"
-                  className={buttonClassName({ variant: "ghost", size: "icon", className: "hover:bg-danger-surface hover:text-danger" })}
-                >
-                  <Trash2 aria-hidden="true" />
-                </button>
               </div>
             )}
           />

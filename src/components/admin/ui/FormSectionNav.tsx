@@ -58,7 +58,7 @@ export function FormSectionNav({ items, className }: { items: readonly FormSecti
       <nav
         aria-label="Разделы формы"
         className={cn(
-          "glass-float sticky top-[84px] z-20 flex max-w-full gap-0.5 overflow-x-auto rounded-full p-1 [scrollbar-width:none]",
+          "glass-float sticky top-[84px] z-20 flex w-full gap-0.5 overflow-x-auto rounded-full p-1 [scrollbar-width:none]",
           className,
         )}
       >
@@ -71,7 +71,7 @@ export function FormSectionNav({ items, className }: { items: readonly FormSecti
               onClick={() => go(item.id)}
               aria-current={active ? "true" : undefined}
               className={cn(
-                "relative inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-fast ease-ui focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30",
+                "relative inline-flex h-9 flex-1 shrink-0 items-center justify-center gap-1.5 rounded-full px-3.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-fast ease-ui focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30",
                 active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
               )}
             >
