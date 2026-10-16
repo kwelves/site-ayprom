@@ -46,7 +46,7 @@ const SECRET_RULES = {
 
 /**
  * @param {{ target: string, secrets: Record<string, string | undefined>, publishableKey?: string,
- *   dualWriteSupabase?: string, confirm?: string, sentryDsn?: string }} input
+ *   dualWriteSupabase?: string, confirm?: string, sentryDsn?: string, keepSecrets?: boolean }} input
  * @returns {{ workerName: string, vars: Record<string, string>, secrets: Record<string, string> }}
  */
 export function buildAdminDeployment(input) {
@@ -60,16 +60,20 @@ export function buildAdminDeployment(input) {
     ...(target.r2 ? ["GITHUB_DISPATCH_TOKEN", "R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"] : [])];
   const optional = target.r2 ? [] : ["GITHUB_DISPATCH_TOKEN"];
   const secrets = {};
-  for (const name of required) {
-    const value = input.secrets?.[name]?.trim();
-    if (!value || !SECRET_RULES[name](value)) throw new Error(`${name} is missing or not plausible`);
-    secrets[name] = value;
-  }
-  for (const name of optional) {
-    const value = input.secrets?.[name]?.trim();
-    if (value) {
-      if (!SECRET_RULES[name](value)) throw new Error(`${name} is not plausible`);
+  // keepSecrets: the automatic deployment after a code change. The secrets already stored in Cloudflare stay untouched,
+  // so nothing secret has to be available to the deployment at all; only code and plain settings are replaced.
+  if (!input.keepSecrets) {
+    for (const name of required) {
+      const value = input.secrets?.[name]?.trim();
+      if (!value || !SECRET_RULES[name](value)) throw new Error(`${name} is missing or not plausible`);
       secrets[name] = value;
+    }
+    for (const name of optional) {
+      const value = input.secrets?.[name]?.trim();
+      if (value) {
+        if (!SECRET_RULES[name](value)) throw new Error(`${name} is not plausible`);
+        secrets[name] = value;
+      }
     }
   }
 

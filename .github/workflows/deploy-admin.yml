@@ -1,0 +1,61 @@
+# Deploys the admin Worker (the admin site and its server part) after code changes are merged into main.
+# Without it the admin would keep running the old code until somebody deployed it by hand.
+# Only the code and the plain settings are replaced; the secrets stored in Cloudflare (database key, admin password,
+# session secret, photo storage keys) stay exactly as they are, so no secret except the Cloudflare token is needed here.
+# It never runs for pull requests or forks, so repository secrets are not exposed to outside code.
+#
+# The run belongs to one GitHub environment, "staging" or "production", and reads that environment's own secrets and
+# variables. scripts/cloudflare/admin-targets.mjs refuses an incomplete setup and requires the confirmation phrase.
+name: deploy-admin
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "tests/**"
+      - "**/*.md"
+      - "supabase/**"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Which admin to deploy
+        type: choice
+        options: [staging, production]
+        default: staging
+      dry_run:
+        description: Only check the settings and print the plan; deploy nothing
+        type: boolean
+        default: false
+
+# One deployment per environment at a time; a newer one waits for the running one.
+concurrency:
+  group: deploy-admin-${{ inputs.environment || (github.event_name == 'push' && 'production') || 'staging' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ inputs.environment || (github.event_name == 'push' && 'production') || 'staging' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install project dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install Wrangler (Cloudflare command line)
+        run: npm install --no-save --no-audit --no-fund --prefix .wrangler/tools/wrangler-4.135.0 wrangler@4.135.0
+      - name: Deploy the admin
+        run: node scripts/cloudflare/admin-deploy.mjs --target="$DEPLOY_TARGET" --keep-secrets --dual-write=${{ vars.MEDIA_STORAGE_DUAL_WRITE_SUPABASE || 'false' }} --confirm=deploy-production-acyoyvetcyqmwppfenau ${{ inputs.dry_run && '--dry-run' || '' }}
+        env:
+          DEPLOY_TARGET: ${{ inputs.environment || (github.event_name == 'push' && 'production') || 'staging' }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          # Public by design (the visitor's browser gets them too), so plain variables.
+          ADMIN_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+          SENTRY_DSN: ${{ vars.SENTRY_DSN }}

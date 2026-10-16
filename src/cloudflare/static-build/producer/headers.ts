@@ -43,6 +43,11 @@ export function serializeStaticHeaders(input: {
     // Instant navigation: Chromium may prerender/prefetch the same-origin pages named in this file.
     `  Speculation-Rules: "/${SPECULATION_RULES_FILE}"`,
     "",
+    // The workers.dev address must stay reachable (the publication worker checks the live site there) but is only
+    // technical: search engines must not index it as a copy of the real site. Applies on top of the rule above.
+    "https://:worker.:subdomain.workers.dev/*",
+    "  X-Robots-Tag: noindex",
+    "",
     `/${SPECULATION_RULES_FILE}`,
     "  Content-Type: application/speculationrules+json",
     "  Cache-Control: public, max-age=3600",

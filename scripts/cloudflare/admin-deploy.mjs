@@ -1,9 +1,12 @@
 // Deploys the admin Worker of one site: `staging` (the test copy) or `production` (the real site).
 // Usage: node scripts/cloudflare/admin-deploy.mjs --target=staging|production [--skip-build] [--dry-run]
-//          [--dual-write=true|false] [--workers-dev=on|off] [--confirm=<phrase for production>]
+//          [--dual-write=true|false] [--workers-dev=on|off] [--confirm=<phrase for production>] [--keep-secrets]
 // --dry-run assembles and checks everything and prints the plan (variable values, which secrets are present), but
 // deploys nothing and sends nothing anywhere. Secrets are read from files in ~/.ayprom-secrets (never from the
 // command line) and are never printed. What each target needs is in admin-targets.mjs.
+// --keep-secrets is the automatic deployment (GitHub Actions) after a code change: it replaces only the code and the plain
+// settings and leaves the secrets stored in Cloudflare as they are. Then no secret file is read; the Cloudflare token comes
+// from CLOUDFLARE_API_TOKEN and the public settings from ADMIN_PUBLISHABLE_KEY and SENTRY_DSN (empty = no reporting).
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -25,6 +28,7 @@ if (!targetName || !Object.hasOwn(ADMIN_TARGETS, targetName)) throw new Error("-
 const target = ADMIN_TARGETS[targetName];
 const dryRun = flag("dry-run");
 const workersDev = (option("workers-dev") ?? "on") === "on";
+const keepSecrets = flag("keep-secrets");
 
 const secretDir = path.join(os.homedir(), ".ayprom-secrets");
 const targetDir = targetName === "production" ? path.join(secretDir, "production") : secretDir;
@@ -45,10 +49,14 @@ function readOrCreate(directory, name, create) {
 // Where each secret comes from. Staging keeps its original file names; production has its own folder.
 // Production uses its own long-lived Workers token (production\cloudflare-token-publish.txt); the broad migration token
 // is only a fallback while it still exists.
-const cloudflareToken = targetName === "production"
-  ? readIn(targetDir, "cloudflare-token-publish.txt") ?? readIn(secretDir, "cloudflare-token-zone.txt")
-  : readIn(secretDir, "cloudflare-token.txt");
-const secretFiles = targetName === "production"
+const cloudflareToken = keepSecrets
+  ? process.env.CLOUDFLARE_API_TOKEN?.trim()
+  : targetName === "production"
+    ? readIn(targetDir, "cloudflare-token-publish.txt") ?? readIn(secretDir, "cloudflare-token-zone.txt")
+    : readIn(secretDir, "cloudflare-token.txt");
+const secretFiles = keepSecrets
+  ? {}
+  : targetName === "production"
   ? {
     SUPABASE_SECRET_KEY: readIn(targetDir, "supabase-secret-key.txt"),
     ADMIN_PASSWORD: readIn(targetDir, "admin-password.txt"),
@@ -65,23 +73,25 @@ const secretFiles = targetName === "production"
     ADMIN_PASSWORD: readOrCreate(secretDir, "admin-staging-password.txt", () => randomBytes(9).toString("base64url")),
     GITHUB_DISPATCH_TOKEN: readIn(secretDir, "github-dispatch-token.txt"),
   };
-const publishableKey = targetName === "production" ? readIn(targetDir, "supabase-publishable-key.txt") : undefined;
+const publishableKey = keepSecrets
+  ? process.env.ADMIN_PUBLISHABLE_KEY?.trim()
+  : targetName === "production" ? readIn(targetDir, "supabase-publishable-key.txt") : undefined;
 // Optional: the Sentry address of this site (public by design, so a plain variable, not a secret). No file, no reporting.
-const sentryDsn = readIn(targetDir, "sentry-dsn.txt");
+const sentryDsn = keepSecrets ? process.env.SENTRY_DSN?.trim() || undefined : readIn(targetDir, "sentry-dsn.txt");
 
 const hidden = [cloudflareToken, ...Object.values(secretFiles)].filter(Boolean);
 const hide = (value) => hidden.reduce((text, secret) => text.replaceAll(secret, "[hidden]"), String(value));
 
 const deployment = buildAdminDeployment({
   target: targetName, secrets: secretFiles, publishableKey,
-  dualWriteSupabase: option("dual-write"), confirm: option("confirm"), sentryDsn,
+  dualWriteSupabase: option("dual-write"), confirm: option("confirm"), sentryDsn, keepSecrets,
 });
 if (!cloudflareToken) throw new Error("the Cloudflare token file is missing");
 
 if (dryRun) {
   console.log(JSON.stringify({
     dryRun: true, target: targetName, worker: deployment.workerName, account: ACCOUNT_ID, workersDev,
-    variables: deployment.vars, secretsPresent: Object.keys(deployment.secrets).sort(),
+    variables: deployment.vars, secretsPresent: Object.keys(deployment.secrets).sort(), keepSecrets,
   }, null, 2));
   process.exit(0);
 }
@@ -116,11 +126,12 @@ try {
     vars: deployment.vars,
   };
   writeFileSync(path.join(dir, "wrangler.json"), JSON.stringify(config), { mode: 0o600 });
-  writeFileSync(path.join(dir, "secrets.json"), JSON.stringify(deployment.secrets), { mode: 0o600 });
+  if (!keepSecrets) writeFileSync(path.join(dir, "secrets.json"), JSON.stringify(deployment.secrets), { mode: 0o600 });
 
   const env = { CLOUDFLARE_API_TOKEN: cloudflareToken, WRANGLER_SEND_METRICS: "false", CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: "false", CI: "true", NO_COLOR: "1", WRANGLER_LOG_PATH: path.join(dir, "wrangler.log") };
   for (const name of ["PATH", "Path", "SystemRoot", "WINDIR", "TEMP", "TMP", "HOME", "USERPROFILE"]) if (process.env[name]) env[name] = process.env[name];
-  const output = run(WRANGLER, ["deploy", "--config", path.join(dir, "wrangler.json"), "--secrets-file", path.join(dir, "secrets.json"), "--message", `ayprom admin ${targetName}`], { cwd: dir, env });
+  const secretsArgs = keepSecrets ? [] : ["--secrets-file", path.join(dir, "secrets.json")];
+  const output = run(WRANGLER, ["deploy", "--config", path.join(dir, "wrangler.json"), ...secretsArgs, "--message", `ayprom admin ${targetName}`], { cwd: dir, env });
   console.log(hide(String(output).split(/\r?\n/).filter((line) => /Total Upload|Deployed|Current Version|workers\.dev|schedule/i.test(line)).join("\n")));
   if (workersDev) {
     const address = `https://${deployment.workerName}.${SUBDOMAIN}.workers.dev`;
