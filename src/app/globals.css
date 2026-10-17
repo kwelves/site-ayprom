@@ -80,6 +80,8 @@
   --color-blue-500: #4f91f8;
   --color-blue-600: #084bb9;
   --color-blue-700: #073f9c;
+  --color-blue-800: #063380;
+  --color-blue-900: #05285f;
 
   /*
    * The first width whose page gutter — half of whatever the viewport has
@@ -118,6 +120,13 @@
   --transition-duration-base: 200ms; /* вход панелей, дропдаунов, смена фото */
   --transition-duration-slow: 280ms; /* изменение высоты, крупные перемещения */
   --transition-duration-reveal: 420ms; /* появление блока при прокрутке */
+  --transition-duration-screen: 360ms; /* вход нового экрана админки */
+
+  /* Кривые рабочего места (дизайн-система v2, раздел 6): выезд панели,
+     пружина для ширины меню и бегунков, мягкая пружина для диалога. */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring-soft: cubic-bezier(0.34, 1.3, 0.5, 1);
 
   /* Появление контента без участия JS: анимация стартует в первом кадре, не
      дожидаясь гидратации (Hero, экран входа в админку). */
@@ -148,9 +157,12 @@
 }
 
 @theme inline {
+  --font-sans: var(--font-geist-sans);
+}
+
+@theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
 
   /*
    * Semantic tokens for the site's blue/white industrial palette (CLAUDE.md).
@@ -159,8 +171,11 @@
    * `npm run check:colors`. See docs/design-tokens.md for the full table and
    * for how to add a token when an existing one does not fit.
    *
-   * Values alias Tailwind's generated palette variables; `@theme inline`
-   * inlines them into the generated utilities.
+   * Values alias Tailwind's generated palette variables. They are real CSS
+   * variables (plain `@theme`, not `inline`): the public site gets exactly these
+   * values, and the admin redefines them for its own glass world and dark theme
+   * under [data-admin-root] (see the admin block below), without a second set of
+   * class names in the components.
    */
 
   /* --- Text on light surfaces -------------------------------------- */
@@ -239,6 +254,41 @@
   --color-whatsapp: var(--color-whatsapp-500);
   --color-whatsapp-hover: var(--color-whatsapp-600);
   --color-whatsapp-foreground: var(--color-white);
+
+  /*
+   * --- Working place (admin) -------------------------------------------
+   * AYPROM design system v2, "contrast glass". Only the admin uses these; the
+   * light values live here, the dark theme redefines them under
+   * [data-admin-root][data-admin-theme="dark"]. See docs/design-tokens.md.
+   */
+  --color-scene: #e9eef6;
+  --color-scene-glow-1: rgb(8 75 185 / 0.14);
+  --color-scene-glow-2: rgb(79 145 248 / 0.1);
+  /* Glass in three densities: panels and cards, then headers, inputs and
+     dialogs, then small plates nested inside a panel (never a third layer). */
+  --color-glass: rgb(255 255 255 / 0.68);
+  --color-glass-strong: rgb(255 255 255 / 0.86);
+  --color-glass-weak: rgb(255 255 255 / 0.42);
+  /* Every glass surface has both edges: a light contour and a thin dark edge. */
+  --color-glass-border: rgb(255 255 255 / 0.85);
+  --color-glass-edge: rgb(15 23 42 / 0.08);
+  --color-glass-highlight: rgb(255 255 255 / 0.95);
+  --color-glass-shadow: rgb(2 6 23 / 0.22);
+  /* Main button: vertical gradient, pressed state. */
+  --color-primary-from: #1f63d4;
+  --color-primary-to: var(--color-blue-700);
+  --color-primary-active: var(--color-blue-800);
+  --color-primary-shadow: rgb(8 75 185 / 0.35);
+  /* Fifth status ("в работе", "новый", "ждёт публикации"). */
+  --color-info: var(--color-blue-700);
+  --color-info-surface: rgb(8 75 185 / 0.1);
+  --color-neutral-surface: rgb(100 116 139 / 0.14);
+  /* Darkened scene behind dialogs and drawers. */
+  --color-overlay: rgb(15 23 42 / 0.38);
+  --color-selection: rgb(8 75 185 / 0.18);
+  /* Brand logos are drawn for a light ground; they keep a light plate in the dark theme too. */
+  --color-logo-plate: rgb(255 255 255 / 0.92);
+  --color-logo-plate-foreground: var(--color-slate-500);
 }
 
 html {
@@ -248,6 +298,173 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
+}
+
+/*
+ * Glass materials of the working place. A panel always has both edges (light
+ * contour + thin dark edge) and a soft offset shadow. Only surfaces that float
+ * over scrolling content (sticky bars, dialogs, drawers, menus) blur what is
+ * behind them; still panels sit on a still scene and need no blur.
+ */
+@utility glass-panel {
+  background-color: var(--color-glass);
+  border: 1px solid var(--color-glass-border);
+  box-shadow:
+    inset 0 1px 0 var(--color-glass-highlight),
+    0 0 0 1px var(--color-glass-edge),
+    0 12px 40px -16px var(--color-glass-shadow);
+}
+
+@utility glass-float {
+  background-color: var(--color-glass-strong);
+  border: 1px solid var(--color-glass-border);
+  box-shadow:
+    inset 0 1px 0 var(--color-glass-highlight),
+    0 0 0 1px var(--color-glass-edge),
+    0 18px 48px -18px var(--color-glass-shadow);
+  -webkit-backdrop-filter: blur(20px) saturate(1.35);
+  backdrop-filter: blur(20px) saturate(1.35);
+}
+
+/* Small nested plate inside a panel (tab track, chip, wallet row). */
+@utility glass-plate {
+  background-color: var(--color-glass-weak);
+  border: 1px solid var(--color-glass-border);
+  box-shadow: inset 0 1px 0 var(--color-glass-highlight), 0 0 0 1px var(--color-glass-edge);
+}
+
+/* Input, select and textarea: dense glass with a top light. */
+@utility field-surface {
+  background-color: var(--color-secondary);
+  box-shadow: inset 0 1px 0 var(--color-glass-highlight);
+}
+
+/* The one main button of a block: vertical brand gradient with a top light
+   and a bottom dark edge, and a blue shadow. */
+@utility primary-surface {
+  color: var(--color-primary-foreground);
+  background-image: linear-gradient(180deg, var(--color-primary-from), var(--color-blue-600) 55%, var(--color-primary-to));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.28),
+    inset 0 -1px 0 rgb(2 6 23 / 0.2),
+    0 8px 18px -8px var(--color-primary-shadow);
+}
+
+/*
+ * Admin = the AYPROM "working place" (design system v2, contrast glass).
+ * The same semantic tokens the components already use are redefined here, so
+ * a `bg-card` panel becomes glass and `text-foreground` follows the theme. The
+ * public site never carries [data-admin-root] and keeps the values above.
+ */
+[data-admin-root] {
+  /* A custom property is resolved where it is declared, so the aliases are
+     repeated here (not only --background) to follow the admin theme. */
+  --background: var(--color-scene);
+  --color-background: var(--color-scene);
+  --color-foreground: var(--foreground);
+  --color-card: var(--color-glass);
+  --color-secondary: var(--color-glass-strong);
+  --color-muted: var(--color-glass-weak);
+  --color-surface-subtle: rgb(15 23 42 / 0.045);
+  --color-surface-strong: rgb(15 23 42 / 0.085);
+  --color-accent: rgb(8 75 185 / 0.08);
+  --color-accent-strong: rgb(8 75 185 / 0.14);
+  --color-border: rgb(15 23 42 / 0.09);
+  --color-input: rgb(15 23 42 / 0.15);
+  --color-border-accent: rgb(8 75 185 / 0.16);
+  --color-border-interactive: rgb(8 75 185 / 0.18);
+  --color-danger: #b42318;
+  --color-danger-surface: rgb(200 30 30 / 0.08);
+  --color-danger-surface-hover: rgb(200 30 30 / 0.16);
+  --color-danger-border: rgb(200 30 30 / 0.24);
+  /* One step darker than the design-system green: 12px text on its own tinted fill needs 4.5:1. */
+  --color-success: #166534;
+  --color-success-surface: rgb(21 128 61 / 0.12);
+  --color-success-surface-hover: rgb(21 128 61 / 0.18);
+  --color-success-border: rgb(21 128 61 / 0.26);
+  --color-warning: #a3540a;
+  --color-warning-surface: rgb(217 119 6 / 0.14);
+  --color-warning-surface-hover: rgb(217 119 6 / 0.2);
+  --color-warning-border: rgb(217 119 6 / 0.3);
+  color-scheme: light;
+  caret-color: var(--color-primary);
+}
+
+[data-admin-root][data-admin-theme="dark"] {
+  --color-scene: #0b1220;
+  --color-scene-glow-1: rgb(8 75 185 / 0.24);
+  --color-scene-glow-2: rgb(79 145 248 / 0.08);
+  --foreground: #f1f5f9;
+  --color-card-foreground: #f1f5f9;
+  --color-secondary-foreground: #f1f5f9;
+  --color-muted-foreground: var(--color-slate-400);
+  --color-faint-foreground: var(--color-slate-500);
+  --color-glass: rgb(17 26 44 / 0.62);
+  --color-glass-strong: rgb(17 26 44 / 0.86);
+  --color-glass-weak: rgb(17 26 44 / 0.38);
+  --color-glass-border: rgb(255 255 255 / 0.1);
+  --color-glass-edge: rgb(255 255 255 / 0.06);
+  --color-glass-highlight: rgb(255 255 255 / 0.08);
+  --color-glass-shadow: rgb(0 0 0 / 0.55);
+  --color-surface-subtle: rgb(255 255 255 / 0.04);
+  --color-surface-strong: rgb(255 255 255 / 0.08);
+  /* Text links and focus rings use the lighter blue on the dark scene; filled
+     main buttons keep the brand gradient. */
+  --color-primary: var(--color-blue-500);
+  --color-primary-hover: var(--color-blue-400);
+  --color-primary-soft: var(--color-blue-300);
+  --color-accent: rgb(79 145 248 / 0.12);
+  --color-accent-strong: rgb(79 145 248 / 0.2);
+  --color-accent-foreground: var(--color-blue-300);
+  --color-border: rgb(255 255 255 / 0.08);
+  --color-input: rgb(255 255 255 / 0.14);
+  --color-border-accent: rgb(79 145 248 / 0.24);
+  --color-border-interactive: rgb(79 145 248 / 0.34);
+  --color-ring: var(--color-blue-400);
+  --color-info: var(--color-blue-300);
+  --color-info-surface: rgb(79 145 248 / 0.14);
+  --color-neutral-surface: rgb(148 163 184 / 0.14);
+  --color-danger: #f87171;
+  --color-danger-surface: rgb(248 113 113 / 0.12);
+  --color-danger-surface-hover: rgb(248 113 113 / 0.18);
+  --color-danger-border: rgb(248 113 113 / 0.28);
+  --color-success: #4ade80;
+  --color-success-surface: rgb(74 222 128 / 0.12);
+  --color-success-surface-hover: rgb(74 222 128 / 0.18);
+  --color-success-border: rgb(74 222 128 / 0.26);
+  --color-warning: #fbbf24;
+  --color-warning-surface: rgb(251 191 36 / 0.13);
+  --color-warning-surface-hover: rgb(251 191 36 / 0.19);
+  --color-warning-border: rgb(251 191 36 / 0.28);
+  --color-overlay: rgb(2 6 23 / 0.6);
+  --color-selection: rgb(79 145 248 / 0.3);
+  --color-logo-plate: rgb(241 245 249 / 0.94);
+  color-scheme: dark;
+}
+
+/* The scene: one light field with two still blue glows. They never move or
+   shimmer; panels above them are translucent, so the glows read through. */
+[data-admin-root]::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(56rem 40rem at 0% 0%, var(--color-scene-glow-1), transparent 70%),
+    radial-gradient(48rem 38rem at 100% 100%, var(--color-scene-glow-2), transparent 70%);
+}
+
+[data-admin-root] ::selection {
+  background: var(--color-selection);
+}
+
+[data-admin-root] {
+  scrollbar-color: var(--color-surface-strong) transparent;
+}
+
+[data-admin-root] :where(input, textarea, select)::placeholder {
+  color: var(--color-faint-foreground);
 }
 
 button,
@@ -363,6 +580,67 @@ a {
   from {
     opacity: 0;
     translate: 0 12px;
+  }
+}
+
+/* A new admin screen comes in from 10px below (design system v2, 360ms). CSS, not JS, so it stays smooth
+   while the page's data is still arriving. Reduced motion keeps the fade only. */
+[data-admin-screen] {
+  animation: admin-screen-in var(--transition-duration-screen) var(--ease-ui) backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-admin-screen] {
+    animation-name: admin-screen-fade;
+  }
+}
+
+@keyframes admin-screen-in {
+  from {
+    opacity: 0;
+    translate: 0 10px;
+  }
+}
+
+/* Dialog: from 0.96 on the soft spring. Drawer: from the right edge on the drawer curve. Toast: from below. */
+@keyframes admin-dialog-in {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+
+@keyframes admin-drawer-in {
+  from {
+    opacity: 0;
+    translate: 48px 0;
+  }
+}
+
+@keyframes admin-toast-in {
+  from {
+    opacity: 0;
+    translate: 0 16px;
+    scale: 0.98;
+  }
+}
+
+@keyframes admin-toast-timer {
+  to {
+    scale: 0 1;
+  }
+}
+
+@keyframes admin-row-in {
+  from {
+    opacity: 0;
+    translate: 0 6px;
+  }
+}
+
+@keyframes admin-screen-fade {
+  from {
+    opacity: 0;
   }
 }
 

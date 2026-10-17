@@ -36,7 +36,7 @@ export default async function CategoryBrandsPage({ params }: CategoryBrandsPageP
         ]}
       />
 
-      <h1 className="mt-4 text-xl font-semibold text-foreground">Бренды категории: {category.name}</h1>
+      <h1 className="mt-4 text-[22px] leading-tight font-semibold tracking-[-0.02em] text-balance text-foreground sm:text-[26px]">Бренды категории: {category.name}</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Какие бренды показывать на странице этой категории, в каком порядке, и с каким масштабом логотипа (если
         отличается от общего значения бренда).

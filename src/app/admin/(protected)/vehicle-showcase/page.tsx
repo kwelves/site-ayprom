@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { VehicleShowcaseTabs } from "@/components/admin/VehicleShowcaseTabs";
 import { getAdminVehicleHotspots, getAdminVehicleTypes } from "@/lib/admin/queries";
 
@@ -25,19 +26,17 @@ export default async function AdminVehicleShowcasePage({ searchParams }: AdminVe
   if (!selectedVehicle) {
     return (
       <div>
-        <h1 className="text-xl font-semibold text-foreground">Спецтехника</h1>
-        <p className="mt-4 text-sm text-muted-foreground">Сначала добавьте тип техники, чтобы настроить хотспоты.</p>
+        <AdminPageHeader title="Спецтехника" description="Сначала добавьте тип техники, чтобы настроить точки." />
       </div>
     );
   }
 
   return (
-    <div className="max-w-3xl">
-      <h1 className="text-xl font-semibold text-foreground">Спецтехника</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Изменяйте подписи и закреплённые товары. Положение и нумерация точек остаются прежними — фото ниже показывает,
-        где они сейчас находятся.
-      </p>
+    <div>
+      <AdminPageHeader
+        title="Спецтехника"
+        description="Подписи точек и закреплённые за ними товары для главной страницы. Положение точек не меняется, фото справа показывает, где они стоят."
+      />
 
       <VehicleShowcaseTabs
         vehicleTypes={vehicleTypes}

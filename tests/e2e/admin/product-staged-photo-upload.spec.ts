@@ -144,7 +144,6 @@ test("генерирует варианты при загрузке реалис
 
   try {
     await page.goto(`/admin/products/${slug}/edit`);
-    await page.getByRole("button", { name: "Фотографии" }).click();
     // После получения return value клиенту Next может оборвать оставшийся
     // RSC-хвост Server Action; данные и UI ниже подтверждают завершение самой
     // операции, поэтому разрешаем только этот точный POST текущего маршрута.
@@ -217,7 +216,6 @@ test("адаптивно загружает детализированный PNG
     expect(source.byteLength).toBeGreaterThan(MAX_SERVER_ACTION_FILE_BYTES);
 
     await page.goto(`/admin/products/${slug}/edit`);
-    await page.getByRole("button", { name: "Фотографии" }).click();
     browserObserver.allow(allowExpectedNextActionPostAbort(`/admin/products/${slug}/edit`));
 
     const upload = page.locator("label", { hasText: "Загрузить фото" }).locator('input[type="file"]');

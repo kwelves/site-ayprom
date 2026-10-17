@@ -17,7 +17,8 @@ interface PageModule {
 
 const pageLoaders = import.meta.glob("../../app/admin/**/page.tsx") as Record<string, () => Promise<PageModule>>;
 const routeTable = buildRouteTable(Object.keys(pageLoaders));
-const LOADING_AFTER_MS = 80;
+// Design system v2: a placeholder never flashes for an answer faster than 300ms.
+const LOADING_AFTER_MS = 300;
 const PREFETCH_COOLDOWN_MS = 3000;
 
 function queryObject(search: string): Record<string, string | string[]> {
@@ -143,7 +144,11 @@ export function AdminApp() {
   if (!view) return null;
   const content = (
     <PageBoundary resetKey={view.key}>
-      <div key={view.key}>{loading ? <AdminLoading /> : view.node}</div>
+      {/* Stretches like the page it holds (the login screen centres itself in the full height) and plays the
+          screen entrance once per page: the key changes, the element is new. */}
+      <div key={view.key} data-admin-screen className="flex min-h-0 flex-1 flex-col">
+        {loading ? <AdminLoading /> : view.node}
+      </div>
     </PageBoundary>
   );
   return (

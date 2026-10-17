@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { ChevronRight, Pencil, Trash2 } from "lucide-react";
 import { SortableList } from "@/components/admin/SortableList";
 import { AdminActionFeedback } from "@/components/admin/ui/AdminActionFeedback";
 import { ConfirmDialog } from "@/components/admin/ui/ConfirmDialog";
@@ -12,6 +13,7 @@ import { useAdminList } from "@/lib/admin/use-admin-list";
 import { useConfirmDelete } from "@/lib/admin/use-confirm-delete";
 import { cn } from "@/lib/utils";
 import type { AdminCategory } from "@/lib/admin/queries";
+import { buttonClassName } from "@/components/admin/ui/button-styles";
 
 interface CategoriesListProps {
   categories: AdminCategory[];
@@ -41,7 +43,7 @@ export function CategoriesList({ categories: initialCategories, flashSlug, flash
   function handleDelete(category: AdminCategory) {
     if (category.productCount > 0) {
       alert(
-        `Нельзя удалить «${category.name}» — в категории ${formatRussianCount(category.productCount, ["товар", "товара", "товаров"])}. Сначала перенесите или удалите их.`
+        `Нельзя удалить «${category.name}»: в категории ${formatRussianCount(category.productCount, ["товар", "товара", "товаров"])}. Сначала перенесите или удалите их.`
       );
       return;
     }
@@ -50,55 +52,79 @@ export function CategoriesList({ categories: initialCategories, flashSlug, flash
 
   return (
     <>
+    {/* About a dozen categories, each led by its picture: a grid of cards shows them all at once. Drag a card by
+        its handle to change the order on the site. */}
     <SortableList
       className="mt-6"
+      surface="grid"
       items={categories}
       getId={(category) => category.slug}
       onReorder={handleReorder}
       highlightedKey={highlightedKey}
       renderItem={(category) => (
-        <div className="grid grid-cols-[4rem_minmax(0,1fr)] items-start gap-x-3 gap-y-3 md:flex md:gap-3">
-          <div className="flex h-12 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/40">
-            <Image src={category.image} alt="" width={64} height={48} unoptimized className="h-full w-full object-cover" />
-          </div>
-          <div className="contents md:block md:min-w-0 md:flex-1">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-card-foreground">{category.name}</p>
-              {category.description && <p className="mt-0.5 text-xs text-muted-foreground">{category.description}</p>}
-              <div className="mt-2 flex flex-wrap items-center gap-3">
-                <span
+        <div className="flex h-full flex-col">
+          <Link
+            href={`/admin/categories/${category.slug}/edit`}
+            aria-label={`Редактировать категорию «${category.name}»`}
+            tabIndex={-1}
+            className="relative block aspect-[16/10] overflow-hidden rounded-[12px] bg-surface-subtle"
+          >
+            <Image
+              src={category.image}
+              alt=""
+              fill
+              sizes="(min-width: 1280px) 25vw, (min-width: 640px) 50vw, 100vw"
+              unoptimized
+              className="object-cover transition-[scale] duration-slow ease-ui group-hover/card:scale-[1.03]"
+            />
+          </Link>
+          <div className="flex flex-1 flex-col px-1.5 pt-3 pb-1">
+            <p className="text-[15px] leading-snug font-semibold tracking-[-0.01em] text-foreground">{category.name}</p>
+            {category.description && <p className="mt-1 line-clamp-2 text-[13px] leading-snug text-muted-foreground">{category.description}</p>}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {category.type === null ? (
+                <span className="inline-flex h-6 items-center rounded-full bg-neutral-surface px-2.5 text-xs font-semibold text-muted-foreground">
+                  Напрямую
+                </span>
+              ) : (
+                // The type chip is also the way into the category's brands or subcategories.
+                <Link
+                  href={category.type === "brand" ? `/admin/categories/${category.slug}/category-brands` : `/admin/categories/${category.slug}/subcategories`}
+                  title={category.type === "brand" ? "Открыть бренды категории" : "Открыть подкатегории"}
                   className={cn(
-                    "rounded-full px-2 py-0.5 text-xs font-medium",
+                    "inline-flex h-6 items-center gap-0.5 rounded-full pr-1.5 pl-2.5 text-xs font-semibold transition-colors duration-fast ease-ui focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30",
                     category.type === "brand"
-                      ? "bg-accent-strong text-accent-foreground"
-                      : category.type === "subcategory"
-                        ? "bg-surface-subtle text-muted-foreground"
-                        : "bg-muted text-muted-foreground"
+                      ? "bg-info-surface text-info hover:bg-accent-strong"
+                      : "bg-neutral-surface text-muted-foreground hover:bg-surface-strong hover:text-foreground",
                   )}
                 >
-                  {category.type === "brand" ? "По брендам" : category.type === "subcategory" ? "По подкатегориям" : "Напрямую"}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {category.productCount} тов.
-                  {category.type === "subcategory" && category.directProductCount > 0
-                    ? ` · ${category.directProductCount} без подкат.`
-                    : ""}
-                </span>
-              </div>
+                  {category.type === "brand" ? "По брендам" : "По подкатегориям"}
+                  <ChevronRight aria-hidden="true" className="size-3.5" />
+                </Link>
+              )}
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {formatRussianCount(category.productCount, ["товар", "товара", "товаров"])}
+                {category.type === "subcategory" && category.directProductCount > 0
+                  ? ` · ${category.directProductCount} без подкат.`
+                  : ""}
+              </span>
             </div>
-            <div className="col-span-2 grid grid-cols-2 gap-2 border-t border-border pt-3 md:mt-2 md:flex md:flex-wrap md:items-center md:gap-3 md:border-0 md:pt-0">
+            <div className="mt-auto flex items-center gap-1.5 pt-4">
               <Link
                 href={`/admin/categories/${category.slug}/edit`}
-                className="flex min-h-11 items-center justify-center rounded-md border border-border px-3 py-1 text-sm font-medium text-primary transition-colors hover:border-border-interactive hover:bg-accent md:min-h-0"
+                className={buttonClassName({ variant: "soft", size: "sm", className: "min-h-11 flex-1 md:min-h-0" })}
               >
+                <Pencil aria-hidden="true" className="!size-4" />
                 Редактировать
               </Link>
               <button
                 type="button"
                 onClick={() => handleDelete(category)}
-                className="flex min-h-11 items-center justify-center rounded-md border border-danger-border px-3 py-1 text-sm font-medium text-danger transition-colors hover:bg-danger-surface md:min-h-0"
+                aria-label="Удалить"
+                title={`Удалить категорию «${category.name}»`}
+                className={buttonClassName({ variant: "ghost", size: "icon", className: "text-danger hover:bg-danger-surface hover:text-danger" })}
               >
-                Удалить
+                <Trash2 aria-hidden="true" />
               </button>
             </div>
           </div>

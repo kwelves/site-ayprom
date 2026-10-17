@@ -5,6 +5,7 @@ import { AlertTriangle, CheckCircle2, Loader2, UploadCloud } from "lucide-react"
 import { previewProductImport, commitProductImport, type ImportCommitResult } from "@/lib/admin/product-import-actions";
 import type { ImportPreview } from "@/lib/admin/product-import-parse";
 import { useAdminToast } from "@/components/admin/ui/AdminToastProvider";
+import { buttonClassName } from "@/components/admin/ui/button-styles";
 
 type Stage = { name: "idle" } | { name: "preview"; preview: ImportPreview } | { name: "done"; result: ImportCommitResult };
 
@@ -63,17 +64,17 @@ export function ImportProducts() {
   return (
     <div className="mt-6 flex flex-col gap-6">
       {stage.name === "idle" && (
-        <div className="flex flex-col items-start gap-4 rounded-lg border border-dashed border-border bg-muted/20 p-6">
+        <div className="glass-panel flex flex-col items-start gap-4 rounded-[18px] p-6">
           <div className="flex items-center gap-3 text-muted-foreground">
             <UploadCloud aria-hidden="true" className="h-6 w-6" />
             <p className="text-sm">
               Выберите CSV-файл с товарами. Обязательные колонки: <code>name</code>, <code>category</code>,{" "}
               <code>short_description</code>. Необязательные: <code>article</code>, <code>subcategory</code>,{" "}
               <code>description</code>, <code>published</code>, <code>brands</code>, <code>vehicle_types</code>,{" "}
-              <code>characteristics</code>. Списки — через «;», характеристики — «Атрибут=Значение;…».
+              <code>characteristics</code>. Списки через «;», характеристики в виде «Атрибут=Значение;…».
             </p>
           </div>
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover">
+          <label className={buttonClassName({ variant: "primary", className: "cursor-pointer gap-2" })}>
             {isPending && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />}
             Выбрать файл
             <input
@@ -125,7 +126,7 @@ function ImportPreviewPanel({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-4 rounded-md border border-border bg-card p-4 text-sm">
+      <div className="glass-panel flex flex-wrap items-center gap-4 rounded-[14px] p-4 text-sm tabular-nums">
         <span className="font-medium text-card-foreground">Прочитано строк: {preview.totalRows}</span>
         <span className="text-success">Создать: {toCreate}</span>
         <span className="text-accent-foreground">Обновить: {toUpdate}</span>
@@ -214,7 +215,7 @@ function ImportPreviewPanel({
 function ImportResultPanel({ result, onReset }: { result: ImportCommitResult; onReset: () => void }) {
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-start gap-3 rounded-md border border-success-border bg-success-surface p-4">
+      <div className="flex animate-fade-up items-start gap-3 rounded-[14px] border border-success-border bg-success-surface p-4">
         <CheckCircle2 aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-success" />
         <div className="text-sm text-success">
           <p className="font-medium">Импорт завершён.</p>

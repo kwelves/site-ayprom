@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { buttonClassName } from "@/components/admin/ui/button-styles";
 
 interface QuickViewPanelProps {
   open: boolean;
@@ -69,20 +70,26 @@ export function QuickViewPanel({ open, title, onClose, children, footer }: Quick
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-foreground/40">
+    // Design system v2, "Выдвижная панель": from the right, 12px off the screen edges, radius 22, dense glass;
+    // a fixed head, a scrolling body and the actions at the bottom.
+    <div
+      className="fixed inset-0 z-40 flex animate-[admin-screen-fade_200ms_var(--ease-ui)_backwards] justify-end bg-overlay p-3 backdrop-blur-[2px]"
+      onClick={onClose}
+    >
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         onKeyDown={handleKeyDown}
+        onClick={(event) => event.stopPropagation()}
         className={cn(
-          "flex h-full w-full max-w-md flex-col border-l border-border bg-card shadow-lg",
-          "animate-slide-in-right",
+          "glass-float flex h-full w-full max-w-[480px] flex-col rounded-[22px]",
+          "animate-[admin-drawer-in_360ms_var(--ease-drawer)_backwards]",
         )}
       >
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 id={titleId} className="text-base font-semibold text-card-foreground">
+        <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3">
+          <h2 id={titleId} className="text-[17px] font-semibold tracking-[-0.01em] text-balance text-foreground">
             {title}
           </h2>
           <button
@@ -90,12 +97,12 @@ export function QuickViewPanel({ open, title, onClose, children, footer }: Quick
             type="button"
             onClick={onClose}
             aria-label="Закрыть"
-            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-card-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className={buttonClassName({ variant: "ghost", size: "icon", className: "-mt-1 -mr-1" })}
           >
-            <X className="h-4 w-4" />
+            <X aria-hidden="true" />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        <div className="flex-1 overflow-y-auto px-5 pb-5">{children}</div>
         {footer && <div className="border-t border-border px-5 py-4">{footer}</div>}
       </div>
     </div>

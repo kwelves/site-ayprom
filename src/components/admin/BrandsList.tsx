@@ -9,6 +9,7 @@ import { describeBrandUsage } from "@/lib/admin/usage-descriptions";
 import { useAdminList } from "@/lib/admin/use-admin-list";
 import { useConfirmDelete } from "@/lib/admin/use-confirm-delete";
 import type { AdminBrand } from "@/lib/admin/queries";
+import { buttonClassName } from "@/components/admin/ui/button-styles";
 
 interface BrandsListProps {
   brands: AdminBrand[];
@@ -44,7 +45,7 @@ export function BrandsList({ brands: initialBrands, flashSlug, flashAction }: Br
       highlightedKey={highlightedKey}
       renderItem={(brand) => (
         <div className="grid grid-cols-[5rem_minmax(0,1fr)] items-start gap-x-3 gap-y-3 md:flex md:gap-3">
-          <div className="flex h-12 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/40">
+          <div className="flex h-12 w-20 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-logo-plate">
             {/* eslint-disable-next-line @next/next/no-img-element -- brand logos are SVGs, possibly hosted on Supabase Storage (external host) */}
             <img
               src={brand.logo}
@@ -66,14 +67,14 @@ export function BrandsList({ brands: initialBrands, flashSlug, flashAction }: Br
             <div className="col-span-2 grid grid-cols-2 gap-2 border-t border-border pt-3 md:mt-2 md:flex md:flex-wrap md:items-center md:gap-3 md:border-0 md:pt-0">
               <Link
                 href={`/admin/brands/${brand.slug}/edit`}
-                className="flex min-h-11 items-center justify-center rounded-md border border-border px-3 py-1 text-sm font-medium text-primary transition-colors hover:border-border-interactive hover:bg-accent md:min-h-0"
+                className={buttonClassName({ variant: "soft", size: "sm", className: "min-h-11 md:min-h-0" })}
               >
                 Редактировать
               </Link>
               <button
                 type="button"
                 onClick={() => deleteConfirm.request(brand)}
-                className="flex min-h-11 items-center justify-center rounded-md border border-danger-border px-3 py-1 text-sm font-medium text-danger transition-colors hover:bg-danger-surface md:min-h-0"
+                className={buttonClassName({ variant: "ghost", size: "sm", className: "text-danger hover:bg-danger-surface hover:text-danger min-h-11 md:min-h-0" })}
               >
                 Удалить
               </button>

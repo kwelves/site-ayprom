@@ -10,6 +10,9 @@ import { SegmentedControl } from "@/components/admin/ui/SegmentedControl";
 import { BulkActionBar } from "@/components/admin/ui/BulkActionBar";
 import { QuickViewPanel } from "@/components/admin/ui/QuickViewPanel";
 import { ImageFallback } from "@/components/ui/ImageFallback";
+import { Pencil, Trash2 } from "lucide-react";
+import { ProductThumb } from "@/components/admin/ProductThumb";
+import { buttonClassName } from "@/components/admin/ui/button-styles";
 import { AdminUndoToast } from "@/components/admin/ui/AdminUndoToast";
 import { ProductActionsButton, ProductActionsPanel } from "@/components/admin/ProductActionsPanel";
 import { applyOptimisticProductPatch } from "@/components/admin/product-publication-state";
@@ -199,7 +202,7 @@ export function ProductsList({
         setProducts((current) => applyProductHotspotPatch(current, undo.restorePatch));
         setHotspotOptions((current) => applyHotspotOptionsPatch(current, undo.restorePatch));
         reportActionError(
-          result?.error ?? "Не удалось изменить хотспот. Данные могли измениться — обновите страницу и попробуйте снова.",
+          result?.error ?? "Не удалось изменить хотспот. Данные могли измениться. Обновите страницу и попробуйте снова.",
         );
         return;
       }
@@ -287,7 +290,7 @@ export function ProductsList({
         setProducts((current) => applyProductHotspotPatch(current, rollbackPatch));
         setHotspotOptions((current) => applyHotspotOptionsPatch(current, rollbackPatch));
         reportActionError(
-          result?.error ?? "Не удалось отменить действие. Данные могли измениться — обновите страницу.",
+          result?.error ?? "Не удалось отменить действие. Данные могли измениться. Обновите страницу.",
         );
         return;
       }
@@ -410,99 +413,94 @@ export function ProductsList({
         enableStepButtons
         highlightedKey={highlightedKey}
         renderItem={(product) => (
-        <div className="grid grid-cols-[2.75rem_3rem_minmax(0,1fr)] items-start gap-x-2.5 gap-y-3 md:flex md:gap-3">
+        <div className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-3 xl:flex">
           <Checkbox
             label=""
             aria-label={`Выделить товар «${product.name}»`}
             checked={selected.has(product.slug)}
             onChange={() => toggleSelected(product.slug)}
-            containerClassName="min-h-11 justify-center md:min-h-0 md:justify-start"
-            className="h-5 w-5 md:mt-1 md:h-4 md:w-4"
+            containerClassName="min-h-11 justify-center xl:min-h-0"
+            className="size-5 xl:size-4"
           />
-          <button
-            type="button"
-            onClick={() => setQuickViewProduct(product)}
-            aria-label={`Быстрый просмотр товара «${product.name}»`}
-            className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/40"
-          >
-            {product.coverImage && (
-              <ImageFallback
-                src={product.coverImage}
-                fallbackSrc={product.coverImageFallback ?? undefined}
-                alt=""
-                sizes="48px"
-                unoptimized
-                className="h-full w-full object-contain"
-              />
-            )}
-          </button>
-          <div className="contents md:block md:min-w-0 md:flex-1">
-            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_2.75rem] items-start gap-x-1 md:grid-cols-[minmax(0,1fr)_2.75rem]">
-              <button type="button" onClick={() => setQuickViewProduct(product)} className="min-w-0 text-left">
-                <p className="break-words text-sm font-medium leading-snug text-card-foreground [overflow-wrap:anywhere] hover:underline">{product.name}</p>
-              </button>
-              <ProductActionsButton product={product} onOpen={() => setActionsProductId(product.id)} />
-              <p className="col-span-2 mt-1 text-xs leading-snug text-muted-foreground">
-                {product.categoryName}
-                {product.article && ` · Арт. ${product.article}`}
-                {" · изменено "}
-                {UPDATED_DATE_FORMAT.format(new Date(product.updatedAt))}
+          <ProductThumb product={product} onOpen={() => setQuickViewProduct(product)} />
+          <div className="min-w-0 xl:flex-1">
+            <button type="button" onClick={() => setQuickViewProduct(product)} className="block min-w-0 max-w-full text-left">
+              <p className="break-words text-sm font-semibold leading-snug text-foreground [overflow-wrap:anywhere] decoration-primary/40 underline-offset-4 hover:underline">
+                {product.name}
               </p>
-            </div>
-            <div className="col-span-3 grid grid-cols-2 gap-2 border-t border-border pt-3 min-[380px]:grid-cols-[auto_minmax(0,1fr)_auto] md:mt-2 md:flex md:flex-wrap md:items-center md:gap-3 md:border-0 md:pt-0">
-              <button
-                type="button"
-                onClick={() => handleTogglePublished(product, !product.published)}
-                aria-pressed={product.published}
-                aria-label={`Переключить публикацию товара «${product.name}»`}
-                className={cn(
-                  "col-span-2 row-start-1 min-h-11 justify-self-start overflow-hidden rounded-full px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 min-[380px]:col-span-1 min-[380px]:col-start-1 md:min-h-0",
-                  product.published
-                    ? "bg-success-surface text-success hover:bg-success-surface-hover"
-                    : "bg-warning-surface text-warning hover:bg-warning-surface-hover"
-                )}
-              >
-                <span className="grid" aria-hidden="true">
-                  <span
-                    className={cn(
-                      "col-start-1 row-start-1 transition-[opacity,transform] duration-fast ease-ui",
-                      product.published ? "translate-y-0 opacity-100" : "-translate-y-1.5 opacity-0"
-                    )}
-                  >
-                    Опубликован
-                  </span>
-                  <span
-                    className={cn(
-                      "col-start-1 row-start-1 transition-[opacity,transform] duration-fast ease-ui",
-                      product.published ? "translate-y-1.5 opacity-0" : "translate-y-0 opacity-100"
-                    )}
-                  >
-                    Черновик
-                  </span>
+            </button>
+            <p className="mt-1 truncate text-xs leading-snug text-muted-foreground">
+              {product.categoryName}
+              {product.article && (
+                <>
+                  {" · Арт. "}
+                  <span className="tabular-nums slashed-zero">{product.article}</span>
+                </>
+              )}
+              {" · изменено "}
+              <span className="tabular-nums">{UPDATED_DATE_FORMAT.format(new Date(product.updatedAt))}</span>
+            </p>
+          </div>
+          <div className="xl:order-last">
+            <ProductActionsButton product={product} onOpen={() => setActionsProductId(product.id)} />
+          </div>
+          <div className="col-span-4 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 min-[420px]:flex min-[420px]:flex-wrap xl:flex-nowrap xl:gap-2.5">
+            <button
+              type="button"
+              onClick={() => handleTogglePublished(product, !product.published)}
+              aria-pressed={product.published}
+              aria-label={`Переключить публикацию товара «${product.name}»`}
+              title={product.published ? "Снять с публикации" : "Опубликовать"}
+              className={cn(
+                "inline-flex min-h-11 items-center gap-1.5 justify-self-start overflow-hidden rounded-full px-3 text-xs font-semibold transition-[background-color,color,scale] duration-fast ease-ui active:scale-[0.97] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30 xl:h-7 xl:min-h-0",
+                product.published
+                  ? "bg-success-surface text-success hover:bg-success-surface-hover"
+                  : "bg-warning-surface text-warning hover:bg-warning-surface-hover"
+              )}
+            >
+              <span aria-hidden="true" className={cn("size-1.5 rounded-full transition-colors duration-fast", product.published ? "bg-success" : "bg-warning")} />
+              <span className="grid" aria-hidden="true">
+                <span
+                  className={cn(
+                    "col-start-1 row-start-1 transition-[opacity,translate] duration-fast ease-ui",
+                    product.published ? "translate-y-0 opacity-100" : "-translate-y-1.5 opacity-0"
+                  )}
+                >
+                  Опубликован
                 </span>
-              </button>
-              <SegmentedControl
-                aria-label={`Наличие товара «${product.name}»`}
-                options={AVAILABILITY_OPTIONS}
-                value={product.availability}
-                onChange={(next) => handleAvailabilityChange(product, next)}
-                className="col-span-2 row-start-2 flex w-full flex-nowrap min-[380px]:col-span-3 [&>button]:min-h-11 [&>button]:min-w-0 [&>button]:flex-1 [&>button]:px-2 md:w-auto md:[&>button]:min-h-0 md:[&>button]:flex-none md:[&>button]:px-2.5"
-              />
-              <Link
-                href={`/admin/products/${product.slug}/edit`}
-                className="col-start-1 row-start-3 flex min-h-11 items-center justify-center rounded-md border border-border px-3 py-1 text-sm font-medium text-primary transition-colors hover:border-border-interactive hover:bg-accent min-[380px]:col-start-2 min-[380px]:row-start-1 md:min-h-0"
-              >
-                <span className="md:hidden">Изменить</span>
-                <span className="hidden md:inline">Редактировать</span>
-              </Link>
-              <button
-                type="button"
-                onClick={() => deleteConfirm.request(product)}
-                className="col-start-2 row-start-3 flex min-h-11 items-center justify-center rounded-md border border-danger-border px-3 py-1 text-sm font-medium text-danger transition-colors hover:bg-danger-surface min-[380px]:col-start-3 min-[380px]:row-start-1 md:min-h-0"
-              >
-                Удалить
-              </button>
-            </div>
+                <span
+                  className={cn(
+                    "col-start-1 row-start-1 transition-[opacity,translate] duration-fast ease-ui",
+                    product.published ? "translate-y-1.5 opacity-0" : "translate-y-0 opacity-100"
+                  )}
+                >
+                  Черновик
+                </span>
+              </span>
+            </button>
+            <SegmentedControl
+              aria-label={`Наличие товара «${product.name}»`}
+              options={AVAILABILITY_OPTIONS}
+              value={product.availability}
+              onChange={(next) => handleAvailabilityChange(product, next)}
+              className="col-span-3 row-start-2 w-full min-[420px]:w-auto"
+            />
+            <Link
+              href={`/admin/products/${product.slug}/edit`}
+              className={buttonClassName({ variant: "soft", size: "sm", className: "min-h-11 xl:ml-auto xl:min-h-0" })}
+            >
+              <Pencil aria-hidden="true" className="!size-4" />
+              <span className="xl:hidden">Изменить</span>
+              <span className="hidden xl:inline">Редактировать</span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => deleteConfirm.request(product)}
+              className={buttonClassName({ variant: "ghost", size: "sm", className: "min-h-11 text-danger hover:bg-danger-surface hover:text-danger xl:min-h-0" })}
+            >
+              <Trash2 aria-hidden="true" className="!size-4" />
+              <span className="max-sm:sr-only">Удалить</span>
+            </button>
           </div>
         </div>
         )}

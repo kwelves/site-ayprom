@@ -17,10 +17,15 @@ export const DURATION = {
   base: 0.2,
   slow: 0.28,
   reveal: 0.42,
+  screen: 0.36,
 } as const;
 
 export const EASE_UI = [0.23, 1, 0.32, 1] as const;
 export const EASE_UI_IN_OUT = [0.77, 0, 0.175, 1] as const;
+/** Рабочее место (админка): выезд панели, пружина бегунков и меню, мягкая пружина диалога. */
+export const EASE_DRAWER = [0.32, 0.72, 0, 1] as const;
+export const EASE_SPRING = [0.2, 0.8, 0.2, 1] as const;
+export const EASE_SPRING_SOFT = [0.34, 1.3, 0.5, 1] as const;
 
 export const fadeUp: Variants = {
   hidden: { opacity: 0, y: 16 },
