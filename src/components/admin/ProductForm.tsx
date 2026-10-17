@@ -44,6 +44,8 @@ import { ProductFormPublicationSection } from "@/components/admin/product-form/P
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { FormSection, SectionCount } from "@/components/admin/ui/FormSection";
 import { buttonClassName } from "@/components/admin/ui/button-styles";
+import { useMediaQuery } from "@/lib/use-media-query";
+import { cn } from "@/lib/utils";
 import type { Category, Subcategory, Brand, VehicleType } from "@/types/catalog";
 import type { AdminProduct } from "@/lib/admin/queries";
 
@@ -180,6 +182,17 @@ export function ProductForm({
   const categorySubcategories = subcategories.filter((s) => s.categorySlug === categorySlug);
   const hotspotCount = product?.hotspotCount ?? 0;
   const requiresUnpublishConfirmation = mode === "edit" && product?.published === true && !published && hotspotCount > 0;
+  // On a laptop (xl) publication and availability sit in the pinned action bar beside Save; below that they stay a
+  // block of the form. They are real form fields, so exactly one of the two places is rendered.
+  const publicationInBar = useMediaQuery("(min-width: 1280px)");
+  const publicationProps = {
+    mode,
+    published,
+    onPublishedChange: setPublished,
+    hotspotCount,
+    availability,
+    onAvailabilityChange: setAvailability,
+  };
 
   function handleNameChange(value: string) {
     setName(value);
@@ -511,16 +524,11 @@ export function ProductForm({
           </div>
 
           <div className="contents xl:flex xl:flex-col xl:gap-5">
-            <FormSection id="product-publication" title="Публикация" className="order-2">
-              <ProductFormPublicationSection
-                mode={mode}
-                published={published}
-                onPublishedChange={setPublished}
-                hotspotCount={hotspotCount}
-                availability={availability}
-                onAvailabilityChange={setAvailability}
-              />
-            </FormSection>
+            {!publicationInBar && (
+              <FormSection id="product-publication" title="Публикация" className="order-2">
+                <ProductFormPublicationSection {...publicationProps} />
+              </FormSection>
+            )}
 
             <FormSection
               id="product-photos"
@@ -577,13 +585,20 @@ export function ProductForm({
             <button
               type="button"
               onClick={handleDeleteProduct}
+              title="Удалить товар"
               className={buttonClassName({ variant: "ghost", className: "text-danger hover:bg-danger-surface hover:text-danger" })}
             >
               <Trash2 aria-hidden="true" />
-              <span className="max-sm:sr-only">Удалить товар</span>
+              {/* On a 1280px laptop the bar also carries publication and availability, so the word gives way to the icon. */}
+              <span className="max-sm:sr-only xl:max-2xl:sr-only">Удалить товар</span>
             </button>
           )}
-          <span className="ml-auto hidden items-center gap-1.5 text-xs text-muted-foreground md:inline-flex">
+          {publicationInBar && (
+            <div className={cn("min-w-0", mode === "edit" && "xl:ml-3")}>
+              <ProductFormPublicationSection variant="bar" {...publicationProps} />
+            </div>
+          )}
+          <span className="ml-auto hidden items-center gap-1.5 text-xs text-muted-foreground 2xl:inline-flex">
             <kbd className="rounded-[6px] bg-surface-strong px-1.5 py-0.5 font-sans text-[11px] font-medium">Ctrl S</kbd>
             сохранить
           </span>
