@@ -17,7 +17,7 @@ vi.mock("@/components/admin/AdminRouteNotice", () => ({ AdminRouteNotice: () => 
 afterEach(cleanup);
 
 describe("ProtectedAdminLayout", () => {
-  it("keeps the desktop sidebar and its logout action pinned to the viewport instead of page height", () => {
+  it("keeps the desktop sidebar and its settings button pinned to the viewport instead of page height", () => {
     render(
       <ProtectedAdminLayout>
         <div>Длинная страница</div>
@@ -27,14 +27,15 @@ describe("ProtectedAdminLayout", () => {
     const shell = screen.getByTestId("admin-shell");
     const sidebar = screen.getByTestId("admin-sidebar");
     const navigation = screen.getByRole("navigation", { name: "Разделы админки" });
-    const logout = screen.getByTestId("admin-logout");
+    const settings = screen.getByTestId("admin-settings");
 
     expect([...shell.classList]).toContain("min-h-dvh");
     expect([...sidebar.classList]).toEqual(
       expect.arrayContaining(["lg:sticky", "lg:top-3", "lg:h-[calc(100dvh-1.5rem)]", "lg:self-start"]),
     );
     expect([...navigation.classList]).toEqual(expect.arrayContaining(["min-h-0", "overflow-y-auto"]));
-    expect([...logout.classList]).toContain("shrink-0");
+    expect([...settings.classList]).toContain("shrink-0");
+    expect(sidebar.contains(settings)).toBe(true);
   });
 
   it("puts the page on the scene next to the sidebar, inside one main region", () => {

@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
-import { LogOut, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { AdminNav } from "@/components/admin/AdminNav";
+import { AdminSettingsMenu } from "@/components/admin/AdminSettingsMenu";
 import { AdminMark } from "@/components/admin/ui/AdminMark";
 import { buttonClassName } from "@/components/admin/ui/button-styles";
-import { logout } from "@/lib/admin/actions";
 
 const FOCUSABLE_SELECTOR = [
   "a[href]",
@@ -101,12 +101,9 @@ export function AdminMobileNav() {
             <nav aria-label="Разделы админки" className="flex flex-1 flex-col overflow-y-auto px-3 py-2">
               <AdminNav variant="sidebar" onNavigate={close} />
             </nav>
-            <form action={logout} className="shrink-0 p-3">
-              <button type="submit" className={buttonClassName({ variant: "ghost", size: "lg", className: "w-full justify-start px-3" })}>
-                <LogOut aria-hidden="true" />
-                Выйти
-              </button>
-            </form>
+            <div className="shrink-0 p-3">
+              <AdminSettingsMenu onNavigate={close} className="w-full" />
+            </div>
           </div>
         </div>
       )}

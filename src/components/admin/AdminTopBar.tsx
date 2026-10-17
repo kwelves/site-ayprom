@@ -7,7 +7,7 @@ import { Search } from "lucide-react";
 import { activeNavItem } from "@/components/admin/AdminNav";
 import { AdminMobileNav } from "@/components/admin/AdminMobileNav";
 import { AdminPublicationStatus } from "@/components/admin/AdminPublicationStatus";
-import { AdminThemeToggle } from "@/components/admin/AdminThemeToggle";
+import { PASSWORD_PATH } from "@/components/admin/AdminSettingsMenu";
 import { AdminMark } from "@/components/admin/ui/AdminMark";
 import { cn } from "@/lib/utils";
 
@@ -26,7 +26,7 @@ export function AdminTopBar() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
-  const section = activeNavItem(pathname);
+  const sectionLabel = activeNavItem(pathname)?.label ?? (pathname.startsWith(PASSWORD_PATH) ? "Пароль" : undefined);
   const onProducts = pathname === PRODUCTS_PATH;
 
   useEffect(() => {
@@ -62,10 +62,10 @@ export function AdminTopBar() {
 
       <p className="min-w-0 truncate text-sm">
         <span className="hidden text-muted-foreground sm:inline">Админка</span>
-        {section && (
+        {sectionLabel && (
           <>
             <span className="hidden px-1.5 text-faint-foreground sm:inline" aria-hidden="true">/</span>
-            <span className="font-semibold text-foreground">{section.label}</span>
+            <span className="font-semibold text-foreground">{sectionLabel}</span>
           </>
         )}
       </p>
@@ -90,10 +90,7 @@ export function AdminTopBar() {
             </kbd>
           </form>
         )}
-        <span className="contents lg:hidden">
-          <AdminPublicationStatus compact />
-          <AdminThemeToggle />
-        </span>
+        <AdminPublicationStatus compact />
       </div>
     </header>
   );

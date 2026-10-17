@@ -1,13 +1,10 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { LogOut } from "lucide-react";
-import { logout } from "@/lib/admin/actions";
 import { AdminNav } from "@/components/admin/AdminNav";
 import { AdminPublicationStatus } from "@/components/admin/AdminPublicationStatus";
-import { AdminThemeToggle } from "@/components/admin/AdminThemeToggle";
+import { AdminSettingsMenu } from "@/components/admin/AdminSettingsMenu";
 import { AdminMark } from "@/components/admin/ui/AdminMark";
-import { buttonClassName } from "@/components/admin/ui/button-styles";
 import { cn } from "@/lib/utils";
 
 const COLLAPSED_KEY = "ayprom-admin-sidebar";
@@ -84,23 +81,9 @@ export function AdminSidebar() {
         <AdminPublicationStatus compact fill placement="side" collapsed={collapsed} />
       </div>
 
-      <div className={cn("mx-3 flex shrink-0 items-center gap-1 py-3", collapsed && "flex-col")}>
-        <form action={logout} data-testid="admin-logout" className={cn("shrink-0", !collapsed && "mr-auto")}>
-          <button
-            type="submit"
-            title="Выйти"
-            aria-label={collapsed ? "Выйти" : undefined}
-            className={buttonClassName({
-              variant: "ghost",
-              size: collapsed ? "icon" : "md",
-              className: cn("sm:h-10", collapsed ? "size-10" : "px-3"),
-            })}
-          >
-            <LogOut aria-hidden="true" />
-            {!collapsed && "Выйти"}
-          </button>
-        </form>
-        <AdminThemeToggle className="size-10" />
+      {/* Settings is the last thing in the menu: theme, password and sign-out live in its panel. */}
+      <div className={cn("mx-3 flex shrink-0 py-3", collapsed && "justify-center")}>
+        <AdminSettingsMenu collapsed={collapsed} className={cn(!collapsed && "w-full")} />
       </div>
     </aside>
   );

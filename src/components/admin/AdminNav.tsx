@@ -4,7 +4,7 @@ import { useId } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LayoutGroup, motion, useReducedMotion } from "framer-motion";
-import { Package, Truck, Tag, Wrench, LayoutGrid, Upload, ScrollText, KeyRound, type LucideIcon } from "lucide-react";
+import { Package, Truck, Tag, Wrench, LayoutGrid, Upload, ScrollText, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -14,7 +14,7 @@ interface NavItem {
 }
 
 // Sections grouped the way the work goes: the catalog itself, what the public home page shows, data moved in
-// bulk and the record of changes, then access.
+// bulk and the record of changes. Password, theme and sign-out live in the settings menu below the navigation.
 export const NAV_GROUPS: readonly { label: string; items: readonly NavItem[] }[] = [
   {
     label: "Каталог",
@@ -35,10 +35,6 @@ export const NAV_GROUPS: readonly { label: string; items: readonly NavItem[] }[]
       { href: "/admin/import", label: "Импорт", icon: Upload },
       { href: "/admin/audit", label: "Журнал", icon: ScrollText },
     ],
-  },
-  {
-    label: "Доступ",
-    items: [{ href: "/admin/security", label: "Пароль", icon: KeyRound }],
   },
 ];
 
@@ -78,13 +74,13 @@ export function AdminNav({ variant = "inline", collapsed = false, onNavigate }: 
     return (
       <LayoutGroup id={groupId}>
         {NAV_GROUPS.map((group, groupIndex) => (
-          // Folded, the group names give way to a short divider; every item becomes a 40px square centred on the
-          // sidebar's axis, the same axis as the logo, the status dot and the buttons at the bottom.
+          // Folded, the group names are dropped without any divider in their place; every item becomes a 40px square
+          // centred on the sidebar's axis, the same axis as the logo, the status dot and the settings button.
           <div
             key={group.label}
             className={cn(
               groupIndex > 0 && !collapsed && "mt-3 [@media(max-height:700px)]:mt-1.5",
-              groupIndex > 0 && collapsed && "mx-auto mt-2 w-8 border-t border-border pt-2",
+              groupIndex > 0 && collapsed && "mt-1.5",
             )}
           >
             {!collapsed && (
