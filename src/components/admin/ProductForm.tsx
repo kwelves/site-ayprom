@@ -45,7 +45,6 @@ import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { FormSection, SectionCount } from "@/components/admin/ui/FormSection";
 import { buttonClassName } from "@/components/admin/ui/button-styles";
 import { useMediaQuery } from "@/lib/use-media-query";
-import { cn } from "@/lib/utils";
 import type { Category, Subcategory, Brand, VehicleType } from "@/types/catalog";
 import type { AdminProduct } from "@/lib/admin/queries";
 
@@ -586,7 +585,7 @@ export function ProductForm({
               type="button"
               onClick={handleDeleteProduct}
               title="Удалить товар"
-              className={buttonClassName({ variant: "ghost", className: "text-danger hover:bg-danger-surface hover:text-danger" })}
+              className={buttonClassName({ variant: "ghost", className: "text-danger hover:bg-danger-surface hover:text-danger xl:-ml-2 xl:max-2xl:w-9.5 xl:max-2xl:px-0" })}
             >
               <Trash2 aria-hidden="true" />
               {/* On a 1280px laptop the bar also carries publication and availability, so the word gives way to the icon. */}
@@ -594,7 +593,7 @@ export function ProductForm({
             </button>
           )}
           {publicationInBar && (
-            <div className={cn("min-w-0", mode === "edit" && "xl:ml-3")}>
+            <div className="min-w-0 xl:ml-2">
               <ProductFormPublicationSection variant="bar" {...publicationProps} />
             </div>
           )}
@@ -602,7 +601,7 @@ export function ProductForm({
             <kbd className="rounded-[6px] bg-surface-strong px-1.5 py-0.5 font-sans text-[11px] font-medium">Ctrl S</kbd>
             сохранить
           </span>
-          <Link href="/admin/products" className={buttonClassName({ variant: "glass", className: "max-sm:hidden max-md:ml-auto" })}>
+          <Link href="/admin/products" className={buttonClassName({ variant: "glass", className: "max-sm:hidden max-md:ml-auto xl:max-2xl:ml-auto" })}>
             Отмена
           </Link>
           <SubmitButton pendingLabel={mode === "create" ? "Создание…" : "Сохранение…"} className="max-sm:flex-1">
