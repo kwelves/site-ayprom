@@ -1,8 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import Link from "next/link";
-import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { logout } from "@/lib/admin/actions";
 import { AdminNav } from "@/components/admin/AdminNav";
 import { AdminPublicationStatus } from "@/components/admin/AdminPublicationStatus";
@@ -60,15 +59,21 @@ export function AdminSidebar() {
       {/* One edge for everything: expanded, the logo, the highlights, the status card and the buttons all start
           12px from the panel edge; folded, they all sit on the 72px column's centre line. */}
       <div className={cn("flex shrink-0 items-center px-3 pt-3 pb-2", collapsed && "justify-center")}>
-        <Link
-          href="/admin/products"
-          className={cn("flex min-w-0 items-center rounded-[10px] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30", !collapsed && "w-full")}
-          aria-label="AYPROM · Админка, к товарам"
-          title="AYPROM · Админка"
+        {/* The logo is the fold control; the way to the products list is the first menu item, not the logo. */}
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={collapsed ? "Развернуть меню" : "Свернуть меню"}
+          aria-expanded={!collapsed}
+          title={collapsed ? "Развернуть меню" : "Свернуть меню"}
+          className={cn(
+            "flex min-w-0 cursor-pointer items-center rounded-[10px] transition-[scale] duration-fast ease-ui active:scale-[0.97] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30",
+            !collapsed && "w-full",
+          )}
         >
           {/* Expanded, the logo plate spans the menu's full width, edge to edge with the items below it. */}
           {collapsed ? <AdminMark variant="icon" className="h-[35px]" /> : <AdminMark variant="logo" className="h-auto w-full" />}
-        </Link>
+        </button>
       </div>
 
       <nav aria-label="Разделы админки" className={cn("flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden px-3 py-2 [scrollbar-width:none]")}>
@@ -95,15 +100,6 @@ export function AdminSidebar() {
             {!collapsed && "Выйти"}
           </button>
         </form>
-        <button
-          type="button"
-          onClick={toggle}
-          aria-label={collapsed ? "Развернуть меню" : "Свернуть меню"}
-          title={collapsed ? "Развернуть меню" : "Свернуть меню"}
-          className={buttonClassName({ variant: "ghost", size: "icon", className: "size-10" })}
-        >
-          {collapsed ? <PanelLeftOpen aria-hidden="true" /> : <PanelLeftClose aria-hidden="true" />}
-        </button>
         <AdminThemeToggle className="size-10" />
       </div>
     </aside>

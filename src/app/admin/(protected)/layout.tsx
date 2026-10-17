@@ -8,9 +8,9 @@ import { AdminToastProvider } from "@/components/admin/ui/AdminToastProvider";
 // access to this whole subtree, so no auth check here, just the shell.
 //
 // The working-place shell of the AYPROM design system: a glass sidebar from
-// `lg` up (always visible, folds to icons), a sticky 60px glass bar on top,
-// and the page on the light scene, up to 1640px wide, 20px between panels.
-// Below `lg` the sidebar gives way to the menu button in the top bar.
+// `lg` up (always visible, folds to icons) and the page on the light scene,
+// up to 1640px wide, 20px between panels. Below `lg` the sidebar gives way to
+// a sticky 60px glass bar with the menu button.
 export default function ProtectedAdminLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <AdminToastProvider>

@@ -17,9 +17,10 @@ function isTyping(target: EventTarget | null) {
   return target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
 }
 
-// The 60px glass bar on top of every admin page (design system v2, shell): where you are, product search, the
-// moon. Ctrl+K / ⌘K or "/" puts the cursor in product search at once, without animation (a keyboard action is
-// repeated many times a day). On the products list the page's own search box takes the shortcut.
+// The 60px glass bar for narrow screens only (below lg): menu button, logo, section name, product search from md,
+// publication status and the moon. On a laptop the sidebar carries all of that and the bar is gone, so pages start
+// at the top. Ctrl+K / ⌘K or "/" puts the cursor in product search at once, without animation; the products
+// list's own search box takes the shortcut, and where no search box is on screen it does nothing.
 export function AdminTopBar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -27,14 +28,13 @@ export function AdminTopBar() {
   const [query, setQuery] = useState("");
   const section = activeNavItem(pathname);
   const onProducts = pathname === PRODUCTS_PATH;
-  const deep = pathname.split("/").filter(Boolean).length > 2;
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       const shortcut = (event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey)) || (event.key === "/" && !isTyping(event.target));
       if (!shortcut) return;
       const target = document.querySelector<HTMLInputElement>("[data-admin-search]") ?? inputRef.current;
-      if (!target) return;
+      if (!target || target.offsetParent === null) return;
       event.preventDefault();
       target.focus();
       target.select();
@@ -52,7 +52,7 @@ export function AdminTopBar() {
   }
 
   return (
-    <header className={cn("glass-float sticky top-3 z-30 flex h-[60px] items-center gap-3 rounded-[18px] px-3 sm:px-4", deep && "lg:hidden")}>
+    <header className="glass-float sticky top-3 z-30 flex h-[60px] items-center gap-3 rounded-[18px] px-3 sm:px-4 lg:hidden">
       <div className="lg:hidden">
         <AdminMobileNav />
       </div>
