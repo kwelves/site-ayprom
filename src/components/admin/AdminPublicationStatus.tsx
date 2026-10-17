@@ -224,7 +224,8 @@ export function AdminPublicationStatus({ compact = false, collapsed = false, fil
 
   // Top bar: a small pill that is always in sight; the card with the steps and the retry opens under it.
   return (
-    <div ref={rootRef} className={cn("relative", fill && "w-full")}>
+    // Folded, the 40px button sits on the sidebar's centre line like every other icon; the card still anchors to this root.
+    <div ref={rootRef} className={cn("relative", fill && "w-full", collapsed && "flex justify-center")}>
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -316,16 +317,17 @@ function StepNode({ state, toneDot, toneText, failed }: { state: StepState; tone
 function StatusDot({ state, className }: { state: State; className: string }) {
   if (state === "published") {
     return (
-      <span className={cn("grid size-4 place-items-center rounded-full text-primary-foreground", className)} aria-hidden="true">
-        <Check className="!size-2.5 animate-pop-in" strokeWidth={3.5} />
+      <span className={cn("grid size-[18px] shrink-0 place-items-center rounded-full text-primary-foreground", className)} aria-hidden="true">
+        <Check className="!size-[11px] animate-pop-in" strokeWidth={3.5} />
       </span>
     );
   }
-  if (state === "failed") return <TriangleAlert aria-hidden="true" className="!size-4" />;
+  // All three states occupy the same 18px square as the menu icons, so the column of icons stays one size.
+  if (state === "failed") return <TriangleAlert aria-hidden="true" className="!size-[18px] shrink-0" />;
   return (
-    <span className="relative grid size-4 place-items-center" aria-hidden="true">
-      <span className={cn("absolute size-4 rounded-full opacity-40 animate-attention-pulse", className)} />
-      <span className={cn("relative size-2 rounded-full", className)} />
+    <span className="relative grid size-[18px] shrink-0 place-items-center" aria-hidden="true">
+      <span className={cn("absolute size-[18px] rounded-full opacity-40 animate-attention-pulse", className)} />
+      <span className={cn("relative size-2.5 rounded-full", className)} />
     </span>
   );
 }
