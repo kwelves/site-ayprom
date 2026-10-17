@@ -8,6 +8,7 @@ import { FooterBackground } from "@/components/layout/FooterBackground";
 import { Reveal } from "@/components/motion/Reveal";
 import { CORPORATE_EMAIL } from "@/lib/contact-info";
 import { buildMainNav } from "@/lib/navigation";
+import { NSH_HUB_PATH } from "@/lib/nsh-landing";
 import { useHashNavClick } from "@/lib/use-hash-nav-click";
 import type { Brand, Category } from "@/types/catalog";
 
@@ -51,6 +52,15 @@ export function Footer({ categories, brands }: { categories: Category[]; brands:
                     </Link>
                   </li>
                 ))}
+                {/* A plain link from every page to the НШ landing page: search engines find it and pass it weight. */}
+                <li>
+                  <Link
+                    href={NSH_HUB_PATH}
+                    className="block py-2 text-sm text-inverse-foreground-muted transition-colors duration-fast ease-ui hover:text-inverse-accent"
+                  >
+                    НШ насосы
+                  </Link>
+                </li>
               </ul>
             </div>
 

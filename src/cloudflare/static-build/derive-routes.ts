@@ -1,3 +1,4 @@
+import { NSH_HUB_PATH, NSH_LANDING_PATHS } from "@/lib/nsh-landing";
 import { getProductHref } from "@/lib/product-href";
 import type { ProductListItem } from "@/types/catalog";
 import { routePathToOutputFile, type RouteManifestEntry } from "./route-manifest";
@@ -66,6 +67,9 @@ export function derivePublicRoutes(
   addPage("catalog", "/catalog", "query", { changeFrequency: "daily", priority: 0.9 }, []);
   addPage("about", "/about", "static", { changeFrequency: "monthly", priority: 0.5 }, []);
   addPage("contacts", "/contacts", "static", { changeFrequency: "monthly", priority: 0.6 }, []);
+  for (const path of NSH_LANDING_PATHS) {
+    addPage("landing", path, "static", { changeFrequency: "monthly", priority: path === NSH_HUB_PATH ? 0.8 : 0.7 });
+  }
 
   for (const category of source.categories) {
     const categoryPath = `/catalog/category/${category.slug}`;
