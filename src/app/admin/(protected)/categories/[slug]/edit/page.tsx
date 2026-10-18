@@ -11,7 +11,9 @@ interface EditCategoryPageProps {
 
 export async function generateMetadata({ params }: EditCategoryPageProps): Promise<Metadata> {
   const { slug } = await params;
-  return { title: `Редактировать категорию «${slug}» — Админка AYPROM` };
+  // The record's own name, not its address: the admin keeps fetched data in memory, so the page reuses this read.
+  const category = await getAdminCategory(slug);
+  return { title: `Категория «${category?.name ?? slug}» — Админка AYPROM` };
 }
 
 export default async function EditCategoryPage({ params }: EditCategoryPageProps) {

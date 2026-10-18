@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PasswordChangeForm } from "@/components/admin/PasswordChangeForm";
 import { NAV_ITEMS } from "@/components/admin/AdminNav";
+import { PASSWORD_PATH } from "@/components/admin/AdminSettingsMenu";
 
 vi.mock("@/lib/admin/actions", () => ({
   changeAdminPassword: vi.fn(),
@@ -19,8 +20,9 @@ afterEach(() => {
 });
 
 describe("смена пароля администратора", () => {
-  it("добавлена отдельной вкладкой админки", () => {
-    expect(NAV_ITEMS.some((item) => item.href === "/admin/security" && item.label === "Пароль")).toBe(true);
+  it("открывается из меню настроек, а не отдельной вкладкой навигации", () => {
+    expect(NAV_ITEMS.some((item) => item.href === "/admin/security")).toBe(false);
+    expect(PASSWORD_PATH).toBe("/admin/security");
   });
 
   it("показывает три защищённых поля и предупреждение о завершении сессий", () => {

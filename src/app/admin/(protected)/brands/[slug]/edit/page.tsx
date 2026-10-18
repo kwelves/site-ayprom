@@ -11,7 +11,9 @@ interface EditBrandPageProps {
 
 export async function generateMetadata({ params }: EditBrandPageProps): Promise<Metadata> {
   const { slug } = await params;
-  return { title: `Редактировать бренд «${slug}» — Админка AYPROM` };
+  // The record's own name, not its address: the admin keeps fetched data in memory, so the page reuses this read.
+  const brand = await getAdminBrand(slug);
+  return { title: `Бренд ${brand?.name ?? slug} — Админка AYPROM` };
 }
 
 export default async function EditBrandPage({ params }: EditBrandPageProps) {

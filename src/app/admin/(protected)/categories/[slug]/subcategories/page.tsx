@@ -5,6 +5,7 @@ import { getAdminCategory, getAdminSubcategories } from "@/lib/admin/queries";
 import { SubcategoriesList } from "@/components/admin/SubcategoriesList";
 import { Breadcrumbs } from "@/components/admin/ui/Breadcrumbs";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { buttonClassName } from "@/components/admin/ui/button-styles";
 
 export const revalidate = 0;
 
@@ -15,7 +16,9 @@ interface SubcategoriesPageProps {
 
 export async function generateMetadata({ params }: SubcategoriesPageProps): Promise<Metadata> {
   const { slug } = await params;
-  return { title: `Подкатегории «${slug}» — Админка AYPROM` };
+  // The record's own name, not its address: the admin keeps fetched data in memory, so the page reuses this read.
+  const category = await getAdminCategory(slug);
+  return { title: `Подкатегории: ${category?.name ?? slug} — Админка AYPROM` };
 }
 
 export default async function AdminSubcategoriesPage({ params, searchParams }: SubcategoriesPageProps) {
@@ -37,10 +40,10 @@ export default async function AdminSubcategoriesPage({ params, searchParams }: S
       />
 
       <div className="mt-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-foreground">Подкатегории: {category.name}</h1>
+        <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em] text-balance text-foreground sm:text-[26px]">Подкатегории: {category.name}</h1>
         <Link
           href={`/admin/categories/${slug}/subcategories/new`}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover"
+          className={buttonClassName({ variant: "primary" })}
         >
           Добавить подкатегорию
         </Link>

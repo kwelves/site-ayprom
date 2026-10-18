@@ -3,7 +3,9 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { Menu, X } from "lucide-react";
 import { AdminNav } from "@/components/admin/AdminNav";
-import { logout } from "@/lib/admin/actions";
+import { AdminSettingsMenu } from "@/components/admin/AdminSettingsMenu";
+import { AdminMark } from "@/components/admin/ui/AdminMark";
+import { buttonClassName } from "@/components/admin/ui/button-styles";
 
 const FOCUSABLE_SELECTOR = [
   "a[href]",
@@ -14,10 +16,11 @@ const FOCUSABLE_SELECTOR = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(", ");
 
-// Below `lg` the sidebar (AdminLayout) is hidden — this hamburger + drawer
-// is the only way to reach the other 6 sections, so it has to be reliable:
-// same focus-trap contract as ConfirmDialog/QuickViewPanel (Esc closes,
-// Tab wraps inside), just anchored to the left edge.
+// Below `lg` the sidebar is hidden — this menu button + drawer is the only way
+// to reach the other sections, so it has to be reliable: same focus-trap
+// contract as ConfirmDialog/QuickViewPanel (Esc closes, Tab wraps inside),
+// just anchored to the left edge, 12px away from the screen edges like every
+// floating glass panel of the system.
 export function AdminMobileNav() {
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -64,13 +67,13 @@ export function AdminMobileNav() {
         onClick={() => setOpen(true)}
         aria-label="Открыть меню разделов"
         aria-expanded={open}
-        className="rounded-md p-2 text-card-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        className={buttonClassName({ variant: "ghost", size: "icon", className: "text-foreground" })}
       >
-        <Menu className="h-5 w-5" aria-hidden="true" />
+        <Menu aria-hidden="true" />
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex bg-foreground/40" onClick={close}>
+        <div className="fixed inset-0 z-40 flex animate-[admin-screen-fade_200ms_var(--ease-ui)_backwards] bg-overlay p-3 backdrop-blur-[2px]" onClick={close}>
           <div
             ref={panelRef}
             role="dialog"
@@ -78,33 +81,29 @@ export function AdminMobileNav() {
             aria-labelledby={titleId}
             onKeyDown={handleKeyDown}
             onClick={(event) => event.stopPropagation()}
-            className="flex h-full w-72 max-w-[80vw] flex-col border-r border-border bg-card shadow-lg animate-slide-in-left"
+            className="glass-float flex h-full w-[300px] max-w-[86vw] animate-slide-in-left flex-col rounded-[22px]"
           >
-            <div className="flex items-center justify-between border-b border-border px-4 py-3.5">
-              <span id={titleId} className="text-sm font-semibold text-card-foreground">
-                AYPROM — Админка
+            <div className="flex h-[68px] shrink-0 items-center justify-between px-4">
+              <span id={titleId} className="sr-only">
+                AYPROM · Админка
               </span>
+              <AdminMark variant="logo" size="md" />
               <button
                 ref={closeButtonRef}
                 type="button"
                 onClick={close}
                 aria-label="Закрыть меню"
-                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-card-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                className={buttonClassName({ variant: "ghost", size: "icon" })}
               >
-                <X className="h-4 w-4" aria-hidden="true" />
+                <X aria-hidden="true" />
               </button>
             </div>
-            <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
+            <nav aria-label="Разделы админки" className="flex flex-1 flex-col overflow-y-auto px-3 py-2">
               <AdminNav variant="sidebar" onNavigate={close} />
             </nav>
-            <form action={logout} className="shrink-0 border-t border-border p-3">
-              <button
-                type="submit"
-                className="w-full rounded-md px-3 py-2 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-card-foreground"
-              >
-                Выйти
-              </button>
-            </form>
+            <div className="shrink-0 p-3">
+              <AdminSettingsMenu onNavigate={close} className="w-full" />
+            </div>
           </div>
         </div>
       )}

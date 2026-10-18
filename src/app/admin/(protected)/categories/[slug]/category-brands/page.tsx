@@ -12,7 +12,9 @@ interface CategoryBrandsPageProps {
 
 export async function generateMetadata({ params }: CategoryBrandsPageProps): Promise<Metadata> {
   const { slug } = await params;
-  return { title: `Бренды категории «${slug}» — Админка AYPROM` };
+  // The record's own name, not its address: the admin keeps fetched data in memory, so the page reuses this read.
+  const category = await getAdminCategory(slug);
+  return { title: `Бренды категории «${category?.name ?? slug}» — Админка AYPROM` };
 }
 
 export default async function CategoryBrandsPage({ params }: CategoryBrandsPageProps) {
@@ -36,7 +38,7 @@ export default async function CategoryBrandsPage({ params }: CategoryBrandsPageP
         ]}
       />
 
-      <h1 className="mt-4 text-xl font-semibold text-foreground">Бренды категории: {category.name}</h1>
+      <h1 className="mt-4 text-[22px] leading-tight font-semibold tracking-[-0.02em] text-balance text-foreground sm:text-[26px]">Бренды категории: {category.name}</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Какие бренды показывать на странице этой категории, в каком порядке, и с каким масштабом логотипа (если
         отличается от общего значения бренда).

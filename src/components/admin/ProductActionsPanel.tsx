@@ -163,7 +163,7 @@ export function ProductActionsPanel({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end bg-foreground/40 md:items-stretch md:justify-end"
+      className="fixed inset-0 z-50 flex items-end bg-overlay backdrop-blur-[2px] md:items-stretch md:justify-end md:p-3"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -175,8 +175,8 @@ export function ProductActionsPanel({
         aria-labelledby={titleId}
         onKeyDown={handleKeyDown}
         className={cn(
-          "flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-3xl border-t border-border bg-card shadow-lg animate-fade-up",
-          "motion-reduce:animate-none md:h-full md:max-h-none md:max-w-md md:rounded-none md:border-l md:border-t-0 md:animate-slide-in-right",
+          "glass-float flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-[22px] animate-fade-up",
+          "motion-reduce:animate-none md:h-full md:max-h-none md:max-w-[480px] md:rounded-[22px] md:animate-[admin-drawer-in_360ms_var(--ease-drawer)_backwards]",
         )}
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
@@ -223,8 +223,8 @@ export function ProductActionsPanel({
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 md:px-5">
           {view === "actions" ? (
             <div className="space-y-4">
-              <div className="rounded-xl border border-border bg-muted/30 p-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Использование в спецтехнике</p>
+              <div className="glass-plate rounded-[14px] p-4">
+                <p className="text-xs font-medium text-muted-foreground">Использование в спецтехнике</p>
                 {assignmentGroups.length > 0 ? (
                   <div className="mt-2 space-y-3">
                     <p className="text-sm font-medium text-card-foreground">
@@ -269,7 +269,7 @@ export function ProductActionsPanel({
                   onClick={() => setView("picker")}
                   className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-border px-3 py-2.5 text-left text-sm font-medium text-card-foreground transition-colors hover:border-border-interactive hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-55"
                 >
-                  <Pin className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+                  <Pin className="size-5 shrink-0 text-success" aria-hidden="true" />
                   {productAssignments.length > 0 ? "Добавить ещё один хотспот" : "Закрепить за хотспотом"}
                 </button>
                 {!product.published && (

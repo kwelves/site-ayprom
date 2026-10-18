@@ -1,23 +1,19 @@
 import type { Metadata } from "next";
 import { PasswordChangeForm } from "@/components/admin/PasswordChangeForm";
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 
 export const metadata: Metadata = {
   title: "Смена пароля — Админка AYPROM",
 };
 
+// Opened from the settings menu at the bottom of the sidebar. One glass panel, no card inside a card.
 export default function AdminSecurityPage() {
   return (
     <div className="max-w-xl">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-foreground">Смена пароля</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Обновите общий пароль доступа к административной панели.
-        </p>
-      </div>
-
-      <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
+      <AdminPageHeader title="Смена пароля" description="Один общий пароль для входа в админку." />
+      <div className="mt-5">
         <PasswordChangeForm />
-      </section>
+      </div>
     </div>
   );
 }

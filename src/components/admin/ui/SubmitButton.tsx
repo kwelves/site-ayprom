@@ -2,16 +2,25 @@
 
 import { useFormStatus } from "react-dom";
 import { Loader2 } from "lucide-react";
+import { buttonClassName, type ButtonSize } from "./button-styles";
+import { cn } from "@/lib/utils";
 
 // Must be a descendant of the <form> it reports on — useFormStatus reads
 // the nearest parent <form>'s pending state, so this can't live in the same
 // component that renders the <form> itself.
+//
+// While saving (design system v2): the label stays in place, slightly blurred, a 14px spinner sits on the left,
+// and the button keeps its width, so nothing around it jumps.
 export function SubmitButton({
   children,
   pendingLabel,
+  size = "md",
+  className,
 }: {
   children: React.ReactNode;
   pendingLabel: string;
+  size?: ButtonSize;
+  className?: string;
 }) {
   const { pending } = useFormStatus();
 
@@ -19,10 +28,30 @@ export function SubmitButton({
     <button
       type="submit"
       disabled={pending}
-      className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
+      aria-busy={pending}
+      className={buttonClassName({ variant: "primary", size, className: cn("disabled:opacity-100", className) })}
     >
-      {pending && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />}
-      {pending ? pendingLabel : children}
+      <span className="grid place-items-center">
+        <span
+          aria-hidden={pending}
+          className={cn(
+            "col-start-1 row-start-1 transition-[opacity,filter] duration-base ease-ui",
+            pending && "opacity-0 blur-[2px]",
+          )}
+        >
+          {children}
+        </span>
+        <span
+          aria-hidden={!pending}
+          className={cn(
+            "col-start-1 row-start-1 inline-flex items-center gap-2 transition-[opacity,filter] duration-base ease-ui",
+            !pending && "opacity-0 blur-[2px]",
+          )}
+        >
+          <Loader2 aria-hidden="true" className="!size-3.5 animate-spin" />
+          {pendingLabel}
+        </span>
+      </span>
     </button>
   );
 }

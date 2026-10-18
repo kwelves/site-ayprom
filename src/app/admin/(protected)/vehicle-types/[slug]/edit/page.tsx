@@ -11,7 +11,9 @@ interface EditVehicleTypePageProps {
 
 export async function generateMetadata({ params }: EditVehicleTypePageProps): Promise<Metadata> {
   const { slug } = await params;
-  return { title: `Редактировать тип техники «${slug}» — Админка AYPROM` };
+  // The record's own name, not its address: the admin keeps fetched data in memory, so the page reuses this read.
+  const vehicleType = await getAdminVehicleType(slug);
+  return { title: `Тип техники «${vehicleType?.name ?? slug}» — Админка AYPROM` };
 }
 
 export default async function EditVehicleTypePage({ params }: EditVehicleTypePageProps) {

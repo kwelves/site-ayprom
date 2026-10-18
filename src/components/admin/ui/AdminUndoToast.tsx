@@ -31,9 +31,9 @@ export function AdminUndoToast({ toast, actionLabel, pending = false, onAction, 
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0, transition: { duration: DURATION.base, ease: EASE_UI } }}
           exit={{ opacity: 0, y: 8, transition: { duration: DURATION.fast, ease: EASE_UI } }}
-          className="fixed bottom-6 right-6 z-50 flex max-w-md items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 shadow-lg"
+          className="glass-float fixed right-4 bottom-4 z-[70] flex max-w-md animate-[admin-toast-in_320ms_var(--ease-spring)_backwards] items-center gap-3 rounded-[14px] py-2.5 pr-2 pl-3.5 sm:right-6 sm:bottom-6"
         >
-          <CheckCircle2 aria-hidden="true" className="h-5 w-5 shrink-0 text-primary" />
+          <CheckCircle2 aria-hidden="true" className="size-5 shrink-0 text-success" />
           <p className="text-sm font-medium text-card-foreground">{toast.message}</p>
           {actionLabel && onAction && (
             <button

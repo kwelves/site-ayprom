@@ -1,5 +1,6 @@
 "use client";
 
+import { Search } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/admin/ui/Input";
@@ -176,23 +177,31 @@ export function ProductsFilterBar({ categories, initialConfig, initialSaved }: P
   }
 
   return (
-    <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-      <Input
-        type="search"
-        name="q"
-        aria-label="Поиск товаров"
-        autoComplete="off"
-        value={q}
-        onChange={(event) => changeSearch(event.target.value)}
-        placeholder="Поиск по названию или артикулу…"
-        className="sm:max-w-xs"
-      />
+    <div className="glass-panel mt-5 flex flex-col gap-2.5 rounded-[18px] p-2.5 lg:flex-row lg:flex-wrap lg:items-center">
+      <div className="relative min-w-0 lg:min-w-72 lg:flex-1">
+        <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          type="search"
+          name="q"
+          aria-label="Поиск товаров"
+          autoComplete="off"
+          data-admin-search
+          value={q}
+          onChange={(event) => changeSearch(event.target.value)}
+          placeholder="Поиск по названию или артикулу"
+          className="pr-10 pl-9"
+        />
+        <kbd className="pointer-events-none absolute top-1/2 right-2.5 hidden -translate-y-1/2 rounded-[6px] bg-surface-strong px-1.5 py-0.5 font-sans text-[11px] font-medium text-muted-foreground sm:block">
+          /
+        </kbd>
+      </div>
+      <div className="grid grid-cols-2 gap-2.5 sm:flex sm:flex-wrap sm:items-center">
       <Select
         name="category"
         aria-label="Фильтр по категории"
         value={config.category}
         onChange={(event) => changeConfig({ category: event.target.value })}
-        className="sm:max-w-[12rem]"
+        className="sm:w-48"
       >
         <option value="">Все категории</option>
         {categories.map((category) => (
@@ -206,7 +215,7 @@ export function ProductsFilterBar({ categories, initialConfig, initialSaved }: P
         aria-label="Фильтр по публикации"
         value={config.status}
         onChange={(event) => changeConfig({ status: event.target.value as AdminProductListConfig["status"] })}
-        className="sm:max-w-[10rem]"
+        className="sm:w-44"
       >
         <option value="">Любая публикация</option>
         <option value="published">Опубликован</option>
@@ -217,7 +226,7 @@ export function ProductsFilterBar({ categories, initialConfig, initialSaved }: P
         aria-label="Фильтр по наличию"
         value={config.availability}
         onChange={(event) => changeConfig({ availability: event.target.value as AdminProductListConfig["availability"] })}
-        className="sm:max-w-[10rem]"
+        className="sm:w-40"
       >
         <option value="">Любое наличие</option>
         {PRODUCT_AVAILABILITY_OPTIONS.map((value) => (
@@ -231,18 +240,19 @@ export function ProductsFilterBar({ categories, initialConfig, initialSaved }: P
         aria-label="Сортировка"
         value={config.sort}
         onChange={(event) => changeConfig({ sort: event.target.value as AdminProductListConfig["sort"] })}
-        className="sm:max-w-[10rem]"
+        className="sm:w-48"
       >
         <option value="order">Ручной порядок</option>
         <option value="name">По названию</option>
         <option value="updated">Сначала изменённые</option>
       </Select>
+      </div>
       <Checkbox
         label="Сохранить конфигурацию"
+        title="Открывать список с этими фильтрами"
         checked={saved}
         onChange={(event) => changeSaved(event.target.checked)}
-        containerClassName="min-h-11 cursor-pointer rounded-md px-2 sm:ml-1"
-        className="h-5 w-5 shrink-0"
+        containerClassName="min-h-11 rounded-[10px] px-2 text-muted-foreground hover:text-foreground lg:min-h-9.5"
       />
     </div>
   );

@@ -9,9 +9,9 @@ export function BackLink({ href, label = "Назад" }: { href: string; label?:
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
+      className="group/back -ml-2 inline-flex h-9 items-center gap-1.5 rounded-[10px] px-2 text-sm font-medium text-muted-foreground transition-colors duration-fast ease-ui hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30"
     >
-      <ArrowLeft className="h-4 w-4" />
+      <ArrowLeft aria-hidden="true" className="size-4 transition-[translate] duration-base ease-ui group-hover/back:-translate-x-0.5" />
       {label}
     </Link>
   );

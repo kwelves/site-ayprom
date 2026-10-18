@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { DURATION, EASE_UI, EASE_UI_IN_OUT } from "../src/lib/motion";
+import { DURATION, EASE_DRAWER, EASE_SPRING, EASE_SPRING_SOFT, EASE_UI, EASE_UI_IN_OUT } from "../src/lib/motion";
 
 // Токены движения объявлены дважды: в @theme (src/app/globals.css) для
 // Tailwind-утилит и в src/lib/motion.ts для Framer Motion, который не читает
@@ -33,6 +33,14 @@ describe("токены движения", () => {
 
   it("--ease-ui-in-out совпадает с EASE_UI_IN_OUT", () => {
     expect(cubicBezierPoints(cssValue("--ease-ui-in-out"))).toEqual([...EASE_UI_IN_OUT]);
+  });
+
+  it.each([
+    ["--ease-drawer", EASE_DRAWER],
+    ["--ease-spring", EASE_SPRING],
+    ["--ease-spring-soft", EASE_SPRING_SOFT],
+  ] as const)("%s совпадает с копией в motion.ts", (name, points) => {
+    expect(cubicBezierPoints(cssValue(name))).toEqual([...points]);
   });
 
   it("в TS нет длительностей сверх объявленных в CSS", () => {

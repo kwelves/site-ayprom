@@ -17,6 +17,7 @@ import { useConfirmDelete } from "@/lib/admin/use-confirm-delete";
 import { MAX_VISUAL_SCALE, MIN_VISUAL_SCALE, VISUAL_SCALE_STEP } from "@/lib/admin/visual-scale";
 import { useAdminToast } from "@/components/admin/ui/AdminToastProvider";
 import type { AdminBrand, AdminCategoryBrand } from "@/lib/admin/queries";
+import { buttonClassName } from "@/components/admin/ui/button-styles";
 
 interface CategoryBrandsManagerProps {
   categorySlug: string;
@@ -116,13 +117,14 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
     <div>
       {attached.length > 0 ? (
         <SortableList
+          surface="inset"
           items={attached}
           getId={(brand) => brand.brandSlug}
           onReorder={handleReorder}
           enableStepButtons
           renderItem={(brand) => (
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex h-10 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/40">
+              <div className="flex h-10 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-logo-plate">
                 {/* eslint-disable-next-line @next/next/no-img-element -- brand logos are SVGs, possibly hosted on Supabase Storage (external host) */}
                 <img src={brand.brandLogo} alt="" className="max-h-full max-w-full object-contain p-1" />
               </div>
@@ -154,7 +156,7 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
               <button
                 type="button"
                 onClick={() => removeConfirm.request(brand)}
-                className="shrink-0 rounded-md border border-danger-border px-3 py-1 text-sm font-medium text-danger transition-colors hover:bg-danger-surface"
+                className={buttonClassName({ variant: "ghost", size: "sm", className: "text-danger hover:bg-danger-surface hover:text-danger shrink-0" })}
               >
                 Убрать
               </button>
@@ -169,7 +171,7 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
       )}
 
       {available.length > 0 && (
-        <div className="mt-6 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-4">
+        <div className="mt-6 flex flex-wrap items-center gap-3 glass-panel rounded-[18px] p-4">
           <Select
             aria-label="Добавить бренд"
             value={selectedBrandToAdd}
@@ -187,7 +189,7 @@ export function CategoryBrandsManager({ categorySlug, initialAttached, allBrands
             type="button"
             onClick={handleAdd}
             disabled={!selectedBrandToAdd}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-50"
+            className={buttonClassName({ variant: "primary", className: "disabled:opacity-50" })}
           >
             Добавить
           </button>

@@ -34,12 +34,10 @@ export function VehicleHotspotPreview({ vehicleTypeSlug, hotspots }: VehicleHots
   if (!visual) return null;
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
-      <p className="text-sm font-medium text-card-foreground">Расположение точек на фото</p>
-      <p className="mt-1 text-xs text-muted-foreground">
-        Только для справки — позиция и нумерация здесь не редактируются.
-      </p>
-      <div ref={stageRef} className="relative mt-3 aspect-4/3 w-full overflow-hidden rounded-md bg-muted/40">
+    <div className="glass-panel rounded-[18px] p-4">
+      <p className="text-base font-semibold text-foreground">Где стоят точки</p>
+      <p className="mt-1 text-[13px] text-muted-foreground">Только для справки: позицию и нумерацию точек здесь не меняют.</p>
+      <div ref={stageRef} className="relative mt-3 aspect-4/3 w-full overflow-hidden rounded-[12px] bg-logo-plate">
         {/* Same pre-built static file the public stage uses (see
             scripts/generate-vehicle-webp.mjs) — `unoptimized` for the same
             reason it's used there: this is already the exact file to serve,

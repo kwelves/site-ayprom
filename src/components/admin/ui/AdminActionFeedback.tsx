@@ -19,19 +19,27 @@ export function AdminActionFeedback({ message, tone = "error", onDismiss }: Admi
       role={tone === "error" ? "alert" : "status"}
       aria-live="polite"
       className={cn(
-        "fixed bottom-6 right-6 z-50 flex max-w-md items-start gap-3 rounded-lg border bg-card px-4 py-3 shadow-lg",
-        tone === "error" ? "border-danger-border" : "border-border",
+        "glass-float fixed right-4 bottom-4 z-[70] flex max-w-md animate-[admin-toast-in_320ms_var(--ease-spring)_backwards] items-start gap-3 rounded-[14px] py-3 pr-2 pl-3.5 sm:right-6 sm:bottom-6",
+        tone === "error" && "border-danger-border",
       )}
     >
-      <Icon aria-hidden="true" className={cn("mt-0.5 h-5 w-5 shrink-0", tone === "error" ? "text-danger" : "text-primary")} />
-      <p className="text-sm font-medium text-card-foreground">{message}</p>
+      <span
+        aria-hidden="true"
+        className={cn(
+          "grid size-7 shrink-0 place-items-center rounded-full",
+          tone === "error" ? "bg-danger-surface text-danger" : "bg-success-surface text-success",
+        )}
+      >
+        <Icon className="size-4" />
+      </span>
+      <p className="pt-1 text-sm font-medium text-foreground">{message}</p>
       <button
         type="button"
         onClick={onDismiss}
         aria-label="Закрыть уведомление"
-        className="ml-2 shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+        className="ml-1 grid size-8 shrink-0 place-items-center rounded-[8px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
       >
-        <X aria-hidden="true" className="h-4 w-4" />
+        <X aria-hidden="true" className="size-4" />
       </button>
     </div>
   );

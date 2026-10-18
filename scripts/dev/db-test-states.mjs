@@ -21,13 +21,25 @@ function reset() {
   const result = supabase(["db", "reset", "--local"], "y\n");
   if (result.status !== 0) throw new Error(`db reset failed:\n${result.out.slice(-600)}`);
 }
+// One test file per `supabase test db` call, never several at once. Passed together, the CLI runs the files side by side,
+// and the catalog capture function takes its table locks with NOWAIT: a file that holds uncommitted fixture rows in
+// products or categories makes another file's capture fail with its (deliberately vague) "Catalog capture unavailable".
+// Run alone, every file sees a quiet database, so the result no longer depends on timing.
 function runTests(files) {
-  const result = supabase(["test", "db", ...files]);
-  // The summary lines, plus whatever explains a failure: pgTAP diagnostics ("# ..."), SQL errors and their context.
-  const summary = result.out.split(/\r?\n/)
-    .filter((line) => /^(Files=|Result:)|Failed test|Wstat|^#|ERROR|^psql:|^DETAIL|^HINT|^CONTEXT|^LINE|Looks like/.test(line))
-    .join("\n");
-  return { ok: result.status === 0, summary };
+  let ok = true;
+  const lines = [];
+  for (const file of files) {
+    const result = supabase(["test", "db", file]);
+    // The summary lines, plus whatever explains a failure: pgTAP diagnostics ("# ..."), SQL errors and their context.
+    const summary = result.out.split(/\r?\n/)
+      .filter((line) => /Failed test|Wstat|^#|ERROR|^psql:|^DETAIL|^HINT|^CONTEXT|^LINE|Looks like/.test(line));
+    if (result.status !== 0) {
+      ok = false;
+      lines.push(`FAIL ${file}`, ...summary);
+    }
+  }
+  lines.push(`Files=${files.length}, failed=${lines.filter((line) => line.startsWith("FAIL ")).length}`);
+  return { ok, summary: lines.join("\n") };
 }
 const databaseTests = readdirSync(path.join(ROOT, "supabase", "tests", "database")).filter((name) => name.endsWith(".test.sql"));
 const contractTests = readdirSync(path.join(ROOT, "supabase", "contract", "tests")).filter((name) => name.endsWith(".test.sql"));

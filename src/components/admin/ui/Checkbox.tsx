@@ -7,11 +7,11 @@ interface CheckboxProps extends React.InputHTMLAttributes<HTMLInputElement> {
 
 export function Checkbox({ className, containerClassName, label, ...props }: CheckboxProps) {
   return (
-    <label className={cn("flex items-center gap-2 text-sm text-card-foreground", containerClassName)}>
+    <label className={cn("flex cursor-pointer items-center gap-2.5 text-sm text-card-foreground", containerClassName)}>
       <input
         type="checkbox"
         className={cn(
-          "h-4 w-4 rounded border-input text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+          "size-4 shrink-0 cursor-pointer rounded-[5px] accent-primary focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/25",
           className
         )}
         {...props}

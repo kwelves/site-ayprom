@@ -6,19 +6,18 @@ interface StickyFormActionsProps {
   className?: string;
 }
 
-// Keeps Save/Cancel/Delete reachable on long, sectioned forms (ProductForm's
-// six collapsible sections can scroll well past one screen) without a
-// separate mobile-only variant — `sticky` + safe-area padding behaves the
-// same on desktop and, thanks to the inset, doesn't sit under the iOS Safari
-// home indicator either.
+// Keeps Save/Cancel/Delete reachable on long forms: a floating glass bar that
+// sticks 12px above the bottom of the screen (design system v2, dense glass
+// over scrolling content). One variant for every screen size; the safe-area
+// padding keeps it clear of the iOS Safari home indicator.
 export function StickyFormActions({ children, className }: StickyFormActionsProps) {
   return (
     <div
       className={cn(
-        "sticky bottom-0 z-10 -mx-4 flex items-center gap-4 border-t border-border bg-card/95 px-4 py-4 backdrop-blur-sm sm:mx-0 sm:rounded-b-lg",
+        "glass-float sticky bottom-3 z-20 mt-5 flex flex-wrap items-center gap-2 rounded-[18px] px-3 py-2.5 sm:gap-3 sm:px-4",
         className,
       )}
-      style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+      style={{ marginBottom: "env(safe-area-inset-bottom)" }}
     >
       {children}
     </div>
