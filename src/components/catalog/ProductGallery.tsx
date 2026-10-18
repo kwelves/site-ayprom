@@ -83,8 +83,11 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
   // swipe is ignored: the swipe only changes the photo.
   const [zoomedIndex, setZoomedIndex] = useState<number | null>(null);
   const swipedAtRef = useRef(0);
-  const closeZoom = useCallback(() => setZoomedIndex(null), []);
-  const zoomedImage = zoomedIndex === null ? null : images[zoomedIndex];
+  // After closing, the gallery stays on the photo that was last on screen in the enlarged view.
+  const closeZoom = (lastIndex: number) => {
+    setZoomedIndex(null);
+    if (lastIndex !== index) carousel.select(lastIndex);
+  };
 
   useEffect(() => {
     if (!didMountIndicatorsRef.current) {
@@ -231,7 +234,7 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
         </div>
       )}
 
-      {zoomedImage && <ImageLightbox image={zoomedImage} alt={alt} onClose={closeZoom} />}
+      {zoomedIndex !== null && <ImageLightbox images={images} startIndex={zoomedIndex} alt={alt} onClose={closeZoom} />}
     </div>
   );
 }
