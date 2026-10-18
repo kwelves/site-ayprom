@@ -7,9 +7,12 @@ import { AUDIT_ACTION_LABELS } from "@/lib/admin/audit-labels";
 
 interface AuditFilterBarProps {
   entityTypes: { slug: string; name: string }[];
+  /** "Всего: 12 · страница 1 из 2", shown on the right of the bar. */
+  summary?: string;
 }
 
-export function AuditFilterBar({ entityTypes }: AuditFilterBarProps) {
+// The same glass filter bar as on the products list: the two filters on the left, the count on the right.
+export function AuditFilterBar({ entityTypes, summary }: AuditFilterBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -30,7 +33,8 @@ export function AuditFilterBar({ entityTypes }: AuditFilterBarProps) {
   const action = searchParams.get("action") ?? "";
 
   return (
-    <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+    <div className="glass-panel mt-5 flex flex-col gap-3 rounded-[18px] p-3 sm:flex-row sm:items-center">
+      {summary && <p className="order-last text-xs text-muted-foreground tabular-nums sm:ml-auto sm:pr-2">{summary}</p>}
       <Select
         name="entity"
         aria-label="Фильтр по разделу"

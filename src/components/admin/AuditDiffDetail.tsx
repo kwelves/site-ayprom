@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { auditChangedFieldsLabel, auditFieldDiffs, formatAuditValue, type AuditFieldDiff } from "@/lib/admin/audit-labels";
+import { auditChangedFieldsLabel, auditFieldDiffs, auditFieldLabel, formatAuditValue, type AuditFieldDiff } from "@/lib/admin/audit-labels";
 import { PRODUCT_AVAILABILITY_LABELS, isProductAvailability } from "@/lib/admin/product-availability";
 import { cn } from "@/lib/utils";
 import type { AuditLogEntry } from "@/lib/admin/queries";
@@ -45,7 +45,7 @@ export function AuditDiffDetail({ entry }: AuditDiffDetailProps) {
         <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-fast ease-ui", open && "rotate-180")} />
       </button>
       {open && (
-        <dl className="mt-2 space-y-1.5 rounded-md bg-muted/40 p-2.5 text-xs">
+        <dl className="mt-2 animate-[admin-row-in_160ms_var(--ease-ui)_backwards] space-y-1.5 rounded-[10px] bg-surface-subtle p-2.5 text-xs">
           {diffs.map((diff) => (
             <DiffRow key={diff.field} diff={diff} action={entry.action} />
           ))}
@@ -58,7 +58,7 @@ export function AuditDiffDetail({ entry }: AuditDiffDetailProps) {
 function DiffRow({ diff, action }: { diff: AuditFieldDiff; action: string }) {
   return (
     <div>
-      <dt className="font-medium text-card-foreground">{diff.field}</dt>
+      <dt className="font-medium text-card-foreground first-letter:uppercase">{auditFieldLabel(diff.field)}</dt>
       <dd className="text-muted-foreground">
         {action === "UPDATE" ? (
           <>

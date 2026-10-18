@@ -39,7 +39,8 @@ describe("auditChangedFieldsLabel", () => {
   });
 
   it("перечисляет реально изменившиеся поля", () => {
-    expect(auditChangedFieldsLabel("UPDATE", ["name", "published"])).toBe("name, published");
+    expect(auditChangedFieldsLabel("UPDATE", ["name", "published"])).toBe("название, публикация");
+    expect(auditChangedFieldsLabel("UPDATE", ["search_text", "future_column"])).toBe("текст для поиска, future_column");
   });
 
   it("описывает изменение без затронутых полей", () => {

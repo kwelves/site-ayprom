@@ -10,8 +10,10 @@ interface EditSubcategoryPageProps {
 }
 
 export async function generateMetadata({ params }: EditSubcategoryPageProps): Promise<Metadata> {
-  const { subSlug } = await params;
-  return { title: `Редактировать подкатегорию «${subSlug}» — Админка AYPROM` };
+  const { slug, subSlug } = await params;
+  // The record's own name, not its address: the admin keeps fetched data in memory, so the page reuses this read.
+  const subcategory = await getAdminSubcategory(slug, subSlug);
+  return { title: `Подкатегория «${subcategory?.name ?? subSlug}» — Админка AYPROM` };
 }
 
 export default async function EditSubcategoryPage({ params }: EditSubcategoryPageProps) {

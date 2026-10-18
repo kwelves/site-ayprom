@@ -6,6 +6,7 @@ import { AdminPagination } from "@/components/admin/AdminPagination";
 import { AuditFilterBar } from "@/components/admin/AuditFilterBar";
 import { AuditDiffDetail } from "@/components/admin/AuditDiffDetail";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -45,23 +46,19 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em] text-balance text-foreground sm:text-[26px]">Журнал изменений</h1>
-      </div>
+      <AdminPageHeader
+        title="Журнал изменений"
+        description="Каждое изменение каталога записывается автоматически. Записи нельзя изменить или удалить."
+      />
 
-      <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-        Записи создаются автоматически на уровне базы данных при любом изменении каталога.
-        Журнал только для чтения: записи нельзя изменить или удалить через админку.
-      </p>
-
-      <AuditFilterBar entityTypes={entityTypes.map((slug) => ({ slug, name: auditEntityLabel(slug) }))} />
-
-      {log.total > 0 && (
-        <p className="mt-3 text-xs text-muted-foreground">
-          {isFiltered ? "Найдено" : "Всего"}: {log.total}
-          {log.totalPages > 1 && ` · страница ${log.page} из ${log.totalPages}`}
-        </p>
-      )}
+      <AuditFilterBar
+        entityTypes={entityTypes.map((slug) => ({ slug, name: auditEntityLabel(slug) }))}
+        summary={
+          log.total > 0
+            ? `${isFiltered ? "Найдено" : "Всего"}: ${log.total}${log.totalPages > 1 ? ` · страница ${log.page} из ${log.totalPages}` : ""}`
+            : undefined
+        }
+      />
 
       {log.items.length === 0 ? (
         <EmptyState
@@ -75,24 +72,24 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
               горизонтальной прокрутки. Ниже — карточный список: та же диагональная
               прокрутка ради одной длинной ячейки "Что изменилось" на телефоне не
               стоит того, а карточка читается вертикально естественно. */}
-          <div className="mt-6 hidden overflow-x-auto sm:block">
+          <div className="glass-panel mt-4 hidden overflow-x-auto rounded-[18px] sm:block">
             <table className="w-full min-w-[52rem] border-collapse text-sm">
               <thead>
-                <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
-                  <th scope="col" className="py-2 pr-4 font-medium">Когда</th>
-                  <th scope="col" className="py-2 pr-4 font-medium">Действие</th>
-                  <th scope="col" className="py-2 pr-4 font-medium">Раздел</th>
-                  <th scope="col" className="py-2 pr-4 font-medium">Запись</th>
-                  <th scope="col" className="py-2 font-medium">Что изменилось</th>
+                <tr className="border-b border-border bg-surface-subtle text-left text-xs font-medium text-muted-foreground">
+                  <th scope="col" className="py-3 pr-4 pl-5 font-medium">Когда</th>
+                  <th scope="col" className="py-3 pr-4 font-medium">Действие</th>
+                  <th scope="col" className="py-3 pr-4 font-medium">Раздел</th>
+                  <th scope="col" className="py-3 pr-4 font-medium">Запись</th>
+                  <th scope="col" className="py-3 pr-5 font-medium">Что изменилось</th>
                 </tr>
               </thead>
               <tbody>
                 {log.items.map((entry) => (
-                  <tr key={entry.id} className="border-b border-border/60 align-top">
-                    <td className="whitespace-nowrap py-2.5 pr-4 text-muted-foreground">
+                  <tr key={entry.id} className="border-b border-border/60 align-top transition-colors duration-fast ease-ui last:border-b-0 hover:bg-accent/40">
+                    <td className="whitespace-nowrap py-3 pr-4 pl-5 text-muted-foreground tabular-nums">
                       {DATE_FORMAT.format(new Date(entry.occurredAt))}
                     </td>
-                    <td className="py-2.5 pr-4">
+                    <td className="py-3 pr-4">
                       <span
                         className={cn(
                           "inline-block rounded-full px-2 py-0.5 text-xs font-medium",
@@ -102,11 +99,11 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
                         {auditActionLabel(entry.action)}
                       </span>
                     </td>
-                    <td className="py-2.5 pr-4 text-card-foreground">{auditEntityLabel(entry.entityType)}</td>
-                    <td className="max-w-[16rem] break-words py-2.5 pr-4 font-mono text-xs text-muted-foreground">
+                    <td className="py-3 pr-4 text-foreground">{auditEntityLabel(entry.entityType)}</td>
+                    <td className="max-w-[16rem] break-words py-3 pr-4 text-[13px] text-muted-foreground">
                       {entry.entityKey ?? "—"}
                     </td>
-                    <td className="max-w-[20rem] break-words py-2.5 text-muted-foreground">
+                    <td className="max-w-[20rem] break-words py-3 pr-5 text-muted-foreground">
                       <AuditDiffDetail entry={entry} />
                     </td>
                   </tr>
@@ -115,7 +112,7 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
             </table>
           </div>
 
-          <div className="mt-6 flex flex-col gap-2 sm:hidden">
+          <div className="mt-4 flex flex-col gap-2 sm:hidden">
             {log.items.map((entry) => (
               <div key={entry.id} className="glass-panel rounded-[18px] p-3">
                 <div className="flex items-center justify-between gap-2">
@@ -132,7 +129,7 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
                   </span>
                 </div>
                 <p className="mt-2 text-sm font-medium text-card-foreground">{auditEntityLabel(entry.entityType)}</p>
-                {entry.entityKey && <p className="mt-0.5 break-words font-mono text-xs text-muted-foreground">{entry.entityKey}</p>}
+                {entry.entityKey && <p className="mt-0.5 break-words text-xs text-muted-foreground">{entry.entityKey}</p>}
                 <div className="mt-2 text-sm">
                   <AuditDiffDetail entry={entry} />
                 </div>

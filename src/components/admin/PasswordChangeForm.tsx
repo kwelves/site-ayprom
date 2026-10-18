@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, type KeyboardEvent } from "react";
+import { LogOut } from "lucide-react";
 import { changeAdminPassword, type PasswordChangeState } from "@/lib/admin/actions";
 import { ADMIN_PASSWORD_MAX_LENGTH, ADMIN_PASSWORD_MIN_LENGTH } from "@/lib/admin/password-credential";
 import { FormField } from "@/components/admin/ui/FormField";
@@ -63,17 +64,19 @@ export function PasswordChangeForm() {
       </FormField>
 
       {state?.error && (
-        <p role="alert" className="rounded-md border border-danger-border bg-danger-surface px-3 py-2 text-sm text-danger">
+        <p role="alert" className="rounded-[12px] border border-danger-border bg-danger-surface px-3 py-2.5 text-sm text-danger">
           {state.error}
         </p>
       )}
 
-      <div className="border-t border-border pt-5">
-        <SubmitButton pendingLabel="Меняем пароль…">Изменить пароль</SubmitButton>
-        <p className="mt-2 text-xs text-muted-foreground">
-          После сохранения все активные сессии завершатся. Войдите заново с новым паролем.
-        </p>
-      </div>
+      <p className="flex items-start gap-2.5 rounded-[12px] bg-info-surface px-3 py-2.5 text-[13px] leading-snug text-info">
+        <LogOut aria-hidden="true" className="mt-px size-4 shrink-0" />
+        После смены пароля все активные сессии завершатся, на всех устройствах. Войдите заново с новым паролем.
+      </p>
+
+      <SubmitButton pendingLabel="Меняем пароль…" size="lg" className="w-full sm:w-auto">
+        Изменить пароль
+      </SubmitButton>
     </form>
   );
 }

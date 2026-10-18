@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 const imageContracts = [
   ["CategoriesList.tsx", '<Image\n              src={category.image}\n              alt=""\n              fill\n              sizes="(min-width: 1280px) 25vw, (min-width: 640px) 50vw, 100vw"\n              unoptimized'],
   ["CategoryForm.tsx", '<Image\n                    src={shownImage}\n                    alt=""\n                    fill\n                    sizes="400px"\n                    unoptimized'],
-  ["SubcategoriesList.tsx", '<Image src={sub.image} alt="" width={64} height={48} unoptimized'],
+  ["SubcategoriesList.tsx", '<Image\n              src={sub.image}\n              alt=""\n              fill\n              sizes="(min-width: 1280px) 25vw, (min-width: 640px) 50vw, 100vw"\n              unoptimized'],
   ["SubcategoryForm.tsx", '<Image src={image} alt="" width={160} height={96} unoptimized'],
 ] as const;
 

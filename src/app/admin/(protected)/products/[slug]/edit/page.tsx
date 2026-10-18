@@ -21,7 +21,9 @@ interface EditProductPageProps {
 
 export async function generateMetadata({ params }: EditProductPageProps): Promise<Metadata> {
   const { slug } = await params;
-  return { title: `Редактировать товар «${slug}» — Админка AYPROM` };
+  // The record's own name, not its address: the admin keeps fetched data in memory, so the page reuses this read.
+  const product = await getAdminProduct(slug);
+  return { title: `${product?.name ?? slug} — Админка AYPROM` };
 }
 
 export default async function EditProductPage({ params }: EditProductPageProps) {

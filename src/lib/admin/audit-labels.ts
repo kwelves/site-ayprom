@@ -25,6 +25,50 @@ export const AUDIT_ENTITY_LABELS: Record<string, string> = {
   vehicle_hotspots: "Хотспоты спецтехники",
 };
 
+// Column names from the triggers in the admin's own words. An unknown column is shown as is, not hidden.
+export const AUDIT_FIELD_LABELS: Record<string, string> = {
+  name: "название",
+  slug: "адрес",
+  article: "артикул",
+  short_description: "краткое описание",
+  description: "описание",
+  intro: "вступление",
+  category_slug: "категория",
+  subcategory_id: "подкатегория",
+  published: "публикация",
+  availability: "наличие",
+  meta_title: "SEO-заголовок",
+  meta_description: "SEO-описание",
+  order: "порядок",
+  search_text: "текст для поиска",
+  updated_at: "время изменения",
+  created_at: "время создания",
+  image: "изображение",
+  icon: "значок",
+  type: "тип",
+  url: "фото",
+  thumbnail_url: "миниатюра",
+  gallery_url: "фото для галереи",
+  scale: "масштаб",
+  attribute: "характеристика",
+  value: "значение",
+  logo: "логотип",
+  logo_scale: "масштаб логотипа",
+  country: "страна",
+  aliases: "другие написания",
+  brand_slug: "бренд",
+  vehicle_type_slug: "тип техники",
+  product_id: "товар",
+  label: "подпись",
+  hotspot_number: "номер точки",
+  x_pct: "положение по горизонтали",
+  y_pct: "положение по вертикали",
+};
+
+export function auditFieldLabel(field: string): string {
+  return AUDIT_FIELD_LABELS[field] ?? field;
+}
+
 export function auditActionLabel(action: string): string {
   return AUDIT_ACTION_LABELS[action] ?? action;
 }
@@ -40,7 +84,7 @@ export function auditChangedFieldsLabel(action: string, changedFields: string[])
   if (action === "INSERT") return "запись создана";
   if (action === "DELETE") return "запись удалена";
   if (changedFields.length === 0) return "без изменений полей";
-  return changedFields.join(", ");
+  return changedFields.map(auditFieldLabel).join(", ");
 }
 
 export interface AuditFieldDiff {

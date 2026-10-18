@@ -12,7 +12,9 @@ interface CategoryBrandsPageProps {
 
 export async function generateMetadata({ params }: CategoryBrandsPageProps): Promise<Metadata> {
   const { slug } = await params;
-  return { title: `Бренды категории «${slug}» — Админка AYPROM` };
+  // The record's own name, not its address: the admin keeps fetched data in memory, so the page reuses this read.
+  const category = await getAdminCategory(slug);
+  return { title: `Бренды категории «${category?.name ?? slug}» — Админка AYPROM` };
 }
 
 export default async function CategoryBrandsPage({ params }: CategoryBrandsPageProps) {
