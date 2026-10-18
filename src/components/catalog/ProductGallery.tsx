@@ -5,6 +5,7 @@ import { MotionConfig, motion, type PanInfo } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsTouchDevice } from "@/lib/use-is-touch-device";
+import { ImageLightbox } from "@/components/catalog/ImageLightbox";
 import {
   GalleryNeighborWarmup,
   getPreparedImageKey,
@@ -13,7 +14,7 @@ import {
 } from "@/components/ui/PreparedImageCarousel";
 
 interface ProductGalleryProps {
-  images: { url: string; scale?: number }[];
+  images: { url: string; fallbackUrl?: string; scale?: number }[];
   alt: string;
 }
 
@@ -78,6 +79,12 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
   const handleImageReady = useCallback((imageIndex: number, imageKey: string) => {
     if (imageIndex === 0) setReadyFirstImageKey(imageKey);
   }, []);
+  // The photo opens large on a click. A swipe on a phone also ends with a click, so a click right after a
+  // swipe is ignored: the swipe only changes the photo.
+  const [zoomedIndex, setZoomedIndex] = useState<number | null>(null);
+  const swipedAtRef = useRef(0);
+  const closeZoom = useCallback(() => setZoomedIndex(null), []);
+  const zoomedImage = zoomedIndex === null ? null : images[zoomedIndex];
 
   useEffect(() => {
     if (!didMountIndicatorsRef.current) {
@@ -110,6 +117,7 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
   // touch is left alone for the browser's normal page scroll (reinforced by
   // touch-pan-y at the CSS level).
   const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    if (Math.abs(info.offset.x) > 8) swipedAtRef.current = Date.now();
     if (info.offset.x < -SWIPE_THRESHOLD) {
       carousel.step(1);
     } else if (info.offset.x > SWIPE_THRESHOLD) {
@@ -142,6 +150,17 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
           initialImageFetchPriority="high"
           onImageReady={handleImageReady}
           carousel={carousel}
+        />
+
+        {/* The whole photo is the zoom button; the arrows sit above it (z-10) and keep their own clicks. */}
+        <button
+          type="button"
+          onClick={() => {
+            if (Date.now() - swipedAtRef.current < 400) return;
+            setZoomedIndex(index);
+          }}
+          aria-label="Увеличить фото"
+          className="absolute inset-0 z-[5] cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
         />
 
         {hasMultiple && readyFirstImageKey === firstImageKey && warmupAllowed
@@ -211,6 +230,8 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
           </div>
         </div>
       )}
+
+      {zoomedImage && <ImageLightbox image={zoomedImage} alt={alt} onClose={closeZoom} />}
     </div>
   );
 }

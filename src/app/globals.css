@@ -651,6 +651,13 @@ a {
   }
 }
 
+/* Darkened page behind an enlarged product photo (ImageLightbox). */
+@keyframes lightbox-fade {
+  from {
+    opacity: 0;
+  }
+}
+
 @keyframes slide-in-right {
   from {
     translate: 24px 0;
