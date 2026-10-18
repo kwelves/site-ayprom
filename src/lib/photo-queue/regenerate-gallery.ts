@@ -98,7 +98,10 @@ export async function regenerateGalleryVariants(
     while (next < queue.length) {
       const row = queue[next++];
       try {
-        result.newBytes += await regenerateOne(supabase, row, apply);
+        // Await first, then add: `total += await x` reads the total before awaiting, so with several workers in
+        // flight their additions overwrite each other and the reported average came out about three times too low.
+        const bytes = await regenerateOne(supabase, row, apply);
+        result.newBytes += bytes;
         result.processed += 1;
         if (apply) result.updated += 1;
       } catch (error) {
