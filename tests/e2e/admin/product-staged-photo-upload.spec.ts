@@ -16,11 +16,12 @@ import {
   expect,
   test,
 } from "../support/browser-observer";
+import { waitForReactChangeHandler } from "../support/react-ready";
 
-// Every test here waits for real image processing (client compression, then Sharp on the server) several times
-// in a row, each wait up to 30–90 s. The project-wide 45 s per test left no room for that on a loaded CI runner:
-// the detailed PNG below, the heaviest input, failed now and then with "Expected 1, Received 0" while still being
-// processed. The checks are unchanged; only the time budget of this file is.
+// These tests failed now and then with "Expected 1, Received 0" and "Фото пока нет" in the snapshot: the file was
+// chosen before React had wired the input's onChange, so the upload never started. Each test now waits for the
+// handler first (waitForReactChangeHandler). They also wait for real image processing several times in a row, so the
+// file keeps a larger time budget than the project-wide 45 s. The checks themselves are unchanged.
 test.describe.configure({ timeout: 135_000 });
 
 // QA-004: раньше все фотографии ехали внутри одного запроса сохранения товара.
@@ -103,7 +104,9 @@ test("[QA-004] фотография грузится отдельно и при�
     browserObserver.allow(allowExpectedNextActionPostAbort("/admin/products/new"));
 
     // Файл выбирается — и загрузка начинается сразу, до сохранения товара.
-    await page.locator('input[type="file"]').first().setInputFiles({
+    const fileInput = page.locator('input[type="file"]').first();
+    await waitForReactChangeHandler(fileInput);
+    await fileInput.setInputFiles({
       name: "qa-staged.png",
       mimeType: "image/png",
       buffer: await buildTestPhoto(),
@@ -155,6 +158,7 @@ test("генерирует варианты при загрузке реалис
     // операции, поэтому разрешаем только этот точный POST текущего маршрута.
     browserObserver.allow(allowExpectedNextActionPostAbort(`/admin/products/${slug}/edit`));
     const upload = page.locator("label", { hasText: "Загрузить фото" }).locator('input[type="file"]');
+    await waitForReactChangeHandler(upload);
     await upload.setInputFiles(PRODUCT_PHOTO_FIXTURE_PATH);
 
     await expect.poll(async () => (await readOwnedProductImages(slug)).length, { timeout: 30_000 }).toBe(1);
@@ -225,6 +229,7 @@ test("адаптивно загружает детализированный PNG
     browserObserver.allow(allowExpectedNextActionPostAbort(`/admin/products/${slug}/edit`));
 
     const upload = page.locator("label", { hasText: "Загрузить фото" }).locator('input[type="file"]');
+    await waitForReactChangeHandler(upload);
     await upload.setInputFiles({
       name: "detailed-alpha.png",
       mimeType: "image/png",
