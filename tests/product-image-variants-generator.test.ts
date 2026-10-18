@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import sharp from "sharp";
 import {
   buildVariantPath,
+  generateProductGalleryVariant,
   generateProductImageVariants,
   generateProductThumbnailVariant,
   GALLERY_VARIANT,
@@ -225,7 +226,7 @@ describe("generateProductImageVariants", () => {
     );
     expect(gallery.path).toBe(buildVariantPath(target.productSlug, target.imageId, "gallery", gallery.hash));
     expect(thumbnail.path).toMatch(/^gear-pump\/[0-9a-f-]+\/variants\/v2\/thumbnail-[0-9a-f]{16}\.webp$/);
-    expect(gallery.path).toMatch(/^gear-pump\/[0-9a-f-]+\/variants\/v1\/gallery-[0-9a-f]{16}\.webp$/);
+    expect(gallery.path).toMatch(/^gear-pump\/[0-9a-f-]+\/variants\/v2\/gallery-[0-9a-f]{16}\.webp$/);
     expect(thumbnail.path).not.toBe(gallery.path);
   });
 
@@ -254,7 +255,20 @@ describe("generateProductImageVariants", () => {
       height: 480,
       quality: 72,
     });
-    expect(GALLERY_VARIANT).toMatchObject({ profileVersion: "v1", maxSide: 1600, quality: 82 });
+    expect(GALLERY_VARIANT).toMatchObject({ profileVersion: "v2", maxSide: 1200, quality: 75 });
+  });
+});
+
+describe("generateProductGalleryVariant", () => {
+  it("даёт тот же gallery, что и полный проход, но без thumbnail", async () => {
+    const master = await jpeg(3000, 2000);
+    const full = await generateProductImageVariants(master, target);
+    const only = await generateProductGalleryVariant(master, target);
+
+    expect(only.gallery.hash).toBe(full.gallery.hash);
+    expect(only.gallery.path).toBe(full.gallery.path);
+    expect(only).not.toHaveProperty("thumbnail");
+    expect((await sharp(only.gallery.body).metadata()).width).toBe(GALLERY_VARIANT.maxSide);
   });
 });
 

@@ -5,6 +5,7 @@ import { PRODUCT_IMAGE_STAGING_BUCKET } from "@/lib/admin/product-image-staging"
 import { isProductPhotoMode, type ProductPhotoMode } from "@/lib/admin/product-photo-mode";
 import { cleanupAbandonedStaging, runPhotoQueue, type QueueJob, type QueuePorts } from "./runner";
 import { isPublicationEnabled, requestPublicationWorker } from "./enqueue";
+import { regenerateGalleryVariants } from "./regenerate-gallery";
 
 // Entry point of the background photo worker (a GitHub Actions job, or a local process with --watch).
 // It reads the queue from Supabase and writes finished photos to the media storage, using the same
@@ -64,7 +65,19 @@ async function cleanup(): Promise<number> {
   });
 }
 
+// One-off mode: move existing photos to the current gallery profile (dry run unless --apply).
+async function regenerateGallery() {
+  const apply = process.argv.includes("--apply");
+  const limitArg = process.argv.find((arg) => arg.startsWith("--limit="));
+  const limit = limitArg ? Number(limitArg.slice("--limit=".length)) : undefined;
+  const result = await regenerateGalleryVariants(supabase, { apply, limit: Number.isFinite(limit) ? limit : undefined });
+  // New gallery links are new content: publish them so the public site uses the lighter files.
+  if (result.updated > 0 && isPublicationEnabled()) await requestPublicationWorker();
+  if (result.failed > 0) process.exitCode = 1;
+}
+
 async function main() {
+  if (process.argv.includes("--regenerate-gallery")) return regenerateGallery();
   const watch = process.argv.includes("--watch");
   let lastCleanup = 0;
   do {

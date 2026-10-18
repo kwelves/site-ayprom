@@ -11,6 +11,20 @@ on:
         type: choice
         options: [staging, production]
         default: staging
+      # The admin starts this job with the environment only, so both inputs below default to the usual queue run.
+      task:
+        description: "queue: finish queued photos; regenerate-gallery: move existing photos to the current gallery profile"
+        type: choice
+        options: [queue, regenerate-gallery]
+        default: queue
+      apply:
+        description: "regenerate-gallery only: write the new files and links (off = dry run, nothing is written)"
+        type: boolean
+        default: false
+      limit:
+        description: "regenerate-gallery only: at most this many photos (empty = all)"
+        type: string
+        default: ""
 
 concurrency:
   group: photo-queue-${{ inputs.environment || 'staging' }}
@@ -38,8 +52,19 @@ jobs:
         run: npm install --omit=dev --no-audit --no-fund
       - name: Process queued photos
         working-directory: deploy/photo-queue
-        run: node runner.mjs
+        # Inputs arrive as environment variables, never pasted into the script text.
+        run: |
+          args=()
+          if [ "$TASK" = "regenerate-gallery" ]; then
+            args+=(--regenerate-gallery)
+            if [ "$APPLY" = "true" ]; then args+=(--apply); fi
+            if [[ "$LIMIT" =~ ^[0-9]+$ ]]; then args+=("--limit=$LIMIT"); fi
+          fi
+          node runner.mjs "${args[@]}"
         env:
+          TASK: ${{ inputs.task || 'queue' }}
+          APPLY: ${{ inputs.apply }}
+          LIMIT: ${{ inputs.limit }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           MEDIA_STORAGE_WRITE_TARGET: ${{ vars.MEDIA_STORAGE_WRITE_TARGET }}

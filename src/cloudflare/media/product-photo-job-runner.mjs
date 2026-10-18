@@ -1,6 +1,7 @@
 /** Node-only orchestration. The caller owns the DB lease and supplies private R2 ports. */
 import { createHash } from "node:crypto";
 import { processProductPhoto } from "./product-photo-processor.mjs";
+import { GALLERY_VARIANT, THUMBNAIL_VARIANT } from "../../lib/admin/product-image-variants.core.mjs";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const SHA = /^[a-f0-9]{64}$/;
@@ -42,7 +43,7 @@ function describeResult(job, prepared, kind) {
   const masterExtension = EXTENSION.get(masterType);
   const expectedPath = kind === "master"
     ? `${job.product_slug}/${job.id}/master.${masterExtension}`
-    : `${job.product_slug}/${job.id}/variants/${kind === "thumbnail" ? "v2" : "v1"}/${kind}-${item?.sha256?.slice(0, 16)}.webp`;
+    : `${job.product_slug}/${job.id}/variants/${(kind === "thumbnail" ? THUMBNAIL_VARIANT : GALLERY_VARIANT).profileVersion}/${kind}-${item?.sha256?.slice(0, 16)}.webp`;
   if (!item || !(item.body instanceof Uint8Array) || item.bytes !== item.body.byteLength
     || item.bytes < 1 || item.bytes > MAX_BYTES || !SHA.test(item.sha256)
     || item.sha256 !== digest(item.body) || item.path !== expectedPath
