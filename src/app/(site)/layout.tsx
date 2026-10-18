@@ -15,6 +15,15 @@ import { getSiteUrl } from "@/lib/site-url";
 import { OG_IMAGE } from "@/lib/og-image";
 import "../globals.css";
 
+// Where product photos live (R2 behind the media domain). Usually the same origin as the hero video.
+const MEDIA_ORIGIN = (() => {
+  try {
+    return process.env.NEXT_PUBLIC_MEDIA_BASE_URL ? new URL(process.env.NEXT_PUBLIC_MEDIA_BASE_URL).origin : null;
+  } catch {
+    return null;
+  }
+})();
+
 const razerF5 = localFont({
   src: [
     {
@@ -95,9 +104,14 @@ export default async function RootLayout({
           media-запросов, поэтому DNS/TLS к этому origin иначе начинаются
           только в момент, когда браузер доходит до <video><source>, — этот
           preconnect убирает эту задержку с критического пути. Next хоистит
-          любой <link>, отрисованный в дереве, в <head> сам. */}
-      <link rel="preconnect" href={HERO_VIDEO_ORIGIN} crossOrigin="anonymous" />
+          любой <link>, отрисованный в дереве, в <head> сам.
+          Без crossOrigin: и <video>, и фото товаров (<img>) запрашиваются
+          без CORS, а соединение, открытое с crossorigin, браузер держит в
+          отдельном пуле и для них не использует. С ним первое фото товара
+          всё равно ждало новое соединение (DNS + TCP + TLS, ~0,45 с из КР). */}
+      <link rel="preconnect" href={HERO_VIDEO_ORIGIN} />
       <link rel="dns-prefetch" href={HERO_VIDEO_ORIGIN} />
+      {MEDIA_ORIGIN && MEDIA_ORIGIN !== HERO_VIDEO_ORIGIN && <link rel="preconnect" href={MEDIA_ORIGIN} />}
       <body data-site-root className="flex min-h-full flex-col bg-background text-foreground">
         <HomeEntrySequence>
         <ScrollToHash />
