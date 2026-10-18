@@ -17,6 +17,12 @@ import {
   test,
 } from "../support/browser-observer";
 
+// Every test here waits for real image processing (client compression, then Sharp on the server) several times
+// in a row, each wait up to 30–90 s. The project-wide 45 s per test left no room for that on a loaded CI runner:
+// the detailed PNG below, the heaviest input, failed now and then with "Expected 1, Received 0" while still being
+// processed. The checks are unchanged; only the time budget of this file is.
+test.describe.configure({ timeout: 135_000 });
+
 // QA-004: раньше все фотографии ехали внутри одного запроса сохранения товара.
 // Теперь браузер грузит каждый файл заранее и напрямую в приватное
 // промежуточное хранилище, а сервер переносит его в публичное только после
@@ -227,7 +233,7 @@ test("адаптивно загружает детализированный PNG
 
     // Сборка E2E использует bodySizeLimit=4mb. Успешный Server Action здесь
     // одновременно доказывает, что весь multipart body уложился в этот предел.
-    await expect.poll(async () => (await readOwnedProductImages(slug)).length, { timeout: 45_000 }).toBe(1);
+    await expect.poll(async () => (await readOwnedProductImages(slug)).length, { timeout: 90_000 }).toBe(1);
 
     const [image] = await readOwnedProductImages(slug);
     expect(image.url).toMatch(/\/master\.webp$/);
