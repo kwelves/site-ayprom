@@ -369,8 +369,10 @@ function MobileNavItem({
                 >
                   {sub.logo ? (
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-card">
+                      {/* lazy: the mobile menu is in the HTML of every page while closed; an eager <img> here made
+                          React preload all brand logos ahead of the page's own photos. */}
                       {/* eslint-disable-next-line @next/next/no-img-element -- local brand SVGs; next/image blocks them without dangerouslyAllowSVG */}
-                      <img src={sub.logo} alt="" className="h-full w-full object-contain p-1" />
+                      <img src={sub.logo} alt="" loading="lazy" decoding="async" className="h-full w-full object-contain p-1" />
                     </span>
                   ) : null}
                   <span className="flex flex-col">
