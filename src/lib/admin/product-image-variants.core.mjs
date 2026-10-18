@@ -36,8 +36,15 @@ export const THUMBNAIL_VARIANT = {
   trimMarginRatio: 0.01,
   quality: 72,
 };
-/** Галерея товара, zoom, OpenGraph, sitemap. */
-export const GALLERY_VARIANT = { name: "gallery", profileVersion: "v1", maxSide: 1600, quality: 82 };
+/**
+ * Галерея товара, zoom, OpenGraph, sitemap.
+ *
+ * v2 (1200px, q75) вместо v1 (1600px, q82): на странице фото занимает около 540 CSS-пикселей, на телефоне и в
+ * увеличенном окне ноутбука нужно около 1100 физических, так что 1200 хватает везде. На реальных фото каталога
+ * вариант стал легче в среднем на 45% (167 → 91 КБ), а из Кыргызстана каждый лишний килобайт идёт через Варшаву.
+ * Старые v1-файлы не удаляются: их URL закешированы браузерами на год.
+ */
+export const GALLERY_VARIANT = { name: "gallery", profileVersion: "v2", maxSide: 1200, quality: 75 };
 
 export const PRODUCT_IMAGE_VARIANTS = [THUMBNAIL_VARIANT, GALLERY_VARIANT];
 
@@ -227,6 +234,19 @@ export async function generateProductThumbnailVariant(masterBuffer, { productSlu
   const body = await encodeThumbnailVariant(masterBuffer, THUMBNAIL_VARIANT, source);
 
   return { source, thumbnail: describeVariant(THUMBNAIL_VARIANT, body, productSlug, imageId) };
+}
+
+/**
+ * Считает только gallery — для перевода уже загруженных фотографий на новый профиль галереи. Thumbnail при этом не
+ * трогается: его профиль не менялся.
+ */
+export async function generateProductGalleryVariant(masterBuffer, { productSlug, imageId }) {
+  assertVariantTarget({ productSlug, imageId });
+
+  const source = await readSourceMetadata(masterBuffer);
+  const body = await encodeGalleryVariant(masterBuffer, GALLERY_VARIANT);
+
+  return { source, gallery: describeVariant(GALLERY_VARIANT, body, productSlug, imageId) };
 }
 
 /**

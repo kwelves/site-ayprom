@@ -6,7 +6,10 @@ const MAX_BYTES = 8 * 1024 * 1024;
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const SOURCE = new RegExp(`^product-image-staging/${UUID}/${UUID}/source\\.(?:jpg|png|webp|avif)$`);
 const SLUG = "[a-z0-9]+(?:-[a-z0-9]+)*";
-const FINAL = new RegExp(`^product-images/${SLUG}/${UUID}/(?:master\\.(?:jpg|png|webp|avif)|variants/(?:v2/thumbnail|v1/gallery)-[a-f0-9]{16}\\.webp)$`);
+// Gallery v2 (1200px) is the current profile; v1 (1600px) stays allowed because older photos still point at it.
+// Note: this Cloudflare media-jobs pipeline is not in use (product_media_jobs has never had a row); its database
+// function finish_product_media_job still builds v1 gallery paths and needs a migration before it is switched on.
+const FINAL = new RegExp(`^product-images/${SLUG}/${UUID}/(?:master\\.(?:jpg|png|webp|avif)|variants/(?:v2/thumbnail|v[12]/gallery)-[a-f0-9]{16}\\.webp)$`);
 const SHA = /^[a-f0-9]{64}$/;
 const MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
 const digest = (body) => createHash("sha256").update(body).digest("hex");

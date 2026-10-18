@@ -43951,12 +43951,19 @@ var THUMBNAIL_VARIANT = {
 	trimMarginRatio: .01,
 	quality: 72
 };
-/** Галерея товара, zoom, OpenGraph, sitemap. */
+/**
+* Галерея товара, zoom, OpenGraph, sitemap.
+*
+* v2 (1200px, q75) вместо v1 (1600px, q82): на странице фото занимает около 540 CSS-пикселей, на телефоне и в
+* увеличенном окне ноутбука нужно около 1100 физических, так что 1200 хватает везде. На реальных фото каталога
+* вариант стал легче в среднем на 45% (167 → 91 КБ), а из Кыргызстана каждый лишний килобайт идёт через Варшаву.
+* Старые v1-файлы не удаляются: их URL закешированы браузерами на год.
+*/
 var GALLERY_VARIANT = {
 	name: "gallery",
-	profileVersion: "v1",
-	maxSide: 1600,
-	quality: 82
+	profileVersion: "v2",
+	maxSide: 1200,
+	quality: 75
 };
 var PRODUCT_IMAGE_VARIANTS = [THUMBNAIL_VARIANT, GALLERY_VARIANT];
 /** Та же граница, что и в image-validation.ts: защита от «пиксельной бомбы»
@@ -44102,6 +44109,20 @@ function describeVariant(variant, body, productSlug, imageId) {
 function assertVariantTarget({ productSlug, imageId }) {
 	if (!productSlug) throw new ProductImageVariantError("Не передан slug товара для пути варианта.");
 	if (!imageId) throw new ProductImageVariantError("Не передан id изображения для пути варианта.");
+}
+/**
+* Считает только gallery — для перевода уже загруженных фотографий на новый профиль галереи. Thumbnail при этом не
+* трогается: его профиль не менялся.
+*/
+async function generateProductGalleryVariant(masterBuffer, { productSlug, imageId }) {
+	assertVariantTarget({
+		productSlug,
+		imageId
+	});
+	return {
+		source: await readSourceMetadata(masterBuffer),
+		gallery: describeVariant(GALLERY_VARIANT, await encodeGalleryVariant(masterBuffer, GALLERY_VARIANT), productSlug, imageId)
+	};
 }
 /**
 * Считает оба варианта из master и возвращает их вместе с готовыми путями.
@@ -44730,6 +44751,74 @@ function requestPublicationWorker(env = process.env, fetchImpl = fetch) {
 	}, "publication", fetchImpl);
 }
 //#endregion
+//#region src/lib/photo-queue/regenerate-gallery.ts
+var CURRENT_MARKER = `/variants/${GALLERY_VARIANT.profileVersion}/gallery-`;
+/** Product slug and image folder of an existing variant URL: the new variant goes into the same folder. */
+function galleryTargetFromUrl(url) {
+	const match = /\/product-images\/([^/]+)\/([^/]+)\/variants\//.exec(url);
+	return match ? {
+		productSlug: decodeURIComponent(match[1]),
+		imageId: match[2]
+	} : null;
+}
+function needsGalleryRegeneration(row) {
+	return !row.gallery_url || !row.gallery_url.includes(CURRENT_MARKER);
+}
+async function listPendingRows(supabase) {
+	const rows = [];
+	const pageSize = 500;
+	for (let from = 0;; from += pageSize) {
+		const { data, error } = await supabase.from("product_images").select("id, url, gallery_url").order("id").range(from, from + pageSize - 1);
+		if (error) throw error;
+		rows.push(...data ?? []);
+		if (!data || data.length < pageSize) break;
+	}
+	return rows.filter(needsGalleryRegeneration);
+}
+async function regenerateOne(supabase, row, apply) {
+	const target = row.gallery_url ? galleryTargetFromUrl(row.gallery_url) : null;
+	if (!target) throw new Error("no variant folder in gallery_url");
+	const response = await fetch(row.url);
+	if (!response.ok) throw new Error(`master HTTP ${response.status}`);
+	const { gallery } = await generateProductGalleryVariant(Buffer.from(await response.arrayBuffer()), target);
+	if (!apply) return gallery.bytes;
+	await uploadImageVariant(supabase, gallery);
+	const galleryUrl = mediaUrlForCurrentWriteTarget(supabase, "product-images", gallery.path);
+	const { error } = await supabase.from("product_images").update({ gallery_url: galleryUrl }).eq("id", row.id).eq("gallery_url", row.gallery_url);
+	if (error) throw error;
+	return gallery.bytes;
+}
+async function regenerateGalleryVariants(supabase, { apply, limit, concurrency = 3, log = console.log }) {
+	const pending = await listPendingRows(supabase);
+	const queue = typeof limit === "number" && limit > 0 ? pending.slice(0, limit) : pending;
+	log(`[gallery] profile ${GALLERY_VARIANT.profileVersion} ${GALLERY_VARIANT.maxSide}px q${GALLERY_VARIANT.quality}; to do: ${pending.length}, this run: ${queue.length}, ${apply ? "APPLY" : "dry run"}`);
+	const result = {
+		pending: pending.length,
+		processed: 0,
+		updated: 0,
+		failed: 0,
+		newBytes: 0
+	};
+	let next = 0;
+	async function worker() {
+		while (next < queue.length) {
+			const row = queue[next++];
+			try {
+				result.newBytes += await regenerateOne(supabase, row, apply);
+				result.processed += 1;
+				if (apply) result.updated += 1;
+			} catch (error) {
+				result.failed += 1;
+				log(`[gallery] failed ${row.id}: ${error instanceof Error ? error.message : typeof error}`);
+			}
+		}
+	}
+	await Promise.all(Array.from({ length: Math.max(1, Math.min(concurrency, queue.length)) }, worker));
+	const average = result.processed ? Math.round(result.newBytes / result.processed / 1024) : 0;
+	log(`[gallery] processed=${result.processed} updated=${result.updated} failed=${result.failed} average new gallery=${average}KB`);
+	return result;
+}
+//#endregion
 //#region src/lib/photo-queue/main.ts
 var LEASE_SECONDS = 300;
 var BUDGET_MS = 72e4;
@@ -44794,7 +44883,19 @@ async function cleanup() {
 		}
 	});
 }
+async function regenerateGallery() {
+	const apply = process.argv.includes("--apply");
+	const limitArg = process.argv.find((arg) => arg.startsWith("--limit="));
+	const limit = limitArg ? Number(limitArg.slice(8)) : void 0;
+	const result = await regenerateGalleryVariants(supabase, {
+		apply,
+		limit: Number.isFinite(limit) ? limit : void 0
+	});
+	if (result.updated > 0 && isPublicationEnabled()) await requestPublicationWorker();
+	if (result.failed > 0) process.exitCode = 1;
+}
 async function main() {
+	if (process.argv.includes("--regenerate-gallery")) return regenerateGallery();
 	const watch = process.argv.includes("--watch");
 	let lastCleanup = 0;
 	do {
