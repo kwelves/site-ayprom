@@ -51,6 +51,7 @@ export default async function DirectCategoryProductPage({ params }: ProductPageP
   const canonicalPath = `/catalog/category/${slug}/${productSlug}`;
   return (
     <CatalogPageShell
+      appearance="product"
       canonicalPath={canonicalPath}
       items={[
         { label: category.name, href: `/catalog/category/${slug}` },
