@@ -44804,7 +44804,8 @@ async function regenerateGalleryVariants(supabase, { apply, limit, concurrency =
 		while (next < queue.length) {
 			const row = queue[next++];
 			try {
-				result.newBytes += await regenerateOne(supabase, row, apply);
+				const bytes = await regenerateOne(supabase, row, apply);
+				result.newBytes += bytes;
 				result.processed += 1;
 				if (apply) result.updated += 1;
 			} catch (error) {
