@@ -5,6 +5,7 @@ export type RouteFamily =
   | "home"
   | "about"
   | "contacts"
+  | "landing"
   | "catalog"
   | "category"
   | "subcategory"

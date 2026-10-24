@@ -137,6 +137,10 @@ describe("framework-neutral public route derivation", () => {
       ["/", ["home", "static"]],
       ["/about", ["about", "static"]],
       ["/contacts", ["contacts", "static"]],
+      ["/nsh-nasos", ["landing", "static"]],
+      ["/nsh-nasos/na-samosval", ["landing", "static"]],
+      ["/nsh-nasos/na-tonar", ["landing", "static"]],
+      ["/nsh-nasos/na-manipulyator", ["landing", "static"]],
       ["/catalog", ["catalog", "query"]],
       ["/catalog/category/fittings", ["category", "query"]],
       ["/catalog/category/pumps", ["category", "query"]],
@@ -160,6 +164,7 @@ describe("framework-neutral public route derivation", () => {
     const entries = derive().sitemapEntries;
     expect(entries.map((entry) => entry.path)).toEqual([
       "/", "/catalog", "/about", "/contacts",
+      "/nsh-nasos", "/nsh-nasos/na-samosval", "/nsh-nasos/na-tonar", "/nsh-nasos/na-manipulyator",
       "/catalog/category/fittings", "/catalog/category/pumps", "/catalog/category/tanks", "/catalog/category/pto",
       "/catalog/category/pumps/subcategory/parts", "/catalog/category/tanks/subcategory/parts",
       "/catalog/brand/kamaz", "/catalog/vehicle-type/truck", "/catalog/category/pto/brand/kamaz",
