@@ -41,7 +41,7 @@ export function ProductCard({
 }: {
   product: ProductListItem;
   href: string;
-  variant?: "default" | "category-grid";
+  variant?: "default" | "category-grid" | "product-detail";
   /** Used for cards below the current product so they cannot compete with its LCP image. */
   deferImageLoading?: boolean;
 }) {
@@ -50,6 +50,7 @@ export function ProductCard({
   const index = carousel.selectedIndex;
   const hasMultiple = product.images.length > 1;
   const isCategoryGrid = variant === "category-grid";
+  const isProductDetail = variant === "product-detail";
   const isTouchDevice = useIsTouchDevice();
   // Framer Motion can still fire onTap right after a drag release when drag
   // and tap gestures share the same element — this flag lets onTap tell a
@@ -93,6 +94,7 @@ export function ProductCard({
       className={cn(
         "group relative flex h-full flex-col overflow-hidden transition-[box-shadow,scale] duration-fast ease-ui active:scale-[0.98] active:shadow-sm",
         CARD_FRAME_CLASSNAME,
+        isProductDetail && "rounded-[20px] border-0 bg-product-surface shadow-product-card",
       )}
     >
       <Link
@@ -109,6 +111,7 @@ export function ProductCard({
         className={cn(
           "relative z-10 w-full shrink-0 touch-pan-y overflow-hidden bg-muted/40",
           CARD_MEDIA_INSET_CLASSNAME,
+          isProductDetail && "bg-product-surface-2",
         )}
         drag={hasMultiple && isTouchDevice ? "x" : false}
         dragConstraints={{ left: 0, right: 0 }}
@@ -185,7 +188,7 @@ export function ProductCard({
         <span
           data-card-title
           className={cn(
-            "text-card-foreground",
+            isProductDetail ? "text-product-ink" : "text-card-foreground",
             isCategoryGrid ? CARD_TITLE_CLASSNAME : "text-sm font-semibold sm:text-base",
           )}
         >

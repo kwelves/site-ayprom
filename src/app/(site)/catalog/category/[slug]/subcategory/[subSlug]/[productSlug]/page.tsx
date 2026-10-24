@@ -47,6 +47,7 @@ export default async function SubcategoryProductPage({ params }: ProductPageProp
   const canonicalPath = `/catalog/category/${slug}/subcategory/${subSlug}/${productSlug}`;
   return (
     <CatalogPageShell
+      appearance="product"
       canonicalPath={canonicalPath}
       items={[
         { label: category.name, href: `/catalog/category/${slug}` },

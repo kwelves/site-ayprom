@@ -16,6 +16,7 @@ import {
 interface ProductGalleryProps {
   images: { url: string; fallbackUrl?: string; scale?: number }[];
   alt: string;
+  appearance?: "default" | "product";
 }
 
 const GALLERY_IMAGE_SIZES = "(max-width: 1023px) 100vw, 50vw";
@@ -48,10 +49,8 @@ function subscribeToNetworkChanges(onStoreChange: () => void) {
   return () => connection.removeEventListener?.("change", onStoreChange);
 }
 
-// Product photos are small pre-built WebP variants, so every photo is fetched in the background right
-// after the first one is shown: switching must never wait for the network. Only an explicit request to
-// save data, or a 2G link, turns that off. Browsers without the Network Information API (Safari,
-// Firefox) are allowed too. The server snapshot stays false so hydration never sees a warmup.
+// Background warmup starts after the first image decodes. Data Saver and 2G
+// stay excluded; other connections keep switching between photos instant.
 function allowsBackgroundImageWarmup() {
   const connection = getNetworkInformation();
   if (connection?.saveData === true) return false;
@@ -65,7 +64,7 @@ function useBackgroundImageWarmupAllowed() {
 // A single photo needs none of this — no arrows, no dots, just the plain
 // static image. The carousel only earns its keep once there's something to
 // switch between.
-export function ProductGallery({ images, alt }: ProductGalleryProps) {
+export function ProductGallery({ images, alt, appearance = "default" }: ProductGalleryProps) {
   const carousel = usePreparedImageCarousel(images);
   const [readyFirstImageKey, setReadyFirstImageKey] = useState<string | null>(null);
   const firstImageKey = getPreparedImageKey(images[0], 0);
@@ -79,11 +78,8 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
   const handleImageReady = useCallback((imageIndex: number, imageKey: string) => {
     if (imageIndex === 0) setReadyFirstImageKey(imageKey);
   }, []);
-  // The photo opens large on a click. A swipe on a phone also ends with a click, so a click right after a
-  // swipe is ignored: the swipe only changes the photo.
   const [zoomedIndex, setZoomedIndex] = useState<number | null>(null);
   const swipedAtRef = useRef(0);
-  // After closing, the gallery stays on the photo that was last on screen in the enlarged view.
   const closeZoom = (lastIndex: number) => {
     setZoomedIndex(null);
     if (lastIndex !== index) carousel.select(lastIndex);
@@ -128,112 +124,135 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
     }
   };
 
+  const indicators = hasMultiple && (
+    <div
+      ref={indicatorScrollRef}
+      data-testid="product-gallery-indicator-scroll"
+      className={cn(
+        "max-w-full overflow-x-auto overscroll-x-contain [scrollbar-width:none]",
+        appearance === "product"
+          ? "absolute -bottom-1 left-1/2 z-10 max-w-[calc(100%-3rem)] -translate-x-1/2"
+          : "mt-3 w-full"
+      )}
+    >
+      <div className="mx-auto flex w-max items-center">
+        {images.map((image, i) => (
+          // The button keeps a real 44px target while the visual dot
+          // remains compact. The surrounding w-max row scrolls locally.
+          <button
+            key={`${image.url}-${i}`}
+            ref={i === index ? activeIndicatorRef : undefined}
+            type="button"
+            onClick={() => carousel.select(i)}
+            aria-label={`Показать фото ${i + 1}`}
+            aria-current={i === index}
+            className="grid h-11 w-11 place-items-center transition-transform duration-fast ease-ui active:scale-90"
+          >
+            {/* Keep the dot's layout width fixed; only its scale changes. */}
+            <span
+              className={cn(
+                "block h-2 w-6 rounded-full transition-[scale,background-color] duration-fast ease-ui",
+                appearance === "product" && "drop-shadow-lg",
+                i === index
+                  ? cn("scale-x-100", appearance === "product" ? "bg-product-accent" : "bg-primary")
+                  : cn(
+                      "scale-x-[0.333]",
+                      appearance === "product"
+                        ? "bg-product-secondary/60 hover:bg-product-accent"
+                        : "bg-border hover:bg-primary-soft"
+                    )
+              )}
+            />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <div>
       {/* Локальная замена снятой глобальной MotionPreferences: reduced-motion
           поддерживается там, где framer-motion действительно используется, без
           обёртки на весь публичный layout. MotionConfig не добавляет DOM. */}
       <MotionConfig reducedMotion="user">
-      <motion.div
-        className="relative aspect-4/3 w-full touch-pan-y overflow-hidden rounded-xl border border-border bg-muted/40"
-        drag={hasMultiple && isTouchDevice ? "x" : false}
-        dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={0}
-        onDragEnd={handleDragEnd}
-      >
-        <PreparedImageLayers
-          images={images}
-          alt={alt}
-          sizes={GALLERY_IMAGE_SIZES}
-          unoptimized
-          layerClassName="absolute inset-0"
-          imageClassName="p-6"
-          loading="lazy"
-          initialImageLoading="eager"
-          initialImageFetchPriority="high"
-          onImageReady={handleImageReady}
-          carousel={carousel}
-        />
-
-        {/* The whole photo is the zoom button; the arrows sit above it (z-10) and keep their own clicks. */}
-        <button
-          type="button"
-          onClick={() => {
-            if (Date.now() - swipedAtRef.current < 400) return;
-            setZoomedIndex(index);
-          }}
-          aria-label="Увеличить фото"
-          className="absolute inset-0 z-[5] cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
-        />
-
-        {hasMultiple && readyFirstImageKey === firstImageKey && warmupAllowed
-          && images.slice(1).map((image, offset) => image.url && (
-            <GalleryNeighborWarmup
-              key={`${image.url}-${offset + 1}`}
-              url={image.url}
+        <div className={cn("relative", appearance === "product" && "ml-[22px] mr-3 sm:mr-0")}>
+          <motion.div
+            className={cn(
+              "relative aspect-4/3 w-full touch-pan-y overflow-hidden",
+              appearance === "product" ? "rounded-[20px]" : "rounded-xl border border-border bg-muted/40"
+            )}
+            drag={hasMultiple && isTouchDevice ? "x" : false}
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0}
+            onDragEnd={handleDragEnd}
+          >
+            <PreparedImageLayers
+              images={images}
+              alt={alt}
               sizes={GALLERY_IMAGE_SIZES}
               unoptimized
+              layerClassName="absolute inset-0"
+              imageClassName={appearance === "product" ? "p-0" : "p-6"}
+              loading="lazy"
+              initialImageLoading="eager"
+              initialImageFetchPriority="high"
+              onImageReady={handleImageReady}
+              carousel={carousel}
             />
-          ))}
 
-        {hasMultiple && (
-          <>
             <button
               type="button"
-              onClick={() => carousel.step(-1)}
-              aria-label="Предыдущее фото"
-              className="absolute left-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-[background-color,scale] duration-fast ease-ui hover:bg-primary-hover active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-            >
-              <ChevronLeft aria-hidden="true" className="h-5 w-5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => carousel.step(1)}
-              aria-label="Следующее фото"
-              className="absolute right-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-[background-color,scale] duration-fast ease-ui hover:bg-primary-hover active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-            >
-              <ChevronRight aria-hidden="true" className="h-5 w-5" />
-            </button>
-          </>
-        )}
-      </motion.div>
+              onClick={() => {
+                if (Date.now() - swipedAtRef.current < 400) return;
+                setZoomedIndex(index);
+              }}
+              aria-label="Увеличить фото"
+              className="absolute inset-0 z-[5] cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+            />
+
+            {hasMultiple && readyFirstImageKey === firstImageKey && warmupAllowed
+              && images.slice(1).map((image, offset) => image.url && (
+                <GalleryNeighborWarmup
+                  key={`${image.url}-${offset + 1}`}
+                  url={image.url}
+                  sizes={GALLERY_IMAGE_SIZES}
+                  unoptimized
+                />
+              ))}
+          </motion.div>
+
+          {hasMultiple && (
+            <>
+              <button
+                type="button"
+                onClick={() => carousel.step(-1)}
+                aria-label="Предыдущее фото"
+                className={cn(
+                  "absolute top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-primary-foreground shadow-sm transition-[background-color,scale] duration-fast ease-ui hover:bg-primary-hover active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                  appearance === "product" ? "-left-[22px] bg-product-accent" : "left-3 bg-primary"
+                )}
+              >
+                <ChevronLeft aria-hidden="true" className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => carousel.step(1)}
+                aria-label="Следующее фото"
+                className={cn(
+                  "absolute top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-primary-foreground shadow-sm transition-[background-color,scale] duration-fast ease-ui hover:bg-primary-hover active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                  appearance === "product" ? "-right-[22px] bg-product-accent" : "right-3 bg-primary"
+                )}
+              >
+                <ChevronRight aria-hidden="true" className="h-5 w-5" />
+              </button>
+            </>
+          )}
+
+          {appearance === "product" && indicators}
+        </div>
       </MotionConfig>
 
-      {hasMultiple && (
-        <div
-          ref={indicatorScrollRef}
-          data-testid="product-gallery-indicator-scroll"
-          className="mt-3 w-full max-w-full overflow-x-auto overscroll-x-contain [scrollbar-width:none]"
-        >
-          <div className="mx-auto flex w-max items-center">
-            {images.map((image, i) => (
-              // The button keeps a real 44px target while the visual dot
-              // remains compact. The surrounding w-max row scrolls locally.
-              <button
-                key={`${image.url}-${i}`}
-                ref={i === index ? activeIndicatorRef : undefined}
-                type="button"
-                onClick={() => carousel.select(i)}
-                aria-label={`Показать фото ${i + 1}`}
-                aria-current={i === index}
-                className="grid h-11 w-11 place-items-center transition-transform duration-fast ease-ui active:scale-90"
-              >
-                {/* Ширина у всех точек одинаковая, сжимается только сама точка:
-                    анимировать `width` значило бы пересчитывать раскладку каждый
-                    кадр, и вся строка точек «дышала» по ширине при переключении.
-                    `scale` считается композитором и ничего не двигает. */}
-                <span
-                  className={cn(
-                    "block h-2 w-6 rounded-full transition-[scale,background-color] duration-fast ease-ui",
-                    i === index ? "scale-x-100 bg-primary" : "scale-x-[0.333] bg-border hover:bg-primary-soft"
-                  )}
-                />
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
+      {appearance === "default" && indicators}
       {zoomedIndex !== null && <ImageLightbox images={images} startIndex={zoomedIndex} alt={alt} onClose={closeZoom} />}
     </div>
   );
